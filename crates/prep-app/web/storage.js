@@ -15,8 +15,21 @@ function db() {
   return dbPromise;
 }
 
+// Chiede al browser di non svuotare da solo l'archivio dell'app (contenuti importati e
+// progressi) quando lo spazio scarseggia. Il browser può concederlo o meno.
+async function requestPersistence() {
+  try {
+    if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) {
+      await navigator.storage.persist();
+    }
+  } catch (_) {
+    // non supportato: nessun problema, i dati restano comunque salvati
+  }
+}
+
 // Tutti i file salvati, come array di [percorso, Uint8Array].
 export async function loadAll() {
+  requestPersistence();
   const d = await db();
   return new Promise((resolve, reject) => {
     const out = [];
