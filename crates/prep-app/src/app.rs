@@ -263,9 +263,21 @@ pub struct Ctrl {
     exams: prep_core::exams::Registry,
     /// esame da eliminare in attesa del secondo tocco di conferma
     remove_armed: Option<(String, Instant)>,
-    /// sincronizzazione tra dispositivi in corso
+    /// sincronizzazione tra i propri dispositivi in corso
     p2p: Option<P2p>,
+    /// condivisione di un esame con un'altra persona in corso
+    share: Option<P2p>,
 }
+
+/// Le due sessioni di rete: i propri dispositivi, o un'altra persona.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Sess {
+    Sync,
+    Share,
+}
+
+/// I collegamenti di una sessione hanno indici `sessione * 16 + relay`.
+const LINKS_PER_SESS: usize = 16;
 
 /// Stanza di sincronizzazione aperta: motore, collegamenti ai relay e coda d'invio.
 struct P2p {
@@ -285,6 +297,10 @@ struct P2p {
     dirty: bool,
     received: usize,
     notice: String,
+    /// condivisione: codice da comunicare (vuoto per la sincronizzazione)
+    code: String,
+    /// condivisione: nome dell'esame mandato (vuoto se si riceve)
+    sending: String,
 }
 
 /// Filtri del quiz personalizzato (scheda Quiz).
@@ -2960,48 +2976,58 @@ impl Ctrl {
         }
     }
 
-    fn p2p_connect(&mut self) {
+    fn sess(&self, k: Sess) -> Option<&P2p> {
+        match k {
+            Sess::Sync => self.p2p.as_ref(),
+            Sess::Share => self.share.as_ref(),
+        }
+    }
+
+    fn sess_mut(&mut self, k: Sess) -> Option<&mut P2p> {
+        match k {
+            Sess::Sync => self.p2p.as_mut(),
+            Sess::Share => self.share.as_mut(),
+        }
+    }
+
+    /// Relay scelti nelle Opzioni (salvati), o quelli predefiniti.
+    fn relays(&mut self) -> Vec<String> {
         let ui = self.ui();
-        let st = ui.global::<AppState>();
-        let password = st.get_p2p_password().to_string();
         let mut s = self.store.settings();
-        if s.username.trim().is_empty() {
-            self.toast("Scegli prima un nome utente qui sopra, in Profilo");
-            return;
-        }
-        if password.chars().count() < 8 {
-            self.toast("Serve una password di almeno 8 caratteri (meglio una frase lunga)");
-            return;
-        }
-        if s.device_id.is_empty() {
-            s.device_id = p2p::random_id();
-        }
-        s.p2p_auto = st.get_p2p_auto();
-        s.p2p_password = if s.p2p_auto { password.clone() } else { String::new() };
-        let relays_txt = st.get_p2p_relays().to_string();
-        s.relays = relays_txt
+        s.relays = ui
+            .global::<AppState>()
+            .get_p2p_relays()
             .split([',', '\n', ' '])
             .map(|x| x.trim().to_string())
             .filter(|x| x.starts_with("ws://") || x.starts_with("wss://"))
             .collect();
         let _ = self.store.save_settings(&s);
-        self.p2p_disconnect();
-        let relays: Vec<String> = if s.relays.is_empty() {
+        if s.relays.is_empty() {
             p2p::DEFAULT_RELAYS.iter().map(|x| x.to_string()).collect()
         } else {
-            s.relays.clone()
-        };
-        let room = p2p::Room::derive(&s.username, &password);
-        let engine = p2p::Engine::new(
-            &s.device_id,
-            &format!("{} · {}", s.username.trim(), Self::device_label()),
-            Self::device_label(),
-        );
+            s.relays
+        }
+    }
+
+    fn device_id(&mut self) -> String {
+        let mut s = self.store.settings();
+        if s.device_id.is_empty() {
+            s.device_id = p2p::random_id();
+            let _ = self.store.save_settings(&s);
+        }
+        s.device_id
+    }
+
+    /// Apre una sessione: collegamenti ai relay e motore.
+    fn open_session(&mut self, k: Sess, room: p2p::Room, engine: p2p::Engine, code: String, sending: String) {
+        self.close_session(k);
+        let relays = self.relays();
+        let base = k as usize * LINKS_PER_SESS;
         let links: Vec<crate::net::Link> =
-            relays.iter().enumerate().map(|(i, u)| crate::net::Link::open(i, u)).collect();
+            relays.iter().take(LINKS_PER_SESS).enumerate().map(|(i, u)| crate::net::Link::open(base + i, u)).collect();
         let timer = Timer::default();
-        timer.start(TimerMode::Repeated, Duration::from_millis(160), || with_ctrl(|c| c.p2p_pump()));
-        self.p2p = Some(P2p {
+        timer.start(TimerMode::Repeated, Duration::from_millis(160), move || with_ctrl(|c| c.p2p_pump(k)));
+        let sess = P2p {
             room,
             signer: p2p::Signer::new(),
             engine: Some(engine),
@@ -3016,18 +3042,99 @@ impl Ctrl {
             dirty: false,
             received: 0,
             notice: String::new(),
-        });
-        self.refresh_p2p();
+            code,
+            sending,
+        };
+        match k {
+            Sess::Sync => self.p2p = Some(sess),
+            Sess::Share => self.share = Some(sess),
+        }
+        self.refresh_sessions();
     }
 
-    fn p2p_disconnect(&mut self) {
-        if let Some(p) = self.p2p.take() {
+    fn close_session(&mut self, k: Sess) {
+        let old = match k {
+            Sess::Sync => self.p2p.take(),
+            Sess::Share => self.share.take(),
+        };
+        if let Some(p) = old {
             p.timer.stop();
             for l in &p.links {
                 l.close();
             }
         }
-        self.refresh_p2p();
+        self.refresh_sessions();
+    }
+
+    fn p2p_connect(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let password = st.get_p2p_password().to_string();
+        let mut s = self.store.settings();
+        if s.username.trim().is_empty() {
+            self.toast("Scegli prima un nome utente qui sopra, in Profilo");
+            return;
+        }
+        if password.chars().count() < 8 {
+            self.toast("Serve una password di almeno 8 caratteri (meglio una frase lunga)");
+            return;
+        }
+        s.p2p_auto = st.get_p2p_auto();
+        s.p2p_password = if s.p2p_auto { password.clone() } else { String::new() };
+        let _ = self.store.save_settings(&s);
+        let device = self.device_id();
+        let room = p2p::Room::derive(&s.username, &password);
+        let engine = p2p::Engine::new(
+            &device,
+            &format!("{} · {}", s.username.trim(), Self::device_label()),
+            Self::device_label(),
+        );
+        self.open_session(Sess::Sync, room, engine, String::new(), String::new());
+    }
+
+    fn p2p_disconnect(&mut self) {
+        self.close_session(Sess::Sync);
+    }
+
+    fn display_name(&self) -> String {
+        let n = self.store.settings().username.trim().to_string();
+        if n.is_empty() {
+            format!("Utente ({})", Self::device_label())
+        } else {
+            n
+        }
+    }
+
+    /// Condivide l'esame attivo con un'altra persona: genera il codice da comunicarle.
+    fn share_start(&mut self) {
+        let ui = self.ui();
+        if !ui.global::<AppState>().get_share_ok() {
+            self.toast("Conferma prima di avere il diritto di condividere questo materiale");
+            return;
+        }
+        let id = self.exams.active.clone();
+        let st = self.exam_store(&id);
+        if !st.mirror_path("content/syllabus.json").is_some_and(|p| vfs::exists(&p)) {
+            self.toast("Questo esame usa i contenuti inclusi nell'app: non c'è un pacchetto da condividere");
+            return;
+        }
+        let name = self.exams.get(&id).map(|e| e.name.clone()).unwrap_or_default();
+        let code = p2p::share_code();
+        let engine =
+            p2p::Engine::new(&p2p::random_id(), &self.display_name(), Self::device_label()).share_only(vec![id]);
+        self.open_session(Sess::Share, p2p::share_room(&code), engine, code, name);
+    }
+
+    /// Entra nella condivisione di un'altra persona col codice che ha comunicato.
+    fn share_join(&mut self) {
+        let ui = self.ui();
+        let code = ui.global::<AppState>().get_share_input().to_string();
+        if p2p::normalize_code(&code).len() != 12 {
+            self.toast("Il codice ha 12 caratteri, per esempio K7QM-4TZP-9WXR");
+            return;
+        }
+        let engine = p2p::Engine::new(&p2p::random_id(), &self.display_name(), Self::device_label()).share_only(vec![]);
+        self.open_session(Sess::Share, p2p::share_room(&code), engine, String::new(), String::new());
     }
 
     fn now_secs() -> i64 {
@@ -3035,8 +3142,8 @@ impl Ctrl {
     }
 
     /// Mette in coda (cifrati e firmati) i messaggi prodotti dal motore.
-    fn p2p_enqueue(&mut self, outs: Vec<p2p::Out>) {
-        let Some(p) = self.p2p.as_mut() else { return };
+    fn p2p_enqueue(&mut self, k: Sess, outs: Vec<p2p::Out>) {
+        let Some(p) = self.sess_mut(k) else { return };
         let Some(eng) = p.engine.as_ref() else { return };
         let now = Self::now_secs();
         for o in outs {
@@ -3046,26 +3153,26 @@ impl Ctrl {
     }
 
     /// Esegue `f` col motore e il controller (che fa da `Host`), poi spedisce quanto prodotto.
-    fn with_engine(&mut self, f: impl FnOnce(&mut p2p::Engine, &mut Ctrl) -> Vec<p2p::Out>) {
-        let Some(mut eng) = self.p2p.as_mut().and_then(|p| p.engine.take()) else { return };
+    fn with_engine(&mut self, k: Sess, f: impl FnOnce(&mut p2p::Engine, &mut Ctrl) -> Vec<p2p::Out>) {
+        let Some(mut eng) = self.sess_mut(k).and_then(|p| p.engine.take()) else { return };
         let outs = f(&mut eng, self);
         let events = std::mem::take(&mut eng.events);
-        if let Some(p) = self.p2p.as_mut() {
+        if let Some(p) = self.sess_mut(k) {
             p.engine = Some(eng);
         }
-        self.p2p_enqueue(outs);
-        self.p2p_events(events);
+        self.p2p_enqueue(k, outs);
+        self.p2p_events(k, events);
     }
 
     fn p2p_announce(&mut self) {
         if self.p2p.as_ref().is_some_and(|p| p.started) {
-            self.with_engine(|e, c| e.announce(c));
+            self.with_engine(Sess::Sync, |e, c| e.announce(c));
         }
     }
 
     /// Ogni 160 ms: un messaggio della coda a tutti i relay aperti; ogni secondo il motore.
-    fn p2p_pump(&mut self) {
-        let Some(p) = self.p2p.as_mut() else { return };
+    fn p2p_pump(&mut self, k: Sess) {
+        let Some(p) = self.sess_mut(k) else { return };
         p.ticks += 1;
         if p.open.iter().any(|o| *o) {
             if let Some(f) = p.queue.pop_front() {
@@ -3081,21 +3188,26 @@ impl Ctrl {
             let dirty = std::mem::take(&mut p.dirty);
             if started {
                 let now = Self::now_secs();
-                self.with_engine(|e, c| e.tick(c, now));
+                self.with_engine(k, |e, c| e.tick(c, now));
             }
             if dirty {
                 self.reload_progress();
                 self.refresh_all();
             }
-            self.refresh_p2p();
+            self.refresh_sessions();
         }
     }
 
     fn net_event(&mut self, ev: crate::net::NetEvent) {
         use crate::net::NetEvent;
-        let Some(p) = self.p2p.as_mut() else { return };
+        let idx = match &ev {
+            NetEvent::Open(i) | NetEvent::Frame(i, _) | NetEvent::Closed(i, _) => *i,
+        };
+        let k = if idx / LINKS_PER_SESS == 0 { Sess::Sync } else { Sess::Share };
+        let i = idx % LINKS_PER_SESS;
+        let Some(p) = self.sess_mut(k) else { return };
         match ev {
-            NetEvent::Open(i) => {
+            NetEvent::Open(_) => {
                 if i < p.open.len() {
                     p.open[i] = true;
                     // iscrizione agli eventi della stanza (anche quelli di pochi secondi fa)
@@ -3105,24 +3217,24 @@ impl Ctrl {
                 if !p.started {
                     p.started = true;
                     let now = Self::now_secs();
-                    self.with_engine(|e, c| e.start(c, now));
+                    self.with_engine(k, |e, c| e.start(c, now));
                 }
-                self.refresh_p2p();
+                self.refresh_sessions();
             }
-            NetEvent::Closed(i, why) => {
+            NetEvent::Closed(_, why) => {
                 if i < p.open.len() {
                     p.open[i] = false;
                 }
                 if !why.is_empty() {
                     p.notice = format!("{}: {why}", p.relays.get(i).cloned().unwrap_or_default());
                 }
-                self.refresh_p2p();
+                self.refresh_sessions();
             }
-            NetEvent::Frame(text) => {
+            NetEvent::Frame(_, text) => {
                 if let Some((id, content)) = p2p::parse_relay(&text) {
                     if let Some(plain) = p.room.open(&content) {
                         let now = Self::now_secs();
-                        self.with_engine(|e, c| e.receive(c, &id, &plain, now));
+                        self.with_engine(k, |e, c| e.receive(c, &id, &plain, now));
                     }
                 } else if let Some(n) = p2p::relay_notice(&text) {
                     p.notice = n;
@@ -3131,16 +3243,15 @@ impl Ctrl {
         }
     }
 
-    fn p2p_events(&mut self, events: Vec<p2p::Event>) {
+    fn p2p_events(&mut self, k: Sess, events: Vec<p2p::Event>) {
         for ev in events {
             match ev {
                 p2p::Event::Peer(_) => {}
                 p2p::Event::Files { exam, n } => {
-                    if let Some(p) = self.p2p.as_mut() {
+                    let active = exam == self.exams.active;
+                    if let Some(p) = self.sess_mut(k) {
                         p.received += n;
-                        if exam == self.exams.active {
-                            p.dirty = true;
-                        }
+                        p.dirty |= active;
                     }
                 }
                 p2p::Event::PackProgress { .. } => {}
@@ -3160,36 +3271,34 @@ impl Ctrl {
         }
     }
 
-    fn p2p_download(&mut self, peer: &str, exam: &str) {
+    fn p2p_download(&mut self, k: Sess, peer: &str, exam: &str) {
         let now = Self::now_secs();
         let (peer, exam) = (peer.to_string(), exam.to_string());
-        self.with_engine(move |e, _| e.download(&peer, &exam, now));
-        self.refresh_p2p();
+        self.with_engine(k, move |e, _| e.download(&peer, &exam, now));
+        self.refresh_sessions();
     }
 
-    fn refresh_p2p(&mut self) {
-        let ui = self.ui();
-        let st = ui.global::<AppState>();
-        let Some(p) = self.p2p.as_ref() else {
-            st.set_p2p_on(false);
-            st.set_p2p_status(ss("Non collegato"));
-            st.set_p2p_peers(model(Vec::<PeerVM>::new()));
-            return;
-        };
-        st.set_p2p_on(true);
+    /// Stato e dispositivi trovati di una sessione, per l'interfaccia.
+    fn session_view(&self, k: Sess) -> Option<(String, Vec<PeerVM>)> {
+        let p = self.sess(k)?;
         let open = p.open.iter().filter(|o| **o).count();
         let mut peers: Vec<PeerVM> = Vec::new();
+        let who = if k == Sess::Sync { "dispositiv" } else { "person" };
         let mut status = if open == 0 {
             "Collegamento ai relay…".to_string()
         } else {
             format!("Collegato a {open}/{} relay", p.relays.len())
         };
         if let Some(eng) = p.engine.as_ref() {
-            status.push_str(&match eng.peers.len() {
-                0 if open > 0 => " · in attesa degli altri dispositivi (apri l'app anche lì)".to_string(),
-                0 => String::new(),
-                1 => " · 1 dispositivo".to_string(),
-                n => format!(" · {n} dispositivi"),
+            status.push_str(&match (eng.peers.len(), k) {
+                (0, Sess::Sync) if open > 0 => " · in attesa degli altri dispositivi (apri l'app anche lì)".to_string(),
+                (0, Sess::Share) if open > 0 && !p.sending.is_empty() => {
+                    " · in attesa di chi deve ricevere (tieni aperta questa schermata)".to_string()
+                }
+                (0, Sess::Share) if open > 0 => " · in attesa di chi condivide".to_string(),
+                (0, _) => String::new(),
+                (1, _) => format!(" · 1 {who}{}", if k == Sess::Sync { "o" } else { "a" }),
+                (n, _) => format!(" · {n} {who}{}", if k == Sess::Sync { "i" } else { "e" }),
             });
             if let Some((exam, got, total)) = eng.downloading() {
                 let name = eng
@@ -3200,6 +3309,9 @@ impl Ctrl {
                     .map(|e| e.name.clone())
                     .unwrap_or_default();
                 status.push_str(&format!("\nRicevo «{name}»: {got}/{} pezzi", total.max(1)));
+            }
+            if !p.sending.is_empty() && p.queue.len() > 2 {
+                status.push_str(&format!("\nInvio in corso: {} pezzi in coda", p.queue.len()));
             }
             for (id, peer) in &eng.peers {
                 let mut offers: Vec<OfferVM> = Vec::new();
@@ -3212,16 +3324,24 @@ impl Ctrl {
                     };
                     offers.push(OfferVM { peer: ss(id), exam: ss(&e.id), label: ss(label) });
                 }
-                let common = peer.exams.iter().filter(|e| self.exams.get(&e.id).is_some()).count();
-                peers.push(PeerVM {
-                    id: ss(id),
-                    name: ss(&peer.name),
-                    info: ss(match common {
+                let info = match k {
+                    Sess::Sync => match peer.exams.iter().filter(|e| self.exams.get(&e.id).is_some()).count() {
                         0 => "nessun esame in comune".to_string(),
                         1 => "1 esame in comune: progressi sincronizzati".to_string(),
                         n => format!("{n} esami in comune: progressi sincronizzati"),
-                    }),
-                    offers: model(offers),
+                    },
+                    Sess::Share if !p.sending.is_empty() => format!("collegata: può scaricare «{}»", p.sending),
+                    Sess::Share => match peer.exams.first() {
+                        Some(e) if offers.is_empty() => format!("condivide «{}»: hai già gli stessi contenuti", e.name),
+                        Some(e) => format!("condivide «{}» con te", e.name),
+                        None => "non sta condividendo nessun esame".to_string(),
+                    },
+                };
+                peers.push(PeerVM {
+                    id: ss(id),
+                    name: ss(&peer.name),
+                    info: ss(info),
+                    offers: model(if k == Sess::Share && !p.sending.is_empty() { vec![] } else { offers }),
                 });
             }
         }
@@ -3231,8 +3351,43 @@ impl Ctrl {
         if !p.notice.is_empty() && open < p.relays.len() {
             status.push_str(&format!("\n{}", p.notice));
         }
-        st.set_p2p_status(ss(status));
-        st.set_p2p_peers(model(peers));
+        Some((status, peers))
+    }
+
+    fn refresh_sessions(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        match self.session_view(Sess::Sync) {
+            Some((status, peers)) => {
+                st.set_p2p_on(true);
+                st.set_p2p_status(ss(status));
+                st.set_p2p_peers(model(peers));
+            }
+            None => {
+                st.set_p2p_on(false);
+                st.set_p2p_status(ss("Non collegato"));
+                st.set_p2p_peers(model(Vec::<PeerVM>::new()));
+            }
+        }
+        let name = self.exams.get(&self.exams.active).map(|e| e.name.clone()).unwrap_or_default();
+        st.set_share_exam(ss(name));
+        match self.session_view(Sess::Share) {
+            Some((status, peers)) => {
+                let p = self.share.as_ref();
+                st.set_share_on(true);
+                st.set_share_sending(p.is_some_and(|p| !p.sending.is_empty()));
+                st.set_share_code(ss(p.map(|p| p.code.clone()).unwrap_or_default()));
+                st.set_share_status(ss(status));
+                st.set_share_peers(model(peers));
+            }
+            None => {
+                st.set_share_on(false);
+                st.set_share_sending(false);
+                st.set_share_code(ss(""));
+                st.set_share_status(ss(""));
+                st.set_share_peers(model(Vec::<PeerVM>::new()));
+            }
+        }
     }
 
     fn show_legal_if_needed(&mut self) {
@@ -3442,6 +3597,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         exams,
         remove_armed: None,
         p2p: None,
+        share: None,
     }));
     CTRL.with(|c| *c.borrow_mut() = Some(ctrl.clone()));
     {
@@ -3451,7 +3607,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         c.load_settings_into_ui();
         c.refresh_all();
         c.refresh_exams();
-        c.refresh_p2p();
+        c.refresh_sessions();
         c.show_legal_if_needed();
         // collegamento automatico tra dispositivi, se scelto
         if c.store.settings().p2p_auto && !c.store.settings().p2p_password.is_empty() {
@@ -3720,7 +3876,11 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_legal_accept(|| with_ctrl(|c| c.legal_accept()));
     st.on_p2p_connect(|| with_ctrl(|c| c.p2p_connect()));
     st.on_p2p_disconnect(|| with_ctrl(|c| c.p2p_disconnect()));
-    st.on_p2p_download(|peer, exam| with_ctrl(|c| c.p2p_download(&peer, &exam)));
+    st.on_p2p_download(|peer, exam| with_ctrl(|c| c.p2p_download(Sess::Sync, &peer, &exam)));
+    st.on_share_start(|| with_ctrl(|c| c.share_start()));
+    st.on_share_join(|| with_ctrl(|c| c.share_join()));
+    st.on_share_stop(|| with_ctrl(|c| c.close_session(Sess::Share)));
+    st.on_share_download(|peer, exam| with_ctrl(|c| c.p2p_download(Sess::Share, &peer, &exam)));
     st.on_wave_path(|x0, x1, cy, amp, wl, phase| ss(wave_path(x0, x1, cy, amp, wl, phase)));
     st.on_dialog_ok(|| with_ctrl(|c| c.dialog_ok()));
     st.on_dialog_alt_clicked(|| with_ctrl(|c| c.dialog_alt()));

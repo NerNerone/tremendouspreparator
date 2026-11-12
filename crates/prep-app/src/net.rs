@@ -7,7 +7,7 @@
 #[derive(Debug, Clone)]
 pub enum NetEvent {
     Open(usize),
-    Frame(String),
+    Frame(usize, String),
     Closed(usize, String),
 }
 
@@ -162,7 +162,7 @@ mod imp {
                             break String::new();
                         }
                         match ws.read() {
-                            Ok(Message::Text(t)) => deliver(NetEvent::Frame(t.to_string())),
+                            Ok(Message::Text(t)) => deliver(NetEvent::Frame(idx, t.to_string())),
                             Ok(Message::Close(_)) => break "chiuso dal relay".to_string(),
                             Ok(_) => {}
                             Err(tungstenite::Error::Io(e))
@@ -226,7 +226,7 @@ mod imp {
             let cb = Closure::<dyn FnMut(u32, String)>::new(move |kind: u32, text: String| {
                 deliver(match kind {
                     0 => NetEvent::Open(idx),
-                    1 => NetEvent::Frame(text),
+                    1 => NetEvent::Frame(idx, text),
                     _ => NetEvent::Closed(idx, text),
                 })
             });

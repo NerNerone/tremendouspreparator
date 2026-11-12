@@ -127,6 +127,11 @@ XChaCha20-Poly1305. Il protocollo è in [`prep-core/src/p2p.rs`](crates/prep-cor
 i collegamenti in [`prep-app/src/net.rs`](crates/prep-app/src/net.rs). Chi conosce nome utente e
 password entra nella stanza: conviene una password lunga.
 
+**Condividere un esame con un'altra persona** (Opzioni → Condividi con un'altra persona): chi
+condivide conferma di averne il diritto e ottiene un codice usa e getta (es. `K7QM-4TZP-9WXR`, 60
+bit); chi lo inserisce può scaricare quell'esame e nient'altro. In questa modalità non passano
+progressi e il codice smette di valere quando la condivisione viene chiusa.
+
 ## Esclusione di responsabilità
 
 Il software è fornito «così com'è», senza garanzie (vedi la [licenza](LICENSE), sezioni 15–16).

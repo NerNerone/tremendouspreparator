@@ -50,6 +50,25 @@ pub fn random_id() -> String {
     hex(&random::<8>())
 }
 
+const CODE_ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/// Codice di condivisione usa e getta, facile da dettare: «K7QM-4TZP-9WXR» (60 bit).
+pub fn share_code() -> String {
+    let b: [u8; 12] = random();
+    let c: String = b.iter().map(|x| CODE_ALPHABET[(*x as usize) % 32] as char).collect();
+    format!("{}-{}-{}", &c[..4], &c[4..8], &c[8..])
+}
+
+/// Codice scritto dall'utente → forma usata per la stanza (maiuscole, senza trattini né spazi).
+pub fn normalize_code(s: &str) -> String {
+    s.chars().filter(|c| c.is_ascii_alphanumeric()).map(|c| c.to_ascii_uppercase()).collect()
+}
+
+/// Stanza di una condivisione tra persone diverse.
+pub fn share_room(code: &str) -> Room {
+    Room::derive("condivisione", &normalize_code(code))
+}
+
 pub fn sha256_hex(b: &[u8]) -> String {
     hex(&Sha256::digest(b))
 }
@@ -336,6 +355,11 @@ pub struct Engine {
     pub device: String,
     pub name: String,
     pub platform: String,
+    /// esami che si annunciano e si mandano; `None` = tutti quelli installati
+    pub only: Option<Vec<String>>,
+    /// scambio dei progressi: sì tra i propri dispositivi, no quando si condivide un
+    /// esame con un'altra persona
+    pub progress: bool,
     pub peers: BTreeMap<String, Peer>,
     pub events: Vec<Event>,
     last_hello: i64,
@@ -355,6 +379,8 @@ impl Engine {
             device: device.to_string(),
             name: name.to_string(),
             platform: platform.to_string(),
+            only: None,
+            progress: true,
             peers: BTreeMap::new(),
             events: vec![],
             last_hello: i64::MIN / 2,
@@ -371,15 +397,28 @@ impl Engine {
         encode(&Envelope { v: 1, from: self.device.clone(), to: out.to.clone(), msg: out.msg.clone() }, &out.payload)
     }
 
+    /// Modalità condivisione con un'altra persona: niente progressi, solo gli esami indicati
+    /// (nessuno per chi riceve).
+    pub fn share_only(mut self, exams: Vec<String>) -> Engine {
+        self.only = Some(exams);
+        self.progress = false;
+        self
+    }
+
+    fn allowed(&self, exam: &str) -> bool {
+        self.only.as_ref().is_none_or(|o| o.iter().any(|x| x == exam))
+    }
+
     fn hello(&self, host: &dyn Host, to: Option<&str>, reply: bool) -> Out {
-        Out::new(
-            to,
-            Msg::Hello { name: self.name.clone(), platform: self.platform.clone(), exams: host.offers(), reply },
-        )
+        let exams = host.offers().into_iter().filter(|e| self.allowed(&e.id)).collect();
+        Out::new(to, Msg::Hello { name: self.name.clone(), platform: self.platform.clone(), exams, reply })
     }
 
     fn inventories(&self, host: &dyn Host, to: Option<&str>, theirs: Option<&[ExamOffer]>) -> Vec<Out> {
         let mut v = Vec::new();
+        if !self.progress {
+            return v;
+        }
         for e in host.offers() {
             if theirs.is_some_and(|t| !t.iter().any(|x| x.id == e.id)) {
                 continue;
@@ -487,6 +526,7 @@ impl Engine {
                     out.extend(self.inventories(host, Some(&from), Some(&exams)));
                 }
             }
+            Msg::Inv { .. } | Msg::Get { .. } | Msg::File { .. } if !self.progress => {}
             Msg::Inv { exam, files } => {
                 if let Some(mine) = host.progress_files(&exam) {
                     let have: BTreeSet<&str> = mine.iter().map(|(p, _)| p.as_str()).collect();
@@ -544,6 +584,10 @@ impl Engine {
                 }
             }
             Msg::PackGet { exam, from: first, count } => {
+                if !self.allowed(&exam) {
+                    out.push(Out::new(Some(&from), Msg::PackErr { exam, error: "esame non condiviso".into() }));
+                    return out;
+                }
                 if !self.packs.contains_key(&exam) {
                     match host.pack(&exam) {
                         Ok(b) => {
@@ -676,7 +720,10 @@ mod tests {
                     continue; // messaggio perso
                 }
                 let plain = room.open(&sealed).unwrap();
-                let outs = dst.0.receive(&mut dst.1, &format!("ev{k}"), &plain, now);
+                // id unici anche tra un giro e l'altro (il motore scarta i doppioni)
+                static SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+                let id = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let outs = dst.0.receive(&mut dst.1, &format!("ev{id}"), &plain, now);
                 queue.extend(outs.into_iter().map(|o| (!from_a, o)));
             }
             now += 10;
@@ -768,6 +815,44 @@ mod tests {
         assert_eq!(bb.1.imported.len(), 1);
         assert_eq!(bb.1.imported[0], aa.1.pack);
         assert!(bb.0.events.iter().any(|e| matches!(e, Event::PackDone { result: Ok(_), .. })));
+    }
+
+    #[test]
+    fn share_between_people() {
+        let room = Room::derive("condivisione", "K7QM4TZP9WXR");
+        let mut a = (Engine::new("A", "Anna", "android").share_only(vec!["anat".into()]), Mem::default());
+        let mut b = (Engine::new("B", "Bruno", "web").share_only(vec![]), Mem::default());
+        a.1.exams = vec![offer("anat"), offer("privato")];
+        b.1.exams = vec![offer("anat")];
+        a.1.files.insert(("anat".into(), "progress/sessions/s1.json".into()), b"{}".to_vec());
+        b.1.files.insert(("anat".into(), "progress/sessions/s2.json".into()), b"{}".to_vec());
+        a.1.pack = vec![7u8; CHUNK * 3];
+        let first = a.0.start(&a.1, 1000);
+        run(&mut a, &mut b, &room, first, 0);
+        // nessun progresso passa, e si vede solo l'esame condiviso
+        assert!(!b.1.files.contains_key(&("anat".into(), "progress/sessions/s1.json".into())));
+        assert!(!a.1.files.contains_key(&("anat".into(), "progress/sessions/s2.json".into())));
+        let offered: Vec<String> = b.0.peers["A"].exams.iter().map(|e| e.id.clone()).collect();
+        assert_eq!(offered, vec!["anat".to_string()]);
+        assert!(a.0.peers["B"].exams.is_empty());
+        // l'esame non condiviso viene rifiutato anche se chiesto direttamente
+        let first = b.0.download("A", "privato", 2000);
+        let (mut bb, mut aa) = (b, a);
+        run(&mut bb, &mut aa, &room, first, 0);
+        assert!(bb.1.imported.is_empty());
+        assert!(bb.0.events.iter().any(|e| matches!(e, Event::PackDone { result: Err(_), .. })));
+        let first = bb.0.download("A", "anat", 3000);
+        run(&mut bb, &mut aa, &room, first, 0);
+        assert_eq!(bb.1.imported, vec![aa.1.pack.clone()]);
+    }
+
+    #[test]
+    fn share_codes() {
+        let c = share_code();
+        assert_eq!(c.len(), 14);
+        assert_eq!(normalize_code(&c.to_lowercase().replace('-', " ")), normalize_code(&c));
+        assert_eq!(share_room(&c).tag, share_room(&c.to_lowercase()).tag);
+        assert_ne!(share_code(), c);
     }
 
     #[test]

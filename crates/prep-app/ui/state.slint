@@ -345,6 +345,19 @@ export global AppState {
     callback p2p-connect();
     callback p2p-disconnect();
     callback p2p-download(string, string);
+    // condivisione di un esame con un'altra persona (codice usa e getta)
+    in property <bool> share-on;
+    in property <bool> share-sending;
+    in property <string> share-code;
+    in property <string> share-status;
+    in property <string> share-exam;
+    in property <[PeerVM]> share-peers;
+    in-out property <bool> share-ok;
+    in-out property <string> share-input;
+    callback share-start();
+    callback share-join();
+    callback share-stop();
+    callback share-download(string, string);
 
     // quiz personalizzato
     in property <[QzOptVM]> qz-subjects;

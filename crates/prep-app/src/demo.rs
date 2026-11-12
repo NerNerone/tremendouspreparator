@@ -75,6 +75,26 @@ pub fn maybe_run(ui: &AppWindow) {
                     st.set_p2p_password(arg.into());
                     st.invoke_p2p_connect()
                 }
+                "legal" => st.invoke_legal_accept(),
+                "shareok" => st.set_share_ok(true),
+                "sharestart" => {
+                    st.invoke_share_start();
+                    eprintln!("CODICE {}", st.get_share_code());
+                }
+                "sharejoin" => {
+                    st.set_share_input(arg.into());
+                    st.invoke_share_join()
+                }
+                "shareget" => {
+                    let peers = st.get_share_peers();
+                    let first = (0..slint::Model::row_count(&peers))
+                        .filter_map(|i| slint::Model::row_data(&peers, i))
+                        .find_map(|p| slint::Model::row_data(&p.offers, 0));
+                    match first {
+                        Some(o) => st.invoke_share_download(o.peer, o.exam),
+                        None => eprintln!("shareget: niente da scaricare"),
+                    }
+                }
                 "p2pget" => {
                     let peers = st.get_p2p_peers();
                     let first = (0..slint::Model::row_count(&peers))

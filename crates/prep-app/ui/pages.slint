@@ -2578,6 +2578,159 @@ export component SettingsPage inherits Page {
                 }
             }
 
+            // condivisione di un esame con un'altra persona: codice usa e getta, solo contenuti
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        VIcon {
+                            source: Icons.book;
+                            tint: AppState.share-on ? M3.primary : M3.on-surface-variant;
+                        }
+                        Text {
+                            text: "Condividi con un'altra persona";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                            wrap: word-wrap;
+                        }
+                    }
+                    Text {
+                        text: "Passa un esame installato a un'altra persona con un codice usa e getta: viaggiano solo i contenuti (libri, quiz, flashcard), mai i tuoi progressi. Il codice vale finché la condivisione resta aperta.";
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+
+                    // nessuna condivisione aperta: mandare o ricevere
+                    if !AppState.share-on: HorizontalLayout {
+                        spacing: 8px;
+                        Switch {
+                            checked <=> AppState.share-ok;
+                        }
+                        Text {
+                            text: "Ho il diritto di condividere questo materiale con chi lo riceve (vedi Note legali)";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                        }
+                    }
+                    if !AppState.share-on: M3Button {
+                        text: "Condividi «" + AppState.share-exam + "»";
+                        enabled: AppState.share-ok;
+                        has-icon: true;
+                        icon: Icons.book;
+                        clicked => {
+                            AppState.share-start();
+                        }
+                    }
+                    if !AppState.share-on: Text {
+                        text: "Hai ricevuto un codice?";
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    if !AppState.share-on: HorizontalLayout {
+                        spacing: 8px;
+                        share-edit := LineEdit {
+                            horizontal-stretch: 1;
+                            text <=> AppState.share-input;
+                            placeholder-text: "Codice (es. K7QM-4TZP-9WXR)";
+                            accepted => {
+                                AppState.share-join();
+                            }
+                        }
+                        M3Button {
+                            text: "Ricevi";
+                            kind: 1;
+                            clicked => {
+                                AppState.share-join();
+                            }
+                        }
+                    }
+
+                    // condivisione aperta
+                    if AppState.share-on && AppState.share-sending: Rectangle {
+                        border-radius: 16px;
+                        background: M3.primary-container;
+                        min-height: code-col.preferred-height;
+                        code-col := VerticalLayout {
+                            padding: 16px;
+                            spacing: 4px;
+                            Text {
+                                text: "Codice da comunicare";
+                                font-size: Type.label;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: AppState.share-code;
+                                font-size: 30px;
+                                font-weight: 800;
+                                letter-spacing: 2px;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: "Chi lo inserisce in «Hai ricevuto un codice?» può scaricare «" + AppState.share-exam + "».";
+                                font-size: Type.label;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                    if AppState.share-on: Text {
+                        text: AppState.share-status;
+                        wrap: word-wrap;
+                        color: M3.primary;
+                    }
+                    if AppState.share-on: VerticalLayout {
+                        spacing: 8px;
+                        for peer in AppState.share-peers: Rectangle {
+                            border-radius: 12px;
+                            background: M3.surface-container-high;
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 6px;
+                                Text {
+                                    text: peer.name;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: peer.info;
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                                for o in peer.offers: M3Button {
+                                    text: o.label;
+                                    kind: 1;
+                                    small: true;
+                                    clicked => {
+                                        AppState.share-download(o.peer, o.exam);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if AppState.share-on: M3Button {
+                        text: AppState.share-sending ? "Interrompi la condivisione" : "Chiudi";
+                        kind: 1;
+                        clicked => {
+                            AppState.share-stop();
+                        }
+                    }
+                }
+            }
+
             if AppState.sync-configured: Card {
                 clickable: true;
                 bg: M3.tertiary-container;
