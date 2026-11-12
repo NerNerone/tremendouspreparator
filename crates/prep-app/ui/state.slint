@@ -186,6 +186,9 @@ export struct CarVM {
     id: string,
     crew: [CrewVM],
     f: float,
+    // velocità in giri al secondo (0 se ferma): tra un aggiornamento e l'altro la posizione
+    // avanza da sola, fotogramma per fotogramma
+    v: float,
     color: color,
     label: string,
     me: bool,
@@ -193,8 +196,12 @@ export struct CarVM {
     pit: bool,
     parked: bool,
     offline: bool,
-    // scostamento laterale (corsie; ~3 = fuori pista, al pit stop)
+    // scostamento laterale (corsie; ±3,6 = fuori pista, al pit stop)
     lane: float,
+    // lato del pit stop: 1 = a destra della marcia, -1 = a sinistra (la squadra si specchia)
+    side: float,
+    // piazzole in fila verso l'esterno quando più macchine si fermano vicine (0 = la prima)
+    stack: float,
     px: float,
     py: float,
 }
@@ -396,6 +403,10 @@ export global AppState {
     in property <[CarVM]> cars;
     // telecamera: punto inquadrato (coordinate della pista) e scritte sopra la gara
     in property <float> cam-f;
+    in property <float> cam-side: 1;
+    in property <float> cam-stack: 0;
+    // giri al secondo in pista
+    in property <float> lap-speed: 0.0166667;
     in property <string> track-cmd;
     in property <float> track-aspect: 2.4;
     in property <float> track-scale: 1;

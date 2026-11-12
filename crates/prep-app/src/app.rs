@@ -123,6 +123,8 @@ fn ss(s: impl AsRef<str>) -> SharedString {
     SharedString::from(s.as_ref())
 }
 
+type PitKey = (usize, usize, Vec<i64>);
+
 fn model<T: Clone + 'static>(v: Vec<T>) -> ModelRc<T> {
     ModelRc::new(VecModel::from(v))
 }
@@ -286,6 +288,13 @@ pub struct Ctrl {
     last_doing: String,
     /// circuito mostrato (indice), per non ricalcolarlo a ogni secondo
     circuit_shown: Option<usize>,
+    /// monoposto in pista: modello aggiornato riga per riga (sostituirlo ricreerebbe gli
+    /// elementi e farebbe ripartire le animazioni)
+    cars_model: Rc<VecModel<CarVM>>,
+    /// squadra dei box di ogni sosta in corso: (membro, inizio sosta) → meccanici
+    crews: BTreeMap<(String, i64), ModelRc<CrewVM>>,
+    /// posti dei pit stop già calcolati: (circuito, membri, soste) → (lato, fila)
+    pit_cache: Option<(PitKey, Vec<(f64, u32)>)>,
     group_period: prep_core::group::Period,
     group_timer: Timer,
     group_last_send: i64,
@@ -3714,7 +3723,18 @@ impl Ctrl {
         );
         s.pit_since = self.pit_since.unwrap_or(0);
         s.doing = self.doing();
+        s.uid = self.user_id();
+        s.dev = self.device_id();
+        s.photo = self.store.settings().photo;
         s
+    }
+
+    /// Identificativo dell'utente nei gruppi (uguale su tutti i propri dispositivi che usano
+    /// lo stesso nome utente e la stessa password di sincronizzazione).
+    fn user_id(&mut self) -> String {
+        let s = self.store.settings();
+        let dev = self.device_id();
+        prep_core::group::user_id(&s.username, &s.p2p_password, &dev)
     }
 
     /// Cosa si sta studiando, da quello che è aperto nell'app (resta l'ultima attività
@@ -3762,7 +3782,7 @@ impl Ctrl {
     fn group_status_in(&mut self, from: String, status: prep_core::group::Status) {
         let now = Self::now_secs();
         if let Some(g) = self.groups.active_mut() {
-            g.members.insert(from, prep_core::group::Member { status, last_seen: now });
+            g.status_in(&from, status, now);
             let _ = self.groups.save(&self.store.base);
         }
         self.refresh_group();
@@ -3880,8 +3900,31 @@ impl Ctrl {
         use prep_core::group::{fmt_secs, live, standings, value, Period, State, LAP_SECS};
         let now = Self::now_secs();
         let today = Local::now().date_naive();
-        let me_id = self.device_id();
-        let mine = self.my_group_status(now);
+        let me_dev = self.device_id();
+        let me_id = self.user_id();
+        // io: questo dispositivo più gli altri miei (stesso id utente) visti nel gruppo
+        let mine = {
+            let here = self.my_group_status(now);
+            let mut devs = vec![(here.clone(), true)];
+            if let Some(m) = self.groups.active().and_then(|g| g.members.get(&me_id)) {
+                for (d, ds) in &m.devices {
+                    if *d != me_dev {
+                        devs.push((ds.status.clone(), now - ds.last_seen < prep_core::group::ONLINE_SECS));
+                    }
+                }
+            }
+            let (mut c, _) = prep_core::group::combine(&devs, now, today);
+            // nome, colore e attività sono quelli di questo dispositivo
+            c.name = here.name;
+            c.color = here.color;
+            c.photo = here.photo;
+            if self.study_state != State::Idle {
+                c.state = self.study_state;
+                c.pit_since = here.pit_since;
+                c.doing = here.doing;
+            }
+            c
+        };
         let ui = self.ui();
         let st = ui.global::<AppState>();
         let (t, _, _) = live(&mine, now, today);
@@ -3917,12 +3960,13 @@ impl Ctrl {
         st.set_group_has(true);
         st.set_group_name(ss(&g.name));
         st.set_group_id(ss(&g.code));
-        let online = |m: &prep_core::group::Member| now - m.last_seen < 45;
-        // membri: io (sempre) e gli altri visti; (id, stato, collegato, ultima volta visto)
+        // membri: io (sempre) e gli altri visti, ognuno con i suoi dispositivi sommati;
+        // (id utente, stato, collegato, ultima volta visto)
         let mut all: Vec<(String, prep_core::group::Status, bool, i64)> = Vec::new();
         for (id, m) in &g.members {
-            if *id != me_id {
-                all.push((id.clone(), m.status.clone(), online(m), m.last_seen));
+            if *id != me_id && *id != me_dev && !g.removed.contains(id) {
+                let (c, on) = prep_core::group::combine(&m.device_list(now), now, today);
+                all.push((id.clone(), c, on, m.last_seen));
             }
         }
         // ordine stabile (la propria macchina per ultima, sopra le altre)
@@ -3944,6 +3988,15 @@ impl Ctrl {
         let mut parked_i = 0usize;
         let mut lane_i = 0usize;
         let mut cars: Vec<CarVM> = Vec::new();
+        let frac = (Utc::now().timestamp_subsec_millis() as f64 / 1000.0).clamp(0.0, 0.999);
+        let empty_crew: ModelRc<CrewVM> = ModelRc::default();
+        // soste finite: via dalla cache
+        let pitting: BTreeSet<(String, i64)> = all
+            .iter()
+            .filter(|(_, s, on, _)| *on && s.state == State::Pause)
+            .map(|(id, s, _, _)| (id.clone(), s.pit_since))
+            .collect();
+        self.crews.retain(|k, _| pitting.contains(k));
         for (id, s, on, _) in &all {
             let me = *id == me_id;
             let racing = *on && s.state == State::Studying;
@@ -3951,44 +4004,59 @@ impl Ctrl {
             let parked = !racing && !pit;
             let (px, py) = if parked {
                 let (cx, cy) = circuit.paddock;
-                let x = cx - 0.16 + 0.32 * (parked_i as f64 + 0.5) / parked_n.max(1) as f64;
+                let x = cx - 0.15 + 0.3 * (parked_i as f64 + 0.5) / parked_n.max(1) as f64;
                 parked_i += 1;
                 (x as f32, (cy + 0.02) as f32)
             } else {
                 (0.0, 0.0)
             };
             // corsie: la propria al centro, le altre alternate ai lati
+            let side = 1.0;
             let lane = if pit {
-                3.6
+                0.0
             } else if racing && !me {
                 lane_i += 1;
-                [-1.0, 1.0, -0.5, 0.5, -1.4, 1.4][(lane_i - 1) % 6]
+                [-1.0, 1.0][(lane_i - 1) % 2]
             } else {
                 0.0
             };
             let initial = s.name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default();
-            let crew: Vec<CrewVM> = if pit {
-                let seed = p2p::sha256_hex(format!("{id}/{}", s.pit_since).as_bytes());
-                let seed = u64::from_str_radix(&seed[..16], 16).unwrap_or(1);
-                prep_core::group::pit_crew(seed)
-                    .into_iter()
-                    .map(|m| CrewVM {
-                        x: m.x as f32,
-                        y: m.y as f32,
-                        rot: m.rot as f32,
-                        tool: m.tool,
-                        tire: m.tire,
-                        sign: m.sign,
-                        alt: m.alt,
+            // la stessa squadra per tutta la sosta (stesso modello: niente ripartenze)
+            let crew = if pit {
+                let key = (id.clone(), s.pit_since);
+                self.crews
+                    .entry(key)
+                    .or_insert_with(|| {
+                        let seed = p2p::sha256_hex(format!("{id}/{}", s.pit_since).as_bytes());
+                        let seed = u64::from_str_radix(&seed[..16], 16).unwrap_or(1);
+                        model(
+                            prep_core::group::pit_crew(seed)
+                                .into_iter()
+                                .map(|m| CrewVM {
+                                    x: m.x as f32,
+                                    y: m.y as f32,
+                                    rot: m.rot as f32,
+                                    tool: m.tool,
+                                    tire: m.tire,
+                                    sign: m.sign,
+                                    alt: m.alt,
+                                })
+                                .collect(),
+                        )
                     })
-                    .collect()
+                    .clone()
             } else {
-                Vec::new()
+                empty_crew.clone()
             };
+            // posizione con le frazioni di secondo: in pista avanza in modo continuo
+            let secs = live(s, now, today).0 as f64 + if racing { frac } else { 0.0 };
             cars.push(CarVM {
                 id: ss(id),
-                crew: model(crew),
-                f: live(s, now, today).0 as f32 / LAP_SECS as f32,
+                crew,
+                f: (secs / LAP_SECS as f64) as f32,
+                v: if racing { 1.0 / LAP_SECS as f32 } else { 0.0 },
+                side: side as f32,
+                stack: 0.0,
                 color: slint::Color::from_argb_encoded(s.color),
                 label: ss(initial),
                 me,
@@ -3996,14 +4064,36 @@ impl Ctrl {
                 pit,
                 parked,
                 offline: !*on,
-                lane,
+                lane: lane as f32,
                 px,
                 py,
             });
         }
         // telecamera sulla propria macchina mentre si studia; altrimenti tutto il circuito
         st.set_race_overview(self.study_state != State::Studying);
-        st.set_cam_f(live(&mine, now, today).0 as f32 / LAP_SECS as f32);
+        let my_secs = live(&mine, now, today).0 as f64 + if self.study_state == State::Studying { frac } else { 0.0 };
+        st.set_cam_f((my_secs / LAP_SECS as f64) as f32);
+        st.set_lap_speed(1.0 / LAP_SECS as f32);
+        // piazzole dei pit stop: fuori dalla strada e senza sovrapporsi, anche quando più
+        // macchine vanno in pausa nello stesso punto (calcolo ricordato finché le soste non
+        // cambiano)
+        let stops: Vec<f64> = cars.iter().filter(|c| c.pit).map(|c| c.f as f64).collect();
+        if !stops.is_empty() {
+            let key = (ci, all.len(), stops.iter().map(|f| (f * 10000.0) as i64).collect::<Vec<_>>());
+            if self.pit_cache.as_ref().is_none_or(|(k, _)| *k != key) {
+                self.pit_cache = Some((key, prep_core::group::pit_places(ci, all.len(), &stops)));
+            }
+            if let Some((_, places)) = &self.pit_cache {
+                for (c, (side, level)) in cars.iter_mut().filter(|c| c.pit).zip(places) {
+                    c.side = *side as f32;
+                    c.stack = *level as f32;
+                }
+            }
+        }
+        if let Some(me) = cars.iter().find(|c| c.me) {
+            st.set_cam_side(me.side);
+            st.set_cam_stack(me.stack);
+        }
         // scheda della macchina toccata
         match all.iter().find(|(id, _, _, _)| *id == self.car_sel) {
             Some((id, s, on, seen)) => {
@@ -4100,7 +4190,21 @@ impl Ctrl {
             }
         )));
         let _ = Period::Today;
-        st.set_cars(model(cars));
+        // aggiornamento riga per riga del modello persistente
+        let n_cars = cars.len();
+        let m = &self.cars_model;
+        for (i, c) in cars.into_iter().enumerate() {
+            if i < m.row_count() {
+                if m.row_data(i).as_ref() != Some(&c) {
+                    m.set_row_data(i, c);
+                }
+            } else {
+                m.push(c);
+            }
+        }
+        while m.row_count() > n_cars {
+            m.remove(m.row_count() - 1);
+        }
         st.set_ranking(model(ranking));
     }
 
@@ -4328,6 +4432,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         car_sel: String::new(),
         last_doing: String::new(),
         circuit_shown: None,
+        cars_model: Rc::new(VecModel::default()),
+        crews: BTreeMap::new(),
+        pit_cache: None,
         group_period: prep_core::group::Period::Today,
         group_timer: Timer::default(),
         group_last_send: 0,
@@ -4360,6 +4467,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
             m3.set_dynamic(true);
         }
         c.refresh_car_colors();
+        c.ui().global::<AppState>().set_cars(ModelRc::from(c.cars_model.clone()));
         c.ui().global::<AppState>().set_bt_available(cfg!(target_os = "android"));
         if c.groups.active().is_some() {
             c.group_connect();

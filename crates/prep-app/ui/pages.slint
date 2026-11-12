@@ -2501,28 +2501,26 @@ component Car inherits Rectangle {
     property <color> suit: root.road.darker(0.45);
     width: 36px;
     height: 20px;
-    // piazzola del box: fondo, stallo segnato, muro del garage con la striscia della squadra
+    // piazzola del box (poco più grande della macchina): fondo, stallo segnato agli angoli,
+    // linea d'arresto, muro del garage con la striscia della squadra
     if root.crew > 0.01: Rectangle {
-        x: -30px;
-        y: -2px;
-        width: 96px;
-        height: 70px;
+        x: -16px;
+        y: -3px;
+        width: 70px;
+        height: 42px;
         opacity: root.crew;
-        Rectangle { width: 100%; height: 100%; border-radius: 10px; background: root.road; }
-        // stallo: rettangolo tratteggiato agli angoli attorno alla macchina
-        Rectangle { x: 24px; y: 0px; width: 12px; height: 2px; background: root.bg-line; }
-        Rectangle { x: 24px; y: 0px; width: 2px; height: 10px; background: root.bg-line; }
-        Rectangle { x: 60px; y: 0px; width: 12px; height: 2px; background: root.bg-line; }
-        Rectangle { x: 70px; y: 0px; width: 2px; height: 10px; background: root.bg-line; }
-        Rectangle { x: 24px; y: 22px; width: 12px; height: 2px; background: root.bg-line; }
-        Rectangle { x: 24px; y: 14px; width: 2px; height: 10px; background: root.bg-line; }
-        Rectangle { x: 60px; y: 22px; width: 12px; height: 2px; background: root.bg-line; }
-        Rectangle { x: 70px; y: 14px; width: 2px; height: 10px; background: root.bg-line; }
-        // linea d'arresto davanti al muso
-        Rectangle { x: 70px; y: 4px; width: 3px; height: 16px; background: root.bg-line; }
-        // muro del garage
-        Rectangle { x: 4px; y: parent.height - 9px; width: parent.width - 8px; height: 6px; border-radius: 3px; background: root.suit; }
-        Rectangle { x: 10px; y: parent.height - 7px; width: parent.width - 20px; height: 2px; background: root.c; }
+        Rectangle { width: 100%; height: 100%; border-radius: 8px; background: root.road; }
+        Rectangle { x: 13px; y: 1px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 13px; y: 1px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 47px; y: 1px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 52.5px; y: 1px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 13px; y: 24px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 13px; y: 19.5px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 47px; y: 24px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 52.5px; y: 19.5px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 55px; y: 6px; width: 2px; height: 14px; background: root.bg-line; }
+        Rectangle { x: 3px; y: parent.height - 6px; width: parent.width - 6px; height: 4px; border-radius: 2px; background: root.suit; }
+        Rectangle { x: 8px; y: parent.height - 5px; width: parent.width - 16px; height: 1.5px; background: root.c; }
     }
     // scia, solo in pista
     if root.car.racing: Rectangle {
@@ -2575,6 +2573,8 @@ component Car inherits Rectangle {
         x: m.x * 1px;
         y: m.y * 1px + 24px * (1 - root.crew);
         transform-rotation: m.rot * 1deg;
+        transform-scale-x: 0.72;
+        transform-scale-y: 0.72;
         opacity: root.crew;
         visible: root.crew > 0.01;
     }
@@ -2604,19 +2604,16 @@ component MiniMap inherits Rectangle {
         stroke-width: root.sw;
     }
     for car in root.cars: Rectangle {
-        property <bool> ready: false;
-        Timer {
-            interval: 1200ms;
-            running: !parent.ready;
-            triggered => {
-                parent.ready = true;
-            }
+        // posizione continua: ultimo valore ricevuto più la velocità per il tempo trascorso
+        property <float> f0: car.f;
+        property <duration> t0;
+        init => {
+            self.t0 = animation-tick();
         }
-        property <float> f: car.f;
-        animate f {
-            duration: self.ready ? 1000ms : 0ms;
-            easing: linear;
+        changed f0 => {
+            self.t0 = animation-tick();
         }
+        property <float> f: car.v > 0 ? self.f0 + car.v * ((animation-tick() - self.t0) / 1s) : self.f0;
         property <Point> p: mm.point-at(self.f);
         visible: !car.parked;
         x: mm.x + self.p.x - self.width / 2;
@@ -2651,7 +2648,7 @@ component RaceView inherits Rectangle {
         root.flip = false;
     }
     // altezza della pista: grande da vicino (cresce con i membri), oppure tutta nella vista
-    property <length> fit-th: min((root.width - 110px) / root.aspect, (root.height - 40px) / 1.45);
+    property <length> fit-th: min((root.width - 110px) / root.aspect, (root.height - 40px) / 1.78);
     property <float> zoom: root.wide ? 0 : 1;
     animate zoom {
         duration: 700ms;
@@ -2663,37 +2660,46 @@ component RaceView inherits Rectangle {
     property <length> P: 260px * root.scale;
     // carreggiata e corsie
     property <length> sw: root.TH * 0.13 / sqrt(root.scale);
-    property <length> lane-w: root.sw * 0.36;
-    // monoposto: dimensione costante da vicino, più piccole nella vista d'insieme
-    property <float> k: max(0.7, 1.8 * root.TH / root.near-th);
+    property <length> lane-w: root.sw * 0.33;
+    // distanza dal centro della strada a cui si ferma chi fa il pit stop: metà carreggiata,
+    // il lato della piazzola verso la pista (13 px della monoposto, in scala) e un margine
+    property <length> pit-off: root.sw / 2 + 30px * root.k;
+    // monoposto in scala con la carreggiata: larghe circa 0,3 della strada, così tre stanno
+    // affiancate nelle corsie a qualunque zoom (piazzola e meccanici seguono la stessa scala)
+    property <float> k: 0.3 * root.sw / 20px;
     property <float> phase: 0;
     // telecamera: la stessa animazione della propria macchina, così resta al centro
-    property <bool> ready: false;
-    Timer {
-        interval: 1200ms;
-        running: !root.ready;
-        triggered => {
-            root.ready = true;
-        }
+    in property <float> cam-v;
+    property <float> cf0: root.cam-f;
+    property <duration> ct0;
+    init => {
+        root.ct0 = animation-tick();
     }
-    property <float> cf: root.cam-f;
-    animate cf {
-        duration: root.ready ? 1000ms : 0ms;
-        easing: linear;
+    changed cf0 => {
+        root.ct0 = animation-tick();
     }
+    in property <bool> cam-pit;
+    property <float> croll: root.cam-pit ? 0.012 : 0;
+    animate croll {
+        duration: 1400ms;
+        easing: ease-out;
+    }
+    property <float> cf: (root.cam-v > 0 ? root.cf0 + root.cam-v * ((animation-tick() - root.ct0) / 1s) : root.cf0) + root.croll;
     property <Point> cp: road-path.point-at(root.cf);
     property <angle> ca: road-path.angle-at(root.cf);
     // al pit stop la telecamera si sposta sulla piazzola, fuori pista
-    in property <float> cam-lane;
-    property <float> cl: root.cam-lane;
-    animate cl {
-        duration: 900ms;
+    in property <float> cam-side: 1;
+    property <float> cexit: root.cam-pit ? 1 : 0;
+    animate cexit {
+        duration: 1400ms;
         easing: ease-in-out;
     }
-    property <length> cam-px: road-path.x + root.cp.x - sin(root.ca) * root.cl * root.lane-w;
-    property <length> cam-py: road-path.y + root.cp.y + cos(root.ca) * root.cl * root.lane-w;
+    in property <float> cam-stack;
+    property <length> coff: root.cexit * root.cam-side * (root.pit-off + 10px * root.k + root.cam-stack * 50px * root.k);
+    property <length> cam-px: road-path.x + root.cp.x - sin(root.ca) * root.coff;
+    property <length> cam-py: road-path.y + root.cp.y + cos(root.ca) * root.coff;
     property <length> mid-x: root.P + root.TW / 2;
-    property <length> mid-y: root.P + root.TH * (0.5 + 0.12 * (1 - root.zoom));
+    property <length> mid-y: root.P + root.TH * (0.5 + 0.2 * (1 - root.zoom));
     Timer {
         interval: 120ms;
         running: true;
@@ -2707,11 +2713,11 @@ component RaceView inherits Rectangle {
         y: root.height / 2 + 12px * (1 - root.zoom) - (root.mid-y + (root.cam-py - root.mid-y) * root.zoom);
         width: root.TW + 2 * root.P;
         height: root.TH + 2 * root.P;
-        // paddock nell'area interna: corsia box, muretto e garage; chi ha terminato la sessione
-        // o non è collegato aspetta qui nel suo box
+        // paddock sotto il circuito, fuori pista: corsia box, muretto e garage; chi ha
+        // terminato la sessione o non è collegato aspetta qui nel suo box
         Rectangle {
-            width: root.TW * 0.36;
-            height: root.TH * 0.22;
+            width: min(root.TW * 0.5, max(root.TH * 0.9, root.TW * 0.36));
+            height: root.TH * 0.24;
             x: root.P + root.pad-x * root.TW - self.width / 2;
             y: root.P + root.pad-y * root.TH - self.height / 2;
             border-radius: min(self.height / 4, 18px);
@@ -2783,29 +2789,37 @@ component RaceView inherits Rectangle {
             }
         }
         for car in root.cars: Rectangle {
-            // appena compare la macchina va subito al suo posto, poi si muove fluida
-            property <bool> ready: false;
-            Timer {
-                interval: 1200ms;
-                running: !parent.ready;
-                triggered => {
-                    parent.ready = true;
-                }
+            // moto continuo: ultimo valore ricevuto più velocità × tempo trascorso (calcolato a
+            // ogni fotogramma, così non ci sono scatti tra un aggiornamento e l'altro)
+            property <float> f0: car.f;
+            property <duration> t0;
+            init => {
+                self.t0 = animation-tick();
             }
-            property <float> f: car.f;
-            animate f {
-                duration: self.ready ? 1000ms : 0ms;
-                easing: linear;
+            changed f0 => {
+                self.t0 = animation-tick();
             }
-            property <float> lane: car.lane;
-            animate lane {
-                duration: 900ms;
+            // uscita di pista: la macchina rallenta in avanti mentre si sposta di lato e sterza
+            // verso la piazzola (e al rientro fa il contrario)
+            property <float> exit: car.pit ? 1 : 0;
+            animate exit {
+                duration: 1400ms;
                 easing: ease-in-out;
             }
+            property <float> roll: car.pit ? 0.012 : 0;
+            animate roll {
+                duration: 1400ms;
+                easing: ease-out;
+            }
+            property <float> f: (car.v > 0 ? self.f0 + car.v * ((animation-tick() - self.t0) / 1s) : self.f0) + self.roll;
+            // scostamento dal centro della strada: la corsia in gara, la piazzola al pit stop
+            // (calcolata a ogni zoom: niente animazioni che rincorrono)
+            property <length> off: (1 - self.exit) * car.lane * root.lane-w + self.exit * car.side * (root.pit-off + car.stack * 50px * root.k);
+            property <angle> yaw: 24deg * sin(self.exit * 180deg) * (car.pit ? 1 : -1) * car.side;
             property <Point> p: road-path.point-at(self.f);
             property <angle> a: road-path.angle-at(self.f);
-            property <length> cx: car.parked ? root.P + car.px * root.TW : road-path.x + self.p.x - sin(self.a) * self.lane * root.lane-w;
-            property <length> cy: car.parked ? root.P + car.py * root.TH : road-path.y + self.p.y + cos(self.a) * self.lane * root.lane-w;
+            property <length> cx: car.parked ? root.P + car.px * root.TW : road-path.x + self.p.x - sin(self.a) * self.off;
+            property <length> cy: car.parked ? root.P + car.py * root.TH : road-path.y + self.p.y + cos(self.a) * self.off;
             x: self.cx - self.width / 2;
             y: self.cy - self.height / 2;
             width: 48px;
@@ -2826,9 +2840,9 @@ component RaceView inherits Rectangle {
                 car: car;
                 phase: root.phase;
                 road: root.road;
-                transform-rotation: car.parked ? -90deg : parent.a;
+                transform-rotation: car.parked ? -90deg : parent.a + parent.yaw;
                 transform-scale-x: root.k;
-                transform-scale-y: root.k;
+                transform-scale-y: root.k * (car.side < 0 ? -1 : 1);
             }
             TouchArea {
                 clicked => {
@@ -2946,7 +2960,10 @@ export component GroupPage inherits Page {
             height: min(300px, parent.height * 0.4);
             cars: AppState.cars;
             cam-f: AppState.cam-f;
-            cam-lane: AppState.study-state == 2 ? 4.4 : 0;
+            cam-side: AppState.cam-side;
+            cam-stack: AppState.cam-stack;
+            cam-pit: AppState.study-state == 2;
+            cam-v: AppState.study-state == 1 ? AppState.lap-speed : 0;
             overview: AppState.race-overview;
             commands: AppState.track-cmd;
             aspect: AppState.track-aspect;

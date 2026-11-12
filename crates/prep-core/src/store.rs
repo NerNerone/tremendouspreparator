@@ -66,6 +66,9 @@ pub struct Settings {
     /// colore della propria monoposto (ARGB); 0 = accento di sistema (o un colore fisso)
     #[serde(default)]
     pub car_color: u32,
+    /// foto profilo (hash del file in `photos/`), vuoto = nessuna
+    #[serde(default)]
+    pub photo: String,
     /// versione delle note legali accettata (0 = mai)
     #[serde(default)]
     pub legal_accepted: u32,
@@ -116,6 +119,7 @@ impl Default for Settings {
             relays: vec![],
             direct_only: false,
             car_color: 0,
+            photo: String::new(),
             legal_accepted: 0,
         }
     }
