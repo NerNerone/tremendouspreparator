@@ -113,6 +113,20 @@ cargo build --release -p tremendouspreparator --lib --target wasm32-unknown-unkn
 wasm-bindgen --target web --no-typescript --out-dir site target/wasm32-unknown-unknown/release/prepapp.wasm && cp web/* site/
 ```
 
+## Sincronizzazione tra dispositivi
+
+In Opzioni → Dispositivi, con lo stesso **nome utente** e la stessa **password** su telefono, web
+app e computer (app aperta su entrambi) i dispositivi si trovano da soli: i progressi degli esami
+in comune si uniscono (le sessioni sono file che non cambiano, quindi basta scambiarsi quelli
+mancanti) e un esame installato su un dispositivo si può scaricare sull'altro.
+
+Non c'è un server dell'app: i messaggi viaggiano come eventi Nostr *effimeri* attraverso relay
+pubblici (modificabili), che li inoltrano senza salvarli. Dal nome utente e dalla password si
+ricava con PBKDF2 una chiave: i relay vedono solo un tag casuale e dati cifrati con
+XChaCha20-Poly1305. Il protocollo è in [`prep-core/src/p2p.rs`](crates/prep-core/src/p2p.rs),
+i collegamenti in [`prep-app/src/net.rs`](crates/prep-app/src/net.rs). Chi conosce nome utente e
+password entra nella stanza: conviene una password lunga.
+
 ## Licenza
 
 [GPL-3.0-or-later](LICENSE): GNU General Public License versione 3 o successive. È compatibile con la

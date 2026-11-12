@@ -134,6 +134,20 @@ export struct ExamVM {
     info: string,
 }
 
+// sincronizzazione tra dispositivi
+export struct OfferVM {
+    peer: string,
+    exam: string,
+    label: string,
+}
+
+export struct PeerVM {
+    id: string,
+    name: string,
+    info: string,
+    offers: [OfferVM],
+}
+
 export struct ExamDateVM {
     label: string,
     date: string,
@@ -314,6 +328,17 @@ export global AppState {
     callback remove-exam(string);
     in-out property <string> s-username;
     callback save-username(string);
+
+    // sincronizzazione tra dispositivi
+    in property <bool> p2p-on;
+    in property <string> p2p-status: "Non collegato";
+    in-out property <string> p2p-password;
+    in-out property <bool> p2p-auto;
+    in-out property <string> p2p-relays;
+    in property <[PeerVM]> p2p-peers;
+    callback p2p-connect();
+    callback p2p-disconnect();
+    callback p2p-download(string, string);
 
     // quiz personalizzato
     in property <[QzOptVM]> qz-subjects;

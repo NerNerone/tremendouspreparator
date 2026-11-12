@@ -50,6 +50,15 @@ impl Registry {
         self.active = id.to_string();
     }
 
+    /// Aggiunge l'esame (o ne aggiorna il nome) senza cambiare quello attivo.
+    pub fn add(&mut self, id: &str, name: &str) {
+        let keep = self.active.clone();
+        self.upsert(id, name);
+        if !keep.is_empty() {
+            self.active = keep;
+        }
+    }
+
     /// Toglie l'esame dall'elenco (i file si cancellano a parte con [`remove_files`]).
     pub fn remove(&mut self, id: &str) {
         self.exams.retain(|e| e.id != id);

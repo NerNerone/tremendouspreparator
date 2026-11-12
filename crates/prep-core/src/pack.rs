@@ -187,6 +187,20 @@ pub fn import(store: &Store, bytes: &[u8]) -> Result<PackInfo, String> {
     Ok(info)
 }
 
+/// Impronta dei contenuti nel mirror (libri, quiz, flashcard): uguale su due dispositivi
+/// che hanno gli stessi file, comunque ci siano arrivati (pacchetto, GitHub, altro dispositivo).
+pub fn content_version(store: &Store) -> String {
+    let idx = store.index();
+    let mut h = sha1_smol::Sha1::new();
+    for (p, sha) in idx.files.iter().filter(|(p, _)| in_pack(p)) {
+        h.update(p.as_bytes());
+        h.update(b"\0");
+        h.update(sha.as_bytes());
+        h.update(b"\n");
+    }
+    h.digest().to_string()
+}
+
 /// Ultimo pacchetto importato, se c'è.
 pub fn last_import(store: &Store) -> Option<PackInfo> {
     let t = vfs::read_to_string(&store.root.join("pack_info.json")).ok()?;

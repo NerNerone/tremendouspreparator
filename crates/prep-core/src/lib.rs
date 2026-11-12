@@ -8,6 +8,7 @@ pub mod github;
 pub mod latex;
 pub mod markdown;
 pub mod model;
+pub mod p2p;
 pub mod pack;
 pub mod plan;
 pub mod progress;

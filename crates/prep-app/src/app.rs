@@ -2,8 +2,8 @@
 
 use crate::periodic;
 use crate::{
-    AppState, AppWindow, BlockVM, BookVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM, NavCellVM, NavRowVM,
-    OptionVM, QzOptVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
+    AppState, AppWindow, BlockVM, BookVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM, NavCellVM, NavRowVM, OfferVM,
+    OptionVM, PeerVM, QzOptVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -12,6 +12,7 @@ use prep_core::feedback::Feedback;
 use prep_core::latex;
 use prep_core::markdown::{self, Block, Section};
 use prep_core::model::{BookRef, QKind, Question};
+use prep_core::p2p;
 use prep_core::progress::{build_history, compute, exam_pace, Assessment, History, Progress};
 use prep_core::select::{self, Scope};
 use prep_core::session::{score_items, Item, Session, SessionKind};
@@ -242,6 +243,28 @@ pub struct Ctrl {
     exams: prep_core::exams::Registry,
     /// esame da eliminare in attesa del secondo tocco di conferma
     remove_armed: Option<(String, Instant)>,
+    /// sincronizzazione tra dispositivi in corso
+    p2p: Option<P2p>,
+}
+
+/// Stanza di sincronizzazione aperta: motore, collegamenti ai relay e coda d'invio.
+struct P2p {
+    room: p2p::Room,
+    signer: p2p::Signer,
+    /// tolto temporaneamente mentre lavora (ha bisogno del controller come `Host`)
+    engine: Option<p2p::Engine>,
+    links: Vec<crate::net::Link>,
+    relays: Vec<String>,
+    open: Vec<bool>,
+    subscribed: Vec<bool>,
+    started: bool,
+    queue: std::collections::VecDeque<String>,
+    timer: Timer,
+    ticks: u32,
+    /// progressi ricevuti per l'esame attivo, da ricaricare
+    dirty: bool,
+    received: usize,
+    notice: String,
 }
 
 /// Filtri del quiz personalizzato (scheda Quiz).
@@ -293,6 +316,77 @@ impl QuizSetup {
     fn keep(&self, content: &Content, q: &Question) -> bool {
         self.keep_scope(content, q) && !self.off_sources.contains(&q.source_group())
     }
+}
+
+/// Il controller dà al motore della sincronizzazione accesso agli archivi degli esami.
+impl p2p::Host for Ctrl {
+    fn offers(&self) -> Vec<p2p::ExamOffer> {
+        self.exams
+            .exams
+            .iter()
+            .map(|e| {
+                let st = self.exam_store(&e.id);
+                let shareable = st.mirror_path("content/syllabus.json").is_some_and(|p| vfs::exists(&p));
+                let version = if shareable { prep_core::pack::content_version(&st) } else { String::new() };
+                p2p::ExamOffer { id: e.id.clone(), name: e.name.clone(), version, shareable }
+            })
+            .collect()
+    }
+
+    fn progress_files(&self, exam: &str) -> Option<Vec<(String, String)>> {
+        self.exams.get(exam)?;
+        let mirror = self.exam_store(exam).root.join("mirror");
+        let mut v = Vec::new();
+        for f in vfs::walk_files(&mirror.join("progress")) {
+            let Ok(rel) = f.strip_prefix(&mirror) else { continue };
+            let rel = rel.to_string_lossy().replace('\\', "/");
+            if p2p::shareable_path(&rel) {
+                if let Ok(b) = vfs::read(&f) {
+                    v.push((rel, p2p::sha256_hex(&b)));
+                }
+            }
+        }
+        Some(v)
+    }
+
+    fn read_file(&self, exam: &str, path: &str) -> Option<Vec<u8>> {
+        self.exams.get(exam)?;
+        vfs::read(&self.exam_store(exam).mirror_path(path)?).ok()
+    }
+
+    fn write_file(&mut self, exam: &str, path: &str, bytes: &[u8]) -> bool {
+        if self.exams.get(exam).is_none() || serde_json::from_slice::<serde_json::Value>(bytes).is_err() {
+            return false;
+        }
+        let st = self.exam_store(exam);
+        if st.mirror_path(path).is_some_and(|p| vfs::exists(&p)) {
+            return false;
+        }
+        st.write_mirror(path, bytes).is_ok()
+    }
+
+    fn pack(&mut self, exam: &str) -> Result<Vec<u8>, String> {
+        self.exams.get(exam).ok_or("esame non installato")?;
+        let st = self.exam_store(exam);
+        let label =
+            prep_core::pack::last_import(&st).map(|i| i.label).unwrap_or_else(|| "da un altro dispositivo".into());
+        prep_core::pack::build(&st.root.join("mirror"), &label).map(|(b, _)| b)
+    }
+
+    fn import_pack(&mut self, bytes: &[u8]) -> Result<String, String> {
+        let (id, name) = prep_core::pack::exam_of(bytes)?;
+        let st = self.exam_store(&id);
+        let _ = vfs::create_dir_all(&st.root.join("mirror"));
+        prep_core::pack::import(&st, bytes)?;
+        self.exams.add(&id, &name);
+        let _ = self.exams.save(&self.store.base);
+        Ok(name)
+    }
+}
+
+/// Evento di rete consegnato sul thread dell'interfaccia (vedi `net`).
+pub(crate) fn on_net_event(ev: crate::net::NetEvent) {
+    with_ctrl(|c| c.net_event(ev));
 }
 
 thread_local! {
@@ -1216,6 +1310,9 @@ impl Ctrl {
         st.set_s_branch(ss(&s.branch));
         st.set_s_token(ss(&s.token));
         st.set_s_username(ss(&s.username));
+        st.set_p2p_auto(s.p2p_auto);
+        st.set_p2p_password(ss(&s.p2p_password));
+        st.set_p2p_relays(ss(if s.relays.is_empty() { p2p::DEFAULT_RELAYS.join(", ") } else { s.relays.join(", ") }));
         st.set_s_rem_on(s.reminder_enabled);
         let times = if s.reminder_times.is_empty() {
             prep_core::reminder::DEFAULT_TIMES.join(", ")
@@ -2616,6 +2713,7 @@ impl Ctrl {
     // ---------- sync ----------
 
     fn start_sync(&mut self, verbose: bool) {
+        self.p2p_announce();
         self.sync_verbose |= verbose;
         if self.syncing {
             return;
@@ -2826,6 +2924,297 @@ impl Ctrl {
         self.toast("Esame eliminato");
     }
 
+    // ---------- sincronizzazione tra dispositivi ----------
+
+    fn exam_store(&self, id: &str) -> Store {
+        Store { root: prep_core::exams::dir(&self.store.base, id), base: self.store.base.clone() }
+    }
+
+    fn device_label() -> &'static str {
+        if cfg!(target_os = "android") {
+            "Android"
+        } else if cfg!(target_arch = "wasm32") {
+            "web"
+        } else {
+            "computer"
+        }
+    }
+
+    fn p2p_connect(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let password = st.get_p2p_password().to_string();
+        let mut s = self.store.settings();
+        if s.username.trim().is_empty() {
+            self.toast("Scegli prima un nome utente qui sopra, in Profilo");
+            return;
+        }
+        if password.chars().count() < 8 {
+            self.toast("Serve una password di almeno 8 caratteri (meglio una frase lunga)");
+            return;
+        }
+        if s.device_id.is_empty() {
+            s.device_id = p2p::random_id();
+        }
+        s.p2p_auto = st.get_p2p_auto();
+        s.p2p_password = if s.p2p_auto { password.clone() } else { String::new() };
+        let relays_txt = st.get_p2p_relays().to_string();
+        s.relays = relays_txt
+            .split([',', '\n', ' '])
+            .map(|x| x.trim().to_string())
+            .filter(|x| x.starts_with("ws://") || x.starts_with("wss://"))
+            .collect();
+        let _ = self.store.save_settings(&s);
+        self.p2p_disconnect();
+        let relays: Vec<String> = if s.relays.is_empty() {
+            p2p::DEFAULT_RELAYS.iter().map(|x| x.to_string()).collect()
+        } else {
+            s.relays.clone()
+        };
+        let room = p2p::Room::derive(&s.username, &password);
+        let engine = p2p::Engine::new(
+            &s.device_id,
+            &format!("{} · {}", s.username.trim(), Self::device_label()),
+            Self::device_label(),
+        );
+        let links: Vec<crate::net::Link> =
+            relays.iter().enumerate().map(|(i, u)| crate::net::Link::open(i, u)).collect();
+        let timer = Timer::default();
+        timer.start(TimerMode::Repeated, Duration::from_millis(160), || with_ctrl(|c| c.p2p_pump()));
+        self.p2p = Some(P2p {
+            room,
+            signer: p2p::Signer::new(),
+            engine: Some(engine),
+            open: vec![false; links.len()],
+            subscribed: vec![false; links.len()],
+            links,
+            relays,
+            started: false,
+            queue: Default::default(),
+            timer,
+            ticks: 0,
+            dirty: false,
+            received: 0,
+            notice: String::new(),
+        });
+        self.refresh_p2p();
+    }
+
+    fn p2p_disconnect(&mut self) {
+        if let Some(p) = self.p2p.take() {
+            p.timer.stop();
+            for l in &p.links {
+                l.close();
+            }
+        }
+        self.refresh_p2p();
+    }
+
+    fn now_secs() -> i64 {
+        Utc::now().timestamp()
+    }
+
+    /// Mette in coda (cifrati e firmati) i messaggi prodotti dal motore.
+    fn p2p_enqueue(&mut self, outs: Vec<p2p::Out>) {
+        let Some(p) = self.p2p.as_mut() else { return };
+        let Some(eng) = p.engine.as_ref() else { return };
+        let now = Self::now_secs();
+        for o in outs {
+            let content = p.room.seal(&eng.wire(&o));
+            p.queue.push_back(p.signer.event(&p.room.tag, &content, now));
+        }
+    }
+
+    /// Esegue `f` col motore e il controller (che fa da `Host`), poi spedisce quanto prodotto.
+    fn with_engine(&mut self, f: impl FnOnce(&mut p2p::Engine, &mut Ctrl) -> Vec<p2p::Out>) {
+        let Some(mut eng) = self.p2p.as_mut().and_then(|p| p.engine.take()) else { return };
+        let outs = f(&mut eng, self);
+        let events = std::mem::take(&mut eng.events);
+        if let Some(p) = self.p2p.as_mut() {
+            p.engine = Some(eng);
+        }
+        self.p2p_enqueue(outs);
+        self.p2p_events(events);
+    }
+
+    fn p2p_announce(&mut self) {
+        if self.p2p.as_ref().is_some_and(|p| p.started) {
+            self.with_engine(|e, c| e.announce(c));
+        }
+    }
+
+    /// Ogni 160 ms: un messaggio della coda a tutti i relay aperti; ogni secondo il motore.
+    fn p2p_pump(&mut self) {
+        let Some(p) = self.p2p.as_mut() else { return };
+        p.ticks += 1;
+        if p.open.iter().any(|o| *o) {
+            if let Some(f) = p.queue.pop_front() {
+                for (l, o) in p.links.iter().zip(&p.open) {
+                    if *o {
+                        l.send(&f);
+                    }
+                }
+            }
+        }
+        if p.ticks.is_multiple_of(6) {
+            let started = p.started;
+            let dirty = std::mem::take(&mut p.dirty);
+            if started {
+                let now = Self::now_secs();
+                self.with_engine(|e, c| e.tick(c, now));
+            }
+            if dirty {
+                self.reload_progress();
+                self.refresh_all();
+            }
+            self.refresh_p2p();
+        }
+    }
+
+    fn net_event(&mut self, ev: crate::net::NetEvent) {
+        use crate::net::NetEvent;
+        let Some(p) = self.p2p.as_mut() else { return };
+        match ev {
+            NetEvent::Open(i) => {
+                if i < p.open.len() {
+                    p.open[i] = true;
+                    // iscrizione agli eventi della stanza (anche quelli di pochi secondi fa)
+                    p.links[i].send(&p2p::subscribe("tp", &p.room.tag, Self::now_secs() - 30));
+                    p.subscribed[i] = true;
+                }
+                if !p.started {
+                    p.started = true;
+                    let now = Self::now_secs();
+                    self.with_engine(|e, c| e.start(c, now));
+                }
+                self.refresh_p2p();
+            }
+            NetEvent::Closed(i, why) => {
+                if i < p.open.len() {
+                    p.open[i] = false;
+                }
+                if !why.is_empty() {
+                    p.notice = format!("{}: {why}", p.relays.get(i).cloned().unwrap_or_default());
+                }
+                self.refresh_p2p();
+            }
+            NetEvent::Frame(text) => {
+                if let Some((id, content)) = p2p::parse_relay(&text) {
+                    if let Some(plain) = p.room.open(&content) {
+                        let now = Self::now_secs();
+                        self.with_engine(|e, c| e.receive(c, &id, &plain, now));
+                    }
+                } else if let Some(n) = p2p::relay_notice(&text) {
+                    p.notice = n;
+                }
+            }
+        }
+    }
+
+    fn p2p_events(&mut self, events: Vec<p2p::Event>) {
+        for ev in events {
+            match ev {
+                p2p::Event::Peer(_) => {}
+                p2p::Event::Files { exam, n } => {
+                    if let Some(p) = self.p2p.as_mut() {
+                        p.received += n;
+                        if exam == self.exams.active {
+                            p.dirty = true;
+                        }
+                    }
+                }
+                p2p::Event::PackProgress { .. } => {}
+                p2p::Event::PackDone { exam, result } => match result {
+                    Ok(name) => {
+                        self.refresh_exams();
+                        if exam == self.exams.active {
+                            self.reload_content();
+                            self.reload_progress();
+                            self.refresh_all();
+                        }
+                        self.toast(format!("Esame «{name}» ricevuto e installato"));
+                    }
+                    Err(e) => self.toast(format!("Esame non ricevuto: {e}")),
+                },
+            }
+        }
+    }
+
+    fn p2p_download(&mut self, peer: &str, exam: &str) {
+        let now = Self::now_secs();
+        let (peer, exam) = (peer.to_string(), exam.to_string());
+        self.with_engine(move |e, _| e.download(&peer, &exam, now));
+        self.refresh_p2p();
+    }
+
+    fn refresh_p2p(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let Some(p) = self.p2p.as_ref() else {
+            st.set_p2p_on(false);
+            st.set_p2p_status(ss("Non collegato"));
+            st.set_p2p_peers(model(Vec::<PeerVM>::new()));
+            return;
+        };
+        st.set_p2p_on(true);
+        let open = p.open.iter().filter(|o| **o).count();
+        let mut peers: Vec<PeerVM> = Vec::new();
+        let mut status = if open == 0 {
+            "Collegamento ai relay…".to_string()
+        } else {
+            format!("Collegato a {open}/{} relay", p.relays.len())
+        };
+        if let Some(eng) = p.engine.as_ref() {
+            status.push_str(&match eng.peers.len() {
+                0 if open > 0 => " · in attesa degli altri dispositivi (apri l'app anche lì)".to_string(),
+                0 => String::new(),
+                1 => " · 1 dispositivo".to_string(),
+                n => format!(" · {n} dispositivi"),
+            });
+            if let Some((exam, got, total)) = eng.downloading() {
+                let name = eng
+                    .peers
+                    .values()
+                    .flat_map(|x| &x.exams)
+                    .find(|e| e.id == exam)
+                    .map(|e| e.name.clone())
+                    .unwrap_or_default();
+                status.push_str(&format!("\nRicevo «{name}»: {got}/{} pezzi", total.max(1)));
+            }
+            for (id, peer) in &eng.peers {
+                let mut offers: Vec<OfferVM> = Vec::new();
+                for e in peer.exams.iter().filter(|e| e.shareable) {
+                    let mine = self.exams.get(&e.id).map(|_| prep_core::pack::content_version(&self.exam_store(&e.id)));
+                    let label = match mine {
+                        None => format!("Scarica «{}»", e.name),
+                        Some(v) if v != e.version => format!("Prendi i suoi contenuti di «{}»", e.name),
+                        Some(_) => continue,
+                    };
+                    offers.push(OfferVM { peer: ss(id), exam: ss(&e.id), label: ss(label) });
+                }
+                let common = peer.exams.iter().filter(|e| self.exams.get(&e.id).is_some()).count();
+                peers.push(PeerVM {
+                    id: ss(id),
+                    name: ss(&peer.name),
+                    info: ss(match common {
+                        0 => "nessun esame in comune".to_string(),
+                        1 => "1 esame in comune: progressi sincronizzati".to_string(),
+                        n => format!("{n} esami in comune: progressi sincronizzati"),
+                    }),
+                    offers: model(offers),
+                });
+            }
+        }
+        if p.received > 0 {
+            status.push_str(&format!("\nRicevuti {} file di progressi", p.received));
+        }
+        if !p.notice.is_empty() && open < p.relays.len() {
+            status.push_str(&format!("\n{}", p.notice));
+        }
+        st.set_p2p_status(ss(status));
+        st.set_p2p_peers(model(peers));
+    }
+
     fn save_username(&mut self, name: &str) {
         let mut s = self.store.settings();
         s.username = name.trim().chars().take(32).collect();
@@ -3009,6 +3398,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         qz: QuizSetup::default(),
         exams,
         remove_armed: None,
+        p2p: None,
     }));
     CTRL.with(|c| *c.borrow_mut() = Some(ctrl.clone()));
     {
@@ -3018,6 +3408,11 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         c.load_settings_into_ui();
         c.refresh_all();
         c.refresh_exams();
+        c.refresh_p2p();
+        // collegamento automatico tra dispositivi, se scelto
+        if c.store.settings().p2p_auto && !c.store.settings().p2p_password.is_empty() {
+            c.p2p_connect();
+        }
         c.import_timer.start(TimerMode::Repeated, Duration::from_millis(1500), || with_ctrl(|c| c.poll_import()));
     }
 
@@ -3278,6 +3673,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_select_exam(|id| with_ctrl(|c| c.open_exam(&id)));
     st.on_remove_exam(|id| with_ctrl(|c| c.remove_exam(&id)));
     st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));
+    st.on_p2p_connect(|| with_ctrl(|c| c.p2p_connect()));
+    st.on_p2p_disconnect(|| with_ctrl(|c| c.p2p_disconnect()));
+    st.on_p2p_download(|peer, exam| with_ctrl(|c| c.p2p_download(&peer, &exam)));
     st.on_wave_path(|x0, x1, cy, amp, wl, phase| ss(wave_path(x0, x1, cy, amp, wl, phase)));
     st.on_dialog_ok(|| with_ctrl(|c| c.dialog_ok()));
     st.on_dialog_alt_clicked(|| with_ctrl(|c| c.dialog_alt()));

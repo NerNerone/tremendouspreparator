@@ -68,6 +68,23 @@ pub fn maybe_run(ui: &AppWindow) {
                 }
                 "qzstart" => st.invoke_qz_start(),
                 "exammenu" => st.set_exam_menu(true),
+                // sincronizzazione tra dispositivi: user:nome; p2prelay:ws://…; p2p:password; p2pget
+                "user" => st.invoke_save_username(arg.into()),
+                "p2prelay" => st.set_p2p_relays(arg.into()),
+                "p2p" => {
+                    st.set_p2p_password(arg.into());
+                    st.invoke_p2p_connect()
+                }
+                "p2pget" => {
+                    let peers = st.get_p2p_peers();
+                    let first = (0..slint::Model::row_count(&peers))
+                        .filter_map(|i| slint::Model::row_data(&peers, i))
+                        .find_map(|p| slint::Model::row_data(&p.offers, 0));
+                    match first {
+                        Some(o) => st.invoke_p2p_download(o.peer, o.exam),
+                        None => eprintln!("p2pget: nessun esame da scaricare"),
+                    }
+                }
                 "useexam" => st.invoke_select_exam(arg.into()),
                 "importpack" => st.invoke_import_pack(),
                 "rdscroll" => st.set_rd_scroll(-(arg.parse::<f32>().unwrap_or(0.0))),

@@ -2471,6 +2471,105 @@ export component SettingsPage inherits Page {
                 }
             }
 
+            // sincronizzazione tra dispositivi (telefono, web app, computer) senza GitHub
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        VIcon {
+                            source: Icons.sync;
+                            tint: AppState.p2p-on ? M3.primary : M3.on-surface-variant;
+                        }
+                        Text {
+                            text: "Dispositivi";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. Nessun server salva i dati: viaggiano cifrati attraverso relay pubblici che li inoltrano e basta.";
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                    if !AppState.p2p-on: LineEdit {
+                        text <=> AppState.p2p-password;
+                        input-type: password;
+                        placeholder-text: "Password della stanza (almeno 8 caratteri)";
+                    }
+                    if !AppState.p2p-on: HorizontalLayout {
+                        spacing: 8px;
+                        Switch {
+                            checked <=> AppState.p2p-auto;
+                        }
+                        Text {
+                            text: "Collegati da solo all'avvio (la password resta salvata su questo dispositivo)";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                        }
+                    }
+                    Text {
+                        text: AppState.p2p-status;
+                        wrap: word-wrap;
+                        color: AppState.p2p-on ? M3.primary : M3.on-surface-variant;
+                    }
+                    for peer in AppState.p2p-peers: Rectangle {
+                        border-radius: 12px;
+                        background: M3.surface-container-high;
+                        VerticalLayout {
+                            padding: 12px;
+                            spacing: 6px;
+                            Text {
+                                text: peer.name;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: peer.info;
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                                wrap: word-wrap;
+                            }
+                            for o in peer.offers: M3Button {
+                                text: o.label;
+                                kind: 1;
+                                small: true;
+                                clicked => {
+                                    AppState.p2p-download(o.peer, o.exam);
+                                }
+                            }
+                        }
+                    }
+                    M3Button {
+                        text: AppState.p2p-on ? "Scollega" : "Collega";
+                        kind: AppState.p2p-on ? 1 : 0;
+                        has-icon: true;
+                        icon: Icons.sync;
+                        clicked => {
+                            if AppState.p2p-on {
+                                AppState.p2p-disconnect();
+                            } else {
+                                AppState.p2p-connect();
+                            }
+                        }
+                    }
+                    if !AppState.p2p-on: LineEdit {
+                        text <=> AppState.p2p-relays;
+                        placeholder-text: "Relay (wss://…, separati da virgola)";
+                        font-size: Type.label;
+                    }
+                }
+            }
+
             if AppState.sync-configured: Card {
                 clickable: true;
                 bg: M3.tertiary-container;

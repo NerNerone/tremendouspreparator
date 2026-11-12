@@ -11,6 +11,7 @@ mod app;
 mod demo;
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 pub mod desktop_reminder;
+mod net;
 mod periodic;
 #[cfg(target_arch = "wasm32")]
 mod web;

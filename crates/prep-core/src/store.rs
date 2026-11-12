@@ -49,6 +49,17 @@ pub struct Settings {
     /// nome con cui ci si presenta agli altri dispositivi (sincronizzazione, studio di gruppo)
     #[serde(default)]
     pub username: String,
+    /// identificativo casuale di questo dispositivo (sincronizzazione tra dispositivi)
+    #[serde(default)]
+    pub device_id: String,
+    /// collegarsi da soli all'avvio; la password resta salvata solo in questo caso
+    #[serde(default)]
+    pub p2p_auto: bool,
+    #[serde(default)]
+    pub p2p_password: String,
+    /// relay Nostr da usare; vuoto = quelli predefiniti
+    #[serde(default)]
+    pub relays: Vec<String>,
 }
 
 fn d_times() -> Vec<String> {
@@ -90,6 +101,10 @@ impl Default for Settings {
             evening_time: d_eve_time(),
             reminder_times: d_times(),
             username: String::new(),
+            device_id: String::new(),
+            p2p_auto: false,
+            p2p_password: String::new(),
+            relays: vec![],
         }
     }
 }
