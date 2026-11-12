@@ -1,6 +1,6 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "theme.slint";
-import { AppState, CarVM, RankVM, GroupVM, DashVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "state.slint";
+import { AppState, CarVM, CrewVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "components.slint";
 
 component SubjectCard inherits Card {
@@ -2422,16 +2422,110 @@ export component QuizHubPage inherits Page {
 
 // ---------- studio di gruppo ----------
 
+// meccanico visto dall'alto, rivolto verso +x (verso la macchina): tuta, casco del colore
+// della squadra, braccia che lavorano; in mano l'avvitatore, una gomma o il cartello
+component Crew inherits Rectangle {
+    in property <color> c;
+    in property <color> helmet;
+    in property <float> work;
+    in property <bool> tool: true;
+    in property <bool> tire;
+    in property <bool> sign;
+    width: 16px;
+    height: 16px;
+    // gomma: la porta via e la rimette
+    if root.tire: Rectangle {
+        x: 13px + 6px * (1 - root.work);
+        y: 3.5px;
+        width: 6px;
+        height: 9px;
+        border-radius: 2px;
+        background: root.c.darker(0.7);
+        Rectangle { x: 2px; y: 3px; width: 2px; height: 3px; border-radius: 1px; background: root.helmet; }
+    }
+    // braccia: si allungano a turno (avvita / svita)
+    Rectangle { x: 8px; y: 3px; width: 4px + 4px * root.work; height: 3px; border-radius: 1.5px; background: root.c; }
+    Rectangle { x: 8px; y: 10px; width: 4px + 4px * (1 - root.work); height: 3px; border-radius: 1.5px; background: root.c; }
+    // avvitatore
+    if root.tool && !root.tire: Rectangle {
+        x: 12px + 4px * root.work;
+        y: 5px;
+        width: 4px;
+        height: 6px;
+        border-radius: 1px;
+        background: root.c.darker(0.6);
+    }
+    // cartello: asta e disco nel colore della squadra
+    if root.sign: Rectangle { x: 10px; y: 7px; width: 9px; height: 2px; background: root.c.darker(0.6); }
+    if root.sign: Rectangle {
+        x: 17px;
+        y: 2.5px;
+        width: 11px;
+        height: 11px;
+        border-radius: 5.5px;
+        background: root.helmet;
+        border-width: 1.5px;
+        border-color: root.c.darker(0.6);
+    }
+    // spalle
+    Rectangle { x: 3px; y: 1px; width: 8px; height: 14px; border-radius: 4px; background: root.c; }
+    // casco
+    Rectangle { x: 4px; y: 4.5px; width: 7px; height: 7px; border-radius: 3.5px; background: root.helmet; border-width: 1px; border-color: root.c.darker(0.6); }
+}
+
 // monoposto di Formula 1 vista dall'alto, tutta nel suo colore (muso verso destra)
 component Car inherits Rectangle {
     in property <CarVM> car;
     in property <float> phase;
     in property <color> road;
+    in property <color> bg-line: M3.surface;
     property <color> c: root.car.offline ? root.road.darker(0.4) : root.car.color;
+    // i meccanici arrivano quando la macchina si ferma al pit stop e lavorano a ritmo
+    property <float> crew: root.car.pit ? 1 : 0;
+    animate crew {
+        duration: 900ms;
+        easing: ease-out;
+    }
+    property <float> w: 0;
+    animate w {
+        duration: 230ms;
+        easing: ease-in-out;
+    }
+    Timer {
+        interval: 260ms;
+        running: root.car.pit;
+        triggered => {
+            root.w = root.w > 0.5 ? 0 : 1;
+        }
+    }
+    property <color> suit: root.road.darker(0.45);
     width: 36px;
     height: 20px;
+    // piazzola del box: fondo, stallo segnato, muro del garage con la striscia della squadra
+    if root.crew > 0.01: Rectangle {
+        x: -30px;
+        y: -2px;
+        width: 96px;
+        height: 70px;
+        opacity: root.crew;
+        Rectangle { width: 100%; height: 100%; border-radius: 10px; background: root.road; }
+        // stallo: rettangolo tratteggiato agli angoli attorno alla macchina
+        Rectangle { x: 24px; y: 0px; width: 12px; height: 2px; background: root.bg-line; }
+        Rectangle { x: 24px; y: 0px; width: 2px; height: 10px; background: root.bg-line; }
+        Rectangle { x: 60px; y: 0px; width: 12px; height: 2px; background: root.bg-line; }
+        Rectangle { x: 70px; y: 0px; width: 2px; height: 10px; background: root.bg-line; }
+        Rectangle { x: 24px; y: 22px; width: 12px; height: 2px; background: root.bg-line; }
+        Rectangle { x: 24px; y: 14px; width: 2px; height: 10px; background: root.bg-line; }
+        Rectangle { x: 60px; y: 22px; width: 12px; height: 2px; background: root.bg-line; }
+        Rectangle { x: 70px; y: 14px; width: 2px; height: 10px; background: root.bg-line; }
+        // linea d'arresto davanti al muso
+        Rectangle { x: 70px; y: 4px; width: 3px; height: 16px; background: root.bg-line; }
+        // muro del garage
+        Rectangle { x: 4px; y: parent.height - 9px; width: parent.width - 8px; height: 6px; border-radius: 3px; background: root.suit; }
+        Rectangle { x: 10px; y: parent.height - 7px; width: parent.width - 20px; height: 2px; background: root.c; }
+    }
     // scia, solo in pista
-    if root.car.moving: Rectangle {
+    if root.car.racing: Rectangle {
         x: -10px - 5px * root.phase;
         y: 6px;
         width: 8px + 5px * root.phase;
@@ -2440,7 +2534,7 @@ component Car inherits Rectangle {
         background: root.c;
         opacity: 0.2 + 0.35 * root.phase;
     }
-    if root.car.moving: Rectangle {
+    if root.car.racing: Rectangle {
         x: -8px - 6px * (1 - root.phase);
         y: 12px;
         width: 6px + 6px * (1 - root.phase);
@@ -2470,73 +2564,136 @@ component Car inherits Rectangle {
         border-radius: self.width / 2;
         background: root.road;
     }
-}
-
-global Track {
-    pure public function stadium(p: float, w: float, h: float) -> string {
-        return "M " + (p + h / 2) + " " + (p + h) + " L " + (p + w - h / 2) + " " + (p + h) + " A " + (h / 2) + " " + (h / 2) + " 0 0 0 " + (p + w - h / 2) + " " + p + " L " + (p + h / 2) + " " + p + " A " + (h / 2) + " " + (h / 2) + " 0 0 0 " + (p + h / 2) + " " + (p + h) + " Z";
+    // squadra dei box: numero e posti a caso (fissi per ogni sosta), sempre sul lato esterno
+    for m in root.car.crew: Crew {
+        c: root.suit;
+        helmet: root.c;
+        work: m.alt ? 1 - root.w : root.w;
+        tool: m.tool;
+        tire: m.tire;
+        sign: m.sign;
+        x: m.x * 1px;
+        y: m.y * 1px + 24px * (1 - root.crew);
+        transform-rotation: m.rot * 1deg;
+        opacity: root.crew;
+        visible: root.crew > 0.01;
     }
 }
 
 // minimappa: tutto il circuito, le macchine come puntini
 component MiniMap inherits Rectangle {
     in property <[CarVM]> cars;
-    property <float> aspect: 2.4;
+    in property <string> commands;
+    in property <float> aspect: 2.4;
+    in property <color> road;
     property <length> pad: 8px;
+    property <length> sw: 5px;
     property <length> tw: root.width - 2 * root.pad;
     property <length> th: root.tw / root.aspect;
-    in property <color> road;
     height: root.th + 2 * root.pad;
-    Path {
-        width: root.width;
-        height: root.height;
-        fit: ImageFit.preserve;
-        commands: Track.stadium(root.pad / 1px, root.tw / 1px, root.th / 1px);
+    mm := Path {
+        x: root.pad - root.sw / 2;
+        y: root.pad - root.sw / 2;
+        width: root.tw + root.sw;
+        height: root.th + root.sw;
+        viewbox-width: 1000;
+        viewbox-height: 1000;
+        fit: ImageFit.fill;
+        commands: root.commands;
         stroke: root.road;
-        stroke-width: 5px;
+        stroke-width: root.sw;
     }
     for car in root.cars: Rectangle {
-        x: root.pad + car.x * root.tw - self.width / 2;
-        y: root.pad + car.y * root.th - self.height / 2;
+        property <bool> ready: false;
+        Timer {
+            interval: 1200ms;
+            running: !parent.ready;
+            triggered => {
+                parent.ready = true;
+            }
+        }
+        property <float> f: car.f;
+        animate f {
+            duration: self.ready ? 1000ms : 0ms;
+            easing: linear;
+        }
+        property <Point> p: mm.point-at(self.f);
+        visible: !car.parked;
+        x: mm.x + self.p.x - self.width / 2;
+        y: mm.y + self.p.y - self.height / 2;
         width: car.me ? 9px : 7px;
         height: self.width;
         border-radius: self.width / 2;
         background: car.offline ? root.road.darker(0.4) : car.color;
-        animate x, y {
-            duration: 1000ms;
-            easing: linear;
-        }
     }
 }
 
-// la gara vista da vicino: la telecamera segue la tua macchina (ai box inquadra i box)
+// la gara: da vicino la telecamera segue la tua macchina; altrimenti tutto il circuito.
+// Le posizioni vengono dal tracciato stesso (frazione di giro), quindi lo zoom non le sposta.
 component RaceView inherits Rectangle {
     in property <[CarVM]> cars;
-    in property <[DashVM]> dashes;
-    in property <float> cam-x;
-    in property <float> cam-y;
+    in property <float> cam-f;
     in property <bool> overview;
     in property <string> hud;
     in property <int> flash;
+    in property <string> commands;
+    in property <float> aspect: 2.4;
+    in property <float> scale: 1;
+    in property <float> pad-x: 0.5;
+    in property <float> pad-y: 0.65;
     // la strada: un solo colore, dal tema; la mezzeria nel colore dello sfondo
     property <color> road: M3.surface-container-highest;
     property <color> bg: M3.surface;
-    property <float> aspect: 2.4;
-    // altezza della pista: 640 px da vicino, oppure tutta nella vista (d'insieme)
-    property <length> fit-th: min((root.width - 48px) / root.aspect, root.height - 60px);
-    property <float> zoom: root.overview ? 0 : 1;
+    // il pulsante inverte la vista automatica (da vicino mentre studi, d'insieme altrimenti)
+    property <bool> flip: false;
+    property <bool> wide: root.overview != root.flip;
+    changed overview => {
+        root.flip = false;
+    }
+    // altezza della pista: grande da vicino (cresce con i membri), oppure tutta nella vista
+    property <length> fit-th: min((root.width - 110px) / root.aspect, (root.height - 40px) / 1.45);
+    property <float> zoom: root.wide ? 0 : 1;
     animate zoom {
         duration: 700ms;
         easing: ease-in-out;
     }
-    property <length> TH: root.fit-th + (640px - root.fit-th) * root.zoom;
+    property <length> near-th: 560px * root.scale;
+    property <length> TH: root.fit-th + (root.near-th - root.fit-th) * root.zoom;
     property <length> TW: root.TH * root.aspect;
-    property <length> P: 220px;
-    property <float> k: max(0.75, 2.2 * root.TH / 640px);
-    // punto inquadrato: il centro del circuito nella vista d'insieme
-    property <float> fx: 0.5 + (root.cam-x - 0.5) * root.zoom;
-    property <float> fy: 0.5 + (root.cam-y - 0.5) * root.zoom;
+    property <length> P: 260px * root.scale;
+    // carreggiata e corsie
+    property <length> sw: root.TH * 0.13 / sqrt(root.scale);
+    property <length> lane-w: root.sw * 0.36;
+    // monoposto: dimensione costante da vicino, più piccole nella vista d'insieme
+    property <float> k: max(0.7, 1.8 * root.TH / root.near-th);
     property <float> phase: 0;
+    // telecamera: la stessa animazione della propria macchina, così resta al centro
+    property <bool> ready: false;
+    Timer {
+        interval: 1200ms;
+        running: !root.ready;
+        triggered => {
+            root.ready = true;
+        }
+    }
+    property <float> cf: root.cam-f;
+    animate cf {
+        duration: root.ready ? 1000ms : 0ms;
+        easing: linear;
+    }
+    property <Point> cp: road-path.point-at(root.cf);
+    property <angle> ca: road-path.angle-at(root.cf);
+    // al pit stop la telecamera si sposta sulla piazzola, fuori pista
+    in property <float> cam-lane;
+    property <float> cl: root.cam-lane;
+    animate cl {
+        duration: 900ms;
+        easing: ease-in-out;
+    }
+    property <length> cam-px: road-path.x + root.cp.x - sin(root.ca) * root.cl * root.lane-w;
+    property <length> cam-py: road-path.y + root.cp.y + cos(root.ca) * root.cl * root.lane-w;
+    property <length> mid-x: root.P + root.TW / 2;
+    property <length> mid-y: root.P + root.TH * (0.5 + 0.12 * (1 - root.zoom));
     Timer {
         interval: 120ms;
         running: true;
@@ -2546,69 +2703,181 @@ component RaceView inherits Rectangle {
     }
     clip: true;
     world := Rectangle {
-        x: root.width / 2 - (root.P + root.fx * root.TW) + (root.overview ? 0px : 0px);
-        y: root.height / 2 + 12px * (1 - root.zoom) - (root.P + root.fy * root.TH);
+        x: root.width / 2 - (root.mid-x + (root.cam-px - root.mid-x) * root.zoom);
+        y: root.height / 2 + 12px * (1 - root.zoom) - (root.mid-y + (root.cam-py - root.mid-y) * root.zoom);
         width: root.TW + 2 * root.P;
         height: root.TH + 2 * root.P;
-        Path {
-            width: parent.width;
-            height: parent.height;
-            fit: ImageFit.preserve;
-            commands: Track.stadium(root.P / 1px, root.TW / 1px, root.TH / 1px);
+        // paddock nell'area interna: corsia box, muretto e garage; chi ha terminato la sessione
+        // o non è collegato aspetta qui nel suo box
+        Rectangle {
+            width: root.TW * 0.36;
+            height: root.TH * 0.22;
+            x: root.P + root.pad-x * root.TW - self.width / 2;
+            y: root.P + root.pad-y * root.TH - self.height / 2;
+            border-radius: min(self.height / 4, 18px);
+            background: root.road;
+            // corsia box tratteggiata
+            for i in 14: Rectangle {
+                x: parent.width * (i + 0.25) / 14;
+                y: parent.height * 0.12;
+                width: parent.width / 28;
+                height: max(1.5px, root.TH * 0.005);
+                background: root.bg;
+            }
+            // muretto dei box e tetto dei garage
+            Rectangle {
+                x: parent.width * 0.05;
+                y: 0px;
+                width: parent.width * 0.9;
+                height: max(2px, root.TH * 0.01);
+                border-radius: self.height / 2;
+                background: root.road.darker(0.25);
+            }
+            Rectangle {
+                x: parent.width * 0.05;
+                y: parent.height - self.height;
+                width: parent.width * 0.9;
+                height: max(3px, root.TH * 0.025);
+                border-radius: self.height / 2;
+                background: root.road.darker(0.25);
+            }
+        }
+        road-path := Path {
+            x: root.P - root.sw / 2;
+            y: root.P - root.sw / 2;
+            width: root.TW + root.sw;
+            height: root.TH + root.sw;
+            viewbox-width: 1000;
+            viewbox-height: 1000;
+            fit: ImageFit.fill;
+            commands: root.commands;
             stroke: root.road;
-            stroke-width: root.TH * 0.17;
+            stroke-width: root.sw;
         }
         // linea di mezzeria tratteggiata
-        for d in root.dashes: Rectangle {
-            x: root.P + d.x * root.TW - self.width / 2;
-            y: root.P + d.y * root.TH - self.height / 2;
-            width: root.TH * 0.04;
+        for i in 80: Rectangle {
+            property <float> t: (i + 0.25) / 80;
+            property <Point> p: road-path.point-at(self.t);
+            x: road-path.x + self.p.x - self.width / 2;
+            y: road-path.y + self.p.y - self.height / 2;
+            width: root.TW * root.scale * 0.006 + root.TH * 0.02;
             height: max(1.5px, root.TH * 0.006);
             background: root.bg;
-            transform-rotation: d.angle * 1deg;
+            transform-rotation: road-path.angle-at(self.t);
         }
-        // piazzola dei box (pausa), stesso colore della strada
+        // traguardo a scacchi, di traverso sulla strada
         Rectangle {
-            x: root.P + root.TW * 0.3;
-            y: root.P + root.TH * 0.6;
-            width: root.TW * 0.4;
-            height: root.TH * 0.24;
-            border-radius: 24px;
-            background: root.road;
+            property <Point> p: road-path.point-at(0);
+            property <length> sq: root.sw / 8;
+            x: road-path.x + self.p.x - self.width / 2;
+            y: road-path.y + self.p.y - self.height / 2;
+            width: 2 * self.sq;
+            height: root.sw;
+            transform-rotation: road-path.angle-at(0);
+            for i in 16: Rectangle {
+                x: mod(i, 2) * parent.sq;
+                y: floor(i / 2) * parent.sq;
+                width: parent.sq;
+                height: parent.sq;
+                background: mod(i + floor(i / 2), 2) == 0 ? root.bg : root.road.darker(0.35);
+            }
         }
-        for car in root.cars: Car {
-            car: car;
-            phase: root.phase;
-            road: root.road;
-            x: root.P + car.x * root.TW - self.width / 2 - sin(car.angle * 1deg) * car.lane * root.TH * 0.05;
-            y: root.P + car.y * root.TH - self.height / 2 + cos(car.angle * 1deg) * car.lane * root.TH * 0.05;
-            transform-rotation: car.angle * 1deg;
-            transform-scale-x: root.k;
-            transform-scale-y: root.k;
-            animate x, y {
-                duration: 1000ms;
+        for car in root.cars: Rectangle {
+            // appena compare la macchina va subito al suo posto, poi si muove fluida
+            property <bool> ready: false;
+            Timer {
+                interval: 1200ms;
+                running: !parent.ready;
+                triggered => {
+                    parent.ready = true;
+                }
+            }
+            property <float> f: car.f;
+            animate f {
+                duration: self.ready ? 1000ms : 0ms;
                 easing: linear;
             }
-            animate transform-rotation {
-                duration: 600ms;
+            property <float> lane: car.lane;
+            animate lane {
+                duration: 900ms;
+                easing: ease-in-out;
+            }
+            property <Point> p: road-path.point-at(self.f);
+            property <angle> a: road-path.angle-at(self.f);
+            property <length> cx: car.parked ? root.P + car.px * root.TW : road-path.x + self.p.x - sin(self.a) * self.lane * root.lane-w;
+            property <length> cy: car.parked ? root.P + car.py * root.TH : road-path.y + self.p.y + cos(self.a) * self.lane * root.lane-w;
+            x: self.cx - self.width / 2;
+            y: self.cy - self.height / 2;
+            width: 48px;
+            height: 48px;
+            // box del garage: due pareti e il fondo, aperto verso la corsia box
+            if car.parked: Rectangle {
+                width: 30px * root.k;
+                height: 46px * root.k;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2 + 2px * root.k;
+                Rectangle { x: 0px; y: 0px; width: max(1.5px, 2px * root.k); height: parent.height; background: root.bg; }
+                Rectangle { x: parent.width - self.width; y: 0px; width: max(1.5px, 2px * root.k); height: parent.height; background: root.bg; }
+                Rectangle { x: 0px; y: parent.height - self.height; width: parent.width; height: max(1.5px, 2px * root.k); background: root.bg; }
+            }
+            Car {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                car: car;
+                phase: root.phase;
+                road: root.road;
+                transform-rotation: car.parked ? -90deg : parent.a;
+                transform-scale-x: root.k;
+                transform-scale-y: root.k;
+            }
+            TouchArea {
+                clicked => {
+                    AppState.car-tap(car.id);
+                }
             }
         }
     }
     Text {
         x: 16px;
         y: 10px;
+        width: root.width - 160px;
         text: root.hud;
         color: M3.on-surface-variant;
         font-weight: 700;
         font-size: 13px;
+        overflow: elide;
     }
     // la minimappa serve solo da vicino
-    if !root.overview: MiniMap {
+    if !root.wide: MiniMap {
         x: root.width - self.width - 12px;
         y: 10px;
         width: 120px;
         cars: root.cars;
         road: root.road;
+        commands: root.commands;
+        aspect: root.aspect;
+    }
+    // mentre studi: vista d'insieme o telecamera sulla tua macchina
+    if AppState.study-state != 0: Rectangle {
+        x: 12px;
+        y: root.height - self.height - 12px;
+        width: vt.preferred-width + 24px;
+        height: 32px;
+        border-radius: 16px;
+        background: M3.surface-container-high;
+        vt := Text {
+            text: root.wide ? "Segui la tua monoposto" : "Tutto il circuito";
+            color: M3.on-surface;
+            font-size: Type.label;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        TouchArea {
+            clicked => {
+                root.flip = !root.flip;
+            }
+        }
     }
     // giro completato: un breve lampo della strada
     lap := Rectangle {
@@ -2617,7 +2886,7 @@ component RaceView inherits Rectangle {
         opacity: 0;
         states [
             fired when root.flash != self.seen: {
-                opacity: 0.6;
+                opacity: 0.35;
                 in {
                     animate opacity { duration: 120ms; }
                 }
@@ -2625,10 +2894,42 @@ component RaceView inherits Rectangle {
         ]
     }
     Timer {
-        interval: 400ms;
+        interval: 300ms;
         running: root.flash != lap.seen;
         triggered => {
             lap.seen = root.flash;
+        }
+    }
+    // chi è quella macchina: tempo di studio, pit stop, cosa sta studiando
+    if AppState.car-sel != "": Rectangle {
+        x: 12px;
+        y: root.height - self.height - 12px;
+        width: root.width - 24px;
+        height: info.preferred-height;
+        border-radius: 16px;
+        background: M3.surface-container-high;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #0003;
+        TouchArea {
+            clicked => {
+                AppState.car-sel = "";
+            }
+        }
+        info := VerticalLayout {
+            padding: 12px;
+            spacing: 4px;
+            Text {
+                text: AppState.car-info-title;
+                font-weight: 800;
+                color: M3.on-surface;
+                overflow: elide;
+            }
+            Text {
+                text: AppState.car-info-body;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
         }
     }
 }
@@ -2644,10 +2945,14 @@ export component GroupPage inherits Page {
         RaceView {
             height: min(300px, parent.height * 0.4);
             cars: AppState.cars;
-            cam-x: AppState.cam-x;
-            cam-y: AppState.cam-y;
+            cam-f: AppState.cam-f;
+            cam-lane: AppState.study-state == 2 ? 4.4 : 0;
             overview: AppState.race-overview;
-            dashes: AppState.dashes;
+            commands: AppState.track-cmd;
+            aspect: AppState.track-aspect;
+            scale: AppState.track-scale;
+            pad-x: AppState.pad-x;
+            pad-y: AppState.pad-y;
             hud: AppState.race-hud;
             flash: AppState.lap-flash;
         }
@@ -2682,7 +2987,7 @@ export component GroupPage inherits Page {
             }
 
             if AppState.group-has: Text {
-                text: AppState.group-info + "\nOgni giro = 10 minuti di studio · in pausa si va ai box";
+                text: AppState.group-info + "\nOgni giro = 1 minuto di studio · al pit stop (pausa) esci di pista, con «Termina» vai al paddock fino alla prossima sessione · tocca una monoposto per i dettagli";
                 font-size: Type.label;
                 color: M3.on-surface-variant;
                 wrap: word-wrap;

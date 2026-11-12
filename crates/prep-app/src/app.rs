@@ -2,9 +2,9 @@
 
 use crate::periodic;
 use crate::{
-    AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, SwatchVM, DashVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM,
-    GroupVM, NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM, SubjectVM, TocVM, TopicVM,
-    UnitVM,
+    AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, CrewVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM,
+    GroupVM, NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM, SubjectVM, SwatchVM, TocVM,
+    TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -278,6 +278,14 @@ pub struct Ctrl {
     study_state: prep_core::group::State,
     /// inizio (secondi Unix) del tratto di studio in corso, non ancora nel registro
     study_since: Option<i64>,
+    /// inizio del pit stop in corso
+    pit_since: Option<i64>,
+    /// monoposto toccata sul circuito (id del membro), per la scheda dei dettagli
+    car_sel: String,
+    /// ultima attività di studio riconosciuta (per «cosa sta studiando»)
+    last_doing: String,
+    /// circuito mostrato (indice), per non ricalcolarlo a ogni secondo
+    circuit_shown: Option<usize>,
     group_period: prep_core::group::Period,
     group_timer: Timer,
     group_last_send: i64,
@@ -3675,7 +3683,8 @@ impl Ctrl {
     fn refresh_car_colors(&mut self) {
         let current = self.store.settings().car_color;
         let auto = self.auto_color();
-        let mut v = vec![SwatchVM { color: slint::Color::from_argb_encoded(auto), value: 0, sel: current == 0, auto: true }];
+        let mut v =
+            vec![SwatchVM { color: slint::Color::from_argb_encoded(auto), value: 0, sel: current == 0, auto: true }];
         v.extend(prep_core::group::CAR_COLORS.iter().map(|c| SwatchVM {
             color: slint::Color::from_argb_encoded(*c),
             value: *c as i32,
@@ -3694,7 +3703,7 @@ impl Ctrl {
         let color = self.my_color();
         let name = self.display_name();
         let today = Local::now().date_naive();
-        prep_core::group::my_status(
+        let mut s = prep_core::group::my_status(
             &name,
             color,
             self.study_state,
@@ -3702,7 +3711,30 @@ impl Ctrl {
             self.study_running(now),
             today,
             now,
-        )
+        );
+        s.pit_since = self.pit_since.unwrap_or(0);
+        s.doing = self.doing();
+        s
+    }
+
+    /// Cosa si sta studiando, da quello che è aperto nell'app (resta l'ultima attività
+    /// riconosciuta anche quando si passa ad altre schermate).
+    fn doing(&mut self) -> String {
+        let page = self.ui().global::<AppState>().get_page();
+        let now = match page {
+            3 => self
+                .quiz
+                .as_ref()
+                .map(|q| format!("{} · {}", if q.is_exam() { "Simulazione d'esame" } else { "Quiz" }, q.title)),
+            5 => Some("Flashcard".to_string()),
+            9 => self.reader.as_ref().map(|r| format!("Lettura · {}", r.title)),
+            12 => Some("Tavola periodica".to_string()),
+            _ => None,
+        };
+        if let Some(d) = now {
+            self.last_doing = d;
+        }
+        self.last_doing.clone()
     }
 
     /// Porta nel registro il tratto di studio in corso (alla pausa, alla fine, ogni tanto).
@@ -3813,6 +3845,16 @@ impl Ctrl {
         use prep_core::group::State;
         let now = Self::now_secs();
         self.study_flush(now);
+        if let Some(t) = self.pit_since.take() {
+            let secs = (now - t).clamp(0, 12 * 3600) as u64;
+            if secs > 0 {
+                self.study_log.add_pit(Local::now().date_naive(), secs);
+                let _ = self.study_log.save(&self.store.base);
+            }
+        }
+        if state == State::Pause {
+            self.pit_since = Some(now);
+        }
         self.study_state = state;
         self.study_since = (state == State::Studying).then_some(now);
         if self.ui().global::<AppState>().get_focus_lock() {
@@ -3835,7 +3877,7 @@ impl Ctrl {
     }
 
     fn refresh_group(&mut self) {
-        use prep_core::group::{fmt_secs, live, pit_point, standings, track_point, value, Period, State, LAP_SECS};
+        use prep_core::group::{fmt_secs, live, standings, value, Period, State, LAP_SECS};
         let now = Self::now_secs();
         let today = Local::now().date_naive();
         let me_id = self.device_id();
@@ -3845,7 +3887,9 @@ impl Ctrl {
         let (t, _, _) = live(&mine, now, today);
         let laps = t / LAP_SECS;
         if laps > self.my_laps && self.study_state == State::Studying && self.my_laps > 0 {
-            self.toast(format!("Giro {laps} completato!"));
+            if laps.is_multiple_of(10) {
+                self.toast(format!("{laps} giri: {} di studio oggi!", fmt_secs(t)));
+            }
             st.set_lap_flash(st.get_lap_flash() + 1);
         }
         self.my_laps = laps;
@@ -3874,58 +3918,149 @@ impl Ctrl {
         st.set_group_name(ss(&g.name));
         st.set_group_id(ss(&g.code));
         let online = |m: &prep_core::group::Member| now - m.last_seen < 45;
-        // membri: io (sempre) e gli altri visti
-        let mut all: Vec<(String, prep_core::group::Status, bool)> = vec![(me_id.clone(), mine.clone(), true)];
+        // membri: io (sempre) e gli altri visti; (id, stato, collegato, ultima volta visto)
+        let mut all: Vec<(String, prep_core::group::Status, bool, i64)> = Vec::new();
         for (id, m) in &g.members {
             if *id != me_id {
-                all.push((id.clone(), m.status.clone(), online(m)));
+                all.push((id.clone(), m.status.clone(), online(m), m.last_seen));
             }
         }
-        let on_track = all.iter().filter(|(_, s, on)| *on && s.state == State::Studying).count();
-        let aspect = 2.4;
-        let mut pit_i = 0usize;
-        let pit_n = all.iter().filter(|(_, s, on)| !(*on && s.state == State::Studying)).count();
+        // ordine stabile (la propria macchina per ultima, sopra le altre)
+        all.sort_by(|a, b| a.0.cmp(&b.0));
+        all.push((me_id.clone(), mine.clone(), true, now));
+        let on_track = all.iter().filter(|(_, s, on, _)| *on && s.state == State::Studying).count();
+        // circuito del gruppo: cambia (e cresce) con il numero dei membri
+        let ci = prep_core::group::circuit_for(&g.code, all.len());
+        let circuit = prep_core::group::circuit(ci);
+        if self.circuit_shown != Some(ci) {
+            self.circuit_shown = Some(ci);
+            st.set_track_cmd(ss(&circuit.commands));
+            st.set_track_aspect(circuit.aspect as f32);
+            st.set_pad_x(circuit.paddock.0 as f32);
+            st.set_pad_y(circuit.paddock.1 as f32);
+        }
+        st.set_track_scale(prep_core::group::circuit_scale(all.len()) as f32);
+        let parked_n = all.iter().filter(|(_, s, on, _)| !*on || s.state == State::Idle).count();
+        let mut parked_i = 0usize;
+        let mut lane_i = 0usize;
         let mut cars: Vec<CarVM> = Vec::new();
-        for (k, (id, s, on)) in all.iter().enumerate() {
+        for (id, s, on, _) in &all {
+            let me = *id == me_id;
             let racing = *on && s.state == State::Studying;
-            let (x, y, a) = if racing {
-                let (tt, _, _) = live(s, now, today);
-                track_point((tt % LAP_SECS) as f64 / LAP_SECS as f64, aspect)
+            let pit = *on && s.state == State::Pause;
+            let parked = !racing && !pit;
+            let (px, py) = if parked {
+                let (cx, cy) = circuit.paddock;
+                let x = cx - 0.16 + 0.32 * (parked_i as f64 + 0.5) / parked_n.max(1) as f64;
+                parked_i += 1;
+                (x as f32, (cy + 0.02) as f32)
             } else {
-                let p = pit_point(pit_i, pit_n);
-                pit_i += 1;
-                p
+                (0.0, 0.0)
+            };
+            // corsie: la propria al centro, le altre alternate ai lati
+            let lane = if pit {
+                3.6
+            } else if racing && !me {
+                lane_i += 1;
+                [-1.0, 1.0, -0.5, 0.5, -1.4, 1.4][(lane_i - 1) % 6]
+            } else {
+                0.0
             };
             let initial = s.name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default();
+            let crew: Vec<CrewVM> = if pit {
+                let seed = p2p::sha256_hex(format!("{id}/{}", s.pit_since).as_bytes());
+                let seed = u64::from_str_radix(&seed[..16], 16).unwrap_or(1);
+                prep_core::group::pit_crew(seed)
+                    .into_iter()
+                    .map(|m| CrewVM {
+                        x: m.x as f32,
+                        y: m.y as f32,
+                        rot: m.rot as f32,
+                        tool: m.tool,
+                        tire: m.tire,
+                        sign: m.sign,
+                        alt: m.alt,
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
             cars.push(CarVM {
-                x: x as f32,
-                y: y as f32,
-                angle: a as f32,
+                id: ss(id),
+                crew: model(crew),
+                f: live(s, now, today).0 as f32 / LAP_SECS as f32,
                 color: slint::Color::from_argb_encoded(s.color),
                 label: ss(initial),
-                me: *id == me_id,
-                moving: racing,
+                me,
+                racing,
+                pit,
+                parked,
                 offline: !*on,
-                lane: if racing { [0.0, -1.0, 1.0][k % 3] } else { 0.0 },
+                lane,
+                px,
+                py,
             });
         }
         // telecamera sulla propria macchina mentre si studia; altrimenti tutto il circuito
         st.set_race_overview(self.study_state != State::Studying);
-        if let Some(me) = cars.iter().find(|c| c.me) {
-            st.set_cam_x(me.x);
-            st.set_cam_y(me.y);
+        st.set_cam_f(live(&mine, now, today).0 as f32 / LAP_SECS as f32);
+        // scheda della macchina toccata
+        match all.iter().find(|(id, _, _, _)| *id == self.car_sel) {
+            Some((id, s, on, seen)) => {
+                let (t_day, t_week, _) = live(s, now, today);
+                let short = |x: u64| if x < 60 { format!("{x} s") } else { fmt_secs(x) };
+                let mut lines = Vec::new();
+                lines.push(match (*on, s.state) {
+                    (false, _) => format!(
+                        "Non collegato · visto l'ultima volta {}",
+                        chrono::DateTime::from_timestamp(*seen, 0)
+                            .map(|d| d.with_timezone(&Local).format("%d/%m alle %H:%M").to_string())
+                            .unwrap_or_else(|| "—".into())
+                    ),
+                    (true, State::Studying) => format!("In pista · giro {}", t_day / LAP_SECS + 1),
+                    (true, State::Pause) if s.pit_since > 0 => {
+                        format!("Pit stop da {}", short((now - s.pit_since).max(0) as u64))
+                    }
+                    (true, State::Pause) => "Pit stop".to_string(),
+                    (true, State::Idle) => "Sessione terminata: al paddock fino alla prossima".to_string(),
+                });
+                lines.push(format!("Studio: oggi {} · settimana {}", fmt_secs(t_day), fmt_secs(t_week)));
+                let same_day = s.day == today.format("%Y-%m-%d").to_string();
+                let pits: Vec<u64> = if same_day { s.pits.clone() } else { Vec::new() };
+                if pits.is_empty() {
+                    lines.push("Nessun pit stop finito oggi".to_string());
+                } else {
+                    let tot: u64 = pits.iter().sum();
+                    let list: Vec<String> = pits.iter().rev().take(6).map(|x| short(*x)).collect();
+                    lines.push(format!(
+                        "Pit stop oggi: {} ({} in tutto) · ultimi: {}",
+                        pits.len(),
+                        short(tot),
+                        list.join(", ")
+                    ));
+                }
+                if !s.doing.is_empty() {
+                    lines.push(format!("Sta studiando: {}", s.doing));
+                }
+                let me = *id == me_id;
+                st.set_car_info_title(ss(if me { format!("{} (tu)", s.name) } else { s.name.clone() }));
+                st.set_car_info_body(ss(lines.join("\n")));
+                st.set_car_sel(ss(id));
+            }
+            None => {
+                self.car_sel.clear();
+                st.set_car_sel(ss(""));
+            }
         }
-        // la propria macchina sopra le altre
-        cars.sort_by_key(|c| c.me);
         let p = self.group_period;
-        let refs: Vec<(&str, &prep_core::group::Status)> = all.iter().map(|(i, s, _)| (i.as_str(), s)).collect();
+        let refs: Vec<(&str, &prep_core::group::Status)> = all.iter().map(|(i, s, _, _)| (i.as_str(), s)).collect();
         let order = standings(refs.into_iter(), now, today, p);
         let ranking: Vec<RankVM> = order
             .iter()
             .enumerate()
             .map(|(i, (id, s))| {
                 let v = value(s, now, today, p);
-                let on = all.iter().find(|(x, _, _)| x == id).is_some_and(|(_, _, o)| *o);
+                let on = all.iter().find(|(x, _, _, _)| x == id).is_some_and(|(_, _, o, _)| *o);
                 RankVM {
                     pos: i as i32 + 1,
                     name: ss(if *id == me_id { format!("{} (tu)", s.name) } else { s.name.clone() }),
@@ -3935,8 +4070,8 @@ impl Ctrl {
                     status: ss(match (on, s.state) {
                         (false, _) => "non collegato",
                         (true, State::Studying) => "in pista",
-                        (true, State::Pause) => "ai box",
-                        (true, State::Idle) => "fermo",
+                        (true, State::Pause) => "pit stop",
+                        (true, State::Idle) => "al paddock",
                     }),
                     me: *id == me_id,
                 }
@@ -3944,11 +4079,11 @@ impl Ctrl {
             .collect();
         let my_pos = order.iter().position(|(id, _)| *id == me_id).map(|i| i + 1).unwrap_or(1);
         st.set_race_hud(ss(match self.study_state {
-            State::Idle => "Fermo ai box · premi «Inizia a studiare»".to_string(),
+            State::Idle => format!("Circuito {} · premi «Inizia a studiare»", circuit.name),
             State::Pause => format!("Pit stop · giro {} · {}° su {}", laps + 1, my_pos, all.len()),
             State::Studying => format!("Giro {} · {}° su {} · {}", laps + 1, my_pos, all.len(), fmt_secs(t)),
         }));
-        let others_online = all.iter().filter(|(i, _, on)| *on && *i != me_id).count();
+        let others_online = all.iter().filter(|(i, _, on, _)| *on && *i != me_id).count();
         let link = self.group.as_ref().map(|p| p.open.iter().any(|o| *o)).unwrap_or(false);
         st.set_group_info(ss(format!(
             "{} membri · {} in pista{}",
@@ -4189,6 +4324,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         study_log: prep_core::group::StudyLog::load(&data_dir),
         study_state: prep_core::group::State::Idle,
         study_since: None,
+        pit_since: None,
+        car_sel: String::new(),
+        last_doing: String::new(),
+        circuit_shown: None,
         group_period: prep_core::group::Period::Today,
         group_timer: Timer::default(),
         group_last_send: 0,
@@ -4222,11 +4361,6 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         }
         c.refresh_car_colors();
         c.ui().global::<AppState>().set_bt_available(cfg!(target_os = "android"));
-        let dashes: Vec<DashVM> = prep_core::group::centerline(2.4, 120)
-            .into_iter()
-            .map(|(x, y, a)| DashVM { x: x as f32, y: y as f32, angle: a as f32 })
-            .collect();
-        c.ui().global::<AppState>().set_dashes(model(dashes));
         if c.groups.active().is_some() {
             c.group_connect();
         }
@@ -4528,6 +4662,12 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_study_start(|| with_ctrl(|c| c.study_set(prep_core::group::State::Studying)));
     st.on_study_pause(|| with_ctrl(|c| c.study_set(prep_core::group::State::Pause)));
     st.on_study_stop(|| with_ctrl(|c| c.study_set(prep_core::group::State::Idle)));
+    st.on_car_tap(|id| {
+        with_ctrl(|c| {
+            c.car_sel = if c.car_sel == id.as_str() { String::new() } else { id.to_string() };
+            c.refresh_group();
+        })
+    });
     st.on_group_set_period(|p| {
         with_ctrl(|c| {
             c.group_period = match p {

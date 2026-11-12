@@ -169,25 +169,34 @@ export struct GroupVM {
     active: bool,
 }
 
-// macchinina sul circuito: posizione (0..1 nella pista), direzione in gradi
-export struct CarVM {
+// monoposto sul circuito. In pista e al pit stop la posizione è la frazione di giro `f`
+// (le parti intere sono i giri: si anima senza salti); ferma al paddock in (px, py).
+// meccanico al pit stop (coordinate della monoposto, vedi prep_core::group::pit_crew)
+export struct CrewVM {
     x: float,
     y: float,
-    angle: float,
+    rot: float,
+    tool: bool,
+    tire: bool,
+    sign: bool,
+    alt: bool,
+}
+
+export struct CarVM {
+    id: string,
+    crew: [CrewVM],
+    f: float,
     color: color,
     label: string,
     me: bool,
-    moving: bool,
+    racing: bool,
+    pit: bool,
+    parked: bool,
     offline: bool,
-    // corsia (-1 interna, 0 centro, 1 esterna): macchine affiancate invece che sovrapposte
+    // scostamento laterale (corsie; ~3 = fuori pista, al pit stop)
     lane: float,
-}
-
-// tratto della linea di mezzeria
-export struct DashVM {
-    x: float,
-    y: float,
-    angle: float,
+    px: float,
+    py: float,
 }
 
 export struct RankVM {
@@ -386,12 +395,19 @@ export global AppState {
     in property <string> group-info;
     in property <[CarVM]> cars;
     // telecamera: punto inquadrato (coordinate della pista) e scritte sopra la gara
-    in property <float> cam-x: 0.5;
-    in property <float> cam-y: 1.0;
+    in property <float> cam-f;
+    in property <string> track-cmd;
+    in property <float> track-aspect: 2.4;
+    in property <float> track-scale: 1;
+    in property <float> pad-x: 0.5;
+    in property <float> pad-y: 0.65;
+    in-out property <string> car-sel;
+    in property <string> car-info-title;
+    in property <string> car-info-body;
+    callback car-tap(string);
     in property <string> race-hud;
     // vista d'insieme del circuito (chi è in pausa o fermo) invece della telecamera ravvicinata
     in property <bool> race-overview: true;
-    in property <[DashVM]> dashes;
     in property <[RankVM]> ranking;
     in property <int> study-state;
     in property <string> study-today;

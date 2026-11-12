@@ -141,10 +141,14 @@ pub(crate) fn system_tones() -> Option<Vec<u32>> {
         let r = (|| -> Result<Vec<u32>, String> {
             let app = ANDROID_APP.get().ok_or("attività non pronta")?;
             // SAFETY: puntatori validi per tutta la vita del processo, forniti da android-activity
-            let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr() as *mut jni::sys::JavaVM) }.map_err(|e| e.to_string())?;
+            let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr() as *mut jni::sys::JavaVM) }
+                .map_err(|e| e.to_string())?;
             let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
             let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr() as jni::sys::jobject) };
-            let obj = env.call_method(&activity, "systemTones", "()[I", &[]).and_then(|v| v.l()).map_err(|e| e.to_string())?;
+            let obj = env
+                .call_method(&activity, "systemTones", "()[I", &[])
+                .and_then(|v| v.l())
+                .map_err(|e| e.to_string())?;
             let arr = jni::objects::JIntArray::from(obj);
             let n = env.get_array_length(&arr).map_err(|e| e.to_string())? as usize;
             let mut buf = vec![0i32; n];

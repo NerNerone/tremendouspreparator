@@ -144,8 +144,12 @@ progressi e il codice smette di valere quando la condivisione viene chiusa.
 
 Scheda **Gruppo**: si crea un gruppo privato e si invita con un link (apre la web app, o l'app se è
 installata); chi entra vede in alto la gara, con la telecamera che segue la propria macchina e una
-minimappa di tutto il circuito. Il cronometro di studio fa correre la macchina (un giro = 10
-minuti), il pit stop la porta ai box; la classifica (oggi, settimana, totale) resta anche quando gli
+minimappa di tutto il circuito. Il cronometro di studio fa correre la macchina (un giro = 1
+minuto); al pit stop (pausa) la macchina esce di pista dove si trova e arriva la squadra dei box,
+con «Termina» va al paddock fino alla sessione successiva. Il circuito dipende dal gruppo e diventa
+più lungo e articolato con più membri; toccando una monoposto si vedono tempo di studio, pit stop e
+cosa sta studiando. Il colore della propria monoposto è l'accento di sistema (Android 12+) o quello
+scelto in Opzioni › Profilo. La classifica (oggi, settimana, totale) resta anche quando gli
 altri non sono collegati. I membri si scambiano lo stato ogni 10 secondi attraverso i relay, cifrato
 con una chiave ricavata dal codice del gruppo (`prep-core/src/group.rs`). Su Android si può fissare
 lo schermo sull'app mentre si studia.

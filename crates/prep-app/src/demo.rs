@@ -85,6 +85,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "study" => st.invoke_study_start(),
                 "pit" => st.invoke_study_pause(),
                 "stop" => st.invoke_study_stop(),
+                "cartap" => st.invoke_car_tap(arg.into()),
                 "shareok" => st.set_share_ok(true),
                 "sharestart" => {
                     st.invoke_share_start();
@@ -177,6 +178,24 @@ pub fn maybe_run(ui: &AppWindow) {
                             save_shot(&ui, &format!("{dir}/{name}.png"));
                         }
                     });
+                }
+                "click" => {
+                    // click:x,y — tocco simulato
+                    let v: Vec<f32> = arg.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+                    if v.len() == 2 {
+                        use slint::platform::{PointerEventButton, WindowEvent};
+                        let p = slint::LogicalPosition::new(v[0], v[1]);
+                        ui.window().dispatch_event(WindowEvent::PointerMoved { position: p });
+                        ui.window().dispatch_event(WindowEvent::PointerPressed {
+                            position: p,
+                            button: PointerEventButton::Left,
+                        });
+                        ui.window().dispatch_event(WindowEvent::PointerReleased {
+                            position: p,
+                            button: PointerEventButton::Left,
+                        });
+                        ui.window().dispatch_event(WindowEvent::PointerExited);
+                    }
                 }
                 "drag" => {
                     // drag:x,y,dx,dy — trascinamento simulato (come un dito): premi, 12 movimenti

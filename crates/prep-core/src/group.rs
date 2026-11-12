@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-/// Durata di un giro del circuito: 10 minuti di studio.
-pub const LAP_SECS: u64 = 10 * 60;
+/// Durata di un giro del circuito: 1 minuto di studio.
+pub const LAP_SECS: u64 = 60;
 /// Indirizzo della web app: gli inviti sono link a questa pagina (si aprono anche nell'app).
 pub const APP_URL: &str = "https://nernerone.github.io/tremendouspreparator/";
 /// Colori delle macchinine (ARGB).
@@ -55,6 +55,15 @@ pub struct Status {
     pub day: String,
     /// istante (secondi Unix) in cui i numeri erano esatti
     pub at: i64,
+    /// durata dei pit stop (pause) già finiti nel giorno `day`, in secondi
+    #[serde(default)]
+    pub pits: Vec<u64>,
+    /// inizio del pit stop in corso (secondi Unix), 0 se non è in pausa
+    #[serde(default)]
+    pub pit_since: i64,
+    /// cosa sta studiando (es. «Quiz · Chimica»), vuoto se non si sa
+    #[serde(default)]
+    pub doing: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -199,6 +208,9 @@ pub fn parse_invite(text: &str) -> Option<(String, String)> {
 pub struct StudyLog {
     #[serde(default)]
     pub days: BTreeMap<String, u64>,
+    /// durata dei pit stop finiti, per giorno (solo gli ultimi giorni)
+    #[serde(default)]
+    pub pits: BTreeMap<String, Vec<u64>>,
 }
 
 fn monday(d: NaiveDate) -> NaiveDate {
@@ -212,6 +224,18 @@ impl StudyLog {
 
     pub fn save(&self, base: &Path) -> std::io::Result<()> {
         vfs::write(&base.join(LOG_FILE), serde_json::to_string(self)?.as_bytes())
+    }
+
+    /// Registra un pit stop finito (dimentica quelli di più di una settimana fa).
+    pub fn add_pit(&mut self, day: NaiveDate, secs: u64) {
+        let key = day.format("%Y-%m-%d").to_string();
+        self.pits.entry(key).or_default().push(secs);
+        let old = (day - Duration::days(7)).format("%Y-%m-%d").to_string();
+        self.pits.retain(|k, _| *k >= old);
+    }
+
+    pub fn pits(&self, day: NaiveDate) -> Vec<u64> {
+        self.pits.get(&day.format("%Y-%m-%d").to_string()).cloned().unwrap_or_default()
     }
 
     pub fn add(&mut self, day: NaiveDate, secs: u64) {
@@ -251,6 +275,9 @@ pub fn my_status(
         total: log.total() + running,
         day: today.format("%Y-%m-%d").to_string(),
         at: now,
+        pits: log.pits(today),
+        pit_since: 0,
+        doing: String::new(),
     }
 }
 
@@ -310,58 +337,281 @@ pub fn fmt_secs(s: u64) -> String {
 
 // ---------- circuito ----------
 
-/// Punto del circuito (forma a stadio, coordinate 0..1 nella larghezza e altezza della pista)
-/// a una frazione `f` di giro, con la direzione di marcia in gradi. Partenza a metà del
-/// rettilineo in basso, senso antiorario visto dall'alto… cioè verso destra in basso.
-pub fn track_point(f: f64, aspect: f64) -> (f64, f64, f64) {
-    // stadio: rettilinei lunghi `l`, curve di raggio `r` (in unità di altezza = 1)
-    let r = 0.5;
-    let l = (aspect - 2.0 * r).max(0.2);
-    let total = 2.0 * l + 2.0 * std::f64::consts::PI * r;
-    let mut d = f.rem_euclid(1.0) * total;
-    let cx0 = r; // centro della curva sinistra (in unità di altezza)
-    let cx1 = r + l;
-    // 1) mezzo rettilineo in basso, verso destra
-    let (x, y, a);
-    if d < l / 2.0 {
-        (x, y, a) = (cx0 + l / 2.0 + d, 1.0, 0.0);
-    } else {
-        d -= l / 2.0;
-        let arc = std::f64::consts::PI * r;
-        if d < arc {
-            // curva destra, dal basso verso l'alto
-            let t = d / r; // 0..π
-            let th = std::f64::consts::FRAC_PI_2 - t;
-            (x, y, a) = (cx1 + r * th.cos(), 0.5 + r * th.sin(), -t.to_degrees());
-        } else {
-            d -= arc;
-            if d < l {
-                (x, y, a) = (cx1 - d, 0.0, 180.0);
-            } else {
-                d -= l;
-                if d < arc {
-                    let t = d / r;
-                    let th = -std::f64::consts::FRAC_PI_2 - t;
-                    (x, y, a) = (cx0 + r * th.cos(), 0.5 + r * th.sin(), 180.0 - t.to_degrees());
-                } else {
-                    d -= arc;
-                    (x, y, a) = (cx0 + d, 1.0, 0.0);
-                }
-            }
-        }
+/// Un circuito: forma chiusa disegnata con curve di Bézier (dal punto di partenza, a metà del
+/// rettilineo in basso, verso destra; l'esterno della pista resta alla destra di chi corre).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Circuit {
+    pub name: &'static str,
+    /// larghezza / altezza
+    pub aspect: f64,
+    /// comandi SVG nel riquadro 0..1000 × 0..1000 (da stirare su larghezza × altezza)
+    pub commands: String,
+    /// centro del paddock nell'area interna (0..1 in larghezza e altezza)
+    pub paddock: (f64, f64),
+}
+
+/// Centro del paddock di ciascun circuito, nello stesso ordine di `LAYOUTS` (verificato a mano:
+/// un riquadro di 0,36 × 0,22 resta dentro il tracciato).
+const PADDOCKS: &[(f64, f64)] = &[(0.5, 0.55), (0.5, 0.68), (0.45, 0.7), (0.5, 0.65), (0.45, 0.66), (0.5, 0.72)];
+
+/// Un meccanico al pit stop, nelle coordinate della monoposto (36 × 20 px, muso verso +x;
+/// +y è il lato esterno, lontano dalla pista): angolo in alto a sinistra della figura (16 px),
+/// rotazione in gradi (verso la macchina).
+#[derive(Debug, Clone, PartialEq)]
+pub struct CrewSpot {
+    pub x: f64,
+    pub y: f64,
+    pub rot: f64,
+    /// ha l'avvitatore
+    pub tool: bool,
+    /// toglie e rimette una gomma
+    pub tire: bool,
+    /// tiene il cartello (capo meccanico)
+    pub sign: bool,
+    /// lavora in controtempo rispetto agli altri
+    pub alt: bool,
+}
+
+/// La squadra di un pit stop: da 3 a 7 meccanici in posti a caso attorno alla macchina, tutti
+/// sul lato esterno o alle estremità. Lo stesso `seed` (membro + inizio della sosta) dà sempre
+/// la stessa squadra, così non cambia a ogni aggiornamento.
+pub fn pit_crew(seed: u64) -> Vec<CrewSpot> {
+    // splitmix64 per mescolare il seme, poi xorshift
+    let mut x = seed.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    x = (x ^ (x >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    x ^= x >> 31;
+    x |= 1;
+    let mut rnd = move || {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        (x >> 11) as f64 / (1u64 << 53) as f64
+    };
+    // (x, y, rotazione, avvitatore, gomma, cartello)
+    let slots: [(f64, f64, f64, bool, bool, bool); 9] = [
+        (0.0, 24.0, -90.0, true, true, false),   // gomma posteriore esterna
+        (18.0, 24.0, -90.0, true, true, false),  // gomma anteriore esterna
+        (41.0, 2.0, 180.0, false, false, false), // crick anteriore
+        (-21.0, 2.0, 0.0, false, false, false),  // crick posteriore
+        (34.0, 20.0, -135.0, true, false, false),
+        (-13.0, 20.0, -45.0, true, false, false),
+        (9.0, 30.0, -90.0, true, false, false),
+        (9.0, 46.0, -90.0, false, false, true), // capo meccanico con il cartello
+        (40.0, 34.0, -150.0, false, false, false),
+    ];
+    let n = 3 + (rnd() * 5.0) as usize; // 3..=7
+    let mut idx: Vec<usize> = (0..slots.len()).collect();
+    for i in (1..idx.len()).rev() {
+        let j = (rnd() * (i + 1) as f64) as usize;
+        idx.swap(i, j);
     }
-    (x / aspect, y, a)
+    idx.truncate(n.min(slots.len()));
+    idx.sort();
+    idx.iter()
+        .enumerate()
+        .map(|(k, &i)| {
+            let (sx, sy, r, tool, tire, sign) = slots[i];
+            CrewSpot {
+                x: sx + (rnd() - 0.5) * 5.0,
+                // mai verso la pista: si sposta solo in fuori
+                y: sy + rnd() * 4.0,
+                rot: r + (rnd() - 0.5) * 24.0,
+                tool,
+                tire,
+                sign,
+                alt: k % 2 == 1,
+            }
+        })
+        .collect()
 }
 
-/// Posto ai box (dentro la pista, in basso) per la macchina `i` di `n`.
-pub fn pit_point(i: usize, n: usize) -> (f64, f64, f64) {
-    let n = n.max(1) as f64;
-    (0.32 + 0.36 * (i as f64 + 0.5) / n, 0.72, 0.0)
+/// Punti di controllo dei circuiti (unità: altezza = 1), percorsi in senso antiorario sullo
+/// schermo partendo dal rettilineo in basso.
+const LAYOUTS: &[(&str, &[(f64, f64)])] = &[
+    (
+        "Ovale",
+        &[
+            (1.2, 1.0),
+            (1.9, 1.0),
+            (2.3, 0.85),
+            (2.4, 0.5),
+            (2.3, 0.15),
+            (1.9, 0.0),
+            (1.2, 0.0),
+            (0.5, 0.0),
+            (0.1, 0.15),
+            (0.0, 0.5),
+            (0.1, 0.85),
+            (0.5, 1.0),
+        ],
+    ),
+    (
+        "Fagiolo",
+        &[
+            (1.2, 1.0),
+            (2.0, 0.97),
+            (2.45, 0.55),
+            (2.15, 0.05),
+            (1.65, 0.1),
+            (1.2, 0.38),
+            (0.75, 0.1),
+            (0.3, 0.05),
+            (0.0, 0.5),
+            (0.4, 0.97),
+        ],
+    ),
+    (
+        "Collina",
+        &[
+            (1.0, 1.0),
+            (2.0, 1.0),
+            (2.45, 0.85),
+            (2.2, 0.45),
+            (1.5, 0.05),
+            (1.0, 0.0),
+            (0.6, 0.3),
+            (0.15, 0.75),
+            (0.4, 1.0),
+        ],
+    ),
+    (
+        "Chicane",
+        &[
+            (1.2, 1.0),
+            (2.0, 1.0),
+            (2.4, 0.72),
+            (2.2, 0.4),
+            (1.85, 0.35),
+            (1.65, 0.05),
+            (1.0, 0.0),
+            (0.65, 0.3),
+            (0.3, 0.2),
+            (0.0, 0.55),
+            (0.35, 1.0),
+        ],
+    ),
+    (
+        "Lago",
+        &[
+            (1.2, 1.0),
+            (2.3, 1.0),
+            (2.7, 0.75),
+            (2.45, 0.45),
+            (2.05, 0.52),
+            (1.8, 0.3),
+            (1.6, 0.06),
+            (1.2, 0.0),
+            (0.95, 0.28),
+            (0.55, 0.02),
+            (0.1, 0.12),
+            (0.0, 0.6),
+            (0.35, 0.98),
+        ],
+    ),
+    (
+        "Gran Premio",
+        &[
+            (1.4, 1.0),
+            (2.6, 1.0),
+            (3.0, 0.8),
+            (2.85, 0.45),
+            (2.4, 0.5),
+            (2.15, 0.25),
+            (2.0, 0.04),
+            (1.6, 0.0),
+            (1.35, 0.3),
+            (1.0, 0.3),
+            (0.75, 0.0),
+            (0.2, 0.05),
+            (0.0, 0.45),
+            (0.3, 0.6),
+            (0.3, 0.88),
+            (0.7, 1.0),
+        ],
+    ),
+];
+
+type Seg = [(f64, f64); 4];
+
+/// Catmull-Rom chiusa → segmenti di Bézier cubiche.
+fn segments(p: &[(f64, f64)]) -> Vec<Seg> {
+    let n = p.len();
+    (0..n)
+        .map(|i| {
+            let (p0, p1, p2, p3) = (p[(i + n - 1) % n], p[i], p[(i + 1) % n], p[(i + 2) % n]);
+            [
+                p1,
+                (p1.0 + (p2.0 - p0.0) / 6.0, p1.1 + (p2.1 - p0.1) / 6.0),
+                (p2.0 - (p3.0 - p1.0) / 6.0, p2.1 - (p3.1 - p1.1) / 6.0),
+                p2,
+            ]
+        })
+        .collect()
 }
 
-/// Tratti della linea di mezzeria: (x, y, direzione) lungo la pista, uno ogni due.
-pub fn centerline(aspect: f64, n: usize) -> Vec<(f64, f64, f64)> {
-    (0..n).filter(|i| i % 2 == 0).map(|i| track_point(i as f64 / n as f64, aspect)).collect()
+fn bezier(s: &Seg, t: f64) -> (f64, f64) {
+    let u = 1.0 - t;
+    let (a, b, c, d) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
+    (a * s[0].0 + b * s[1].0 + c * s[2].0 + d * s[3].0, a * s[0].1 + b * s[1].1 + c * s[2].1 + d * s[3].1)
+}
+
+/// Punti fitti lungo un circuito (unità del disegno, prima della normalizzazione).
+fn sample(segs: &[Seg], k: usize) -> Vec<(f64, f64)> {
+    segs.iter().flat_map(|s| (0..k).map(move |i| bezier(s, i as f64 / k as f64))).collect()
+}
+
+/// Quanti circuiti ci sono.
+pub fn circuits() -> usize {
+    LAYOUTS.len()
+}
+
+/// Il circuito numero `i`, normalizzato nel riquadro 0..1000.
+pub fn circuit(i: usize) -> Circuit {
+    let (name, pts) = LAYOUTS[i % LAYOUTS.len()];
+    let segs = segments(pts);
+    let s = sample(&segs, 32);
+    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    for (x, y) in &s {
+        x0 = x0.min(*x);
+        y0 = y0.min(*y);
+        x1 = x1.max(*x);
+        y1 = y1.max(*y);
+    }
+    let (w, h) = ((x1 - x0).max(1e-6), (y1 - y0).max(1e-6));
+    let f = |p: (f64, f64)| format!("{:.1} {:.1}", (p.0 - x0) / w * 1000.0, (p.1 - y0) / h * 1000.0);
+    let mut cmd = format!("M {}", f(segs[0][0]));
+    for sg in &segs {
+        cmd += &format!(" C {} {} {}", f(sg[1]), f(sg[2]), f(sg[3]));
+    }
+    cmd += " Z";
+    Circuit { name, aspect: w / h, commands: cmd, paddock: PADDOCKS[i % PADDOCKS.len()] }
+}
+
+/// Il circuito di un gruppo: più membri, circuito più lungo e articolato (fra quelli adatti,
+/// la scelta dipende dal codice, così tutti nel gruppo vedono lo stesso).
+pub fn circuit_for(code: &str, members: usize) -> usize {
+    let pool: &[usize] = match members {
+        0..=2 => &[0, 1],
+        3..=4 => &[1, 2, 3],
+        5..=7 => &[3, 4],
+        _ => &[4, 5],
+    };
+    let h = code.bytes().fold(7u32, |a, b| a.wrapping_mul(31).wrapping_add(b as u32));
+    pool[h as usize % pool.len()]
+}
+
+/// Quanto è grande il circuito (1 = da soli): cresce con il numero di membri.
+pub fn circuit_scale(members: usize) -> f64 {
+    (1.0 + 0.15 * members.saturating_sub(1) as f64).min(2.2)
+}
+
+/// Area con segno (positiva = senso antiorario sullo schermo, con y verso il basso).
+#[cfg(test)]
+fn screen_ccw(pts: &[(f64, f64)]) -> bool {
+    let n = pts.len();
+    let a: f64 = (0..n).map(|i| pts[i].0 * pts[(i + 1) % n].1 - pts[(i + 1) % n].0 * pts[i].1).sum();
+    a < 0.0
 }
 
 #[cfg(test)]
@@ -408,13 +658,33 @@ mod tests {
     }
 
     #[test]
-    fn track_is_closed_and_inside() {
-        let (x0, y0, _) = track_point(0.0, 2.0);
-        let (x1, y1, _) = track_point(0.999_999, 2.0);
-        assert!((x0 - x1).abs() < 1e-3 && (y0 - y1).abs() < 1e-3);
-        for i in 0..100 {
-            let (x, y, _) = track_point(i as f64 / 100.0, 2.0);
-            assert!((0.0..=1.0).contains(&x) && (0.0..=1.0).contains(&y));
+    fn circuits_are_closed_and_oriented() {
+        for (i, (_, pts)) in LAYOUTS.iter().enumerate() {
+            let c = circuit(i);
+            assert!(c.commands.starts_with("M ") && c.commands.ends_with(" Z"));
+            assert!(c.aspect > 1.5 && c.aspect < 4.0, "{} {}", c.name, c.aspect);
+            // partenza in basso, verso destra, esterno a destra
+            assert!(pts[0].1 >= 0.97 && pts[1].0 > pts[0].0, "{}", c.name);
+            assert!(screen_ccw(&sample(&segments(pts), 16)), "{}", c.name);
         }
+        assert_eq!(PADDOCKS.len(), LAYOUTS.len());
+        let code = new_code();
+        assert_eq!(circuit_for(&code, 2), circuit_for(&code, 2));
+        assert!(circuit_for(&code, 10) >= 4);
+        assert!(circuit_scale(1) == 1.0 && circuit_scale(30) <= 2.2);
+    }
+
+    #[test]
+    fn pit_crews_vary_but_are_stable() {
+        let mut sizes = std::collections::BTreeSet::new();
+        for seed in 0..200u64 {
+            let c = pit_crew(seed);
+            assert!((3..=7).contains(&c.len()));
+            assert_eq!(c, pit_crew(seed));
+            // nessuno verso la pista (lato -y oltre la carrozzeria)
+            assert!(c.iter().all(|m| m.y >= 2.0));
+            sizes.insert(c.len());
+        }
+        assert!(sizes.len() >= 4);
     }
 }

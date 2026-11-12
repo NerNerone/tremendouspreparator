@@ -38,48 +38,48 @@ pub fn dyn_roles(tones: &[u32]) -> Option<(Vec<u32>, Vec<u32>)> {
     use Pal::*;
     let t = |p, s| at(tones, p, s);
     let light = vec![
-        t(A1, 600),                       // primary (tono 40)
-        t(A1, 0),                         // on-primary
-        t(A1, 100),                       // primary-container (90)
-        t(A1, 900),                       // on-primary-container (10)
-        t(A2, 600),                       // secondary
-        t(A2, 100),                       // secondary-container
-        t(A2, 900),                       // on-secondary-container
-        t(A3, 100),                       // tertiary-container
-        t(A3, 900),                       // on-tertiary-container
-        t(N1, 10),                        // surface (99)
-        mix(t(N1, 10), t(N1, 50), 0.5),   // surface-container-low (97)
-        t(N1, 50),                        // surface-container (95)
-        mix(t(N1, 50), t(N1, 100), 0.5),  // surface-container-high (92)
-        t(N1, 100),                       // surface-container-highest (90)
-        t(N1, 900),                       // on-surface
-        t(N2, 700),                       // on-surface-variant (30)
-        t(N2, 500),                       // outline (50)
-        t(N2, 200),                       // outline-variant (80)
-        t(N1, 800),                       // inverse-surface (20)
-        t(N1, 50),                        // inverse-on-surface (95)
+        t(A1, 600),                      // primary (tono 40)
+        t(A1, 0),                        // on-primary
+        t(A1, 100),                      // primary-container (90)
+        t(A1, 900),                      // on-primary-container (10)
+        t(A2, 600),                      // secondary
+        t(A2, 100),                      // secondary-container
+        t(A2, 900),                      // on-secondary-container
+        t(A3, 100),                      // tertiary-container
+        t(A3, 900),                      // on-tertiary-container
+        t(N1, 10),                       // surface (99)
+        mix(t(N1, 10), t(N1, 50), 0.5),  // surface-container-low (97)
+        t(N1, 50),                       // surface-container (95)
+        mix(t(N1, 50), t(N1, 100), 0.5), // surface-container-high (92)
+        t(N1, 100),                      // surface-container-highest (90)
+        t(N1, 900),                      // on-surface
+        t(N2, 700),                      // on-surface-variant (30)
+        t(N2, 500),                      // outline (50)
+        t(N2, 200),                      // outline-variant (80)
+        t(N1, 800),                      // inverse-surface (20)
+        t(N1, 50),                       // inverse-on-surface (95)
     ];
     let dark = vec![
-        t(A1, 200),                       // primary (80)
-        t(A1, 800),                       // on-primary (20)
-        t(A1, 700),                       // primary-container (30)
-        t(A1, 100),                       // on-primary-container (90)
-        t(A2, 200),                       // secondary
-        t(A2, 700),                       // secondary-container
-        t(A2, 100),                       // on-secondary-container
-        t(A3, 700),                       // tertiary-container
-        t(A3, 100),                       // on-tertiary-container
+        t(A1, 200),                        // primary (80)
+        t(A1, 800),                        // on-primary (20)
+        t(A1, 700),                        // primary-container (30)
+        t(A1, 100),                        // on-primary-container (90)
+        t(A2, 200),                        // secondary
+        t(A2, 700),                        // secondary-container
+        t(A2, 100),                        // on-secondary-container
+        t(A3, 700),                        // tertiary-container
+        t(A3, 100),                        // on-tertiary-container
         mix(t(N1, 1000), t(N1, 900), 0.6), // surface (6)
-        t(N1, 900),                       // surface-container-low (10)
-        mix(t(N1, 900), t(N1, 800), 0.2), // surface-container (12)
-        mix(t(N1, 900), t(N1, 800), 0.7), // surface-container-high (17)
-        mix(t(N1, 800), t(N1, 700), 0.2), // surface-container-highest (22)
-        t(N1, 100),                       // on-surface (90)
-        t(N2, 200),                       // on-surface-variant (80)
-        t(N2, 400),                       // outline (60)
-        t(N2, 700),                       // outline-variant (30)
-        t(N1, 100),                       // inverse-surface (90)
-        t(N1, 800),                       // inverse-on-surface (20)
+        t(N1, 900),                        // surface-container-low (10)
+        mix(t(N1, 900), t(N1, 800), 0.2),  // surface-container (12)
+        mix(t(N1, 900), t(N1, 800), 0.7),  // surface-container-high (17)
+        mix(t(N1, 800), t(N1, 700), 0.2),  // surface-container-highest (22)
+        t(N1, 100),                        // on-surface (90)
+        t(N2, 200),                        // on-surface-variant (80)
+        t(N2, 400),                        // outline (60)
+        t(N2, 700),                        // outline-variant (30)
+        t(N1, 100),                        // inverse-surface (90)
+        t(N1, 800),                        // inverse-on-surface (20)
     ];
     Some((light, dark))
 }
