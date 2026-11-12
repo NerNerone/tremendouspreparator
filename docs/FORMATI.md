@@ -1,5 +1,24 @@
 # Formati dei file
 
+## Esame — `content/syllabus.json`
+
+Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato per esame
+(contenuti e progressi in `exams/<id>/` nella cartella dati) e lo sceglie dal selettore in Home.
+
+```json
+{ "schema": 1, "id": "semestre-aperto-medicina", "title": "Semestre aperto Medicina 2026/27",
+  "exam": { "questions": 31, "mcq": 21, "fill": 10, "options": 5, "minutes": 50,
+            "correct": 1.0, "wrong": -0.1, "omitted": 0.0, "pass": 18.0,
+            "dates": [ { "label": "1° appello", "date": "2026-12-10" } ] },
+  "subjects": [ … ] }
+```
+
+- `id`: identificativo **stabile** dell'esame (minuscole, cifre, trattini). Importando un pacchetto
+  con un `id` già installato se ne aggiornano i contenuti; con un `id` nuovo si aggiunge un esame.
+  Se manca viene ricavato dal titolo, quindi cambiare il titolo creerebbe un esame diverso:
+  meglio indicarlo sempre.
+- `title`: nome mostrato nel selettore.
+
 ## Domande — `content/questions/<qualsiasi>.json`
 
 ```json
@@ -13,6 +32,8 @@
 ]}
 ```
 
+- `group` (facoltativo): nome della fonte nel filtro «Fonti» del quiz (es. "Eserciziario EdiSES",
+  "Slide del prof. Rossi"); se manca viene ricavato da `source`.
 - `id` univoco e **stabile** (le sessioni lo referenziano): `<materia>-u<n>-q<NNN>`; i generati da un libro possono
   usare un suffisso, es. `fis-u3-b012`.
 - `topic`: id di un argomento di `content/syllabus.json`.

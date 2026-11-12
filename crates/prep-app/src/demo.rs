@@ -67,6 +67,8 @@ pub fn maybe_run(ui: &AppWindow) {
                     st.invoke_qz_toggle(k.into(), id.into())
                 }
                 "qzstart" => st.invoke_qz_start(),
+                "exammenu" => st.set_exam_menu(true),
+                "useexam" => st.invoke_select_exam(arg.into()),
                 "importpack" => st.invoke_import_pack(),
                 "rdscroll" => st.set_rd_scroll(-(arg.parse::<f32>().unwrap_or(0.0))),
                 "fakeprog" => st.set_overall(arg.parse().unwrap_or(0.42)),

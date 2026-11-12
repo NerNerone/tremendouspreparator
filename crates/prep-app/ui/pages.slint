@@ -371,13 +371,48 @@ export component HomePage inherits Page {
             height: 56px;
             padding-left: 20px;
             padding-right: 4px;
-            Text {
-                text: "Tremendous Preparator";
-                font-size: Type.title-large;
-                font-weight: 700;
-                color: M3.on-surface;
-                vertical-alignment: center;
+            // selettore dell'esame: nome dell'esame attivo, tocca per cambiarlo o aggiungerne uno
+            Rectangle {
                 horizontal-stretch: 1;
+                HorizontalLayout {
+                    alignment: start;
+                    Rectangle {
+                        border-radius: 20px;
+                        background: sel-ta.pressed || AppState.exam-menu ? M3.surface-container-high : transparent;
+                        animate background { duration: 150ms; }
+                        HorizontalLayout {
+                            padding-left: 4px;
+                            padding-right: 10px;
+                            spacing: 8px;
+                            Text {
+                                text: AppState.exam-name;
+                                font-size: Type.title-large;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                max-width: root.width - 140px;
+                            }
+                            Rectangle {
+                                width: 16px;
+                                Path {
+                                    width: 14px;
+                                    height: 8px;
+                                    viewbox-width: 14;
+                                    viewbox-height: 8;
+                                    commands: AppState.exam-menu ? "M 1 7 L 7 1 L 13 7" : "M 1 1 L 7 7 L 13 1";
+                                    stroke: M3.on-surface;
+                                    stroke-width: 2px;
+                                }
+                            }
+                        }
+                        sel-ta := TouchArea {
+                            clicked => {
+                                AppState.exam-menu = !AppState.exam-menu;
+                            }
+                        }
+                    }
+                }
             }
 
             IconButton {
@@ -385,6 +420,130 @@ export component HomePage inherits Page {
                 tint: M3.on-surface;
                 clicked => {
                     AppState.open-settings();
+                }
+            }
+        }
+    }
+
+    // menu degli esami installati (sopra a tutto)
+    if AppState.exam-menu: Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        background: #00000033;
+        TouchArea {
+            clicked => {
+                AppState.exam-menu = false;
+            }
+        }
+        Rectangle {
+            x: 12px;
+            y: 52px;
+            width: min(root.width - 24px, 520px);
+            height: menu.preferred-height;
+            border-radius: Shape.lg;
+            background: M3.surface-container;
+            drop-shadow-blur: 12px;
+            drop-shadow-color: #0000004d;
+            drop-shadow-offset-y: 4px;
+            TouchArea { }
+            menu := VerticalLayout {
+                padding: 8px;
+                spacing: 4px;
+                Text {
+                    text: "Esami installati";
+                    font-size: Type.label;
+                    font-weight: 700;
+                    color: M3.on-surface-variant;
+                    height: 28px;
+                    vertical-alignment: center;
+                    x: 12px;
+                }
+                for e in AppState.exams: Rectangle {
+                    min-height: 56px;
+                    border-radius: 12px;
+                    background: e.active ? M3.secondary-container : row-ta.pressed ? M3.surface-container-high : transparent;
+                    row-ta := TouchArea {
+                        clicked => {
+                            AppState.select-exam(e.id);
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 4px;
+                        spacing: 10px;
+                        Rectangle {
+                            width: 22px;
+                            if e.active: VIcon {
+                                source: Icons.check;
+                                tint: M3.on-secondary-container;
+                                size: 20px;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            Text {
+                                text: e.name;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: e.info;
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                                wrap: word-wrap;
+                            }
+                        }
+                        IconButton {
+                            icon: Icons.close;
+                            tint: M3.on-surface-variant;
+                            clicked => {
+                                AppState.remove-exam(e.id);
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 1px;
+                    background: M3.outline-variant;
+                }
+                Rectangle {
+                    min-height: 52px;
+                    border-radius: 12px;
+                    background: add-ta.pressed ? M3.surface-container-high : transparent;
+                    add-ta := TouchArea {
+                        clicked => {
+                            AppState.exam-menu = false;
+                            AppState.import-pack();
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 10px;
+                        VIcon {
+                            source: Icons.add;
+                            tint: M3.primary;
+                            size: 22px;
+                        }
+                        Text {
+                            text: AppState.pack-busy ? "Importazione…" : "Importa un pacchetto (nuovo esame o aggiornamento)";
+                            color: M3.primary;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+                Text {
+                    text: "Ogni esame ha contenuti e progressi suoi. Un pacchetto va all'esame indicato nel suo syllabus: se è nuovo viene aggiunto qui.";
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
                 }
             }
         }
@@ -2274,6 +2433,44 @@ export component SettingsPage inherits Page {
             pad: 16px;
             pad-top: 4px;
             gap: 12px;
+            // profilo: il nome con cui ci si presenta agli altri dispositivi e nello studio di gruppo
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Profilo";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: "Il nome con cui ti vedono gli altri dispositivi quando sincronizzi i progressi o condividi un pacchetto.";
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        name-edit := LineEdit {
+                            horizontal-stretch: 1;
+                            text <=> AppState.s-username;
+                            placeholder-text: "Nome utente";
+                            accepted => {
+                                AppState.save-username(self.text);
+                            }
+                        }
+                        M3Button {
+                            text: "Salva";
+                            kind: 1;
+                            clicked => {
+                                AppState.save-username(name-edit.text);
+                            }
+                        }
+                    }
+                }
+            }
+
             if AppState.sync-configured: Card {
                 clickable: true;
                 bg: M3.tertiary-container;

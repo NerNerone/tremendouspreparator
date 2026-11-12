@@ -1,7 +1,10 @@
 //! Archivio locale nella cartella dati privata dell'app.
 //!
+//! Le impostazioni sono comuni a tutta l'app (`<base>/settings.json`); il resto è per esame,
+//! in `<base>/exams/<id>/` (vedi [`crate::exams`]):
+//!
 //! ```text
-//! <root>/settings.json          token e repository
+//! <base>/settings.json          nome utente, token e repository, promemoria
 //! <root>/mirror/<percorso repo> copia locale di content/** e progress/**
 //! <root>/mirror_index.json      sha git di ogni file del mirror
 //! <root>/outbox/<id>.json       commit in attesa di invio (offline)
@@ -43,6 +46,9 @@ pub struct Settings {
     /// orari dei promemoria del giorno (mattina, dopo pranzo, pomeriggio, sera)
     #[serde(default = "d_times")]
     pub reminder_times: Vec<String>,
+    /// nome con cui ci si presenta agli altri dispositivi (sincronizzazione, studio di gruppo)
+    #[serde(default)]
+    pub username: String,
 }
 
 fn d_times() -> Vec<String> {
@@ -83,6 +89,7 @@ impl Default for Settings {
             reminder_time: d_rem_time(),
             evening_time: d_eve_time(),
             reminder_times: d_times(),
+            username: String::new(),
         }
     }
 }
@@ -114,7 +121,10 @@ pub struct OutboxEntry {
 
 #[derive(Debug, Clone)]
 pub struct Store {
+    /// cartella dell'esame (contenuti e progressi)
     pub root: PathBuf,
+    /// cartella dati dell'app (impostazioni comuni)
+    pub base: PathBuf,
 }
 
 fn read_json<T: for<'de> Deserialize<'de> + Default>(p: &Path) -> T {
@@ -135,22 +145,29 @@ fn safe_rel(path: &str) -> bool {
 }
 
 impl Store {
+    /// Archivio in un'unica cartella (impostazioni comprese).
     pub fn open(root: impl Into<PathBuf>) -> io::Result<Store> {
         let root = root.into();
+        Self::open_in(root.clone(), root)
+    }
+
+    /// Archivio di un esame (`root`) con le impostazioni comuni in `base`.
+    pub fn open_in(base: impl Into<PathBuf>, root: impl Into<PathBuf>) -> io::Result<Store> {
+        let (base, root) = (base.into(), root.into());
         fs::create_dir_all(&root.join("mirror"))?;
         fs::create_dir_all(&root.join("outbox"))?;
-        Ok(Store { root })
+        Ok(Store { root, base })
     }
 
     pub fn settings(&self) -> Settings {
-        fs::read_to_string(&self.root.join("settings.json"))
+        fs::read_to_string(&self.base.join("settings.json"))
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default()
     }
 
     pub fn save_settings(&self, s: &Settings) -> io::Result<()> {
-        write_atomic(&self.root.join("settings.json"), serde_json::to_string_pretty(s)?.as_bytes())
+        write_atomic(&self.base.join("settings.json"), serde_json::to_string_pretty(s)?.as_bytes())
     }
 
     pub fn index(&self) -> MirrorIndex {

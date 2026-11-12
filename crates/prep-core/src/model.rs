@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Syllabus {
     pub schema: u32,
+    /// identificativo stabile dell'esame (cartella dei dati); se manca si ricava dal titolo
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub id: String,
     pub title: String,
     pub exam: ExamRules,
     pub subjects: Vec<Subject>,

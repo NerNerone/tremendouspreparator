@@ -126,6 +126,14 @@ export struct QzOptVM {
     open: bool,
 }
 
+// esame installato (selettore in Home)
+export struct ExamVM {
+    id: string,
+    name: string,
+    active: bool,
+    info: string,
+}
+
 export struct ExamDateVM {
     label: string,
     date: string,
@@ -297,6 +305,15 @@ export global AppState {
     in property <[FlagVM]> flags;
     in property <[FlagVM]> card-flags;
     in property <int> card-flagged-count;
+
+    // esami installati
+    in property <[ExamVM]> exams;
+    in property <string> exam-name;
+    in-out property <bool> exam-menu;
+    callback select-exam(string);
+    callback remove-exam(string);
+    in-out property <string> s-username;
+    callback save-username(string);
 
     // quiz personalizzato
     in property <[QzOptVM]> qz-subjects;

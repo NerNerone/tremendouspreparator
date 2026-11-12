@@ -144,6 +144,15 @@ pub fn inspect(bytes: &[u8]) -> Result<PackInfo, String> {
     check(&parse(bytes)?)
 }
 
+/// Esame a cui appartiene il pacchetto: (identificativo, nome) dal suo `content/syllabus.json`.
+pub fn exam_of(bytes: &[u8]) -> Result<(String, String), String> {
+    let pack = parse(bytes)?;
+    let t = pack.files.get("content/syllabus.json").ok_or("pacchetto incompleto: manca content/syllabus.json")?;
+    let syl: crate::model::Syllabus =
+        serde_json::from_str(t).map_err(|e| format!("content/syllabus.json non valido: {e}"))?;
+    Ok((crate::exams::exam_id(&syl), syl.title))
+}
+
 /// Importa il pacchetto nel mirror locale. I progressi non vengono toccati.
 pub fn import(store: &Store, bytes: &[u8]) -> Result<PackInfo, String> {
     let pack = parse(bytes)?;
@@ -206,6 +215,7 @@ mod tests {
         assert!(store.index().synced_once);
         assert_eq!(last_import(&store).unwrap().label, "test");
         assert!(inspect(b"{\"format\":\"altro\",\"version\":1,\"files\":{}}").is_err());
+        assert!(!exam_of(&gz).unwrap().0.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

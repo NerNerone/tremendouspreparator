@@ -2,8 +2,8 @@
 
 use crate::periodic;
 use crate::{
-    AppState, AppWindow, BlockVM, BookVM, ExamDateVM, FeedbackVM, FlagVM, GoalVM, NavCellVM, NavRowVM, OptionVM,
-    QzOptVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
+    AppState, AppWindow, BlockVM, BookVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM, NavCellVM, NavRowVM,
+    OptionVM, QzOptVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -238,6 +238,10 @@ pub struct Ctrl {
     importing: bool,
     flag_timer: Timer,
     qz: QuizSetup,
+    /// esami installati e quello attivo
+    exams: prep_core::exams::Registry,
+    /// esame da eliminare in attesa del secondo tocco di conferma
+    remove_armed: Option<(String, Instant)>,
 }
 
 /// Filtri del quiz personalizzato (scheda Quiz).
@@ -716,7 +720,7 @@ impl Ctrl {
         };
         st.studied_today = prep_core::plan::done_on(&self.content, &self.history, today).values().sum();
         st.compute_slots(today);
-        let _ = st.save(&self.store.root);
+        let _ = st.save(&self.store.base);
     }
 
     fn save_reminder(&mut self) {
@@ -1211,6 +1215,7 @@ impl Ctrl {
         st.set_s_repo(ss(&s.repo));
         st.set_s_branch(ss(&s.branch));
         st.set_s_token(ss(&s.token));
+        st.set_s_username(ss(&s.username));
         st.set_s_rem_on(s.reminder_enabled);
         let times = if s.reminder_times.is_empty() {
             prep_core::reminder::DEFAULT_TIMES.join(", ")
@@ -2680,11 +2685,14 @@ impl Ctrl {
         }
         self.importing = true;
         self.ui().global::<AppState>().set_pack_busy(true);
-        let store = self.store.clone();
+        let base = self.store.base.clone();
         spawn_background(move || {
-            let res = vfs::read(&path)
-                .map_err(|e| format!("file non leggibile: {e}"))
-                .and_then(|b| prep_core::pack::import(&store, &b));
+            // il pacchetto va nell'archivio del suo esame (nuovo o già installato)
+            let res = vfs::read(&path).map_err(|e| format!("file non leggibile: {e}")).and_then(|b| {
+                let (id, name) = prep_core::pack::exam_of(&b)?;
+                let store = Store::open_in(&base, prep_core::exams::dir(&base, &id)).map_err(|e| e.to_string())?;
+                prep_core::pack::import(&store, &b).map(|info| (info, id, name))
+            });
             if remove {
                 let _ = vfs::remove_file(&path);
             }
@@ -2692,18 +2700,138 @@ impl Ctrl {
         });
     }
 
-    fn on_pack_imported(&mut self, res: Result<prep_core::pack::PackInfo, String>) {
+    fn on_pack_imported(&mut self, res: Result<(prep_core::pack::PackInfo, String, String), String>) {
         self.importing = false;
         self.ui().global::<AppState>().set_pack_busy(false);
         match res {
-            Ok(info) => {
-                self.reload_content();
-                self.reload_progress();
-                self.refresh_all();
+            Ok((info, id, name)) => {
+                let is_new = self.exams.get(&id).is_none();
+                let was_active = self.exams.active == id;
+                self.exams.upsert(&id, &name);
+                let _ = self.exams.save(&self.store.base);
+                if was_active {
+                    self.reload_content();
+                    self.reload_progress();
+                    self.refresh_all();
+                    self.refresh_exams();
+                } else {
+                    self.open_exam(&id);
+                }
                 self.refresh_settings_info();
-                self.toast(format!("Contenuti aggiornati: {} domande, {} flashcard", info.questions, info.flashcards));
+                self.toast(format!(
+                    "{} «{name}»: {} domande, {} flashcard",
+                    if is_new { "Esame aggiunto" } else { "Contenuti aggiornati" },
+                    info.questions,
+                    info.flashcards
+                ));
             }
             Err(e) => self.toast(format!("Pacchetto non importato: {e}")),
+        }
+    }
+
+    // ---------- esami installati ----------
+
+    fn refresh_exams(&mut self) {
+        let base = self.store.base.clone();
+        let v: Vec<ExamVM> = self
+            .exams
+            .exams
+            .iter()
+            .map(|e| {
+                let st = Store { root: prep_core::exams::dir(&base, &e.id), base: base.clone() };
+                let info = match prep_core::pack::last_import(&st) {
+                    Some(i) => format!("{} domande · pacchetto del {}", i.questions, short_date(&i.created)),
+                    None if e.id == self.exams.active => format!("{} domande", self.content.questions.len()),
+                    None => "contenuti inclusi nell'app".into(),
+                };
+                ExamVM { id: ss(&e.id), name: ss(&e.name), active: e.id == self.exams.active, info: ss(info) }
+            })
+            .collect();
+        let name = self.exams.get(&self.exams.active).map(|e| e.name.clone()).unwrap_or_else(|| "Nessun esame".into());
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_exams(model(v));
+        st.set_exam_name(ss(name));
+    }
+
+    /// Passa a un altro esame: archivio, contenuti e progressi sono quelli suoi.
+    fn open_exam(&mut self, id: &str) {
+        if self.exams.get(id).is_none() {
+            return;
+        }
+        self.flush_flags();
+        if self.quiz.is_some() {
+            self.pause_quiz();
+        }
+        self.exams.active = id.to_string();
+        let _ = self.exams.save(&self.store.base);
+        let base = self.store.base.clone();
+        match Store::open_in(&base, prep_core::exams::dir(&base, id)) {
+            Ok(st) => self.store = st,
+            Err(e) => {
+                self.toast(format!("Esame non apribile: {e}"));
+                return;
+            }
+        }
+        self.quiz = None;
+        self.cards = None;
+        self.results = None;
+        self.reader = None;
+        self.plan = None;
+        self.plan_sel.clear();
+        self.plan_extra.clear();
+        self.unit_id.clear();
+        self.fb_item = None;
+        self.result_perm.clear();
+        self.qz = QuizSetup::default();
+        self.reload_content();
+        self.reload_progress();
+        self.refresh_all();
+        self.refresh_exams();
+        self.ui().global::<AppState>().set_exam_menu(false);
+        self.go_tab(0);
+    }
+
+    /// Elimina un esame (contenuti e progressi): serve un secondo tocco entro 5 secondi.
+    fn remove_exam(&mut self, id: &str) {
+        let armed = matches!(&self.remove_armed, Some((x, t)) if x == id && t.elapsed() < Duration::from_secs(5));
+        if !armed {
+            self.remove_armed = Some((id.to_string(), Instant::now()));
+            let name = self.exams.get(id).map(|e| e.name.clone()).unwrap_or_default();
+            self.toast(format!("Tocca di nuovo per eliminare «{name}» con i suoi progressi"));
+            return;
+        }
+        self.remove_armed = None;
+        let base = self.store.base.clone();
+        let was_active = self.exams.active == id;
+        self.exams.remove(id);
+        prep_core::exams::remove_files(&base, id);
+        if self.exams.exams.is_empty() {
+            // resta sempre almeno l'esame incluso nell'app
+            let bundled = Content::from_files(crate::bundled::BUNDLED.iter().copied());
+            self.exams = prep_core::exams::prepare(&base, bundled.syllabus.as_ref());
+            if self.exams.exams.is_empty() {
+                if let Some(syl) = bundled.syllabus.as_ref() {
+                    self.exams.upsert(&prep_core::exams::exam_id(syl), &syl.title);
+                }
+            }
+        }
+        let _ = self.exams.save(&base);
+        if was_active || self.exams.get(&self.exams.active).is_none() {
+            let next = self.exams.active.clone();
+            self.open_exam(&next);
+        } else {
+            self.refresh_exams();
+        }
+        self.toast("Esame eliminato");
+    }
+
+    fn save_username(&mut self, name: &str) {
+        let mut s = self.store.settings();
+        s.username = name.trim().chars().take(32).collect();
+        match self.store.save_settings(&s) {
+            Ok(()) => self.ui().global::<AppState>().set_s_username(ss(&s.username)),
+            Err(e) => self.toast(format!("Errore: {e}")),
         }
     }
 
@@ -2711,7 +2839,7 @@ impl Ctrl {
         if self.importing {
             return;
         }
-        let next = vfs::list_dir(&self.store.root.join("import"))
+        let next = vfs::list_dir(&self.store.base.join("import"))
             .into_iter()
             .find(|p| !vfs::is_dir(p) && p.extension().is_none_or(|x| x != "tmp"));
         if let Some(p) = next {
@@ -2725,7 +2853,7 @@ impl Ctrl {
             self.toast(format!("Selettore file non disponibile: {e}"));
         }
         #[cfg(target_arch = "wasm32")]
-        crate::web::pick_pack_file(self.store.root.join("import"));
+        crate::web::pick_pack_file(self.store.base.join("import"));
         #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
         match newest_pack_download() {
             Some(p) => self.import_pack_file(p, false),
@@ -2842,8 +2970,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
     #[cfg(target_arch = "wasm32")]
     crate::web::fit_window(&ui);
-    let store = Store::open(&data_dir).expect("cartella dati");
     let content = Content::from_files(crate::bundled::BUNDLED.iter().copied());
+    // un archivio per esame; al primo avvio i dati della versione a esame unico passano al loro esame
+    let exams = prep_core::exams::prepare(&data_dir, content.syllabus.as_ref());
+    let store = Store::open_in(&data_dir, prep_core::exams::dir(&data_dir, &exams.active)).expect("cartella dati");
     let progress = compute(&content, &History::default(), None);
     let ctrl = Rc::new(RefCell::new(Ctrl {
         ui: ui.as_weak(),
@@ -2877,6 +3007,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         toast_timer: Timer::default(),
         flag_timer: Timer::default(),
         qz: QuizSetup::default(),
+        exams,
+        remove_armed: None,
     }));
     CTRL.with(|c| *c.borrow_mut() = Some(ctrl.clone()));
     {
@@ -2885,6 +3017,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         c.reload_progress();
         c.load_settings_into_ui();
         c.refresh_all();
+        c.refresh_exams();
         c.import_timer.start(TimerMode::Repeated, Duration::from_millis(1500), || with_ctrl(|c| c.poll_import()));
     }
 
@@ -3142,6 +3275,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     });
     st.on_save_settings(|| with_ctrl(|c| c.save_settings()));
     st.on_import_pack(|| with_ctrl(|c| c.pick_pack()));
+    st.on_select_exam(|id| with_ctrl(|c| c.open_exam(&id)));
+    st.on_remove_exam(|id| with_ctrl(|c| c.remove_exam(&id)));
+    st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));
     st.on_wave_path(|x0, x1, cy, amp, wl, phase| ss(wave_path(x0, x1, cy, amp, wl, phase)));
     st.on_dialog_ok(|| with_ctrl(|c| c.dialog_ok()));
     st.on_dialog_alt_clicked(|| with_ctrl(|c| c.dialog_alt()));
