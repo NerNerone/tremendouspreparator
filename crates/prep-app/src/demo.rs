@@ -8,7 +8,7 @@
 #[allow(unused_imports)]
 use crate::{AppState, AppWindow};
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 pub fn maybe_run(ui: &AppWindow) {
     use slint::ComponentHandle;
     use std::time::Duration;
@@ -196,7 +196,7 @@ pub fn maybe_run(ui: &AppWindow) {
     });
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 fn save_shot(ui: &AppWindow, path: &str) {
     use slint::ComponentHandle;
     if let Ok(buf) = ui.window().take_snapshot() {
@@ -211,5 +211,5 @@ fn save_shot(ui: &AppWindow, path: &str) {
     }
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", target_arch = "wasm32"))]
 pub fn maybe_run(_ui: &AppWindow) {}

@@ -17,13 +17,16 @@ use prep_core::select::{self, Scope};
 use prep_core::session::{score_items, Item, Session, SessionKind};
 use prep_core::store::Store;
 use prep_core::sync::{self, SyncReport};
+use prep_core::vfs;
 use serde::{Deserialize, Serialize};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+// Instant portabile: nel browser std::time::Instant non esiste
+use web_time::Instant;
 
 pub const APP_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+", env!("APP_BUILD"));
 
@@ -691,7 +694,7 @@ impl Ctrl {
         match self.store.save_settings(&s) {
             Ok(()) => {
                 self.write_reminder();
-                #[cfg(not(target_os = "android"))]
+                #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
                 crate::desktop_reminder::sync_autostart(s.reminder_enabled);
                 self.toast(if s.reminder_enabled {
                     format!("Promemoria alle {list}")
@@ -1161,18 +1164,18 @@ impl Ctrl {
             perm: q.perm.clone(),
         };
         if let Ok(j) = serde_json::to_string(&saved) {
-            let _ = std::fs::write(self.saved_quiz_path(), j);
+            let _ = vfs::write(&self.saved_quiz_path(), j.as_bytes());
         }
         self.write_reminder();
     }
 
     fn load_saved_quiz(&self) -> Option<SavedQuiz> {
-        let t = std::fs::read_to_string(self.saved_quiz_path()).ok()?;
+        let t = vfs::read_to_string(&self.saved_quiz_path()).ok()?;
         serde_json::from_str(&t).ok()
     }
 
     fn clear_saved_quiz(&mut self) {
-        let _ = std::fs::remove_file(self.saved_quiz_path());
+        let _ = vfs::remove_file(&self.saved_quiz_path());
         self.write_reminder();
     }
 
@@ -2196,9 +2199,9 @@ impl Ctrl {
         if let Some(b) = self.store.read_mirror(path) {
             return Some(b);
         }
-        if cfg!(not(target_os = "android")) {
+        if cfg!(all(not(target_os = "android"), not(target_arch = "wasm32"))) {
             // sviluppo desktop: legge dal checkout del repository
-            if let Ok(b) = std::fs::read(path) {
+            if let Ok(b) = vfs::read(std::path::Path::new(path)) {
                 return Some(b);
             }
         }
@@ -2394,7 +2397,7 @@ impl Ctrl {
         self.ui().global::<AppState>().set_syncing(true);
         let store = self.store.clone();
         self.ui().global::<AppState>().set_sync_status(ss("Sincronizzazione in corso…"));
-        std::thread::spawn(move || {
+        spawn_background(move || {
             let rep = sync::sync_with_progress(&store, &|n, tot| {
                 if tot > 0 && (n == 0 || n % 10 == 0 || n == tot) {
                     let msg = format!("Scarico i contenuti: {n}/{tot} file…");
@@ -2449,12 +2452,12 @@ impl Ctrl {
         self.importing = true;
         self.ui().global::<AppState>().set_pack_busy(true);
         let store = self.store.clone();
-        std::thread::spawn(move || {
-            let res = std::fs::read(&path)
+        spawn_background(move || {
+            let res = vfs::read(&path)
                 .map_err(|e| format!("file non leggibile: {e}"))
                 .and_then(|b| prep_core::pack::import(&store, &b));
             if remove {
-                let _ = std::fs::remove_file(&path);
+                let _ = vfs::remove_file(&path);
             }
             let _ = slint::invoke_from_event_loop(move || with_ctrl(|c| c.on_pack_imported(res)));
         });
@@ -2479,10 +2482,9 @@ impl Ctrl {
         if self.importing {
             return;
         }
-        let Ok(rd) = std::fs::read_dir(self.store.root.join("import")) else {
-            return;
-        };
-        let next = rd.flatten().map(|e| e.path()).find(|p| p.is_file() && p.extension().is_none_or(|x| x != "tmp"));
+        let next = vfs::list_dir(&self.store.root.join("import"))
+            .into_iter()
+            .find(|p| !vfs::is_dir(p) && p.extension().is_none_or(|x| x != "tmp"));
         if let Some(p) = next {
             self.import_pack_file(p, true);
         }
@@ -2493,7 +2495,9 @@ impl Ctrl {
         if let Err(e) = crate::android_pick_pack() {
             self.toast(format!("Selettore file non disponibile: {e}"));
         }
-        #[cfg(not(target_os = "android"))]
+        #[cfg(target_arch = "wasm32")]
+        crate::web::pick_pack_file(self.store.root.join("import"));
+        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
         match newest_pack_download() {
             Some(p) => self.import_pack_file(p, false),
             None => self.toast(format!(
@@ -2552,6 +2556,15 @@ pub(crate) fn wave_path(x0: f32, x1: f32, cy: f32, amp: f32, wl: f32, phase: f32
     s
 }
 
+/// Lavoro lungo (sincronizzazione, importazione) fuori dal thread dell'interfaccia. Nel browser
+/// non ci sono thread: lo si esegue subito (il risultato arriva comunque con invoke_from_event_loop).
+fn spawn_background(f: impl FnOnce() + Send + 'static) {
+    #[cfg(not(target_arch = "wasm32"))]
+    std::thread::spawn(f);
+    #[cfg(target_arch = "wasm32")]
+    f();
+}
+
 fn short_date(iso: &str) -> String {
     chrono::DateTime::parse_from_rfc3339(iso)
         .map(|d| d.with_timezone(&chrono::Local).format("%d/%m/%Y %H:%M").to_string())
@@ -2559,7 +2572,7 @@ fn short_date(iso: &str) -> String {
 }
 
 /// Pacchetto più recente nella cartella Download (desktop).
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 fn newest_pack_download() -> Option<PathBuf> {
     let home = PathBuf::from(std::env::var_os("HOME")?);
     let mut dirs: Vec<PathBuf> = Vec::new();
@@ -2598,6 +2611,8 @@ fn device_name() -> String {
 
 pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
+    #[cfg(target_arch = "wasm32")]
+    crate::web::fit_window(&ui);
     let store = Store::open(&data_dir).expect("cartella dati");
     let content = Content::from_files(crate::bundled::BUNDLED.iter().copied());
     let progress = compute(&content, &History::default(), None);
@@ -2903,7 +2918,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_dialog_cancel(|| with_ctrl(|c| c.close_dialog()));
 
     // promemoria desktop: avvio automatico + processo in background
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     crate::desktop_reminder::sync_autostart(ctrl.borrow().store.settings().reminder_enabled);
     // sync all'avvio
     ctrl.borrow_mut().start_sync(false);

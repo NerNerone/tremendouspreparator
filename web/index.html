@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Tremendous Preparator</title>
+  <meta name="description" content="App di studio per le prove del semestre aperto di Medicina">
+  <meta name="theme-color" content="#fef7ff">
+  <!-- installabile su iPhone: Condividi → Aggiungi alla schermata Home -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Preparator">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-128.png">
+  <link rel="apple-touch-icon" href="icon-256.png">
+  <style>
+    html, body { margin: 0; height: 100%; background: #fef7ff; overflow: hidden; overscroll-behavior: none; }
+    #canvas { position: fixed; left: 0; top: 0; touch-action: none; outline: none; }
+    #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+               font: 16px system-ui, sans-serif; color: #49454f; }
+  </style>
+</head>
+<body>
+  <div id="loading">Caricamento…</div>
+  <canvas id="canvas"></canvas>
+  <script type="module">
+    import init from "./prepapp.js";
+    init().then(() => document.getElementById("loading").remove())
+          .catch((e) => { document.getElementById("loading").textContent = "Errore di avvio: " + e; });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+  </script>
+</body>
+</html>

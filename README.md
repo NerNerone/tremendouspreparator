@@ -2,7 +2,9 @@
 
 App di studio per le prove del **semestre aperto di Medicina** (Fisica, Chimica e propedeutica biochimica,
 Biologia), scritta in **Rust** con interfaccia [Slint](https://slint.dev) in stile Material 3.
-Gira su **Android** (APK arm64) e su **Linux** (Flatpak x86_64); una versione web è in preparazione.
+Gira su **Android** (APK arm64), su **Linux** (Flatpak x86_64) e nel **browser**
+(<https://nernerone.github.io/tremendouspreparator/>, installabile su iPhone da Safari con
+*Condividi → Aggiungi alla schermata Home*).
 
 Questo repository contiene **solo l'infrastruttura**: il codice dell'app, gli strumenti per costruire i
 contenuti e la loro documentazione. Libri, quiz e flashcard non sono inclusi: si importano a parte (vedi
@@ -92,3 +94,26 @@ esegue una sequenza di azioni e salva screenshot, utile per verificare l'interfa
 L'APK e il Flatpak sono costruiti da [.github/workflows/android.yml](.github/workflows/android.yml) e allegati a
 una release. Per firmare l'APK con una chiave stabile servono i secret `ANDROID_KEYSTORE_B64` e
 `ANDROID_KEYSTORE_PASSWORD`; senza, viene usata una chiave temporanea.
+
+### Versione web
+
+La stessa app compilata in WebAssembly ([.github/workflows/pages.yml](.github/workflows/pages.yml)), pubblicata su
+GitHub Pages. I dati restano nel browser (IndexedDB) e funziona anche offline; i contenuti si importano con il
+pacchetto (*Opzioni → Pacchetto contenuti*). La sincronizzazione con GitHub non è ancora disponibile nel browser.
+
+```bash
+rustup target add wasm32-unknown-unknown
+```
+
+```bash
+cargo build --release -p tremendouspreparator --lib --target wasm32-unknown-unknown
+```
+
+```bash
+wasm-bindgen --target web --no-typescript --out-dir site target/wasm32-unknown-unknown/release/prepapp.wasm && cp web/* site/
+```
+
+## Licenza
+
+[GPL-2.0-only](LICENSE), la stessa licenza del kernel Linux. I font inclusi (Roboto, DejaVu) hanno le proprie
+licenze, riportate in [crates/prep-app/fonts/LICENSES.txt](crates/prep-app/fonts/LICENSES.txt).

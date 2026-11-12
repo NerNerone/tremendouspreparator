@@ -1,3 +1,10 @@
+// Font incorporati (necessari nel browser, che non ha font di sistema)
+import "../fonts/Roboto-Regular.ttf";
+import "../fonts/Roboto-Medium.ttf";
+import "../fonts/Roboto-SemiBold.ttf";
+import "../fonts/Roboto-Bold.ttf";
+import "../fonts/DejaVuSans.ttf";
+import "../fonts/DejaVuSans-Bold.ttf";
 import { M3, Icons, Type } from "theme.slint";
 import { AppState } from "state.slint";
 import { NavItem, M3Button } from "components.slint";
@@ -6,7 +13,7 @@ import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksP
 export { AppState }
 
 export component AppWindow inherits Window {
-    title: "Semestre Aperto";
+    title: "Tremendous Preparator";
     preferred-width: 412px;
     preferred-height: 900px;
     background: M3.surface;

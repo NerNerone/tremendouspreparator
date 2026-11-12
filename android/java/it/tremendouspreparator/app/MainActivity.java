@@ -18,7 +18,7 @@ import java.io.OutputStream;
  * l'app va in secondo piano (così l'orario scelto in Impostazioni è sempre aggiornato).
  *
  * Pacchetto contenuti: il file scelto con il selettore (pickContentPack, chiamato da
- * Rust via JNI) o aperto con «Apri con Semestre Aperto» viene copiato in
+ * Rust via JNI) o aperto con «Apri con Tremendous Preparator» viene copiato in
  * files/import/; la parte Rust lo trova lì, lo importa e lo cancella.
  */
 public class MainActivity extends NativeActivity {

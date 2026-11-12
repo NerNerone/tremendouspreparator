@@ -59,10 +59,10 @@ pub struct Goals {
 
 impl Goals {
     pub fn load(dir: &Path) -> Option<Goals> {
-        serde_json::from_str(&std::fs::read_to_string(dir.join(GOALS_FILE)).ok()?).ok()
+        serde_json::from_str(&crate::vfs::read_to_string(&dir.join(GOALS_FILE)).ok()?).ok()
     }
     pub fn save(&self, dir: &Path) -> std::io::Result<()> {
-        std::fs::write(dir.join(GOALS_FILE), serde_json::to_string_pretty(self)?)
+        crate::vfs::write(&dir.join(GOALS_FILE), serde_json::to_string_pretty(self)?.as_bytes())
     }
     pub fn is_for(&self, day: NaiveDate) -> bool {
         self.date == day.format("%Y-%m-%d").to_string()
@@ -77,8 +77,8 @@ impl Goals {
     pub fn latest(store: &crate::store::Store, day: NaiveDate) -> Option<Goals> {
         let mut best = Goals::load(&store.root).filter(|g| g.is_for(day));
         let dir = store.mirror_path(&format!("{GOALS_DIR}/{}", day.format("%Y-%m-%d")))?;
-        for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
-            let Ok(t) = std::fs::read_to_string(e.path()) else {
+        for p in crate::vfs::list_dir(&dir) {
+            let Ok(t) = crate::vfs::read_to_string(&p) else {
                 continue;
             };
             let Ok(g) = serde_json::from_str::<Goals>(&t) else {

@@ -14,6 +14,7 @@
 use crate::content::Content;
 use crate::github::git_blob_sha;
 use crate::store::Store;
+use crate::vfs;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -58,14 +59,8 @@ pub fn in_pack(path: &str) -> bool {
 }
 
 fn walk(dir: &Path, base: &Path, out: &mut Vec<String>) {
-    let Ok(rd) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for e in rd.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            walk(&p, base, out);
-        } else if let Ok(rel) = p.strip_prefix(base) {
+    for p in vfs::walk_files(dir) {
+        if let Ok(rel) = p.strip_prefix(base) {
             let rel = rel.to_string_lossy().replace('\\', "/");
             if in_pack(&rel) {
                 out.push(rel);
@@ -82,7 +77,7 @@ pub fn build(root: &Path, label: &str) -> Result<(Vec<u8>, PackInfo), String> {
     paths.sort();
     let mut files = BTreeMap::new();
     for p in paths {
-        let t = std::fs::read_to_string(root.join(&p)).map_err(|e| format!("{p}: {e}"))?;
+        let t = vfs::read_to_string(&root.join(&p)).map_err(|e| format!("{p}: {e}"))?;
         files.insert(p, t);
     }
     let pack = Pack {
@@ -109,10 +104,10 @@ fn parse(bytes: &[u8]) -> Result<Pack, String> {
     } else {
         json = bytes.to_vec();
     }
-    let pack: Pack =
-        serde_json::from_slice(&json).map_err(|_| "non è un pacchetto contenuti di Semestre Aperto".to_string())?;
+    let pack: Pack = serde_json::from_slice(&json)
+        .map_err(|_| "non è un pacchetto contenuti di Tremendous Preparator".to_string())?;
     if pack.format != FORMAT {
-        return Err("non è un pacchetto contenuti di Semestre Aperto".into());
+        return Err("non è un pacchetto contenuti di Tremendous Preparator".into());
     }
     if pack.version > 1 {
         return Err("pacchetto creato per una versione più recente dell'app: aggiornala".into());
@@ -170,7 +165,7 @@ pub fn import(store: &Store, bytes: &[u8]) -> Result<PackInfo, String> {
     for (p, t) in &pack.files {
         let bytes = t.as_bytes();
         let sha = git_blob_sha(bytes);
-        let same = idx.files.get(p) == Some(&sha) && store.mirror_path(p).is_some_and(|f| f.exists());
+        let same = idx.files.get(p) == Some(&sha) && store.mirror_path(p).is_some_and(|f| vfs::exists(&f));
         if !same {
             store.write_mirror(p, bytes).map_err(|e| format!("{p}: {e}"))?;
             idx.files.insert(p.clone(), sha);
@@ -179,13 +174,13 @@ pub fn import(store: &Store, bytes: &[u8]) -> Result<PackInfo, String> {
     idx.synced_once = true;
     store.save_index(&idx).map_err(|e| e.to_string())?;
     info.imported = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    let _ = std::fs::write(store.root.join("pack_info.json"), serde_json::to_vec_pretty(&info).unwrap_or_default());
+    let _ = vfs::write(&store.root.join("pack_info.json"), &serde_json::to_vec_pretty(&info).unwrap_or_default());
     Ok(info)
 }
 
 /// Ultimo pacchetto importato, se c'è.
 pub fn last_import(store: &Store) -> Option<PackInfo> {
-    let t = std::fs::read_to_string(store.root.join("pack_info.json")).ok()?;
+    let t = vfs::read_to_string(&store.root.join("pack_info.json")).ok()?;
     serde_json::from_str(&t).ok()
 }
 

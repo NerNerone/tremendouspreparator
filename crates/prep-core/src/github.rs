@@ -1,8 +1,11 @@
 //! Client minimale per l'API REST di GitHub (solo ciò che serve all'app).
 
+#[cfg(not(target_arch = "wasm32"))]
 use base64::Engine;
 use serde::Deserialize;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
 use ureq::Agent;
 
 #[derive(Debug, Clone)]
@@ -45,6 +48,7 @@ pub struct TreeEntry {
     pub sha: String,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Deserialize)]
 struct Tree {
     #[serde(default)]
@@ -53,6 +57,7 @@ struct Tree {
     truncated: bool,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Deserialize)]
 struct RepoInfo {
     default_branch: String,
@@ -65,6 +70,8 @@ pub enum PutOutcome {
     AlreadyExists,
 }
 
+/// Client dell'API GitHub (rete bloccante: non disponibile nel browser).
+#[cfg(not(target_arch = "wasm32"))]
 pub struct GitHub {
     cfg: RepoConfig,
     agent: Agent,
@@ -78,6 +85,7 @@ pub fn git_blob_sha(bytes: &[u8]) -> String {
     h.digest().to_string()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn enc_path(p: &str) -> String {
     p.split('/')
         .map(|seg| {
@@ -95,6 +103,7 @@ fn enc_path(p: &str) -> String {
         .join("/")
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl GitHub {
     pub fn new(cfg: RepoConfig) -> GitHub {
         let agent: Agent = Agent::config_builder()
@@ -217,6 +226,7 @@ impl GitHub {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn short(s: &str) -> String {
     let msg = serde_json::from_str::<serde_json::Value>(s)
         .ok()

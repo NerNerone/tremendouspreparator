@@ -124,17 +124,17 @@ pub fn parse_time(s: &str) -> Option<(u32, u32)> {
 
 impl ReminderState {
     pub fn load(dir: &Path) -> Option<ReminderState> {
-        serde_json::from_str(&std::fs::read_to_string(dir.join(FILE)).ok()?).ok()
+        serde_json::from_str(&crate::vfs::read_to_string(&dir.join(FILE)).ok()?).ok()
     }
 
     /// Scrive il file solo se è cambiato (il receiver lo legge, niente scritture inutili).
     pub fn save(&self, dir: &Path) -> std::io::Result<()> {
         let j = serde_json::to_string_pretty(self)?;
         let p = dir.join(FILE);
-        if std::fs::read_to_string(&p).ok().as_deref() == Some(j.as_str()) {
+        if crate::vfs::read_to_string(&p).ok().as_deref() == Some(j.as_str()) {
             return Ok(());
         }
-        std::fs::write(p, j)
+        crate::vfs::write(&p, j.as_bytes())
     }
 
     fn due_on(&self, day: &str) -> usize {

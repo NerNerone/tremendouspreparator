@@ -2,8 +2,10 @@
 name = "tremendouspreparator"
 version = "0.1.0"
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
 publish = false
-description = "Semestre Aperto Prep — app Android privata (Rust + Slint, Material 3)"
+description = "Tremendous Preparator — app di studio (Rust + Slint, Material 3) per Android, Linux e browser"
 
 [lib]
 name = "prepapp"
@@ -18,6 +20,7 @@ prep-core = { path = "../prep-core" }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
+web-time = "1"
 
 [target.'cfg(target_os = "android")'.dependencies]
 slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-android-activity-06", "renderer-femtovg"] }
@@ -49,7 +52,7 @@ name = "android.permission.POST_NOTIFICATIONS"
 name = "android.permission.RECEIVE_BOOT_COMPLETED"
 
 [package.metadata.android.application]
-label = "Semestre Aperto"
+label = "Tremendous Preparator"
 icon = "@mipmap/ic_launcher"
 theme = "@android:style/Theme.DeviceDefault.NoActionBar"
 has_code = true
@@ -59,7 +62,15 @@ name = "it.tremendouspreparator.app.MainActivity"
 orientation = "portrait"
 config_changes = "orientation|screenSize|screenLayout|keyboardHidden|uiMode|density"
 
-[target.'cfg(not(target_os = "android"))'.dependencies]
+[target.'cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))'.dependencies]
 slint = { version = "=1.18.1" }
 png = "0.17"
 zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
+
+# versione web (GitHub Pages): disegno WebGL, dati in IndexedDB, file scelti dal browser
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-femtovg"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "wasmbind"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"

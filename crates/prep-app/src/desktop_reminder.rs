@@ -49,7 +49,7 @@ pub fn sync_autostart(enabled: bool) {
     if let Some(f) = autostart_file() {
         if enabled {
             let body = format!(
-                "[Desktop Entry]\nType=Application\nName=Semestre Aperto (promemoria)\n\
+                "[Desktop Entry]\nType=Application\nName=Tremendous Preparator (promemoria)\n\
                  Comment=Promemoria giornaliero di studio\nExec={}\nIcon={APP_ID}\n\
                  NoDisplay=true\nX-GNOME-Autostart-enabled=true\n",
                 exec_line()
@@ -142,7 +142,7 @@ fn notify(title: &str, body: &str) -> zbus::Result<()> {
         "/org/freedesktop/Notifications",
         Some("org.freedesktop.Notifications"),
         "Notify",
-        &("Semestre Aperto", 0u32, APP_ID, title, body, vec!["default", "Apri"], hints, -1i32),
+        &("Tremendous Preparator", 0u32, APP_ID, title, body, vec!["default", "Apri"], hints, -1i32),
     )?;
     let id: u32 = reply.body().deserialize()?;
     // clic sulla notifica → apri l'app (in ascolto per qualche ora al massimo)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Aggiunge al manifest generato da cargo-apk il receiver del promemoria giornaliero e
-gli intent-filter per aprire il pacchetto contenuti con «Apri con Semestre Aperto»
+gli intent-filter per aprire il pacchetto contenuti con «Apri con Tremendous Preparator»
 (cargo-apk non sa dichiararli). Uso: patch_manifest.py <in.xml> <out.xml>"""
 import re
 import sys

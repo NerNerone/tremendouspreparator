@@ -2,11 +2,17 @@
 //! 1. invia i commit in coda (sessioni nuove) via Contents API;
 //! 2. scarica i file di `content/` e `progress/` cambiati (confronto sha git).
 
-use crate::github::{git_blob_sha, GhError, GitHub, RepoConfig};
+use crate::github::GhError;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::github::{git_blob_sha, GitHub, RepoConfig};
 use crate::store::{Store, SyncState};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::vfs as fs;
+#[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashSet;
-use std::fs;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Mutex;
 
 #[derive(Debug, Default, Clone)]
@@ -38,6 +44,7 @@ impl SyncReport {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn tracked(path: &str) -> bool {
     (path.ends_with(".json") && (path.starts_with("content/") || path.starts_with("progress/")))
         || ((path.ends_with(".md") || path.ends_with(".svg")) && path.starts_with("books/"))
@@ -78,10 +85,22 @@ pub fn sync_with_progress(store: &Store, progress: &(dyn Fn(usize, usize) + Sync
 }
 
 /// Download paralleli: i file sono tanti e piccoli (formule SVG), uno alla volta è lento.
+#[cfg(not(target_arch = "wasm32"))]
 const WORKERS: usize = 6;
 /// Ogni quanti file salvare l'indice: un'interruzione non fa ripartire da zero.
+#[cfg(not(target_arch = "wasm32"))]
 const SAVE_EVERY: usize = 40;
 
+/// Nel browser la sincronizzazione (rete bloccante e thread) non è ancora disponibile:
+/// i contenuti si importano con il pacchetto.
+#[cfg(target_arch = "wasm32")]
+fn run(_: &Store, _: &mut SyncReport, _: &(dyn Fn(usize, usize) + Sync)) -> Result<(), GhError> {
+    Err(GhError::Network(
+        "sincronizzazione non ancora disponibile nella versione web: importa il pacchetto contenuti".into(),
+    ))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn run(store: &Store, rep: &mut SyncReport, progress: &(dyn Fn(usize, usize) + Sync)) -> Result<(), GhError> {
     let s = store.settings();
     if s.token.trim().is_empty() {

@@ -12,9 +12,9 @@ use crate::feedback::{Feedback, FeedbackStatus};
 use crate::github::git_blob_sha;
 use crate::progress::Assessment;
 use crate::session::Session;
+use crate::vfs as fs;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -137,13 +137,13 @@ fn safe_rel(path: &str) -> bool {
 impl Store {
     pub fn open(root: impl Into<PathBuf>) -> io::Result<Store> {
         let root = root.into();
-        fs::create_dir_all(root.join("mirror"))?;
-        fs::create_dir_all(root.join("outbox"))?;
+        fs::create_dir_all(&root.join("mirror"))?;
+        fs::create_dir_all(&root.join("outbox"))?;
         Ok(Store { root })
     }
 
     pub fn settings(&self) -> Settings {
-        fs::read_to_string(self.root.join("settings.json"))
+        fs::read_to_string(&self.root.join("settings.json"))
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default()
@@ -182,17 +182,13 @@ impl Store {
 
     pub fn remove_mirror(&self, repo_path: &str) {
         if let Some(p) = self.mirror_path(repo_path) {
-            let _ = fs::remove_file(p);
+            let _ = fs::remove_file(&p);
         }
     }
 
     fn walk(dir: &Path, base: &Path, out: &mut Vec<(String, PathBuf)>) {
-        let Ok(rd) = fs::read_dir(dir) else { return };
-        for e in rd.flatten() {
-            let p = e.path();
-            if p.is_dir() {
-                Self::walk(&p, base, out);
-            } else if p.extension().is_some_and(|x| x == "json") {
+        for p in fs::walk_files(dir) {
+            if p.extension().is_some_and(|x| x == "json") {
                 if let Ok(rel) = p.strip_prefix(base) {
                     out.push((rel.to_string_lossy().replace('\\', "/"), p.clone()));
                 }
@@ -237,7 +233,7 @@ impl Store {
 
     pub fn assessment(&self) -> Option<Assessment> {
         let p = self.root.join("mirror/progress/assessment.json");
-        let t = fs::read_to_string(p).ok()?;
+        let t = fs::read_to_string(&p).ok()?;
         serde_json::from_str(&t).ok()
     }
 
@@ -283,12 +279,9 @@ impl Store {
     }
 
     pub fn outbox(&self) -> Vec<(PathBuf, OutboxEntry)> {
-        let mut v: Vec<(PathBuf, OutboxEntry)> = fs::read_dir(self.root.join("outbox"))
+        let mut v: Vec<(PathBuf, OutboxEntry)> = fs::list_dir(&self.root.join("outbox"))
             .into_iter()
-            .flatten()
-            .flatten()
-            .filter_map(|e| {
-                let p = e.path();
+            .filter_map(|p| {
                 let t = fs::read_to_string(&p).ok()?;
                 let entry: OutboxEntry = serde_json::from_str(&t).ok()?;
                 Some((p, entry))
@@ -299,6 +292,6 @@ impl Store {
     }
 
     pub fn read_mirror(&self, repo_path: &str) -> Option<Vec<u8>> {
-        fs::read(self.mirror_path(repo_path)?).ok()
+        fs::read(&self.mirror_path(repo_path)?).ok()
     }
 }

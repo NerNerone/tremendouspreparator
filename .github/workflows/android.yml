@@ -66,7 +66,7 @@ jobs:
           else
             KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
             keytool -genkeypair -keystore "$KS" -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
-              -alias temp -keyalg RSA -keysize 2048 -validity 365 -dname "CN=Semestre Aperto (temporanea)"
+              -alias temp -keyalg RSA -keysize 2048 -validity 365 -dname "CN=Tremendous Preparator (temporanea)"
             echo "::warning::Secret ANDROID_KEYSTORE_B64/ANDROID_KEYSTORE_PASSWORD mancanti: APK firmato con chiave temporanea"
             echo "SIGNING_NOTE=ATTENZIONE: firmata con chiave temporanea, per aggiornare va disinstallata la versione precedente." >> "$GITHUB_ENV"
           fi

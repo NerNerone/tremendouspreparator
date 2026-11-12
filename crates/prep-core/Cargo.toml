@@ -2,6 +2,8 @@
 name = "prep-core"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
 publish = false
 description = "Logica dell'app: contenuti, quiz, flashcard, modello dei progressi, sync GitHub"
 
@@ -13,6 +15,14 @@ fastrand = "2"
 regex-lite = "0.1"
 base64 = "0.22"
 sha1_smol = "1"
-ureq = { version = "3", default-features = false, features = ["rustls"] }
 unicode-normalization = "0.1"
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+
+# rete bloccante per la sincronizzazione GitHub: non nel browser
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+
+# nel browser il caso e l'ora vengono da JavaScript
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fastrand = { version = "2", default-features = false, features = ["std", "js"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde", "wasmbind"] }

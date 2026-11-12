@@ -1,4 +1,5 @@
-//! App Android "Semestre Aperto" — UI Slint (Material 3) + nucleo `prep-core`.
+//! Tremendous Preparator — interfaccia Slint (Material 3) sul nucleo `prep-core`.
+//! Stessa base per Android, desktop (Linux) e browser (WebAssembly).
 
 pub mod bundled {
     include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
@@ -8,15 +9,18 @@ slint::include_modules!();
 
 mod app;
 mod demo;
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 pub mod desktop_reminder;
 mod periodic;
+#[cfg(target_arch = "wasm32")]
+mod web;
 
 pub use app::{run, APP_VERSION};
 
 /// Font incorporati: Roboto (stile Material) come principale e DejaVu Sans come fallback
 /// per simboli che Roboto o i font di sistema non hanno (⇌ ∝ ≃, pedici e apici, …).
 /// Vanno scritti su disco e indicati in SLINT_FONT_PATH prima che Slint carichi i font.
+#[cfg(not(target_arch = "wasm32"))]
 const FONTS: &[(&str, &[u8])] = &[
     ("Roboto-Regular.ttf", include_bytes!("../fonts/Roboto-Regular.ttf")),
     ("Roboto-Medium.ttf", include_bytes!("../fonts/Roboto-Medium.ttf")),
@@ -26,6 +30,7 @@ const FONTS: &[(&str, &[u8])] = &[
     ("DejaVuSans-Bold.ttf", include_bytes!("../fonts/DejaVuSans-Bold.ttf")),
 ];
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn install_fonts(data_dir: &std::path::Path) {
     if std::env::var_os("SLINT_FONT_PATH").is_some() {
         return;
@@ -76,4 +81,18 @@ fn android_main(android_app: slint::android::AndroidApp) {
     if let Err(e) = run(dir) {
         eprintln!("errore: {e}");
     }
+}
+
+/// Avvio nel browser: prima si ricaricano i dati salvati in IndexedDB, poi parte l'interfaccia
+/// (la pagina deve contenere `<canvas id="canvas">`).
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen(start)]
+pub fn wasm_start() {
+    std::panic::set_hook(Box::new(|info| web::log(&info.to_string())));
+    wasm_bindgen_futures::spawn_local(async {
+        web::init_storage().await;
+        if let Err(e) = run(std::path::PathBuf::from(web::DATA_ROOT)) {
+            web::log(&format!("errore: {e}"));
+        }
+    });
 }
