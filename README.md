@@ -135,6 +135,16 @@ condivide conferma di averne il diritto e ottiene un codice usa e getta (es. `K7
 bit); chi lo inserisce può scaricare quell'esame e nient'altro. In questa modalità non passano
 progressi e il codice smette di valere quando la condivisione viene chiusa.
 
+## Studio di gruppo
+
+Scheda **Gruppo**: si crea un gruppo privato e si invita con un link (apre la web app, o l'app se è
+installata); chi entra vede in alto la gara, con la telecamera che segue la propria macchina e una
+minimappa di tutto il circuito. Il cronometro di studio fa correre la macchina (un giro = 10
+minuti), il pit stop la porta ai box; la classifica (oggi, settimana, totale) resta anche quando gli
+altri non sono collegati. I membri si scambiano lo stato ogni 10 secondi attraverso i relay, cifrato
+con una chiave ricavata dal codice del gruppo (`prep-core/src/group.rs`). Su Android si può fissare
+lo schermo sull'app mentre si studia.
+
 ## Esclusione di responsabilità
 
 Il software è fornito «così com'è», senza garanzie (vedi la [licenza](LICENSE), sezioni 15–16).

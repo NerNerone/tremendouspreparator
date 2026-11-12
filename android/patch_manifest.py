@@ -18,6 +18,15 @@ MIMES = "".join(
     f'<data android:mimeType="{m}"/>'
     for m in ("application/gzip", "application/x-gzip", "application/octet-stream", "application/json")
 )
+# inviti ai gruppi di studio: link alla web app (si aprono anche nell'app, se l'utente lo sceglie)
+INVITE_FILTER = (
+    '<intent-filter><action android:name="android.intent.action.VIEW"/>'
+    '<category android:name="android.intent.category.DEFAULT"/>'
+    '<category android:name="android.intent.category.BROWSABLE"/>'
+    '<data android:scheme="https" android:host="nernerone.github.io" android:pathPrefix="/tremendouspreparator"/>'
+    "</intent-filter>"
+)
+
 PACK_FILTERS = (
     '<intent-filter><action android:name="android.intent.action.VIEW"/>'
     '<category android:name="android.intent.category.DEFAULT"/>'
@@ -43,6 +52,6 @@ if "android.intent.action.SEND" not in xml:
         tag2 = tag[:-1].rstrip("/") + ' android:launchMode="singleTask">'
         xml = xml.replace(m.group(0), tag2, 1)
     end = xml.index("</activity>", xml.index("it.tremendouspreparator.app.MainActivity"))
-    xml = xml[:end] + PACK_FILTERS + xml[end:]
+    xml = xml[:end] + PACK_FILTERS + INVITE_FILTER + xml[end:]
 open(dst, "w", encoding="utf-8").write(xml)
 print(xml)

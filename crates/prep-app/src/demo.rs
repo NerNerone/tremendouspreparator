@@ -76,6 +76,15 @@ pub fn maybe_run(ui: &AppWindow) {
                     st.invoke_p2p_connect()
                 }
                 "legal" => st.invoke_legal_accept(),
+                // studio di gruppo: gcreate:nome (stampa il link), gjoin:link, study, pit, stop
+                "gcreate" => {
+                    st.invoke_group_create(arg.into());
+                    eprintln!("INVITO {}", st.get_group_link());
+                }
+                "gjoin" => st.invoke_group_join(arg.into()),
+                "study" => st.invoke_study_start(),
+                "pit" => st.invoke_study_pause(),
+                "stop" => st.invoke_study_stop(),
                 "shareok" => st.set_share_ok(true),
                 "sharestart" => {
                     st.invoke_share_start();

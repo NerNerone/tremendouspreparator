@@ -22,6 +22,21 @@ extern "C" {
     fn viewport_size() -> Vec<f64>;
     #[wasm_bindgen(js_name = onResize)]
     fn on_resize(cb: &Closure<dyn FnMut(f64, f64)>);
+    #[wasm_bindgen(js_name = shareText)]
+    fn share_text_js(text: &str) -> bool;
+    #[wasm_bindgen(js_name = takeHash)]
+    fn take_hash() -> String;
+}
+
+/// Condivisione del browser (o copia negli appunti); `false` se non disponibile.
+pub fn share_text(text: &str) -> bool {
+    share_text_js(text)
+}
+
+/// Invito arrivato nell'indirizzo della pagina (`#g=…`), una volta sola.
+pub fn take_invite() -> Option<String> {
+    let h = take_hash();
+    h.contains("g=").then_some(h)
 }
 
 #[wasm_bindgen]

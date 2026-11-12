@@ -148,6 +148,44 @@ export struct PeerVM {
     offers: [OfferVM],
 }
 
+// studio di gruppo
+export struct GroupVM {
+    id: string,
+    name: string,
+    active: bool,
+}
+
+// macchinina sul circuito: posizione (0..1 nella pista), direzione in gradi
+export struct CarVM {
+    x: float,
+    y: float,
+    angle: float,
+    color: color,
+    label: string,
+    me: bool,
+    moving: bool,
+    offline: bool,
+    // corsia (-1 interna, 0 centro, 1 esterna): macchine affiancate invece che sovrapposte
+    lane: float,
+}
+
+// tratto della linea di mezzeria
+export struct DashVM {
+    x: float,
+    y: float,
+    angle: float,
+}
+
+export struct RankVM {
+    pos: int,
+    name: string,
+    color: color,
+    value: string,
+    laps: int,
+    status: string,
+    me: bool,
+}
+
 export struct ExamDateVM {
     label: string,
     date: string,
@@ -325,6 +363,42 @@ export global AppState {
     in property <bool> legal-required;
     in property <string> legal-text;
     callback legal-accept();
+
+    // studio di gruppo
+    in property <[GroupVM]> groups;
+    in property <bool> group-has;
+    in property <string> group-name;
+    in property <string> group-id;
+    in property <string> group-info;
+    in property <[CarVM]> cars;
+    // telecamera: punto inquadrato (coordinate della pista) e scritte sopra la gara
+    in property <float> cam-x: 0.5;
+    in property <float> cam-y: 1.0;
+    in property <string> race-hud;
+    // vista d'insieme del circuito (chi è in pausa o fermo) invece della telecamera ravvicinata
+    in property <bool> race-overview: true;
+    in property <[DashVM]> dashes;
+    in property <[RankVM]> ranking;
+    in property <int> study-state;
+    in property <string> study-today;
+    in property <float> study-lap;
+    in property <int> lap-flash;
+    in-out property <int> group-period;
+    in property <string> group-link;
+    in property <bool> focus-available;
+    in-out property <bool> focus-lock;
+    in-out property <string> group-new-name;
+    in-out property <string> group-join-text;
+    callback group-create(string);
+    callback group-join(string);
+    callback group-select(string);
+    callback group-leave(string);
+    callback group-invite();
+    callback group-set-period(int);
+    callback study-start();
+    callback study-pause();
+    callback study-stop();
+    callback open-goals();
 
     // esami installati
     in property <[ExamVM]> exams;

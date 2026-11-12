@@ -79,3 +79,22 @@ export function viewportSize() {
 export function onResize(cb) {
   window.addEventListener("resize", () => cb(window.innerWidth, window.innerHeight));
 }
+
+// Condivisione di un testo (inviti al gruppo): menu del sistema se c'è, altrimenti appunti.
+export function shareText(text) {
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+    return true;
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+  return false;
+}
+
+// Parte dell'indirizzo dopo «#» (inviti), tolta subito dall'indirizzo.
+export function takeHash() {
+  const h = location.hash || "";
+  if (h) history.replaceState(null, "", location.pathname + location.search);
+  return h;
+}

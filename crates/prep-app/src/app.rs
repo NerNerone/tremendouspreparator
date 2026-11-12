@@ -2,8 +2,8 @@
 
 use crate::periodic;
 use crate::{
-    AppState, AppWindow, BlockVM, BookVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM, NavCellVM, NavRowVM, OfferVM,
-    OptionVM, PeerVM, QzOptVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
+    AppState, AppWindow, BlockVM, BookVM, CarVM, DashVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM, GroupVM,
+    NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -74,6 +74,7 @@ const P_READER: i32 = 9;
 const P_FEEDBACK: i32 = 10;
 const P_GOALS: i32 = 11;
 const P_PERIODIC: i32 = 12;
+const P_GROUP: i32 = 13;
 /// Libro con il capitolo di nomenclatura (se presente tra i contenuti importati).
 const NOMENCLATURE_BOOK: &str = "chi-integrazioni";
 
@@ -82,7 +83,7 @@ fn tab_page(tab: i32) -> i32 {
         1 => P_STUDY,
         2 => P_DECKS,
         3 => P_FLAGS,
-        4 => P_GOALS,
+        4 => P_GROUP,
         _ => P_HOME,
     }
 }
@@ -269,6 +270,19 @@ pub struct Ctrl {
     p2p: Option<P2p>,
     /// condivisione di un esame con un'altra persona in corso
     share: Option<P2p>,
+    /// gruppo di studio attivo collegato
+    group: Option<P2p>,
+    groups: prep_core::group::Groups,
+    study_log: prep_core::group::StudyLog,
+    study_state: prep_core::group::State,
+    /// inizio (secondi Unix) del tratto di studio in corso, non ancora nel registro
+    study_since: Option<i64>,
+    group_period: prep_core::group::Period,
+    group_timer: Timer,
+    group_last_send: i64,
+    group_leave_armed: Option<(String, Instant)>,
+    /// giri completati finora oggi (per festeggiare il giro nuovo)
+    my_laps: u64,
 }
 
 /// Le due sessioni di rete: i propri dispositivi, o un'altra persona.
@@ -276,6 +290,17 @@ pub struct Ctrl {
 enum Sess {
     Sync,
     Share,
+    Group,
+}
+
+impl Sess {
+    fn from_index(i: usize) -> Sess {
+        match i {
+            0 => Sess::Sync,
+            1 => Sess::Share,
+            _ => Sess::Group,
+        }
+    }
 }
 
 /// I collegamenti di una sessione hanno indici `sessione * 16 + relay`.
@@ -437,8 +462,7 @@ impl p2p::Host for Ctrl {
 
 /// Evento di un collegamento diretto consegnato sul thread dell'interfaccia (vedi `direct`).
 pub(crate) fn on_direct_event(sess: usize, peer: String, ev: crate::direct::DirectEvent) {
-    let k = if sess == 0 { Sess::Sync } else { Sess::Share };
-    with_ctrl(|c| c.direct_event(k, peer, ev));
+    with_ctrl(|c| c.direct_event(Sess::from_index(sess), peer, ev));
 }
 
 /// Evento di rete consegnato sul thread dell'interfaccia (vedi `net`).
@@ -3002,6 +3026,7 @@ impl Ctrl {
         match k {
             Sess::Sync => self.p2p.as_ref(),
             Sess::Share => self.share.as_ref(),
+            Sess::Group => self.group.as_ref(),
         }
     }
 
@@ -3009,6 +3034,7 @@ impl Ctrl {
         match k {
             Sess::Sync => self.p2p.as_mut(),
             Sess::Share => self.share.as_mut(),
+            Sess::Group => self.group.as_mut(),
         }
     }
 
@@ -3073,6 +3099,7 @@ impl Ctrl {
         match k {
             Sess::Sync => self.p2p = Some(sess),
             Sess::Share => self.share = Some(sess),
+            Sess::Group => self.group = Some(sess),
         }
         self.refresh_sessions();
     }
@@ -3081,6 +3108,7 @@ impl Ctrl {
         let old = match k {
             Sess::Sync => self.p2p.take(),
             Sess::Share => self.share.take(),
+            Sess::Group => self.group.take(),
         };
         if let Some(p) = old {
             p.timer.stop();
@@ -3179,7 +3207,7 @@ impl Ctrl {
         let now = Self::now_secs();
         for o in outs {
             let wire = eng.wire(&o);
-            let control = matches!(o.msg, p2p::Msg::Hello { .. } | p2p::Msg::Rtc { .. });
+            let control = matches!(o.msg, p2p::Msg::Hello { .. } | p2p::Msg::Rtc { .. } | p2p::Msg::Group(_));
             if let (Some(to), false) = (o.to.as_deref(), control) {
                 if let Some(d) = p.direct.get_mut(to) {
                     if d.open {
@@ -3305,7 +3333,7 @@ impl Ctrl {
         let idx = match &ev {
             NetEvent::Open(i) | NetEvent::Frame(i, _) | NetEvent::Closed(i, _) => *i,
         };
-        let k = if idx / LINKS_PER_SESS == 0 { Sess::Sync } else { Sess::Share };
+        let k = Sess::from_index(idx / LINKS_PER_SESS);
         let i = idx % LINKS_PER_SESS;
         let Some(p) = self.sess_mut(k) else { return };
         match ev {
@@ -3349,6 +3377,12 @@ impl Ctrl {
         for ev in events {
             match ev {
                 p2p::Event::Peer(_) => {}
+                p2p::Event::Joined(_) if k == Sess::Group => {
+                    // nel gruppo bastano i relay (messaggi piccoli); chi arriva riceve subito il nostro stato
+                    self.group_send();
+                }
+                p2p::Event::Signal { .. } if k == Sess::Group => {}
+                p2p::Event::Group { from, status } => self.group_status_in(from, status),
                 p2p::Event::Joined(peer) => {
                     // collegamento diretto: lo apre chi ha l'id minore, l'altro aspetta l'offerta
                     let initiates = self.sess(k).and_then(|p| p.engine.as_ref()).is_some_and(|e| e.initiates(&peer));
@@ -3442,6 +3476,7 @@ impl Ctrl {
                     offers.push(OfferVM { peer: ss(id), exam: ss(&e.id), label: ss(label) });
                 }
                 let info = match k {
+                    Sess::Group => String::new(),
                     Sess::Sync => match peer.exams.iter().filter(|e| self.exams.get(&e.id).is_some()).count() {
                         0 => "nessun esame in comune".to_string(),
                         1 => "1 esame in comune: progressi sincronizzati".to_string(),
@@ -3515,6 +3550,299 @@ impl Ctrl {
         }
     }
 
+    // ---------- studio di gruppo ----------
+
+    fn my_color(&mut self) -> u32 {
+        let id = self.device_id();
+        let h = p2p::sha256_hex(id.as_bytes());
+        let n = usize::from_str_radix(&h[..4], 16).unwrap_or(0);
+        prep_core::group::CAR_COLORS[n % prep_core::group::CAR_COLORS.len()]
+    }
+
+    /// Secondi del tratto di studio in corso (non ancora nel registro).
+    fn study_running(&self, now: i64) -> u64 {
+        self.study_since.map(|t| (now - t).clamp(0, 6 * 3600) as u64).unwrap_or(0)
+    }
+
+    fn my_group_status(&mut self, now: i64) -> prep_core::group::Status {
+        let color = self.my_color();
+        let name = self.display_name();
+        let today = Local::now().date_naive();
+        prep_core::group::my_status(
+            &name,
+            color,
+            self.study_state,
+            &self.study_log,
+            self.study_running(now),
+            today,
+            now,
+        )
+    }
+
+    /// Porta nel registro il tratto di studio in corso (alla pausa, alla fine, ogni tanto).
+    fn study_flush(&mut self, now: i64) {
+        if let Some(t) = self.study_since {
+            let secs = (now - t).clamp(0, 6 * 3600) as u64;
+            if secs > 0 {
+                self.study_log.add(Local::now().date_naive(), secs);
+                let _ = self.study_log.save(&self.store.base);
+            }
+            self.study_since = if self.study_state == prep_core::group::State::Studying { Some(now) } else { None };
+        }
+    }
+
+    fn group_send(&mut self) {
+        if self.group.as_ref().is_none_or(|p| !p.started) {
+            return;
+        }
+        let now = Self::now_secs();
+        self.group_last_send = now;
+        let status = self.my_group_status(now);
+        self.with_engine(Sess::Group, move |e, _| vec![e.group_status(status)]);
+    }
+
+    fn group_status_in(&mut self, from: String, status: prep_core::group::Status) {
+        let now = Self::now_secs();
+        if let Some(g) = self.groups.active_mut() {
+            g.members.insert(from, prep_core::group::Member { status, last_seen: now });
+            let _ = self.groups.save(&self.store.base);
+        }
+        self.refresh_group();
+    }
+
+    /// Collega la stanza del gruppo attivo (o chiude se non ce n'è).
+    fn group_connect(&mut self) {
+        let Some(g) = self.groups.active() else {
+            self.close_session(Sess::Group);
+            self.refresh_group();
+            return;
+        };
+        let room = prep_core::group::room(&g.code);
+        let device = self.device_id();
+        let engine = p2p::Engine::new(&device, &self.display_name(), Self::device_label()).share_only(vec![]);
+        self.open_session(Sess::Group, room, engine, String::new(), String::new());
+        self.refresh_group();
+    }
+
+    fn group_create(&mut self, name: &str) {
+        let name =
+            if name.trim().is_empty() { format!("Gruppo di {}", self.display_name()) } else { name.trim().to_string() };
+        let code = prep_core::group::new_code();
+        self.groups.join(&code, &name);
+        let _ = self.groups.save(&self.store.base);
+        self.group_connect();
+        self.group_invite();
+    }
+
+    fn group_join(&mut self, text: &str) {
+        match prep_core::group::parse_invite(text) {
+            Some((code, name)) => {
+                self.groups.join(&code, &name);
+                let _ = self.groups.save(&self.store.base);
+                self.group_connect();
+                self.ui().global::<AppState>().set_group_join_text(ss(""));
+                self.toast("Sei entrato nel gruppo");
+            }
+            None => self.toast("Invito non valido: incolla il link o il codice di 16 caratteri"),
+        }
+    }
+
+    fn group_select(&mut self, code: &str) {
+        if self.groups.groups.iter().any(|g| g.code == code) {
+            self.groups.active = code.to_string();
+            let _ = self.groups.save(&self.store.base);
+            self.group_connect();
+        }
+    }
+
+    fn group_leave(&mut self, code: &str) {
+        let armed =
+            matches!(&self.group_leave_armed, Some((c, t)) if c == code && t.elapsed() < Duration::from_secs(5));
+        if !armed {
+            self.group_leave_armed = Some((code.to_string(), Instant::now()));
+            self.toast("Tocca di nuovo per uscire dal gruppo");
+            return;
+        }
+        self.group_leave_armed = None;
+        self.groups.leave(code);
+        let _ = self.groups.save(&self.store.base);
+        self.group_connect();
+    }
+
+    /// Link d'invito: lo si condivide (Android, web) e resta visibile per copiarlo.
+    fn group_invite(&mut self) {
+        let Some(g) = self.groups.active() else { return };
+        let link = prep_core::group::invite_link(&g.code, &g.name);
+        self.ui().global::<AppState>().set_group_link(ss(&link));
+        let text = format!(
+            "Studiamo insieme su Tremendous Preparator: entra nel gruppo «{}» con questo invito\n{link}",
+            g.name
+        );
+        if !crate::share_text(&text) {
+            self.toast("Copia il link qui sotto e mandalo a chi vuoi invitare");
+        }
+    }
+
+    fn study_set(&mut self, state: prep_core::group::State) {
+        use prep_core::group::State;
+        let now = Self::now_secs();
+        self.study_flush(now);
+        self.study_state = state;
+        self.study_since = (state == State::Studying).then_some(now);
+        if self.ui().global::<AppState>().get_focus_lock() {
+            crate::focus_lock(state == State::Studying);
+        }
+        self.group_send();
+        self.refresh_group();
+    }
+
+    /// Ogni secondo: cronometro, stato al gruppo ogni 10 s, circuito e classifica.
+    fn group_tick(&mut self) {
+        let now = Self::now_secs();
+        if self.study_since.is_some_and(|t| now - t >= 60) {
+            self.study_flush(now);
+        }
+        if self.group.is_some() && now - self.group_last_send >= 10 {
+            self.group_send();
+        }
+        self.refresh_group();
+    }
+
+    fn refresh_group(&mut self) {
+        use prep_core::group::{fmt_secs, live, pit_point, standings, track_point, value, Period, State, LAP_SECS};
+        let now = Self::now_secs();
+        let today = Local::now().date_naive();
+        let me_id = self.device_id();
+        let mine = self.my_group_status(now);
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let (t, _, _) = live(&mine, now, today);
+        let laps = t / LAP_SECS;
+        if laps > self.my_laps && self.study_state == State::Studying && self.my_laps > 0 {
+            self.toast(format!("Giro {laps} completato!"));
+            st.set_lap_flash(st.get_lap_flash() + 1);
+        }
+        self.my_laps = laps;
+        st.set_study_state(match self.study_state {
+            State::Idle => 0,
+            State::Studying => 1,
+            State::Pause => 2,
+        });
+        st.set_study_today(ss(format!("Oggi {} · {} giri", fmt_secs(t), laps)));
+        st.set_study_lap(((t % LAP_SECS) as f32) / LAP_SECS as f32);
+        st.set_groups(model(
+            self.groups
+                .groups
+                .iter()
+                .map(|g| GroupVM { id: ss(&g.code), name: ss(&g.name), active: g.code == self.groups.active })
+                .collect::<Vec<_>>(),
+        ));
+        let solo = prep_core::group::Group::default();
+        let has = self.groups.active().is_some();
+        let g = self.groups.active().unwrap_or(&solo);
+        st.set_group_has(has);
+        if !has {
+            st.set_ranking(model(Vec::<RankVM>::new()));
+        }
+        st.set_group_has(true);
+        st.set_group_name(ss(&g.name));
+        st.set_group_id(ss(&g.code));
+        let online = |m: &prep_core::group::Member| now - m.last_seen < 45;
+        // membri: io (sempre) e gli altri visti
+        let mut all: Vec<(String, prep_core::group::Status, bool)> = vec![(me_id.clone(), mine.clone(), true)];
+        for (id, m) in &g.members {
+            if *id != me_id {
+                all.push((id.clone(), m.status.clone(), online(m)));
+            }
+        }
+        let on_track = all.iter().filter(|(_, s, on)| *on && s.state == State::Studying).count();
+        let aspect = 2.4;
+        let mut pit_i = 0usize;
+        let pit_n = all.iter().filter(|(_, s, on)| !(*on && s.state == State::Studying)).count();
+        let mut cars: Vec<CarVM> = Vec::new();
+        for (k, (id, s, on)) in all.iter().enumerate() {
+            let racing = *on && s.state == State::Studying;
+            let (x, y, a) = if racing {
+                let (tt, _, _) = live(s, now, today);
+                track_point((tt % LAP_SECS) as f64 / LAP_SECS as f64, aspect)
+            } else {
+                let p = pit_point(pit_i, pit_n);
+                pit_i += 1;
+                p
+            };
+            let initial = s.name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default();
+            cars.push(CarVM {
+                x: x as f32,
+                y: y as f32,
+                angle: a as f32,
+                color: slint::Color::from_argb_encoded(s.color),
+                label: ss(initial),
+                me: *id == me_id,
+                moving: racing,
+                offline: !*on,
+                lane: if racing { [0.0, -1.0, 1.0][k % 3] } else { 0.0 },
+            });
+        }
+        // telecamera sulla propria macchina mentre si studia; altrimenti tutto il circuito
+        st.set_race_overview(self.study_state != State::Studying);
+        if let Some(me) = cars.iter().find(|c| c.me) {
+            st.set_cam_x(me.x);
+            st.set_cam_y(me.y);
+        }
+        // la propria macchina sopra le altre
+        cars.sort_by_key(|c| c.me);
+        let p = self.group_period;
+        let refs: Vec<(&str, &prep_core::group::Status)> = all.iter().map(|(i, s, _)| (i.as_str(), s)).collect();
+        let order = standings(refs.into_iter(), now, today, p);
+        let ranking: Vec<RankVM> = order
+            .iter()
+            .enumerate()
+            .map(|(i, (id, s))| {
+                let v = value(s, now, today, p);
+                let on = all.iter().find(|(x, _, _)| x == id).is_some_and(|(_, _, o)| *o);
+                RankVM {
+                    pos: i as i32 + 1,
+                    name: ss(if *id == me_id { format!("{} (tu)", s.name) } else { s.name.clone() }),
+                    color: slint::Color::from_argb_encoded(s.color),
+                    value: ss(fmt_secs(v)),
+                    laps: (live(s, now, today).0 / LAP_SECS) as i32,
+                    status: ss(match (on, s.state) {
+                        (false, _) => "non collegato",
+                        (true, State::Studying) => "in pista",
+                        (true, State::Pause) => "ai box",
+                        (true, State::Idle) => "fermo",
+                    }),
+                    me: *id == me_id,
+                }
+            })
+            .collect();
+        let my_pos = order.iter().position(|(id, _)| *id == me_id).map(|i| i + 1).unwrap_or(1);
+        st.set_race_hud(ss(match self.study_state {
+            State::Idle => "Fermo ai box · premi «Inizia a studiare»".to_string(),
+            State::Pause => format!("Pit stop · giro {} · {}° su {}", laps + 1, my_pos, all.len()),
+            State::Studying => format!("Giro {} · {}° su {} · {}", laps + 1, my_pos, all.len(), fmt_secs(t)),
+        }));
+        let others_online = all.iter().filter(|(i, _, on)| *on && *i != me_id).count();
+        let link = self.group.as_ref().map(|p| p.open.iter().any(|o| *o)).unwrap_or(false);
+        st.set_group_info(ss(format!(
+            "{} membri · {} in pista{}",
+            all.len(),
+            on_track,
+            if !link {
+                " · collegamento in corso…".to_string()
+            } else if others_online == 0 {
+                " · nessun altro collegato ora".to_string()
+            } else if others_online == 1 {
+                " · 1 collegato".to_string()
+            } else {
+                format!(" · {others_online} collegati")
+            }
+        )));
+        let _ = Period::Today;
+        st.set_cars(model(cars));
+        st.set_ranking(model(ranking));
+    }
+
     fn show_legal_if_needed(&mut self) {
         let ui = self.ui();
         let st = ui.global::<AppState>();
@@ -3551,9 +3879,16 @@ impl Ctrl {
         if self.importing {
             return;
         }
-        let next = vfs::list_dir(&self.store.base.join("import"))
-            .into_iter()
-            .find(|p| !vfs::is_dir(p) && p.extension().is_none_or(|x| x != "tmp"));
+        let files = vfs::list_dir(&self.store.base.join("import"));
+        // inviti a un gruppo aperti con l'app (Android li lascia qui come file .invite)
+        if let Some(inv) = files.iter().find(|p| p.extension().is_some_and(|x| x == "invite")) {
+            let text = vfs::read_to_string(inv).unwrap_or_default();
+            let _ = vfs::remove_file(inv);
+            self.group_join(&text);
+            self.go_tab(4);
+            return;
+        }
+        let next = files.into_iter().find(|p| !vfs::is_dir(p) && p.extension().is_none_or(|x| x != "tmp"));
         if let Some(p) = next {
             self.import_pack_file(p, true);
         }
@@ -3723,6 +4058,16 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         remove_armed: None,
         p2p: None,
         share: None,
+        group: None,
+        groups: prep_core::group::Groups::load(&data_dir),
+        study_log: prep_core::group::StudyLog::load(&data_dir),
+        study_state: prep_core::group::State::Idle,
+        study_since: None,
+        group_period: prep_core::group::Period::Today,
+        group_timer: Timer::default(),
+        group_last_send: 0,
+        group_leave_armed: None,
+        my_laps: 0,
     }));
     CTRL.with(|c| *c.borrow_mut() = Some(ctrl.clone()));
     {
@@ -3734,6 +4079,23 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         c.refresh_exams();
         c.refresh_sessions();
         c.show_legal_if_needed();
+        // studio di gruppo: cronometro e circuito ogni secondo, stanza del gruppo attivo
+        c.group_timer.start(TimerMode::Repeated, Duration::from_secs(1), || with_ctrl(|c| c.group_tick()));
+        c.ui().global::<AppState>().set_focus_available(cfg!(target_os = "android"));
+        let dashes: Vec<DashVM> = prep_core::group::centerline(2.4, 120)
+            .into_iter()
+            .map(|(x, y, a)| DashVM { x: x as f32, y: y as f32, angle: a as f32 })
+            .collect();
+        c.ui().global::<AppState>().set_dashes(model(dashes));
+        if c.groups.active().is_some() {
+            c.group_connect();
+        }
+        c.refresh_group();
+        #[cfg(target_arch = "wasm32")]
+        if let Some(inv) = crate::web::take_invite() {
+            c.group_join(&inv);
+            c.go_tab(4);
+        }
         // collegamento automatico tra dispositivi, se scelto
         if c.store.settings().p2p_auto && !c.store.settings().p2p_password.is_empty() {
             c.p2p_connect();
@@ -3999,6 +4361,25 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_remove_exam(|id| with_ctrl(|c| c.remove_exam(&id)));
     st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));
     st.on_legal_accept(|| with_ctrl(|c| c.legal_accept()));
+    st.on_open_goals(|| with_ctrl(|c| c.set_page(P_GOALS)));
+    st.on_group_create(|n| with_ctrl(|c| c.group_create(&n)));
+    st.on_group_join(|t| with_ctrl(|c| c.group_join(&t)));
+    st.on_group_select(|code| with_ctrl(|c| c.group_select(&code)));
+    st.on_group_leave(|code| with_ctrl(|c| c.group_leave(&code)));
+    st.on_group_invite(|| with_ctrl(|c| c.group_invite()));
+    st.on_study_start(|| with_ctrl(|c| c.study_set(prep_core::group::State::Studying)));
+    st.on_study_pause(|| with_ctrl(|c| c.study_set(prep_core::group::State::Pause)));
+    st.on_study_stop(|| with_ctrl(|c| c.study_set(prep_core::group::State::Idle)));
+    st.on_group_set_period(|p| {
+        with_ctrl(|c| {
+            c.group_period = match p {
+                1 => prep_core::group::Period::Week,
+                2 => prep_core::group::Period::Total,
+                _ => prep_core::group::Period::Today,
+            };
+            c.refresh_group();
+        })
+    });
     st.on_p2p_connect(|| with_ctrl(|c| c.p2p_connect()));
     st.on_p2p_disconnect(|| with_ctrl(|c| c.p2p_disconnect()));
     st.on_p2p_download(|peer, exam| with_ctrl(|c| c.p2p_download(Sess::Sync, &peer, &exam)));

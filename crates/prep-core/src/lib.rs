@@ -5,6 +5,7 @@ pub mod content;
 pub mod exams;
 pub mod feedback;
 pub mod github;
+pub mod group;
 pub mod latex;
 pub mod markdown;
 pub mod model;

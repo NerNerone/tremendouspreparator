@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -84,10 +85,61 @@ public class MainActivity extends NativeActivity {
         Uri uri = null;
         if (Intent.ACTION_VIEW.equals(intent.getAction())) {
             uri = intent.getData();
+            // invito a un gruppo di studio (link alla web app): lo si passa a Rust come file .invite
+            if (uri != null && "https".equals(uri.getScheme())) {
+                saveInvite(uri.toString());
+                return;
+            }
         } else if (Intent.ACTION_SEND.equals(intent.getAction())) {
             uri = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri.class);
         }
         if (uri != null) receive(uri);
+    }
+
+    private void saveInvite(String link) {
+        File dir = new File(getFilesDir(), "import");
+        dir.mkdirs();
+        File f = new File(dir, "gruppo-" + System.currentTimeMillis() + ".invite");
+        try (OutputStream out = new FileOutputStream(f)) {
+            out.write(link.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            f.delete();
+        }
+    }
+
+    /** Condivisione di sistema di un testo (invito al gruppo), chiamata da Rust via JNI. */
+    public void shareText(String text) {
+        runOnUiThread(() -> {
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("text/plain");
+            i.putExtra(Intent.EXTRA_TEXT, text);
+            try {
+                startActivity(Intent.createChooser(i, "Invita nel gruppo"));
+            } catch (Exception e) {
+                // nessuna app per condividere
+            }
+        });
+    }
+
+    /** Modalità concentrazione: fissa lo schermo sull'app mentre si studia (Android chiede conferma). */
+    public void lockStudy() {
+        runOnUiThread(() -> {
+            try {
+                startLockTask();
+            } catch (Exception e) {
+                // non disponibile
+            }
+        });
+    }
+
+    public void unlockStudy() {
+        runOnUiThread(() -> {
+            try {
+                stopLockTask();
+            } catch (Exception e) {
+                // non era fissato
+            }
+        });
     }
 
     /** Copia il file in files/import/ (prima .tmp, poi rinomina: Rust non legge mai a metà). */

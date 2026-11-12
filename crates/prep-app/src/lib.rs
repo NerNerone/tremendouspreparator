@@ -71,6 +71,47 @@ pub(crate) fn android_pick_pack() -> Result<(), String> {
     Ok(())
 }
 
+/// Chiama un metodo `void` di MainActivity, con un argomento stringa facoltativo.
+#[cfg(target_os = "android")]
+fn android_call(method: &str, arg: Option<&str>) -> Result<(), String> {
+    let app = ANDROID_APP.get().ok_or("attività non pronta")?;
+    // SAFETY: puntatori validi per tutta la vita del processo, forniti da android-activity
+    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr() as *mut jni::sys::JavaVM) }.map_err(|e| e.to_string())?;
+    let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
+    let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr() as jni::sys::jobject) };
+    match arg {
+        Some(a) => {
+            let js = env.new_string(a).map_err(|e| e.to_string())?;
+            env.call_method(&activity, method, "(Ljava/lang/String;)V", &[(&js).into()]).map_err(|e| e.to_string())?;
+        }
+        None => {
+            env.call_method(&activity, method, "()V", &[]).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// Apre la condivisione di sistema con un testo (Android, browser); `false` se non c'è.
+pub(crate) fn share_text(text: &str) -> bool {
+    #[cfg(target_os = "android")]
+    return android_call("shareText", Some(text)).is_ok();
+    #[cfg(target_arch = "wasm32")]
+    return web::share_text(text);
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+    {
+        let _ = text;
+        false
+    }
+}
+
+/// Modalità concentrazione su Android: blocca lo schermo sull'app (fissaggio schermo).
+pub(crate) fn focus_lock(on: bool) {
+    #[cfg(target_os = "android")]
+    let _ = android_call(if on { "lockStudy" } else { "unlockStudy" }, None);
+    #[cfg(not(target_os = "android"))]
+    let _ = on;
+}
+
 #[cfg(target_os = "android")]
 #[no_mangle]
 fn android_main(android_app: slint::android::AndroidApp) {

@@ -8,7 +8,7 @@ import "../fonts/DejaVuSans-Bold.ttf";
 import { M3, Icons, Type } from "theme.slint";
 import { AppState } from "state.slint";
 import { NavItem, M3Button, Scroller } from "components.slint";
-import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, PeriodicPage } from "pages.slint";
+import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, PeriodicPage, GroupPage } from "pages.slint";
 
 export { AppState }
 
@@ -23,7 +23,7 @@ export component AppWindow inherits Window {
     // telefono; la tavola periodica ha più spazio
     property <length> column-max: AppState.page == 12 ? 1240px : 720px;
     property <length> side: max(0px, (root.width - root.column-max) / 2);
-    property <bool> show-nav: AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11;
+    property <bool> show-nav: AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13;
 
     fs := FocusScope {
         key-pressed(e) => {
@@ -55,6 +55,7 @@ export component AppWindow inherits Window {
                 if AppState.page == 10: FeedbackPage { }
                 if AppState.page == 11: GoalsPage { }
                 if AppState.page == 12: PeriodicPage { }
+                if AppState.page == 13: GroupPage { }
             }
 
             // barra di navigazione flessibile (Material 3 Expressive)
@@ -101,10 +102,10 @@ export component AppWindow inherits Window {
                     }
 
                     NavItem {
-                        icon: Icons.target;
-                        label: "Obiettivi";
+                        icon: Icons.flag;
+                        label: "Gruppo";
                         active: AppState.tab == 4;
-                        badge: AppState.goals-left;
+                        badge: AppState.study-state == 1 ? 1 : 0;
                         clicked => {
                             AppState.go-tab(4);
                         }

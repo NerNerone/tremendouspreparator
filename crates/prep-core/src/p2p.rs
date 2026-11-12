@@ -247,6 +247,8 @@ pub enum Msg {
         kind: String,
         sdp: String,
     },
+    /// studio di gruppo: stato di chi manda (tempo di studio, in pista o ai box)
+    Group(crate::group::Status),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -332,6 +334,11 @@ pub enum Event {
         from: String,
         kind: String,
         sdp: String,
+    },
+    /// stato di un membro del gruppo di studio
+    Group {
+        from: String,
+        status: crate::group::Status,
     },
     /// file di progressi ricevuti per un esame
     Files {
@@ -659,6 +666,9 @@ impl Engine {
                     out.push(Out::new(Some(&from), Msg::PackGet { exam, from: first, count: WINDOW }));
                 }
             }
+            Msg::Group(status) => {
+                self.events.push(Event::Group { from, status });
+            }
             Msg::Rtc { kind, sdp } => {
                 if sdp.len() < 64 * 1024 {
                     self.events.push(Event::Signal { from, kind, sdp });
@@ -677,6 +687,11 @@ impl Engine {
     /// Messaggio d'appuntamento WebRTC per un dispositivo (passa dai relay, cifrato).
     pub fn signal(&self, to: &str, kind: &str, sdp: &str) -> Out {
         Out::new(Some(to), Msg::Rtc { kind: kind.to_string(), sdp: sdp.to_string() })
+    }
+
+    /// Il proprio stato di studio, a tutto il gruppo.
+    pub fn group_status(&self, status: crate::group::Status) -> Out {
+        Out::new(None, Msg::Group(status))
     }
 
     /// Chi apre il collegamento diretto tra due dispositivi: quello con l'id minore.
