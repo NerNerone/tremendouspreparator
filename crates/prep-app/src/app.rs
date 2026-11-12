@@ -2,8 +2,9 @@
 
 use crate::periodic;
 use crate::{
-    AppState, AppWindow, BlockVM, BookVM, CarVM, DashVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM, GroupVM,
-    NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
+    AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, DashVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM,
+    GroupVM, NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM, SubjectVM, TocVM, TopicVM,
+    UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -283,6 +284,17 @@ pub struct Ctrl {
     group_leave_armed: Option<(String, Instant)>,
     /// giri completati finora oggi (per festeggiare il giro nuovo)
     my_laps: u64,
+    /// collegamento Bluetooth con un telefono vicino (Android)
+    bt: BtState,
+}
+
+#[derive(Default)]
+struct BtState {
+    /// nome del telefono collegato
+    connected: Option<String>,
+    /// dispositivi trovati: (nome, indirizzo)
+    found: Vec<(String, String)>,
+    status: String,
 }
 
 /// Le due sessioni di rete: i propri dispositivi, o un'altra persona.
@@ -463,6 +475,12 @@ impl p2p::Host for Ctrl {
 /// Evento di un collegamento diretto consegnato sul thread dell'interfaccia (vedi `direct`).
 pub(crate) fn on_direct_event(sess: usize, peer: String, ev: crate::direct::DirectEvent) {
     with_ctrl(|c| c.direct_event(Sess::from_index(sess), peer, ev));
+}
+
+/// Evento del collegamento Bluetooth (Android, vedi `BtLink.java`).
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub(crate) fn on_bt_event(kind: i32, text: String, data: Vec<u8>) {
+    with_ctrl(|c| c.bt_event(kind, text, data));
 }
 
 /// Evento di rete consegnato sul thread dell'interfaccia (vedi `net`).
@@ -3302,17 +3320,28 @@ impl Ctrl {
 
     /// Ogni 160 ms: un messaggio della coda a tutti i relay aperti; ogni secondo il motore.
     fn p2p_pump(&mut self, k: Sess) {
+        let bt_on = self.bt.connected.is_some();
         let Some(p) = self.sess_mut(k) else { return };
         p.ticks += 1;
-        if p.open.iter().any(|o| *o) {
+        if p.open.iter().any(|o| *o) || bt_on {
             if let Some(f) = p.queue.pop_front() {
                 for (l, o) in p.links.iter().zip(&p.open) {
                     if *o {
                         l.send(&f);
                     }
                 }
+                // il telefono vicino riceve gli stessi messaggi dei relay
+                if bt_on {
+                    crate::bt_send(f.as_bytes());
+                }
             }
         }
+        if bt_on && !p.started {
+            p.started = true;
+            let now = Self::now_secs();
+            self.with_engine(k, |e, c| e.start(c, now));
+        }
+        let Some(p) = self.sess_mut(k) else { return };
         if p.ticks.is_multiple_of(6) {
             let started = p.started;
             let dirty = std::mem::take(&mut p.dirty);
@@ -3548,6 +3577,66 @@ impl Ctrl {
                 st.set_share_peers(model(Vec::<PeerVM>::new()));
             }
         }
+    }
+
+    // ---------- Bluetooth (Android) ----------
+
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    fn bt_event(&mut self, kind: i32, text: String, data: Vec<u8>) {
+        match kind {
+            0 => {
+                if let Some((name, addr)) = text.split_once('\n') {
+                    if !self.bt.found.iter().any(|(_, a)| a == addr) {
+                        self.bt.found.push((name.to_string(), addr.to_string()));
+                    }
+                }
+            }
+            1 => {
+                self.bt.status = format!("Collegato via Bluetooth a {text}");
+                self.bt.connected = Some(text);
+                self.bt.found.clear();
+                // ci si ripresenta in ogni sessione aperta, così l'altro telefono ci trova anche offline
+                let now = Self::now_secs();
+                for k in [Sess::Sync, Sess::Share, Sess::Group] {
+                    if self.sess(k).is_some() {
+                        if let Some(p) = self.sess_mut(k) {
+                            p.started = true;
+                        }
+                        self.with_engine(k, |e, c| e.start(c, now));
+                    }
+                }
+            }
+            2 => {
+                let Ok(frame) = String::from_utf8(data) else { return };
+                let Some((id, tag, content)) = p2p::parse_client_event(&frame) else { return };
+                for k in [Sess::Sync, Sess::Share, Sess::Group] {
+                    let Some(p) = self.sess(k) else { continue };
+                    if p.room.tag != tag {
+                        continue;
+                    }
+                    if let Some(plain) = p.room.open(&content) {
+                        let now = Self::now_secs();
+                        self.with_engine(k, |e, c| e.receive(c, &id, &plain, now));
+                    }
+                }
+            }
+            3 => {
+                self.bt.connected = None;
+                self.bt.status = text;
+            }
+            _ => self.bt.status = text,
+        }
+        self.refresh_bt();
+    }
+
+    fn refresh_bt(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_bt_connected(self.bt.connected.is_some());
+        st.set_bt_status(ss(&self.bt.status));
+        st.set_bt_devices(model(
+            self.bt.found.iter().map(|(n, a)| BtDevVM { name: ss(n), address: ss(a) }).collect::<Vec<_>>(),
+        ));
     }
 
     // ---------- studio di gruppo ----------
@@ -4068,6 +4157,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         group_last_send: 0,
         group_leave_armed: None,
         my_laps: 0,
+        bt: BtState::default(),
     }));
     CTRL.with(|c| *c.borrow_mut() = Some(ctrl.clone()));
     {
@@ -4082,6 +4172,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         // studio di gruppo: cronometro e circuito ogni secondo, stanza del gruppo attivo
         c.group_timer.start(TimerMode::Repeated, Duration::from_secs(1), || with_ctrl(|c| c.group_tick()));
         c.ui().global::<AppState>().set_focus_available(cfg!(target_os = "android"));
+        c.ui().global::<AppState>().set_bt_available(cfg!(target_os = "android"));
         let dashes: Vec<DashVM> = prep_core::group::centerline(2.4, 120)
             .into_iter()
             .map(|(x, y, a)| DashVM { x: x as f32, y: y as f32, angle: a as f32 })
@@ -4362,6 +4453,23 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));
     st.on_legal_accept(|| with_ctrl(|c| c.legal_accept()));
     st.on_open_goals(|| with_ctrl(|c| c.set_page(P_GOALS)));
+    st.on_bt_listen(|| crate::bt_cmd("btListen", None));
+    st.on_bt_scan(|| {
+        with_ctrl(|c| {
+            c.bt.found.clear();
+            c.refresh_bt();
+        });
+        crate::bt_cmd("btScan", None)
+    });
+    st.on_bt_connect(|addr| crate::bt_cmd("btConnect", Some(&addr)));
+    st.on_bt_close(|| {
+        crate::bt_cmd("btClose", None);
+        with_ctrl(|c| {
+            c.bt.connected = None;
+            c.bt.status = String::new();
+            c.refresh_bt();
+        })
+    });
     st.on_group_create(|n| with_ctrl(|c| c.group_create(&n)));
     st.on_group_join(|t| with_ctrl(|c| c.group_join(&t)));
     st.on_group_select(|code| with_ctrl(|c| c.group_select(&code)));

@@ -134,6 +134,12 @@ export struct ExamVM {
     info: string,
 }
 
+// telefono trovato via Bluetooth
+export struct BtDevVM {
+    name: string,
+    address: string,
+}
+
 // sincronizzazione tra dispositivi
 export struct OfferVM {
     peer: string,
@@ -420,6 +426,15 @@ export global AppState {
     callback p2p-connect();
     callback p2p-disconnect();
     callback p2p-download(string, string);
+    // Bluetooth tra telefoni vicini (Android)
+    in property <bool> bt-available;
+    in property <bool> bt-connected;
+    in property <string> bt-status;
+    in property <[BtDevVM]> bt-devices;
+    callback bt-listen();
+    callback bt-scan();
+    callback bt-connect(string);
+    callback bt-close();
     // condivisione di un esame con un'altra persona (codice usa e getta)
     in property <bool> share-on;
     in property <bool> share-sending;

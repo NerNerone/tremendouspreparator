@@ -130,6 +130,11 @@ XChaCha20-Poly1305. Il protocollo è in [`prep-core/src/p2p.rs`](crates/prep-cor
 i collegamenti in [`prep-app/src/net.rs`](crates/prep-app/src/net.rs). Chi conosce nome utente e
 password entra nella stanza: conviene una password lunga.
 
+**Bluetooth (Android ↔ Android)**: due telefoni vicini si collegano anche senza Internet
+(«Rendimi visibile» su uno, «Cerca» sull'altro) e si passano gli stessi messaggi firmati e cifrati
+che andrebbero ai relay, per tutte le sessioni aperte (`android/java/.../BtLink.java`). iPhone e
+browser non permettono il Bluetooth tra dispositivi: lì restano il collegamento diretto e i relay.
+
 **Condividere un esame con un'altra persona** (Opzioni → Condividi con un'altra persona): chi
 condivide conferma di averne il diritto e ottiene un codice usa e getta (es. `K7QM-4TZP-9WXR`, 60
 bit); chi lo inserisce può scaricare quell'esame e nient'altro. In questa modalità non passano

@@ -35,11 +35,21 @@ PACK_FILTERS = (
     '<category android:name="android.intent.category.DEFAULT"/>' + MIMES + "</intent-filter>"
 )
 
+# Bluetooth tra telefoni vicini (Android 12+): non serve la posizione
+BT_PERMS = (
+    '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>'
+    '<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>'
+    '<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>'
+)
+
 src, dst = sys.argv[1:3]
 xml = open(src, encoding="utf-8").read()
 for need in ('android:hasCode="true"', 'it.tremendouspreparator.app.MainActivity', "POST_NOTIFICATIONS"):
     if need not in xml:
         sys.exit(f"manifest inatteso: manca {need}")
+if "BLUETOOTH_CONNECT" not in xml:
+    assert xml.count("<application") == 1
+    xml = xml.replace("<application", BT_PERMS + "<application", 1)
 if "ReminderReceiver" not in xml:
     assert xml.count("</application>") == 1
     xml = xml.replace("</application>", RECEIVER + "</application>")

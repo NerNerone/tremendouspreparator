@@ -24,6 +24,33 @@ import java.io.OutputStream;
  */
 public class MainActivity extends NativeActivity {
     private static final int PICK_PACK = 4242;
+    private BtLink bt;
+
+    private BtLink bt() {
+        if (bt == null) bt = new BtLink(this);
+        return bt;
+    }
+
+    // Bluetooth tra telefoni vicini (chiamati da Rust via JNI, vedi BtLink)
+    public void btListen() {
+        bt().listen();
+    }
+
+    public void btScan() {
+        bt().scan();
+    }
+
+    public void btConnect(String address) {
+        bt().connect(address);
+    }
+
+    public void btSend(byte[] data) {
+        bt().send(data);
+    }
+
+    public void btClose() {
+        bt().close();
+    }
 
     @Override
     protected void onCreate(Bundle state) {

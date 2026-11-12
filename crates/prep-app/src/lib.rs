@@ -91,6 +91,48 @@ fn android_call(method: &str, arg: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
+/// Comandi al collegamento Bluetooth (MainActivity → BtLink): "btListen", "btScan",
+/// "btConnect" (indirizzo), "btClose".
+pub(crate) fn bt_cmd(method: &str, arg: Option<&str>) {
+    #[cfg(target_os = "android")]
+    let _ = android_call(method, arg);
+    #[cfg(not(target_os = "android"))]
+    let _ = (method, arg);
+}
+
+/// Manda un messaggio sul collegamento Bluetooth aperto.
+pub(crate) fn bt_send(data: &[u8]) {
+    #[cfg(target_os = "android")]
+    let _ = (|| -> Result<(), String> {
+        let app = ANDROID_APP.get().ok_or("attività non pronta")?;
+        // SAFETY: puntatori validi per tutta la vita del processo, forniti da android-activity
+        let vm =
+            unsafe { jni::JavaVM::from_raw(app.vm_as_ptr() as *mut jni::sys::JavaVM) }.map_err(|e| e.to_string())?;
+        let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
+        let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr() as jni::sys::jobject) };
+        let arr = env.byte_array_from_slice(data).map_err(|e| e.to_string())?;
+        env.call_method(&activity, "btSend", "([B)V", &[(&arr).into()]).map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+    #[cfg(not(target_os = "android"))]
+    let _ = data;
+}
+
+/// Eventi del collegamento Bluetooth da Java (BtLink.nativeBt).
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn Java_it_tremendouspreparator_app_BtLink_nativeBt<'l>(
+    mut env: jni::JNIEnv<'l>,
+    _class: jni::objects::JClass<'l>,
+    kind: jni::sys::jint,
+    text: jni::objects::JString<'l>,
+    data: jni::objects::JByteArray<'l>,
+) {
+    let text: String = env.get_string(&text).map(|s| s.into()).unwrap_or_default();
+    let data = env.convert_byte_array(&data).unwrap_or_default();
+    let _ = slint::invoke_from_event_loop(move || app::on_bt_event(kind, text, data));
+}
+
 /// Apre la condivisione di sistema con un testo (Android, browser); `false` se non c'è.
 pub(crate) fn share_text(text: &str) -> bool {
     #[cfg(target_os = "android")]

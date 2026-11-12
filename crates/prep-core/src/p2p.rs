@@ -173,6 +173,25 @@ pub fn parse_relay(frame: &str) -> Option<(String, String)> {
     Some((ev.get("id")?.as_str()?.to_string(), ev.get("content")?.as_str()?.to_string()))
 }
 
+/// Evento spedito da un dispositivo (`["EVENT", {...}]`, com'è mandato ai relay), arrivato per
+/// un'altra strada (Bluetooth): (id, tag della stanza, contenuto).
+pub fn parse_client_event(frame: &str) -> Option<(String, String, String)> {
+    let v: serde_json::Value = serde_json::from_str(frame).ok()?;
+    let a = v.as_array()?;
+    if a.first()?.as_str()? != "EVENT" || a.len() != 2 {
+        return None;
+    }
+    let ev = &a[1];
+    if ev.get("kind")?.as_u64()? != KIND as u64 {
+        return None;
+    }
+    let tag = ev.get("tags")?.as_array()?.iter().find_map(|t| {
+        let t = t.as_array()?;
+        (t.first()?.as_str()? == "t").then(|| t.get(1)?.as_str().map(str::to_string))?
+    })?;
+    Some((ev.get("id")?.as_str()?.to_string(), tag, ev.get("content")?.as_str()?.to_string()))
+}
+
 /// Messaggi del relay da mostrare (es. rifiuto per limiti): `["OK", id, false, motivo]`, `NOTICE`.
 pub fn relay_notice(frame: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(frame).ok()?;
@@ -823,6 +842,8 @@ mod tests {
         assert!(parse_relay("[\"EOSE\",\"sub\"]").is_none());
         assert_eq!(relay_notice("[\"OK\",\"x\",false,\"rate-limited\"]").unwrap(), "rate-limited");
         assert!(subscribe("s", "abc", 5).contains("\"#t\":[\"abc\"]"));
+        let (_, tag, content) = parse_client_event(&f).unwrap();
+        assert_eq!((tag.as_str(), content.as_str()), ("abc", "contenuto"));
     }
 
     fn hex_dec(s: &str) -> Vec<u8> {

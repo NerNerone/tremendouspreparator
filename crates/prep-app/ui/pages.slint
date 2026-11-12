@@ -3102,6 +3102,65 @@ export component SettingsPage inherits Page {
                 }
             }
 
+            // Bluetooth: telefoni vicini, anche senza Internet (solo Android)
+            if AppState.bt-available: Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Vicino, via Bluetooth";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: "Due telefoni Android vicini si scambiano progressi, esami e stato del gruppo anche senza Internet. Prima collega qui sopra i Dispositivi (o apri la condivisione o il gruppo) su entrambi, poi: su uno «Rendimi visibile», sull'altro «Cerca» e scegli il primo.";
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                    if AppState.bt-status != "": Text {
+                        text: AppState.bt-status;
+                        color: M3.primary;
+                        wrap: word-wrap;
+                    }
+                    if !AppState.bt-connected: HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Rendimi visibile";
+                            kind: 1;
+                            clicked => {
+                                AppState.bt-listen();
+                            }
+                        }
+                        M3Button {
+                            text: "Cerca";
+                            kind: 1;
+                            clicked => {
+                                AppState.bt-scan();
+                            }
+                        }
+                    }
+                    if !AppState.bt-connected: VerticalLayout {
+                        spacing: 4px;
+                        for d in AppState.bt-devices: ListRow {
+                            title: d.name;
+                            subtitle: d.address;
+                            clicked => {
+                                AppState.bt-connect(d.address);
+                            }
+                        }
+                    }
+                    if AppState.bt-connected: M3Button {
+                        text: "Scollega Bluetooth";
+                        kind: 1;
+                        clicked => {
+                            AppState.bt-close();
+                        }
+                    }
+                }
+            }
+
             // condivisione di un esame con un'altra persona: codice usa e getta, solo contenuti
             Card {
                 VerticalLayout {
