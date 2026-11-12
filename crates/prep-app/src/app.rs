@@ -2314,6 +2314,19 @@ impl Ctrl {
                 }
                 continue;
             }
+            if let Block::Figure { alt, src } = b {
+                // figura del libro: SVG a colori su fondo chiaro (si legge anche col tema scuro)
+                let img = self.read_book_bytes(src).and_then(|svg| slint::Image::load_from_svg_data(&svg).ok());
+                blocks.push(BlockVM {
+                    kind: if img.is_some() { 12 } else { 7 },
+                    text: ss(alt),
+                    level: 0,
+                    label: ss(""),
+                    cells: model(vec![]),
+                    img: img.unwrap_or_default(),
+                });
+                continue;
+            }
             if let Block::Math(tex) = b {
                 let img = self
                     .read_book_bytes(&latex::math_path(tex))
@@ -2339,7 +2352,7 @@ impl Ctrl {
                     Block::Page(p) => (6, format!("p. {p}"), 0, String::new()),
                     Block::Image(a) => (7, a.clone(), 0, String::new()),
                     Block::Rule => (8, String::new(), 0, String::new()),
-                    Block::Table(_) | Block::Math(_) => unreachable!(),
+                    Block::Table(_) | Block::Math(_) | Block::Figure { .. } => unreachable!(),
                 };
                 BlockVM { kind, text: ss(text), level, label: ss(label), cells: model(vec![]), img: Default::default() }
             });

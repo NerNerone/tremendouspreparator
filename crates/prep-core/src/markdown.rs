@@ -27,15 +27,42 @@ pub enum Block {
     Table(Vec<Vec<String>>),
     /// formula a blocco (`$$…$$`): sorgente LaTeX
     Math(String),
+    /// immagine senza file (solo didascalia)
     Image(String),
+    /// figura SVG del libro: didascalia e percorso nel repository (`books/…/fig/x.svg`)
+    Figure {
+        alt: String,
+        src: String,
+    },
     Page(u32),
     Rule,
+}
+
+/// Riquadri in stile GitHub (`> [!NOTE] Titolo`): resta il titolo, o un nome italiano se manca.
+fn callout_title(s: &str) -> String {
+    let Some(rest) = s.strip_prefix("[!") else { return s.to_string() };
+    let Some((kind, title)) = rest.split_once(']') else { return s.to_string() };
+    let title = title.trim();
+    if !title.is_empty() {
+        return title.to_string();
+    }
+    match kind.to_ascii_uppercase().as_str() {
+        "NOTE" => "Nota",
+        "TIP" => "Suggerimento",
+        "IMPORTANT" => "Importante",
+        "WARNING" => "Attenzione",
+        "CAUTION" => "Cautela",
+        _ => kind,
+    }
+    .to_string()
 }
 
 /// Pulizia della formattazione inline (la UI mostra testo semplice).
 pub fn inline(s: &str) -> String {
     // prima le formule (così `*` e `_` dentro il LaTeX non vengono toccati)
     let s = latex::render_inline(s);
+    // a capo HTML (usati nelle celle delle tabelle)
+    let s = s.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n");
     let mut out = String::with_capacity(s.len());
     let chars: Vec<char> = s.chars().collect();
     let mut i = 0;
@@ -179,12 +206,18 @@ pub fn parse(md: &str) -> Vec<Block> {
         if let Some(rest) = t.strip_prefix("![") {
             flush_para(&mut para, &mut blocks);
             let alt = rest.split(']').next().unwrap_or("").to_string();
-            blocks.push(Block::Image(inline(&alt)));
+            let src =
+                rest.split_once("](").map(|(_, s)| s.trim_end_matches(')').trim().to_string()).unwrap_or_default();
+            if src.ends_with(".svg") {
+                blocks.push(Block::Figure { alt: inline(&alt), src });
+            } else {
+                blocks.push(Block::Image(inline(&alt)));
+            }
             continue;
         }
         if let Some(rest) = t.strip_prefix("> ").or_else(|| t.strip_prefix('>')) {
             flush_para(&mut para, &mut blocks);
-            blocks.push(Block::Quote(inline(rest.trim())));
+            blocks.push(Block::Quote(inline(&callout_title(rest.trim()))));
             continue;
         }
         let indent = (line.len() - t.len()) as u8 / 2;
@@ -309,5 +342,16 @@ mod tests {
         assert_eq!(find_section(&s, "Teorema di bernoulli", None), Some(1));
         assert_eq!(find_section(&s, "", Some(246)), Some(1));
         assert_eq!(find_section(&s, "", Some(241)), Some(0));
+    }
+
+    #[test]
+    fn figures_breaks_and_callouts() {
+        assert_eq!(inline("riga<br>accanto"), "riga\naccanto");
+        let b = parse("![Figura 1: atomo](books/x/fig/1.svg)\n![Figura 2: solo testo]()\n> [!WARNING] ATTENZIONE\n> testo\n\n> [!TIP]\n");
+        assert_eq!(b[0], Block::Figure { alt: "Figura 1: atomo".into(), src: "books/x/fig/1.svg".into() });
+        assert_eq!(b[1], Block::Image("Figura 2: solo testo".into()));
+        assert_eq!(b[2], Block::Quote("ATTENZIONE".into()));
+        assert_eq!(b[3], Block::Quote("testo".into()));
+        assert_eq!(b[4], Block::Quote("Suggerimento".into()));
     }
 }

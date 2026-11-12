@@ -2380,6 +2380,28 @@ component BlockView inherits VerticalLayout {
                 height: self.width * self.source.height / max(1, self.source.width);
             }
         }
+        if root.b.kind == 12: VerticalLayout {
+            spacing: 6px;
+            padding-top: 4px;
+            Rectangle {
+                border-radius: 12px;
+                background: #ffffff;
+                height: fig.height + 16px;
+                fig := Image {
+                    source: root.b.img;
+                    image-fit: contain;
+                    width: min(root.avail-width - 16px, max(1, self.source.width) * 1px);
+                    height: self.width * self.source.height / max(1, self.source.width);
+                }
+            }
+            Text {
+                text: root.b.text;
+                wrap: word-wrap;
+                horizontal-alignment: center;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+            }
+        }
         if root.b.kind == 11: Text {
             text: root.b.text;
             wrap: word-wrap;
