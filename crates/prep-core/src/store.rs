@@ -63,6 +63,9 @@ pub struct Settings {
     /// sincronizzazione e condivisione solo con collegamento diretto (niente dati attraverso i relay)
     #[serde(default)]
     pub direct_only: bool,
+    /// colore della propria monoposto (ARGB); 0 = accento di sistema (o un colore fisso)
+    #[serde(default)]
+    pub car_color: u32,
     /// versione delle note legali accettata (0 = mai)
     #[serde(default)]
     pub legal_accepted: u32,
@@ -112,6 +115,7 @@ impl Default for Settings {
             p2p_password: String::new(),
             relays: vec![],
             direct_only: false,
+            car_color: 0,
             legal_accepted: 0,
         }
     }

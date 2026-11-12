@@ -2,7 +2,7 @@
 
 use crate::periodic;
 use crate::{
-    AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, DashVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM,
+    AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, SwatchVM, DashVM, ExamDateVM, ExamVM, FeedbackVM, FlagVM, GoalVM,
     GroupVM, NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM, SubjectVM, TocVM, TopicVM,
     UnitVM,
 };
@@ -286,6 +286,8 @@ pub struct Ctrl {
     my_laps: u64,
     /// collegamento Bluetooth con un telefono vicino (Android)
     bt: BtState,
+    /// accento di sistema (Material You), se disponibile
+    accent: Option<u32>,
 }
 
 #[derive(Default)]
@@ -3641,11 +3643,46 @@ impl Ctrl {
 
     // ---------- studio di gruppo ----------
 
+    /// Colore della propria monoposto: scelto nel Profilo, altrimenti l'accento di sistema,
+    /// altrimenti uno fisso ricavato dall'identificativo.
     fn my_color(&mut self) -> u32 {
+        let c = self.store.settings().car_color;
+        if c != 0 {
+            return c;
+        }
+        self.auto_color()
+    }
+
+    fn auto_color(&mut self) -> u32 {
+        if let Some(a) = self.accent {
+            return a;
+        }
         let id = self.device_id();
         let h = p2p::sha256_hex(id.as_bytes());
         let n = usize::from_str_radix(&h[..4], 16).unwrap_or(0);
         prep_core::group::CAR_COLORS[n % prep_core::group::CAR_COLORS.len()]
+    }
+
+    fn set_car_color(&mut self, c: u32) {
+        let mut s = self.store.settings();
+        s.car_color = c;
+        let _ = self.store.save_settings(&s);
+        self.refresh_car_colors();
+        self.group_send();
+        self.refresh_group();
+    }
+
+    fn refresh_car_colors(&mut self) {
+        let current = self.store.settings().car_color;
+        let auto = self.auto_color();
+        let mut v = vec![SwatchVM { color: slint::Color::from_argb_encoded(auto), value: 0, sel: current == 0, auto: true }];
+        v.extend(prep_core::group::CAR_COLORS.iter().map(|c| SwatchVM {
+            color: slint::Color::from_argb_encoded(*c),
+            value: *c as i32,
+            sel: current == *c,
+            auto: false,
+        }));
+        self.ui().global::<AppState>().set_car_swatches(model(v));
     }
 
     /// Secondi del tratto di studio in corso (non ancora nel registro).
@@ -4158,6 +4195,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         group_leave_armed: None,
         my_laps: 0,
         bt: BtState::default(),
+        accent: None,
     }));
     CTRL.with(|c| *c.borrow_mut() = Some(ctrl.clone()));
     {
@@ -4172,6 +4210,17 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         // studio di gruppo: cronometro e circuito ogni secondo, stanza del gruppo attivo
         c.group_timer.start(TimerMode::Repeated, Duration::from_secs(1), || with_ctrl(|c| c.group_tick()));
         c.ui().global::<AppState>().set_focus_available(cfg!(target_os = "android"));
+        // colori di sistema (Android 12+): tema e monoposto
+        if let Some((light, dark)) = crate::system_tones().and_then(|t| crate::palette::dyn_roles(&t)) {
+            c.accent = Some(light[0]);
+            let ui = c.ui();
+            let m3 = ui.global::<crate::M3>();
+            let to = |v: &[u32]| model(v.iter().map(|x| slint::Color::from_argb_encoded(*x)).collect::<Vec<_>>());
+            m3.set_dyn_light(to(&light));
+            m3.set_dyn_dark(to(&dark));
+            m3.set_dynamic(true);
+        }
+        c.refresh_car_colors();
         c.ui().global::<AppState>().set_bt_available(cfg!(target_os = "android"));
         let dashes: Vec<DashVM> = prep_core::group::centerline(2.4, 120)
             .into_iter()
@@ -4452,6 +4501,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_remove_exam(|id| with_ctrl(|c| c.remove_exam(&id)));
     st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));
     st.on_legal_accept(|| with_ctrl(|c| c.legal_accept()));
+    st.on_car_color(|v| with_ctrl(|c| c.set_car_color(v as u32)));
     st.on_open_goals(|| with_ctrl(|c| c.set_page(P_GOALS)));
     st.on_bt_listen(|| crate::bt_cmd("btListen", None));
     st.on_bt_scan(|| {

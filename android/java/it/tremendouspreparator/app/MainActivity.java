@@ -169,6 +169,49 @@ public class MainActivity extends NativeActivity {
         });
     }
 
+    /**
+     * Colori di sistema (Material You): 5 tavolozze × 13 tonalità (accent1..3, neutral1..2;
+     * 0, 10, 50, 100 … 900, 1000), lette da Rust per il tema e la monoposto.
+     */
+    public int[] systemTones() {
+        int[][] ids = {
+            {android.R.color.system_accent1_0, android.R.color.system_accent1_10, android.R.color.system_accent1_50,
+             android.R.color.system_accent1_100, android.R.color.system_accent1_200, android.R.color.system_accent1_300,
+             android.R.color.system_accent1_400, android.R.color.system_accent1_500, android.R.color.system_accent1_600,
+             android.R.color.system_accent1_700, android.R.color.system_accent1_800, android.R.color.system_accent1_900,
+             android.R.color.system_accent1_1000},
+            {android.R.color.system_accent2_0, android.R.color.system_accent2_10, android.R.color.system_accent2_50,
+             android.R.color.system_accent2_100, android.R.color.system_accent2_200, android.R.color.system_accent2_300,
+             android.R.color.system_accent2_400, android.R.color.system_accent2_500, android.R.color.system_accent2_600,
+             android.R.color.system_accent2_700, android.R.color.system_accent2_800, android.R.color.system_accent2_900,
+             android.R.color.system_accent2_1000},
+            {android.R.color.system_accent3_0, android.R.color.system_accent3_10, android.R.color.system_accent3_50,
+             android.R.color.system_accent3_100, android.R.color.system_accent3_200, android.R.color.system_accent3_300,
+             android.R.color.system_accent3_400, android.R.color.system_accent3_500, android.R.color.system_accent3_600,
+             android.R.color.system_accent3_700, android.R.color.system_accent3_800, android.R.color.system_accent3_900,
+             android.R.color.system_accent3_1000},
+            {android.R.color.system_neutral1_0, android.R.color.system_neutral1_10, android.R.color.system_neutral1_50,
+             android.R.color.system_neutral1_100, android.R.color.system_neutral1_200, android.R.color.system_neutral1_300,
+             android.R.color.system_neutral1_400, android.R.color.system_neutral1_500, android.R.color.system_neutral1_600,
+             android.R.color.system_neutral1_700, android.R.color.system_neutral1_800, android.R.color.system_neutral1_900,
+             android.R.color.system_neutral1_1000},
+            {android.R.color.system_neutral2_0, android.R.color.system_neutral2_10, android.R.color.system_neutral2_50,
+             android.R.color.system_neutral2_100, android.R.color.system_neutral2_200, android.R.color.system_neutral2_300,
+             android.R.color.system_neutral2_400, android.R.color.system_neutral2_500, android.R.color.system_neutral2_600,
+             android.R.color.system_neutral2_700, android.R.color.system_neutral2_800, android.R.color.system_neutral2_900,
+             android.R.color.system_neutral2_1000},
+        };
+        int[] out = new int[65];
+        try {
+            for (int p = 0; p < 5; p++) {
+                for (int t = 0; t < 13; t++) out[p * 13 + t] = getResources().getColor(ids[p][t], null);
+            }
+        } catch (Exception e) {
+            return new int[0];
+        }
+        return out;
+    }
+
     /** Copia il file in files/import/ (prima .tmp, poi rinomina: Rust non legge mai a metà). */
     private void receive(Uri uri) {
         final File dir = new File(getFilesDir(), "import");

@@ -134,6 +134,14 @@ export struct ExamVM {
     info: string,
 }
 
+// colore selezionabile (monoposto); auto = accento di sistema
+export struct SwatchVM {
+    color: color,
+    value: int,
+    sel: bool,
+    auto: bool,
+}
+
 // telefono trovato via Bluetooth
 export struct BtDevVM {
     name: string,
@@ -413,6 +421,8 @@ export global AppState {
     callback select-exam(string);
     callback remove-exam(string);
     in-out property <string> s-username;
+    in property <[SwatchVM]> car-swatches;
+    callback car-color(int);
     callback save-username(string);
 
     // sincronizzazione tra dispositivi

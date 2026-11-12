@@ -3,25 +3,31 @@ import { Palette } from "std-widgets.slint";
 
 export global M3 {
     out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    // colori di sistema (Material You su Android 12+): ruoli nell'ordine di `dyn_roles` in
+    // src/palette.rs, per il tema chiaro e quello scuro; senza, la tavolozza viola di base
+    in-out property <bool> dynamic: false;
+    in-out property <[color]> dyn-light;
+    in-out property <[color]> dyn-dark;
+    property <[color]> dyn: dark ? dyn-dark : dyn-light;
 
-    out property <color> primary: dark ? #D0BCFF : #6750A4;
-    out property <color> on-primary: dark ? #381E72 : #FFFFFF;
-    out property <color> primary-container: dark ? #4F378B : #EADDFF;
-    out property <color> on-primary-container: dark ? #EADDFF : #21005D;
-    out property <color> secondary: dark ? #CCC2DC : #625B71;
-    out property <color> secondary-container: dark ? #4A4458 : #E8DEF8;
-    out property <color> on-secondary-container: dark ? #E8DEF8 : #1D192B;
-    out property <color> tertiary-container: dark ? #633B48 : #FFD8E4;
-    out property <color> on-tertiary-container: dark ? #FFD8E4 : #31111D;
-    out property <color> surface: dark ? #141218 : #FEF7FF;
-    out property <color> surface-container-low: dark ? #1D1B20 : #F7F2FA;
-    out property <color> surface-container: dark ? #211F26 : #F3EDF7;
-    out property <color> surface-container-high: dark ? #2B2930 : #ECE6F0;
-    out property <color> surface-container-highest: dark ? #36343B : #E6E0E9;
-    out property <color> on-surface: dark ? #E6E0E9 : #1D1B20;
-    out property <color> on-surface-variant: dark ? #CAC4D0 : #49454F;
-    out property <color> outline: dark ? #938F99 : #79747E;
-    out property <color> outline-variant: dark ? #49454F : #CAC4D0;
+    out property <color> primary: dynamic ? dyn[0] : (dark ? #D0BCFF : #6750A4);
+    out property <color> on-primary: dynamic ? dyn[1] : (dark ? #381E72 : #FFFFFF);
+    out property <color> primary-container: dynamic ? dyn[2] : (dark ? #4F378B : #EADDFF);
+    out property <color> on-primary-container: dynamic ? dyn[3] : (dark ? #EADDFF : #21005D);
+    out property <color> secondary: dynamic ? dyn[4] : (dark ? #CCC2DC : #625B71);
+    out property <color> secondary-container: dynamic ? dyn[5] : (dark ? #4A4458 : #E8DEF8);
+    out property <color> on-secondary-container: dynamic ? dyn[6] : (dark ? #E8DEF8 : #1D192B);
+    out property <color> tertiary-container: dynamic ? dyn[7] : (dark ? #633B48 : #FFD8E4);
+    out property <color> on-tertiary-container: dynamic ? dyn[8] : (dark ? #FFD8E4 : #31111D);
+    out property <color> surface: dynamic ? dyn[9] : (dark ? #141218 : #FEF7FF);
+    out property <color> surface-container-low: dynamic ? dyn[10] : (dark ? #1D1B20 : #F7F2FA);
+    out property <color> surface-container: dynamic ? dyn[11] : (dark ? #211F26 : #F3EDF7);
+    out property <color> surface-container-high: dynamic ? dyn[12] : (dark ? #2B2930 : #ECE6F0);
+    out property <color> surface-container-highest: dynamic ? dyn[13] : (dark ? #36343B : #E6E0E9);
+    out property <color> on-surface: dynamic ? dyn[14] : (dark ? #E6E0E9 : #1D1B20);
+    out property <color> on-surface-variant: dynamic ? dyn[15] : (dark ? #CAC4D0 : #49454F);
+    out property <color> outline: dynamic ? dyn[16] : (dark ? #938F99 : #79747E);
+    out property <color> outline-variant: dynamic ? dyn[17] : (dark ? #49454F : #CAC4D0);
     out property <color> error: dark ? #F2B8B5 : #B3261E;
     out property <color> on-error: dark ? #601410 : #FFFFFF;
     out property <color> error-container: dark ? #8C1D18 : #F9DEDC;
@@ -31,8 +37,8 @@ export global M3 {
     out property <color> on-success-container: dark ? #C9F0D3 : #062111;
     out property <color> warn-container: dark ? #5C3B00 : #FFDDB3;
     out property <color> on-warn-container: dark ? #FFDDB3 : #2A1800;
-    out property <color> inverse-surface: dark ? #E6E0E9 : #322F35;
-    out property <color> inverse-on-surface: dark ? #322F35 : #F5EFF7;
+    out property <color> inverse-surface: dynamic ? dyn[18] : (dark ? #E6E0E9 : #322F35);
+    out property <color> inverse-on-surface: dynamic ? dyn[19] : (dark ? #322F35 : #F5EFF7);
     out property <color> scrim: #00000099;
 
     out property <color> fis: dark ? #9ECAFF : #0061A4;

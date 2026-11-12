@@ -13,6 +13,7 @@ mod demo;
 pub mod desktop_reminder;
 mod direct;
 mod net;
+mod palette;
 mod periodic;
 #[cfg(target_arch = "wasm32")]
 mod web;
@@ -131,6 +132,29 @@ pub extern "system" fn Java_it_tremendouspreparator_app_BtLink_nativeBt<'l>(
     let text: String = env.get_string(&text).map(|s| s.into()).unwrap_or_default();
     let data = env.convert_byte_array(&data).unwrap_or_default();
     let _ = slint::invoke_from_event_loop(move || app::on_bt_event(kind, text, data));
+}
+
+/// Tonalità dei colori di sistema (Material You, Android 12+), vedi `palette`.
+pub(crate) fn system_tones() -> Option<Vec<u32>> {
+    #[cfg(target_os = "android")]
+    {
+        let r = (|| -> Result<Vec<u32>, String> {
+            let app = ANDROID_APP.get().ok_or("attività non pronta")?;
+            // SAFETY: puntatori validi per tutta la vita del processo, forniti da android-activity
+            let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr() as *mut jni::sys::JavaVM) }.map_err(|e| e.to_string())?;
+            let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
+            let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr() as jni::sys::jobject) };
+            let obj = env.call_method(&activity, "systemTones", "()[I", &[]).and_then(|v| v.l()).map_err(|e| e.to_string())?;
+            let arr = jni::objects::JIntArray::from(obj);
+            let n = env.get_array_length(&arr).map_err(|e| e.to_string())? as usize;
+            let mut buf = vec![0i32; n];
+            env.get_int_array_region(&arr, 0, &mut buf).map_err(|e| e.to_string())?;
+            Ok(buf.into_iter().map(|x| x as u32).collect())
+        })();
+        return r.ok().filter(|v| v.len() >= 65);
+    }
+    #[cfg(not(target_os = "android"))]
+    None
 }
 
 /// Apre la condivisione di sistema con un testo (Android, browser); `false` se non c'è.

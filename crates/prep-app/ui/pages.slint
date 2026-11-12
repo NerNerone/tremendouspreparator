@@ -2978,6 +2978,44 @@ export component SettingsPage inherits Page {
                             }
                         }
                     }
+                    Text {
+                        text: "Colore della tua monoposto (studio di gruppo)";
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                    Flickable {
+                        height: 44px;
+                        interactive: true;
+                        content-width: max(self.width, sw.preferred-width);
+                        content-height: 44px;
+                        sw := HorizontalLayout {
+                            x: 0px;
+                            y: 0px;
+                            height: 44px;
+                            spacing: 8px;
+                            alignment: start;
+                            for c in AppState.car-swatches: Rectangle {
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 20px;
+                                background: c.color;
+                                border-width: c.sel ? 3px : 0px;
+                                border-color: M3.on-surface;
+                                if c.auto: Text {
+                                    text: "A";
+                                    color: white;
+                                    font-weight: 800;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        AppState.car-color(c.value);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
