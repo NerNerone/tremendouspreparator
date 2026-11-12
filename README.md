@@ -115,5 +115,7 @@ wasm-bindgen --target web --no-typescript --out-dir site target/wasm32-unknown-u
 
 ## Licenza
 
-[GPL-2.0-only](LICENSE), la stessa licenza del kernel Linux. I font inclusi (Roboto, DejaVu) hanno le proprie
+[GPL-3.0-or-later](LICENSE): GNU General Public License versione 3 o successive. È compatibile con la
+licenza GPL-3.0 di [Slint](https://slint.dev) e con le dipendenze Apache-2.0; chi distribuisce versioni modificate
+deve pubblicarne il sorgente con la stessa licenza. I font inclusi (Roboto, DejaVu) hanno le proprie
 licenze, riportate in [crates/prep-app/fonts/LICENSES.txt](crates/prep-app/fonts/LICENSES.txt).

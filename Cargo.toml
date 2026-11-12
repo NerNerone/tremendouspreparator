@@ -6,7 +6,7 @@ members = ["crates/prep-core", "crates/prep-app"]
 version = "0.1.0"
 edition = "2021"
 publish = false
-license = "GPL-2.0-only"
+license = "GPL-3.0-or-later"
 repository = "https://github.com/NerNerone/tremendouspreparator"
 
 [profile.release]
