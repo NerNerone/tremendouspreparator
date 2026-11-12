@@ -127,6 +127,15 @@ XChaCha20-Poly1305. Il protocollo è in [`prep-core/src/p2p.rs`](crates/prep-cor
 i collegamenti in [`prep-app/src/net.rs`](crates/prep-app/src/net.rs). Chi conosce nome utente e
 password entra nella stanza: conviene una password lunga.
 
+## Esclusione di responsabilità
+
+Il software è fornito «così com'è», senza garanzie (vedi la [licenza](LICENSE), sezioni 15–16).
+Il repository contiene solo il codice: nessun libro, quiz o altro materiale di studio. I contenuti
+che ciascuno importa nell'app, e il diritto di usarli, sono responsabilità di chi li importa. L'app
+non ha server e non raccoglie dati; sincronizzazione GitHub e relay della sincronizzazione tra
+dispositivi sono servizi di terzi, scelti e configurati dall'utente. Al primo avvio l'app mostra
+queste condizioni e chiede di accettarle; restano consultabili in Opzioni → Note legali.
+
 ## Licenza
 
 [GPL-3.0-or-later](LICENSE): GNU General Public License versione 3 o successive. È compatibile con la

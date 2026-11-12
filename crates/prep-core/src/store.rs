@@ -60,6 +60,9 @@ pub struct Settings {
     /// relay Nostr da usare; vuoto = quelli predefiniti
     #[serde(default)]
     pub relays: Vec<String>,
+    /// versione delle note legali accettata (0 = mai)
+    #[serde(default)]
+    pub legal_accepted: u32,
 }
 
 fn d_times() -> Vec<String> {
@@ -105,6 +108,7 @@ impl Default for Settings {
             p2p_auto: false,
             p2p_password: String::new(),
             relays: vec![],
+            legal_accepted: 0,
         }
     }
 }

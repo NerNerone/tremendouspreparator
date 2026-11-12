@@ -320,6 +320,12 @@ export global AppState {
     in property <[FlagVM]> card-flags;
     in property <int> card-flagged-count;
 
+    // note legali: da accettare al primo avvio (e quando cambiano), poi consultabili in Opzioni
+    in-out property <bool> legal-visible;
+    in property <bool> legal-required;
+    in property <string> legal-text;
+    callback legal-accept();
+
     // esami installati
     in property <[ExamVM]> exams;
     in property <string> exam-name;

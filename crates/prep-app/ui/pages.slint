@@ -2471,6 +2471,14 @@ export component SettingsPage inherits Page {
                 }
             }
 
+            ListRow {
+                title: "Note legali";
+                subtitle: "Nessuna garanzia; contenuti importati e servizi esterni sono responsabilità di chi li usa";
+                clicked => {
+                    AppState.legal-visible = true;
+                }
+            }
+
             // sincronizzazione tra dispositivi (telefono, web app, computer) senza GitHub
             Card {
                 VerticalLayout {
@@ -2492,7 +2500,7 @@ export component SettingsPage inherits Page {
                         }
                     }
                     Text {
-                        text: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. Nessun server salva i dati: viaggiano cifrati attraverso relay pubblici che li inoltrano e basta.";
+                        text: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. L'app non ha server: i dati viaggiano cifrati attraverso relay pubblici di terze parti, scelti da te qui sotto, che di norma li inoltrano senza conservarli. Condividi solo con dispositivi tuoi.";
                         font-size: Type.label;
                         color: M3.on-surface-variant;
                         wrap: word-wrap;

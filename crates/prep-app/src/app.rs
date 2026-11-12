@@ -29,6 +29,26 @@ use std::time::Duration;
 // Instant portabile: nel browser std::time::Instant non esiste
 use web_time::Instant;
 
+/// Versione delle note legali: aumentandola l'app le richiede di nuovo.
+const LEGAL_VERSION: u32 = 1;
+const LEGAL_TEXT: &str = "Tremendous Preparator è un programma libero (licenza GPL-3.0 o successive), fornito «così com'è», \
+senza garanzie di alcun tipo. Chi lo ha scritto non risponde di danni o conseguenze derivanti dal suo uso.
+
+• Contenuti. L'app non contiene e non distribuisce libri, quiz, flashcard o altro materiale di studio. Quello che importi \
+(pacchetti, libri o slide convertiti, domande generate con l'intelligenza artificiale) è sotto la tua esclusiva \
+responsabilità: assicurati di averne il diritto, usalo solo per studio personale e non condividerlo con chi non ne ha \
+diritto. Nessuno ne verifica la correttezza: controlla sempre sulle fonti ufficiali.
+
+• Servizi esterni. L'app non ha server e non raccoglie dati. Se attivi la sincronizzazione tra dispositivi, i dati \
+viaggiano cifrati attraverso relay pubblici gestiti da terzi, che scegli tu nelle Opzioni; se configuri GitHub, i \
+progressi vanno nel tuo repository. Questi servizi hanno le loro condizioni e la loro gestione dei dati (per esempio \
+possono vedere l'indirizzo IP): usarli è una tua scelta, e la password della sincronizzazione va custodita da te.
+
+• Risultati. Percentuali di preparazione, punteggi attesi, simulazioni e obiettivi sono stime indicative e non \
+garantiscono l'esito di alcun esame.
+
+Toccando «Ho letto e accetto» dichiari di aver letto queste condizioni e di accettarle.";
+
 pub const APP_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+", env!("APP_BUILD"));
 
 const PRACTICE_N: usize = 10;
@@ -3215,6 +3235,29 @@ impl Ctrl {
         st.set_p2p_peers(model(peers));
     }
 
+    fn show_legal_if_needed(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_legal_text(ss(LEGAL_TEXT));
+        let required = self.store.settings().legal_accepted < LEGAL_VERSION;
+        st.set_legal_required(required);
+        if required {
+            st.set_legal_visible(true);
+        }
+    }
+
+    fn legal_accept(&mut self) {
+        let mut s = self.store.settings();
+        if s.legal_accepted < LEGAL_VERSION {
+            s.legal_accepted = LEGAL_VERSION;
+            let _ = self.store.save_settings(&s);
+        }
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_legal_required(false);
+        st.set_legal_visible(false);
+    }
+
     fn save_username(&mut self, name: &str) {
         let mut s = self.store.settings();
         s.username = name.trim().chars().take(32).collect();
@@ -3409,6 +3452,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         c.refresh_all();
         c.refresh_exams();
         c.refresh_p2p();
+        c.show_legal_if_needed();
         // collegamento automatico tra dispositivi, se scelto
         if c.store.settings().p2p_auto && !c.store.settings().p2p_password.is_empty() {
             c.p2p_connect();
@@ -3673,6 +3717,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_select_exam(|id| with_ctrl(|c| c.open_exam(&id)));
     st.on_remove_exam(|id| with_ctrl(|c| c.remove_exam(&id)));
     st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));
+    st.on_legal_accept(|| with_ctrl(|c| c.legal_accept()));
     st.on_p2p_connect(|| with_ctrl(|c| c.p2p_connect()));
     st.on_p2p_disconnect(|| with_ctrl(|c| c.p2p_disconnect()));
     st.on_p2p_download(|peer, exam| with_ctrl(|c| c.p2p_download(&peer, &exam)));
