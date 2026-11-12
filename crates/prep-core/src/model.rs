@@ -117,11 +117,19 @@ pub struct Question {
 pub fn source_group(source: &str) -> String {
     let s = source.trim();
     let low = s.to_lowercase();
-    if s.is_empty() || low == "seed" {
-        return "Altre".into();
+    if s.is_empty() {
+        return "Senza fonte".into();
     }
-    if low.starts_with("libro:") {
-        return "Libri".into();
+    if low == "seed" {
+        return "Domande di base".into();
+    }
+    if let Some(path) = s.strip_prefix("libro:") {
+        // libro:books/<materia>/<libro>/<file>.md#… → «Libro <materia>/<libro>»
+        let parts: Vec<&str> = path.split('#').next().unwrap_or(path).split('/').collect();
+        return match parts.as_slice() {
+            ["books", subj, book, ..] => format!("Libro {subj}/{book}"),
+            _ => "Libro".into(),
+        };
     }
     if low.starts_with("esame") || low.starts_with("prova") {
         return "Prove d'esame".into();
@@ -130,7 +138,7 @@ pub fn source_group(source: &str) -> String {
     let head = head.strip_prefix("Eserciziario ").or_else(|| head.strip_prefix("eserciziario ")).unwrap_or(head);
     match head.split_whitespace().next() {
         Some(w) if !w.is_empty() => w.to_string(),
-        _ => "Altre".into(),
+        _ => "Senza fonte".into(),
     }
 }
 
@@ -140,7 +148,7 @@ fn default_diff() -> u8 {
 
 impl Question {
     /// Fonte raggruppata per il filtro del quiz: il campo `group` se presente, altrimenti
-    /// ricavata da `source` ("libro:…" → Libri, "esame …" → Prove d'esame,
+    /// ricavata da `source` ("libro:books/chimica/x/…" → Libro chimica/x, "esame …" → Prove d'esame,
     /// "Eserciziario EdiSES, …" → EdiSES).
     pub fn source_group(&self) -> String {
         if !self.group.trim().is_empty() {
@@ -465,8 +473,11 @@ mod shuffle_tests {
         assert_eq!(source_group("Eserciziario EdiSES, Chimica cap. 12, quiz n. 3"), "EdiSES");
         assert_eq!(source_group("Eserciziario Testbusters (parte 2) p. 40"), "Testbusters");
         assert_eq!(source_group("esame 2025 1° appello (TestBuddy)"), "Prove d'esame");
-        assert_eq!(source_group("libro:books/x.md#1.2"), "Libri");
-        assert_eq!(source_group("seed"), "Altre");
-        assert_eq!(source_group(""), "Altre");
+        assert_eq!(
+            source_group("libro:books/chimica/integrazioni/02-nomenclatura.md#2.2"),
+            "Libro chimica/integrazioni"
+        );
+        assert_eq!(source_group("seed"), "Domande di base");
+        assert_eq!(source_group(""), "Senza fonte");
     }
 }

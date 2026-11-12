@@ -2114,11 +2114,18 @@ export component QuizHubPage inherits Page {
                             horizontal-stretch: 1;
                             wrap: word-wrap;
                         }
-                        Text {
-                            text: u.open ? "▴" : "▾";
-                            font-size: 20px;
-                            color: M3.on-surface-variant;
-                            vertical-alignment: center;
+                        // freccia disegnata (i caratteri ▾/▴ mancano nei font inclusi)
+                        Rectangle {
+                            width: 24px;
+                            Path {
+                                width: 14px;
+                                height: 8px;
+                                viewbox-width: 14;
+                                viewbox-height: 8;
+                                commands: u.open ? "M 1 7 L 7 1 L 13 7" : "M 1 1 L 7 7 L 13 1";
+                                stroke: M3.on-surface-variant;
+                                stroke-width: 2px;
+                            }
                         }
                     }
                     TouchArea {
