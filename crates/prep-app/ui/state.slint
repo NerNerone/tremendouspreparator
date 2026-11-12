@@ -114,6 +114,18 @@ export struct FlagVM {
     wrong: bool,
 }
 
+// opzione selezionabile del quiz personalizzato (materia, unità o fonte)
+export struct QzOptVM {
+    id: string,
+    name: string,
+    group: string,
+    sel: bool,
+    count: int,
+    // intestazione di materia (espandibile) nell'elenco delle unità
+    head: bool,
+    open: bool,
+}
+
 export struct ExamDateVM {
     label: string,
     date: string,
@@ -281,8 +293,19 @@ export global AppState {
     in property <[TocVM]> rd-toc;
     in-out property <length> rd-scroll;
 
-    // insicure
+    // insicure: domande (scheda Quiz) e flashcard (scheda Flashcard)
     in property <[FlagVM]> flags;
+    in property <[FlagVM]> card-flags;
+    in property <int> card-flagged-count;
+
+    // quiz personalizzato
+    in property <[QzOptVM]> qz-subjects;
+    in property <[QzOptVM]> qz-units;
+    in property <[QzOptVM]> qz-sources;
+    in property <bool> qz-mcq: true;
+    in property <bool> qz-fill: true;
+    in property <int> qz-n: 20;
+    in property <int> qz-available;
 
     // feedback
     in-out property <string> fb-category: "contenuti";
@@ -318,6 +341,9 @@ export global AppState {
     callback start-exam(string);
     callback start-official(string, string);
     callback start-review(string);
+    callback qz-toggle(string, string);
+    callback qz-set-n(int);
+    callback qz-start();
     callback start-cards(string, string);
 
     callback select-option(int);

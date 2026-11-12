@@ -3,7 +3,7 @@
 use crate::periodic;
 use crate::{
     AppState, AppWindow, BlockVM, BookVM, ExamDateVM, FeedbackVM, FlagVM, GoalVM, NavCellVM, NavRowVM, OptionVM,
-    ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
+    QzOptVM, ResultItemVM, SubjectVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -21,7 +21,7 @@ use prep_core::vfs;
 use serde::{Deserialize, Serialize};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
@@ -237,6 +237,58 @@ pub struct Ctrl {
     import_timer: Timer,
     importing: bool,
     flag_timer: Timer,
+    qz: QuizSetup,
+}
+
+/// Filtri del quiz personalizzato (scheda Quiz).
+struct QuizSetup {
+    subjects: BTreeSet<String>,
+    /// unità spuntate; una materia senza unità spuntate vale per intero
+    units: BTreeSet<String>,
+    /// fonti escluse (di partenza tutte incluse)
+    off_sources: BTreeSet<String>,
+    no_mcq: bool,
+    no_fill: bool,
+    n: usize,
+    init: bool,
+    /// materie aperte nell'elenco delle unità
+    open: BTreeSet<String>,
+}
+
+impl Default for QuizSetup {
+    fn default() -> Self {
+        QuizSetup {
+            subjects: BTreeSet::new(),
+            units: BTreeSet::new(),
+            off_sources: BTreeSet::new(),
+            no_mcq: false,
+            no_fill: false,
+            n: 20,
+            init: false,
+            open: BTreeSet::new(),
+        }
+    }
+}
+
+impl QuizSetup {
+    /// la domanda passa i filtri di materia, unità e tipo (la fonte si controlla a parte)
+    fn keep_scope(&self, content: &Content, q: &Question) -> bool {
+        if (q.kind == QKind::Mcq && self.no_mcq) || (q.kind == QKind::Fill && self.no_fill) {
+            return false;
+        }
+        let Some(sub) = content.subject_of_topic(&q.topic) else { return false };
+        if !self.subjects.contains(&sub.id) {
+            return false;
+        }
+        if sub.units.iter().any(|u| self.units.contains(&u.id)) {
+            return content.unit_of_topic(&q.topic).is_some_and(|u| self.units.contains(&u.id));
+        }
+        true
+    }
+
+    fn keep(&self, content: &Content, q: &Question) -> bool {
+        self.keep_scope(content, q) && !self.off_sources.contains(&q.source_group())
+    }
 }
 
 thread_local! {
@@ -304,6 +356,7 @@ impl Ctrl {
         self.refresh_study();
         self.refresh_unit();
         self.refresh_flags();
+        self.refresh_quiz_setup();
         self.refresh_settings_info();
         self.share_legacy_goals();
         self.refresh_goals();
@@ -955,30 +1008,189 @@ impl Ctrl {
         ids.extend(self.pending_flags.iter().filter(|(_, on)| !**on).map(|(id, _)| id.clone()));
         ids.sort();
         ids.dedup();
-        let mut v: Vec<FlagVM> = ids
-            .iter()
-            .filter_map(|id| {
-                if let Some(q) = self.content.question(id) {
-                    Some(FlagVM {
-                        id: ss(id),
-                        text: tx(&q.text),
-                        r#where: ss(self.where_of(&q.topic)),
-                        flagged: self.history.flagged.contains(id),
-                        wrong: self.history.last_wrong.contains(id),
-                    })
-                } else {
-                    self.content.card(id).map(|c| FlagVM {
-                        id: ss(id),
-                        text: tx(&format!("[flashcard] {}", c.front)),
-                        r#where: ss(self.where_of(&c.topic)),
-                        flagged: self.history.flagged.contains(id),
-                        wrong: false,
-                    })
+        let mut quiz: Vec<FlagVM> = Vec::new();
+        let mut cards: Vec<FlagVM> = Vec::new();
+        for id in &ids {
+            if let Some(q) = self.content.question(id) {
+                quiz.push(FlagVM {
+                    id: ss(id),
+                    text: tx(&q.text),
+                    r#where: ss(self.where_of(&q.topic)),
+                    flagged: self.history.flagged.contains(id),
+                    wrong: self.history.last_wrong.contains(id),
+                });
+            } else if let Some(c) = self.content.card(id) {
+                cards.push(FlagVM {
+                    id: ss(id),
+                    text: tx(&c.front),
+                    r#where: ss(self.where_of(&c.topic)),
+                    flagged: self.history.flagged.contains(id),
+                    wrong: false,
+                });
+            }
+        }
+        quiz.sort_by_key(|f| (!f.flagged, !f.wrong, f.r#where.to_string()));
+        cards.sort_by_key(|f| (!f.flagged, f.r#where.to_string()));
+        let ncards = self.flagged_cards().len();
+        st.set_flags(model(quiz));
+        st.set_card_flags(model(cards));
+        st.set_card_flagged_count(ncards as i32);
+    }
+
+    fn flagged_cards(&self) -> Vec<String> {
+        self.history.flagged.iter().filter(|id| self.content.card(id).is_some()).cloned().collect()
+    }
+
+    // ---------- quiz personalizzato ----------
+
+    fn refresh_quiz_setup(&mut self) {
+        let Some(syl) = self.content.syllabus.as_ref() else { return };
+        let all: Vec<String> = syl.subjects.iter().map(|s| s.id.clone()).collect();
+        let qz = &mut self.qz;
+        qz.subjects.retain(|s| all.contains(s));
+        if !qz.init {
+            qz.subjects = all.iter().cloned().collect();
+            qz.init = true;
+        }
+        let qz = &self.qz;
+        // conteggi in un solo passaggio
+        let mut per_subject: BTreeMap<String, usize> = BTreeMap::new();
+        let mut per_unit: BTreeMap<String, usize> = BTreeMap::new();
+        let mut per_source: BTreeMap<String, usize> = BTreeMap::new();
+        let mut available = 0usize;
+        for q in &self.content.questions {
+            if let Some(sub) = self.content.subject_of_topic(&q.topic) {
+                *per_subject.entry(sub.id.clone()).or_default() += 1;
+            }
+            if let Some(u) = self.content.unit_of_topic(&q.topic) {
+                *per_unit.entry(u.id.clone()).or_default() += 1;
+            }
+            if qz.keep_scope(&self.content, q) {
+                let g = q.source_group();
+                if !qz.off_sources.contains(&g) {
+                    available += 1;
                 }
+                *per_source.entry(g).or_default() += 1;
+            } else {
+                per_source.entry(q.source_group()).or_default();
+            }
+        }
+        let subjects: Vec<QzOptVM> = syl
+            .subjects
+            .iter()
+            .map(|s| QzOptVM {
+                id: ss(&s.id),
+                name: ss(&s.name),
+                group: ss(""),
+                sel: qz.subjects.contains(&s.id),
+                count: *per_subject.get(&s.id).unwrap_or(&0) as i32,
+                head: false,
+                open: false,
             })
             .collect();
-        v.sort_by_key(|f| (!f.flagged, !f.wrong, f.r#where.to_string()));
-        st.set_flags(model(v));
+        let mut units: Vec<QzOptVM> = Vec::new();
+        for s in syl.subjects.iter().filter(|s| qz.subjects.contains(&s.id)) {
+            let chosen = s.units.iter().filter(|u| qz.units.contains(&u.id)).count();
+            let open = qz.open.contains(&s.id);
+            units.push(QzOptVM {
+                id: ss(&s.id),
+                name: ss(&s.name),
+                group: ss(if chosen == 0 {
+                    "tutte le unità".to_string()
+                } else {
+                    format!("{chosen} di {} unità", s.units.len())
+                }),
+                sel: false,
+                count: 0,
+                head: true,
+                open,
+            });
+            if !open {
+                continue;
+            }
+            for u in &s.units {
+                units.push(QzOptVM {
+                    id: ss(&u.id),
+                    name: ss(format!("U{} · {}", u.n, u.name)),
+                    group: ss(&s.name),
+                    sel: qz.units.contains(&u.id),
+                    count: *per_unit.get(&u.id).unwrap_or(&0) as i32,
+                    head: false,
+                    open: false,
+                });
+            }
+        }
+        // fonti: prima le più ricche
+        let mut src: Vec<(String, usize)> = per_source.into_iter().collect();
+        src.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        let sources: Vec<QzOptVM> = src
+            .into_iter()
+            .map(|(g, n)| QzOptVM {
+                id: ss(&g),
+                name: ss(&g),
+                group: ss(""),
+                sel: !qz.off_sources.contains(&g),
+                count: n as i32,
+                head: false,
+                open: false,
+            })
+            .collect();
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_qz_subjects(model(subjects));
+        st.set_qz_units(model(units));
+        st.set_qz_sources(model(sources));
+        st.set_qz_mcq(!qz.no_mcq);
+        st.set_qz_fill(!qz.no_fill);
+        st.set_qz_n(qz.n as i32);
+        st.set_qz_available(available as i32);
+    }
+
+    fn qz_toggle(&mut self, kind: &str, id: &str) {
+        let flip = |set: &mut BTreeSet<String>, id: &str| {
+            if !set.remove(id) {
+                set.insert(id.to_string());
+            }
+        };
+        match kind {
+            "subject" => {
+                if self.qz.subjects.contains(id) {
+                    self.qz.subjects.remove(id);
+                    // via anche le sue unità spuntate
+                    if let Some(sub) = self.content.subject(id) {
+                        for u in &sub.units {
+                            self.qz.units.remove(&u.id);
+                        }
+                    }
+                } else {
+                    self.qz.subjects.insert(id.to_string());
+                }
+            }
+            "unit" => flip(&mut self.qz.units, id),
+            "open" => flip(&mut self.qz.open, id),
+            "source" => flip(&mut self.qz.off_sources, id),
+            "kind" if id == "mcq" => self.qz.no_mcq = !self.qz.no_mcq,
+            "kind" if id == "fill" => self.qz.no_fill = !self.qz.no_fill,
+            "n" => self.qz.n = id.parse().unwrap_or(self.qz.n).clamp(1, 200),
+            _ => {}
+        }
+        self.refresh_quiz_setup();
+    }
+
+    fn qz_start(&mut self) {
+        let qz = &self.qz;
+        let content = &self.content;
+        let ids = select::practice_where(content, &self.history, |q| qz.keep(content, q), qz.n);
+        let subs: Vec<&prep_core::model::Subject> =
+            content.syllabus().subjects.iter().filter(|s| qz.subjects.contains(&s.id)).collect();
+        let subject = if subs.len() == 1 { Some(subs[0].id.clone()) } else { None };
+        let unit = if qz.units.len() == 1 { qz.units.iter().next().cloned() } else { None };
+        let title = match (subs.len(), &unit) {
+            (_, Some(u)) => content.unit(u).map(|x| format!("U{} {}", x.n, x.name)).unwrap_or_else(|| "Quiz".into()),
+            (1, None) => format!("Quiz · {}", subs[0].name),
+            _ => "Quiz personalizzato".into(),
+        };
+        self.start_quiz(SessionKind::Practice, ids, title, subject, unit);
     }
 
     fn refresh_settings_info(&mut self) {
@@ -1882,7 +2094,11 @@ impl Ctrl {
             None => (false, kind),
         };
         let scope = Self::scope_of(kind, id);
-        let ids = if learned {
+        let ids = if kind == "flagged" {
+            let mut v = self.flagged_cards();
+            v.truncate(CARDS_MAX);
+            v
+        } else if learned {
             select::learned_cards(&self.content, &self.history, &scope, Utc::now(), CARDS_MAX)
         } else {
             select::flashcards(&self.content, &self.history, &scope, Utc::now(), CARDS_MAX, CARDS_NEW)
@@ -2660,6 +2876,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         importing: false,
         toast_timer: Timer::default(),
         flag_timer: Timer::default(),
+        qz: QuizSetup::default(),
     }));
     CTRL.with(|c| *c.borrow_mut() = Some(ctrl.clone()));
     {
@@ -2770,6 +2987,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         })
     });
     st.on_start_cards(|kind, id| with_ctrl(|c| c.start_cards(&kind, &id)));
+    st.on_qz_toggle(|kind, id| with_ctrl(|c| c.qz_toggle(&kind, &id)));
+    st.on_qz_set_n(|n| with_ctrl(|c| c.qz_toggle("n", &n.to_string())));
+    st.on_qz_start(|| with_ctrl(|c| c.qz_start()));
     st.on_select_option(|k| with_ctrl(|c| c.select_option(k)));
     st.on_fill_edited(|t| with_ctrl(|c| c.fill_edited(t.to_string())));
     st.on_toggle_unsure(|| with_ctrl(|c| c.toggle_unsure()));

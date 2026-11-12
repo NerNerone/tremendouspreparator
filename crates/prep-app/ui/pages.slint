@@ -1,6 +1,6 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "theme.slint";
-import { AppState, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, BlockVM, TocVM, FeedbackVM } from "state.slint";
+import { AppState, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "components.slint";
 
 component SubjectCard inherits Card {
@@ -1790,6 +1790,136 @@ export component CardsPage inherits Page {
     }
 }
 
+// riga «insicura/sbagliata» (domanda o flashcard) con la bandierina per toglierla
+component FlagRow inherits Rectangle {
+    in property <FlagVM> f;
+    border-radius: 14px;
+    background: M3.surface-container-low;
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 8px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 4px;
+            Text {
+                text: root.f.text;
+                wrap: word-wrap;
+                color: M3.on-surface;
+            }
+
+            HorizontalLayout {
+                spacing: 6px;
+                Text {
+                    text: root.f.where;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    horizontal-stretch: 1;
+                    wrap: word-wrap;
+                }
+
+                if root.f.wrong: Pill {
+                    text: "sbagliata";
+                    bg: M3.error-container;
+                    fg: M3.on-error-container;
+                }
+            }
+        }
+
+        IconButton {
+            icon: root.f.flagged ? Icons.flag : Icons.flag-outline;
+            tint: root.f.flagged ? M3.error : M3.on-surface-variant;
+            clicked => {
+                AppState.flag-toggle(root.f.id);
+            }
+        }
+    }
+}
+
+// fila orizzontale di chip che scorre col dito se non c'è spazio
+component ChipStrip inherits Flickable {
+    in property <[QzOptVM]> opts;
+    in property <string> kind;
+    height: 40px;
+    interactive: true;
+    content-width: max(self.width, strip.preferred-width);
+    content-height: 40px;
+    strip := HorizontalLayout {
+        x: 0px;
+        y: 0px;
+        height: 40px;
+        spacing: 8px;
+        alignment: start;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        for o in root.opts: Chip {
+            text: o.name + (o.count > 0 ? " · " + o.count : "");
+            selected: o.sel;
+            has-icon: o.sel;
+            icon: Icons.check;
+            clicked => {
+                AppState.qz-toggle(root.kind, o.id);
+            }
+        }
+    }
+}
+
+// riga con casella di spunta (unità del quiz)
+component CheckRow inherits Rectangle {
+    in property <QzOptVM> o;
+    callback clicked;
+    min-height: max(48px, row.preferred-height);
+    border-radius: 12px;
+    background: root.o.sel ? M3.secondary-container : transparent;
+    animate background { duration: 150ms; }
+    row := HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 12px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 10px;
+        Rectangle {
+            width: 22px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 6px;
+                    border-width: root.o.sel ? 0px : 2px;
+                    border-color: M3.outline;
+                    background: root.o.sel ? M3.primary : transparent;
+                    if root.o.sel: VIcon {
+                        source: Icons.check;
+                        tint: M3.on-primary;
+                        size: 18px;
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: root.o.name;
+            wrap: word-wrap;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            color: M3.on-surface;
+        }
+
+        Text {
+            text: root.o.count;
+            vertical-alignment: center;
+            font-size: Type.label;
+            color: M3.on-surface-variant;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component DecksPage inherits Page {
     VerticalLayout {
         TopBar {
@@ -1902,6 +2032,29 @@ export component DecksPage inherits Page {
             }
 
             Text {
+                text: "Flashcard insicure";
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            M3Button {
+                small: true;
+                kind: 1;
+                text: "Ripassa le insicure (" + AppState.card-flagged-count + ")";
+                enabled: AppState.card-flagged-count > 0;
+                clicked => {
+                    AppState.start-cards("flagged", "");
+                }
+            }
+            if AppState.card-flags.length == 0: Text {
+                text: "Nessuna flashcard segnata insicura.";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            for f in AppState.card-flags: FlagRow { f: f; }
+
+            Text {
                 text: "Ripetizione dilazionata: \"Ancora\" la ripropone tra 10 minuti, \"Bene\"/\"Facile\" allungano l'intervallo (max 21 giorni). Le carte segnate insicure contano come \"Difficile\".";
                 font-size: Type.label;
                 color: M3.on-surface-variant;
@@ -1911,11 +2064,11 @@ export component DecksPage inherits Page {
     }
 }
 
-export component FlagsPage inherits Page {
+export component QuizHubPage inherits Page {
     VerticalLayout {
         TopBar {
-            title: "Insicure e sbagliate";
-            subtitle: AppState.flagged-count + " segnalate · " + AppState.wrong-count + " sbagliate";
+            title: "Quiz";
+            subtitle: AppState.qz-available + " domande con questi filtri";
         }
 
         Scroller {
@@ -1924,8 +2077,159 @@ export component FlagsPage inherits Page {
             pad: 16px;
             pad-top: 4px;
             gap: 10px;
+            SectionTitle { text: "Materie"; }
+            ChipStrip {
+                opts: AppState.qz-subjects;
+                kind: "subject";
+            }
+
+            SectionTitle { text: "Unità"; }
+            Text {
+                text: AppState.qz-units.length == 0 ? "Scegli almeno una materia." : "Apri una materia per scegliere le unità; senza unità spuntate vale tutta la materia.";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+
+            for u in AppState.qz-units: VerticalLayout {
+                if u.head: Rectangle {
+                    min-height: 44px;
+                    border-radius: 12px;
+                    background: M3.surface-container-low;
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 8px;
+                        spacing: 8px;
+                        Text {
+                            text: u.name;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: u.group;
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            wrap: word-wrap;
+                        }
+                        Text {
+                            text: u.open ? "▴" : "▾";
+                            font-size: 20px;
+                            color: M3.on-surface-variant;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        clicked => {
+                            AppState.qz-toggle("open", u.id);
+                        }
+                    }
+                }
+                if !u.head: CheckRow {
+                    o: u;
+                    clicked => {
+                        AppState.qz-toggle("unit", u.id);
+                    }
+                }
+            }
+
+            SectionTitle { text: "Fonti"; }
+            ChipStrip {
+                opts: AppState.qz-sources;
+                kind: "source";
+            }
+
+            SectionTitle { text: "Tipo di domanda"; }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                Chip {
+                    text: "Risposta multipla";
+                    selected: AppState.qz-mcq;
+                    has-icon: AppState.qz-mcq;
+                    icon: Icons.check;
+                    clicked => {
+                        AppState.qz-toggle("kind", "mcq");
+                    }
+                }
+                Chip {
+                    text: "Completamento";
+                    selected: AppState.qz-fill;
+                    has-icon: AppState.qz-fill;
+                    icon: Icons.check;
+                    clicked => {
+                        AppState.qz-toggle("kind", "fill");
+                    }
+                }
+            }
+
+            SectionTitle { text: "Numero di domande"; }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                IconButton {
+                    icon: Icons.remove;
+                    clicked => {
+                        AppState.qz-set-n(AppState.qz-n - (AppState.qz-n > 20 ? 5 : 1));
+                    }
+                }
+                Text {
+                    text: AppState.qz-n;
+                    font-size: Type.headline;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                    min-width: 56px;
+                    color: M3.on-surface;
+                }
+                IconButton {
+                    icon: Icons.add;
+                    clicked => {
+                        AppState.qz-set-n(AppState.qz-n + (AppState.qz-n >= 20 ? 5 : 1));
+                    }
+                }
+            }
+            ChipStrip {
+                opts: [
+                    { id: "10", name: "10", sel: AppState.qz-n == 10 },
+                    { id: "20", name: "20", sel: AppState.qz-n == 20 },
+                    { id: "31", name: "31 (come l'esame)", sel: AppState.qz-n == 31 },
+                    { id: "50", name: "50", sel: AppState.qz-n == 50 },
+                    { id: "100", name: "100", sel: AppState.qz-n == 100 },
+                ];
+                kind: "n";
+            }
+
             M3Button {
-                text: "Ripassa ora";
+                text: "Avvia quiz (" + min(AppState.qz-n, AppState.qz-available) + " domande)";
+                has-icon: true;
+                icon: Icons.play;
+                enabled: AppState.qz-available > 0;
+                clicked => {
+                    AppState.qz-start();
+                }
+            }
+
+            Text {
+                text: "Prima le domande mai viste, sbagliate o deboli, poi le altre; l'ordine è casuale.";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+
+            Rectangle { height: 8px; }
+            SectionTitle { text: "Insicure e sbagliate"; }
+            Text {
+                text: AppState.flagged-count + " segnate insicure · " + AppState.wrong-count + " sbagliate l'ultima volta";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            M3Button {
+                text: "Ripassale ora";
+                kind: 1;
                 has-icon: true;
                 icon: Icons.play;
                 enabled: AppState.flags.length > 0;
@@ -1935,53 +2239,12 @@ export component FlagsPage inherits Page {
             }
 
             if AppState.flags.length == 0: Text {
-                text: "Niente da ripassare. Durante i quiz usa \"Insicura\" sulle domande in cui hai tirato a indovinare: finiranno qui e verranno committate nel repository.";
+                text: "Niente da ripassare. Durante i quiz usa \"Insicura\" sulle domande in cui hai tirato a indovinare: finiranno qui.";
                 wrap: word-wrap;
                 color: M3.on-surface-variant;
             }
 
-            for f in AppState.flags: Rectangle {
-                border-radius: 14px;
-                background: M3.surface-container-low;
-                HorizontalLayout {
-                    padding: 12px;
-                    spacing: 8px;
-                    VerticalLayout {
-                        horizontal-stretch: 1;
-                        spacing: 4px;
-                        Text {
-                            text: f.text;
-                            wrap: word-wrap;
-                            color: M3.on-surface;
-                        }
-
-                        HorizontalLayout {
-                            spacing: 6px;
-                            Text {
-                                text: f.where;
-                                font-size: Type.label;
-                                color: M3.on-surface-variant;
-                                horizontal-stretch: 1;
-                                wrap: word-wrap;
-                            }
-
-                            if f.wrong: Pill {
-                                text: "sbagliata";
-                                bg: M3.error-container;
-                                fg: M3.on-error-container;
-                            }
-                        }
-                    }
-
-                    IconButton {
-                        icon: f.flagged ? Icons.flag : Icons.flag-outline;
-                        tint: f.flagged ? M3.error : M3.on-surface-variant;
-                        clicked => {
-                            AppState.flag-toggle(f.id);
-                        }
-                    }
-                }
-            }
+            for f in AppState.flags: FlagRow { f: f; }
         }
     }
 }

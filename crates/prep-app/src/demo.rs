@@ -61,6 +61,12 @@ pub fn maybe_run(ui: &AppWindow) {
                 "nomen" => st.invoke_open_nomenclature(),
                 "fbpage" => st.invoke_open_feedback(),
                 "wait" => {}
+                "qz" => {
+                    // qz:tipo,id — come un tocco nella scheda Quiz (subject/unit/source/kind/open/n)
+                    let (k, id) = arg.split_once(',').unwrap_or((arg, ""));
+                    st.invoke_qz_toggle(k.into(), id.into())
+                }
+                "qzstart" => st.invoke_qz_start(),
                 "importpack" => st.invoke_import_pack(),
                 "rdscroll" => st.set_rd_scroll(-(arg.parse::<f32>().unwrap_or(0.0))),
                 "fakeprog" => st.set_overall(arg.parse().unwrap_or(0.42)),

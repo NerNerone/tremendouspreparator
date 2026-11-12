@@ -107,6 +107,31 @@ pub struct Question {
     /// rimando al libro per "Se vuoi approfondire"
     #[serde(default, rename = "ref", skip_serializing_if = "Option::is_none")]
     pub book_ref: Option<BookRef>,
+    /// gruppo di provenienza mostrato nel filtro «Fonti» del quiz (es. "EdiSES");
+    /// se manca si ricava da `source` (vedi [`Question::source_group`])
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
+}
+
+/// Vedi [`Question::source_group`].
+pub fn source_group(source: &str) -> String {
+    let s = source.trim();
+    let low = s.to_lowercase();
+    if s.is_empty() || low == "seed" {
+        return "Altre".into();
+    }
+    if low.starts_with("libro:") {
+        return "Libri".into();
+    }
+    if low.starts_with("esame") || low.starts_with("prova") {
+        return "Prove d'esame".into();
+    }
+    let head = s.split([',', '(', ';', ':']).next().unwrap_or(s).trim();
+    let head = head.strip_prefix("Eserciziario ").or_else(|| head.strip_prefix("eserciziario ")).unwrap_or(head);
+    match head.split_whitespace().next() {
+        Some(w) if !w.is_empty() => w.to_string(),
+        _ => "Altre".into(),
+    }
 }
 
 fn default_diff() -> u8 {
@@ -114,6 +139,16 @@ fn default_diff() -> u8 {
 }
 
 impl Question {
+    /// Fonte raggruppata per il filtro del quiz: il campo `group` se presente, altrimenti
+    /// ricavata da `source` ("libro:…" → Libri, "esame …" → Prove d'esame,
+    /// "Eserciziario EdiSES, …" → EdiSES).
+    pub fn source_group(&self) -> String {
+        if !self.group.trim().is_empty() {
+            return self.group.trim().to_string();
+        }
+        source_group(&self.source)
+    }
+
     /// Testo leggibile della risposta corretta.
     pub fn correct_text(&self) -> String {
         match self.kind {
@@ -423,5 +458,15 @@ mod shuffle_tests {
         let mut s = p.clone();
         s.sort();
         assert_eq!(s, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn source_groups() {
+        assert_eq!(source_group("Eserciziario EdiSES, Chimica cap. 12, quiz n. 3"), "EdiSES");
+        assert_eq!(source_group("Eserciziario Testbusters (parte 2) p. 40"), "Testbusters");
+        assert_eq!(source_group("esame 2025 1° appello (TestBuddy)"), "Prove d'esame");
+        assert_eq!(source_group("libro:books/x.md#1.2"), "Libri");
+        assert_eq!(source_group("seed"), "Altre");
+        assert_eq!(source_group(""), "Altre");
     }
 }

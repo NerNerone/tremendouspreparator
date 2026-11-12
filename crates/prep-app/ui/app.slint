@@ -8,7 +8,7 @@ import "../fonts/DejaVuSans-Bold.ttf";
 import { M3, Icons, Type } from "theme.slint";
 import { AppState } from "state.slint";
 import { NavItem, M3Button } from "components.slint";
-import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, FlagsPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, PeriodicPage } from "pages.slint";
+import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, PeriodicPage } from "pages.slint";
 
 export { AppState }
 
@@ -48,7 +48,7 @@ export component AppWindow inherits Window {
                 if AppState.page == 3: QuizPage { }
                 if AppState.page == 4: ResultsPage { }
                 if AppState.page == 5: CardsPage { }
-                if AppState.page == 6: FlagsPage { }
+                if AppState.page == 6: QuizHubPage { }
                 if AppState.page == 7: SettingsPage { }
                 if AppState.page == 8: DecksPage { }
                 if AppState.page == 9: ReaderPage { }
@@ -91,8 +91,8 @@ export component AppWindow inherits Window {
                     }
 
                     NavItem {
-                        icon: Icons.flag;
-                        label: "Insicure";
+                        icon: Icons.quiz;
+                        label: "Quiz";
                         active: AppState.tab == 3;
                         badge: AppState.flagged-count;
                         clicked => {

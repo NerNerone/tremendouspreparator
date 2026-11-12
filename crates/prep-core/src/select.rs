@@ -41,12 +41,13 @@ fn priority(h: &History, id: &str) -> f64 {
 
 /// Allenamento: prima insicure, poi sbagliate, poi mai viste, poi le più deboli.
 pub fn practice(content: &Content, h: &History, scope: &Scope, n: usize) -> Vec<String> {
-    let mut pool: Vec<(f64, &Question)> = content
-        .questions
-        .iter()
-        .filter(|q| scope.matches(content, &q.topic))
-        .map(|q| (priority(h, &q.id), q))
-        .collect();
+    practice_where(content, h, |q| scope.matches(content, &q.topic), n)
+}
+
+/// Come [`practice`], ma con un filtro qualsiasi (quiz personalizzato: materie, unità, fonti, tipo).
+pub fn practice_where(content: &Content, h: &History, keep: impl Fn(&Question) -> bool, n: usize) -> Vec<String> {
+    let mut pool: Vec<(f64, &Question)> =
+        content.questions.iter().filter(|q| keep(q)).map(|q| (priority(h, &q.id), q)).collect();
     pool.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
     let mut out: Vec<String> = pool.into_iter().take(n).map(|(_, q)| q.id.clone()).collect();
     fastrand::shuffle(&mut out);
