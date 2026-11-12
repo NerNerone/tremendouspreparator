@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "title": "Semestre aperto Medicina 2026/27",
+  "exam": {
+    "questions": 31,
+    "mcq": 21,
+    "fill": 10,
+    "options": 5,
+    "minutes": 50,
+    "correct": 1.0,
+    "wrong": -0.1,
+    "omitted": 0.0,
+    "pass": 18.0,
+    "dates": [
+      { "label": "1° appello", "date": "2026-12-10" },
+      { "label": "2° appello", "date": "2027-01-11" }
+    ]
+  },
+  "subjects": [
+    {
+      "id": "fis",
+      "name": "Fisica",
+      "units": [
+        { "id": "fis-u1", "n": 1, "name": "Introduzione ai metodi della fisica", "cfu": 0.2, "topics": [
+          { "id": "fis-u1-t1", "name": "Notazione scientifica" },
+          { "id": "fis-u1-t2", "name": "Grandezze, dimensioni, SI, conversioni, ordini di grandezza" },
+          { "id": "fis-u1-t3", "name": "Funzioni trigonometriche elementari" },
+          { "id": "fis-u1-t4", "name": "Vettori: componenti, somma, differenza, prodotto scalare e vettoriale" } ] },
+        { "id": "fis-u2", "n": 2, "name": "Meccanica", "cfu": 1.4, "topics": [
+          { "id": "fis-u2-t1", "name": "Cinematica: moti rettilinei, parabolico, circolare uniforme" },
+          { "id": "fis-u2-t2", "name": "Dinamica: principi di Newton, forze, attrito, Hooke" },
+          { "id": "fis-u2-t3", "name": "Lavoro, potenza, energia, conservazione" },
+          { "id": "fis-u2-t4", "name": "Quantità di moto e impulso" },
+          { "id": "fis-u2-t5", "name": "Centro di massa, corpo rigido, momento torcente, leve" } ] },
+        { "id": "fis-u3", "n": 3, "name": "Meccanica dei fluidi", "cfu": 1.2, "topics": [
+          { "id": "fis-u3-t1", "name": "Pressione e densità, fluidi vs solidi" },
+          { "id": "fis-u3-t2", "name": "Idrostatica: Stevino, Pascal, Archimede, Torricelli, manometro" },
+          { "id": "fis-u3-t3", "name": "Idrodinamica: portata, continuità, Bernoulli (stenosi, aneurisma)" },
+          { "id": "fis-u3-t4", "name": "Fluidi reali: viscosità, Poiseuille, resistenze idrauliche" },
+          { "id": "fis-u3-t5", "name": "Tensione superficiale, capillarità, legge di Laplace" } ] },
+        { "id": "fis-u4", "n": 4, "name": "Onde meccaniche", "cfu": 0.4, "topics": [
+          { "id": "fis-u4-t1", "name": "Oscillatore armonico e parametri delle onde" },
+          { "id": "fis-u4-t2", "name": "Sovrapposizione e interferenza" },
+          { "id": "fis-u4-t3", "name": "Energia, potenza e intensità; inverso del quadrato" },
+          { "id": "fis-u4-t4", "name": "Onde acustiche, velocità del suono, decibel" },
+          { "id": "fis-u4-t5", "name": "Effetto Doppler (qualitativo)" } ] },
+        { "id": "fis-u5", "n": 5, "name": "Termodinamica", "cfu": 1.0, "topics": [
+          { "id": "fis-u5-t1", "name": "Sistema, stato, temperatura, gas perfetti" },
+          { "id": "fis-u5-t2", "name": "Calore, capacità termica, calore latente, calorimetria" },
+          { "id": "fis-u5-t3", "name": "Conduzione, convezione, irraggiamento" },
+          { "id": "fis-u5-t4", "name": "Primo principio e trasformazioni dei gas ideali" },
+          { "id": "fis-u5-t5", "name": "Secondo principio, macchine termiche, Carnot, entropia" } ] },
+        { "id": "fis-u6", "n": 6, "name": "Elettricità e magnetismo", "cfu": 1.2, "topics": [
+          { "id": "fis-u6-t1", "name": "Carica, legge di Coulomb, campo elettrico" },
+          { "id": "fis-u6-t2", "name": "Energia potenziale e potenziale elettrico" },
+          { "id": "fis-u6-t3", "name": "Conduttori e dielettrici: induzione e polarizzazione" },
+          { "id": "fis-u6-t4", "name": "Corrente, leggi di Ohm, effetto Joule, resistenze" },
+          { "id": "fis-u6-t5", "name": "Capacità e condensatori" },
+          { "id": "fis-u6-t6", "name": "Campo magnetico e forza di Lorentz" },
+          { "id": "fis-u6-t7", "name": "Induzione elettromagnetica: Faraday-Neumann-Lenz" } ] },
+        { "id": "fis-u7", "n": 7, "name": "Fisica delle radiazioni", "cfu": 0.6, "topics": [
+          { "id": "fis-u7-t1", "name": "Onde elettromagnetiche e loro caratteristiche" },
+          { "id": "fis-u7-t2", "name": "Spettro elettromagnetico" },
+          { "id": "fis-u7-t3", "name": "Fotone e quantizzazione dell'energia" },
+          { "id": "fis-u7-t4", "name": "Assorbimento: legge di Lambert-Beer" },
+          { "id": "fis-u7-t5", "name": "Radioattività: decadimenti, attività, emivita" },
+          { "id": "fis-u7-t6", "name": "Radiazioni ionizzanti e non ionizzanti" },
+          { "id": "fis-u7-t7", "name": "Ottica: riflessione, rifrazione, lenti sottili" } ] }
+      ]
+    },
+    {
+      "id": "chi",
+      "name": "Chimica e propedeutica biochimica",
+      "units": [
+        { "id": "chi-u1", "n": 1, "name": "Atomo, legami, stati di aggregazione, termodinamica", "cfu": 1.0, "topics": [
+          { "id": "chi-u1-t1", "name": "Struttura dell'atomo, isotopi, cenni NMR" },
+          { "id": "chi-u1-t2", "name": "Numeri quantici, orbitali, Pauli, Hund, configurazione" },
+          { "id": "chi-u1-t3", "name": "Tavola periodica e proprietà periodiche, ottetto" },
+          { "id": "chi-u1-t4", "name": "Mole, Avogadro, massa molecolare" },
+          { "id": "chi-u1-t5", "name": "Legame chimico, ibridazione, geometria, polarità" },
+          { "id": "chi-u1-t6", "name": "Interazioni deboli e idrofobiche" },
+          { "id": "chi-u1-t7", "name": "Numero di ossidazione e nomenclatura inorganica" },
+          { "id": "chi-u1-t8", "name": "Stato solido e stato gassoso, leggi dei gas" },
+          { "id": "chi-u1-t9", "name": "Stato liquido, pressione di vapore, diagrammi di fase" },
+          { "id": "chi-u1-t10", "name": "Termodinamica chimica: entalpia, entropia, Gibbs" } ] },
+        { "id": "chi-u2", "n": 2, "name": "Miscele, soluzioni, proprietà colligative", "cfu": 1.0, "topics": [
+          { "id": "chi-u2-t1", "name": "Miscele omogenee/eterogenee, colloidi" },
+          { "id": "chi-u2-t2", "name": "Acqua come solvente, elettroliti, legge di Henry" },
+          { "id": "chi-u2-t3", "name": "Unità di concentrazione, equivalenti" },
+          { "id": "chi-u2-t4", "name": "Miscele di gas: legge di Dalton, aria" },
+          { "id": "chi-u2-t5", "name": "Proprietà colligative, Raoult, osmosi" },
+          { "id": "chi-u2-t6", "name": "Van't Hoff, osmolarità e osmolalità" },
+          { "id": "chi-u2-t7", "name": "Soluzioni iso/iper/ipotoniche, emolisi, edema" } ] },
+        { "id": "chi-u3", "n": 3, "name": "Reazioni: cinetica ed equilibrio", "cfu": 0.5, "topics": [
+          { "id": "chi-u3-t1", "name": "Reazioni chimiche e bilanciamento" },
+          { "id": "chi-u3-t2", "name": "Cinetica, ordine, Arrhenius, energia di attivazione" },
+          { "id": "chi-u3-t3", "name": "Catalizzatori ed enzimi" },
+          { "id": "chi-u3-t4", "name": "Equilibrio chimico, Keq, Le Chatelier" },
+          { "id": "chi-u3-t5", "name": "Prodotto di solubilità, ione in comune, calcoli renali" } ] },
+        { "id": "chi-u4", "n": 4, "name": "Acidi, basi, pH, tamponi, redox", "cfu": 1.0, "topics": [
+          { "id": "chi-u4-t1", "name": "Teorie acido-base, Kw, pH, Ka/Kb, sali" },
+          { "id": "chi-u4-t2", "name": "Tamponi ed Henderson-Hasselbalch" },
+          { "id": "chi-u4-t3", "name": "Equilibrio acido-base nel sangue, acidosi/alcalosi" },
+          { "id": "chi-u4-t4", "name": "Redox, pile, Nernst, Fenton e Haber-Weiss" } ] },
+        { "id": "chi-u5", "n": 5, "name": "Carbonio, idrocarburi, aromatici", "cfu": 0.5, "topics": [
+          { "id": "chi-u5-t1", "name": "Carbonio, ibridazione, nomenclatura IUPAC" },
+          { "id": "chi-u5-t2", "name": "Stereochimica: enantiomeri, R/S, Fischer" },
+          { "id": "chi-u5-t3", "name": "Rottura omolitica e reazioni radicaliche" },
+          { "id": "chi-u5-t4", "name": "Rottura eterolitica, nucleofili/elettrofili, SN1/SN2, eliminazione" },
+          { "id": "chi-u5-t5", "name": "Alcani e cicloalcani" },
+          { "id": "chi-u5-t6", "name": "Alcheni e addizione elettrofila" },
+          { "id": "chi-u5-t7", "name": "Aromatici, Hückel, sostituzione elettrofila aromatica" } ] },
+        { "id": "chi-u6", "n": 6, "name": "Gruppi funzionali", "cfu": 1.0, "topics": [
+          { "id": "chi-u6-t1", "name": "Alcoli, tioli, fenoli, eteri" },
+          { "id": "chi-u6-t2", "name": "Ammine" },
+          { "id": "chi-u6-t3", "name": "Aldeidi e chetoni, acetali, immine, tautomeria" },
+          { "id": "chi-u6-t4", "name": "Acidi carbossilici e derivati" } ] },
+        { "id": "chi-u7", "n": 7, "name": "Biomolecole", "cfu": 1.0, "topics": [
+          { "id": "chi-u7-t1", "name": "Amminoacidi e punto isoelettrico" },
+          { "id": "chi-u7-t2", "name": "Legame peptidico e struttura delle proteine" },
+          { "id": "chi-u7-t3", "name": "Carboidrati" },
+          { "id": "chi-u7-t4", "name": "Lipidi e colesterolo" },
+          { "id": "chi-u7-t5", "name": "Nucleotidi, ATP, NAD/FAD, acidi nucleici" },
+          { "id": "chi-u7-t6", "name": "Modificazioni non enzimatiche e antiossidanti" } ] }
+      ]
+    },
+    {
+      "id": "bio",
+      "name": "Biologia",
+      "units": [
+        { "id": "bio-u1", "n": 1, "name": "Basi dell'organizzazione biologica", "cfu": 0.5, "topics": [
+          { "id": "bio-u1-t1", "name": "Albero della vita, teoria cellulare" },
+          { "id": "bio-u1-t2", "name": "Virus: struttura e cicli" },
+          { "id": "bio-u1-t3", "name": "Cellula procariotica, Gram, trasferimento genico orizzontale" },
+          { "id": "bio-u1-t4", "name": "Cellula eucariotica, endosimbiosi" },
+          { "id": "bio-u1-t5", "name": "Macromolecole, enzimi, modificazioni post-traduzionali, metabolismo" } ] },
+        { "id": "bio-u2", "n": 2, "name": "Genoma, cromatina, epigenetica", "cfu": 0.5, "topics": [
+          { "id": "bio-u2-t1", "name": "Cromosomi eucariotici, centromeri, telomeri" },
+          { "id": "bio-u2-t2", "name": "Cromatina, nucleosomi, epigenetica" },
+          { "id": "bio-u2-t3", "name": "Genoma umano: sequenze ripetute, elementi mobili" } ] },
+        { "id": "bio-u3", "n": 3, "name": "Flusso dell'informazione", "cfu": 1.0, "topics": [
+          { "id": "bio-u3-t1", "name": "Replicazione del DNA e telomerasi" },
+          { "id": "bio-u3-t2", "name": "Il gene, promotori, elementi in cis" },
+          { "id": "bio-u3-t3", "name": "Trascrizione procariotica, operone Lac" },
+          { "id": "bio-u3-t4", "name": "Livelli di controllo dell'espressione genica" },
+          { "id": "bio-u3-t5", "name": "Trascrizione eucariotica, RNA polimerasi, fattori" },
+          { "id": "bio-u3-t6", "name": "Maturazione degli RNA, splicing, miRNA" },
+          { "id": "bio-u3-t7", "name": "Traduzione e codice genetico" },
+          { "id": "bio-u3-t8", "name": "Ripiegamento proteico e chaperon" },
+          { "id": "bio-u3-t9", "name": "Degradazione proteica, ubiquitina-proteasoma" } ] },
+        { "id": "bio-u4", "n": 4, "name": "Genetica: caratteri selvatici e mutati", "cfu": 0.75, "topics": [
+          { "id": "bio-u4-t1", "name": "Mutazioni e riparazione del DNA" },
+          { "id": "bio-u4-t2", "name": "Mendel, alleli, dominanza, AB0, epistasi, associazione" },
+          { "id": "bio-u4-t3", "name": "Penetranza, espressività, poligenia, imprinting" },
+          { "id": "bio-u4-t4", "name": "Cariotipo, aneuploidie, alterazioni strutturali" },
+          { "id": "bio-u4-t5", "name": "Alberi genealogici e modalità di trasmissione" } ] },
+        { "id": "bio-u5", "n": 5, "name": "Strutture cellulari", "cfu": 1.75, "topics": [
+          { "id": "bio-u5-t1", "name": "Membrane e mosaico fluido" },
+          { "id": "bio-u5-t2", "name": "Trasporto di membrana e potenziale" },
+          { "id": "bio-u5-t3", "name": "Smistamento delle proteine" },
+          { "id": "bio-u5-t4", "name": "Nucleo e trasporto nucleare (Ran)" },
+          { "id": "bio-u5-t5", "name": "Mitocondri, respirazione, importazione TOM/TIM" },
+          { "id": "bio-u5-t6", "name": "Perossisomi" },
+          { "id": "bio-u5-t7", "name": "Via secretoria, RE, Golgi, UPR/ERAD" },
+          { "id": "bio-u5-t8", "name": "Traffico vescicolare: rivestimenti, SNARE, Rab" },
+          { "id": "bio-u5-t9", "name": "Endocitosi, lisosomi, M6P, fagocitosi" },
+          { "id": "bio-u5-t10", "name": "Autofagia" },
+          { "id": "bio-u5-t11", "name": "Citoscheletro: microtubuli, actina, filamenti intermedi" } ] },
+        { "id": "bio-u6", "n": 6, "name": "Cellula e ambiente, segnalazione", "cfu": 0.75, "topics": [
+          { "id": "bio-u6-t1", "name": "Matrice extracellulare e integrine" },
+          { "id": "bio-u6-t2", "name": "Adesione e giunzioni cellulari" },
+          { "id": "bio-u6-t3", "name": "Segnalazione e trasduzione: GPCR, RTK, Ras-MAPK" } ] },
+        { "id": "bio-u7", "n": 7, "name": "Proliferazione e sopravvivenza", "cfu": 0.75, "topics": [
+          { "id": "bio-u7-t1", "name": "Ciclo cellulare, cicline e CDK" },
+          { "id": "bio-u7-t2", "name": "Punto di restrizione, Rb/E2F, p53, oncogeni" },
+          { "id": "bio-u7-t3", "name": "Mitosi e citodieresi" },
+          { "id": "bio-u7-t4", "name": "Meiosi e gametogenesi" },
+          { "id": "bio-u7-t5", "name": "Morte cellulare: necrosi e apoptosi" } ] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "cards": [
+    {
+      "id": "chi-u1-c001",
+      "topic": "chi-u1-t3",
+      "front": "Andamento dell'elettronegatività nella tavola periodica?",
+      "back": "Aumenta lungo il periodo (da sinistra a destra) e diminuisce scendendo nel gruppo. Il più elettronegativo è il fluoro.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u1-c002",
+      "topic": "chi-u1-t6",
+      "front": "Che cos'è il legame a idrogeno?",
+      "back": "Interazione tra un H legato a un atomo molto elettronegativo (F, O, N) e un doppietto libero di un altro atomo elettronegativo.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u1-c003",
+      "topic": "chi-u1-t8",
+      "front": "Equazione di stato dei gas perfetti?",
+      "back": "pV = nRT, con R = 0,0821 L·atm/(mol·K) = 8,314 J/(mol·K).",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u2-c001",
+      "topic": "chi-u2-t2",
+      "front": "Legge di Henry?",
+      "back": "La solubilità di un gas in un liquido è proporzionale alla sua pressione parziale: C = k·p.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u2-c002",
+      "topic": "chi-u2-t5",
+      "front": "Pressione osmotica (van't Hoff)?",
+      "back": "π = i·M·R·T.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u2-c003",
+      "topic": "chi-u2-t4",
+      "front": "Legge di Dalton?",
+      "back": "La pressione totale di una miscela di gas è la somma delle pressioni parziali: p_i = x_i · p_tot.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u3-c001",
+      "topic": "chi-u3-t4",
+      "front": "Differenza tra equilibrio chimico e stato stazionario?",
+      "back": "All'equilibrio le velocità diretta e inversa si eguagliano in un sistema chiuso (ΔG = 0); nello stato stazionario le concentrazioni restano costanti grazie a un flusso continuo di materia/energia (sistema aperto).",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u3-c002",
+      "topic": "chi-u3-t5",
+      "front": "Prodotto di solubilità di AgCl?",
+      "back": "Kps = [Ag⁺][Cl⁻]; precipita se il prodotto ionico Q supera Kps.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u3-c003",
+      "topic": "chi-u3-t2",
+      "front": "Energia di attivazione?",
+      "back": "Barriera energetica tra reagenti e stato di transizione; i catalizzatori la abbassano.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u4-c001",
+      "topic": "chi-u4-t2",
+      "front": "Equazione di Henderson-Hasselbalch?",
+      "back": "pH = pKa + log([A⁻]/[HA]). Il tampone è più efficace per pH = pKa ± 1.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u4-c002",
+      "topic": "chi-u4-t4",
+      "front": "Relazione tra ΔG e potenziale di cella?",
+      "back": "ΔG = −n·F·ΔE: una reazione redox è spontanea se ΔE > 0.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u4-c003",
+      "topic": "chi-u4-t4",
+      "front": "Reazione di Fenton?",
+      "back": "Fe²⁺ + H₂O₂ → Fe³⁺ + OH⁻ + •OH (radicale idrossilico).",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u5-c001",
+      "topic": "chi-u5-t4",
+      "front": "SN1 vs SN2?",
+      "back": "SN1: due stadi via carbocatione, cinetica del 1° ordine, favorita su C terziari, racemizzazione. SN2: un solo stadio, 2° ordine, C primari, inversione.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u5-c002",
+      "topic": "chi-u5-t2",
+      "front": "Che cos'è una miscela racemica?",
+      "back": "Miscela equimolare di due enantiomeri: è otticamente inattiva.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u5-c003",
+      "topic": "chi-u5-t7",
+      "front": "Effetto dei sostituenti nella sostituzione elettrofila aromatica?",
+      "back": "Elettron-donatori (–OH, –NH₂, –CH₃) attivano e orientano orto/para; elettron-attrattori (–NO₂, –COOH) disattivano e orientano meta (gli alogeni disattivano ma orientano orto/para).",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u6-c001",
+      "topic": "chi-u6-t3",
+      "front": "Formazione di un'immina (base di Schiff)?",
+      "back": "Aldeide/chetone + ammina primaria → C=N + H₂O (addizione nucleofila seguita da eliminazione).",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u6-c002",
+      "topic": "chi-u6-t4",
+      "front": "Ordine di reattività dei derivati acilici?",
+      "back": "Acil fosfati/anidridi > tioesteri > esteri > ammidi (le ammidi sono le meno reattive).",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u6-c003",
+      "topic": "chi-u6-t1",
+      "front": "Perché il fenolo è più acido di un alcol?",
+      "back": "Lo ione fenato è stabilizzato per risonanza con l'anello aromatico.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u7-c001",
+      "topic": "chi-u7-t3",
+      "front": "Che cos'è la mutarotazione?",
+      "back": "Interconversione in soluzione tra anomeri α e β di uno zucchero ciclico, passando per la forma aperta.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u7-c002",
+      "topic": "chi-u7-t5",
+      "front": "NAD⁺ e FAD: ruolo?",
+      "back": "Coenzimi (dinucleotidi) trasportatori di elettroni: NAD⁺ + 2e⁻ + H⁺ → NADH; FAD + 2e⁻ + 2H⁺ → FADH₂.",
+      "source": "seed"
+    },
+    {
+      "id": "chi-u7-c003",
+      "topic": "chi-u7-t2",
+      "front": "Livelli di struttura delle proteine?",
+      "back": "Primaria (sequenza), secondaria (α-elica, foglietto β: legami H dello scheletro), terziaria (ripiegamento 3D), quaternaria (più subunità).",
+      "source": "seed"
+    }
+  ]
+}

@@ -1,0 +1,541 @@
+{
+  "schema": 1,
+  "questions": [
+    {
+      "id": "bio-u1-q001",
+      "topic": "bio-u1-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il trasferimento di DNA da un batterio a un altro mediato da un batteriofago si chiama:",
+      "options": [
+        "trasformazione",
+        "coniugazione",
+        "trasduzione",
+        "transfezione",
+        "traslocazione"
+      ],
+      "answer": 2,
+      "explanation": "La trasduzione è il meccanismo di ricombinazione genica nei batteri in cui il trasferimento di materiale genetico da una cellula batterica donatrice a una ricevente è mediato da un virus batteriofago. Durante il ciclo litico o lisogeno del fago, frammenti del DNA batterico possono essere incorporati per errore nel capside virale (trasduzione generalizzata o specializzata) ed essere poi iniettati in un nuovo batterio ospite.\n\nPerché le altre sono sbagliate:\n• A) trasformazione: è il processo mediante il quale un batterio assume DNA libero esogeno presente nell'ambiente circostante, senza l'intervento di virus o contatti diretti.\n• B) coniugazione: richiede il contatto fisico diretto tra due cellule batteriche attraverso un pilo sessuale (pilo F) e il trasferimento di un plasmide (es. plasmide F).\n• D) transfezione: è l'introduzione artificiale di acidi nucleici esogeni in cellule eucariotiche (o batteriche prive di parete/protoplasti) tramite metodi chimici o fisici in laboratorio.\n• E) traslocazione: è una mutazione cromosomica strutturale (spostamento di un segmento di DNA tra cromosomi non omologhi) oppure il movimento del ribosoma lungo l'mRNA durante la traduzione."
+    },
+    {
+      "id": "bio-u1-q002",
+      "topic": "bio-u1-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un retrovirus utilizza per replicarsi l'enzima:",
+      "options": [
+        "DNA polimerasi DNA-dipendente",
+        "trascrittasi inversa",
+        "RNA polimerasi II",
+        "telomerasi umana",
+        "primasi"
+      ],
+      "answer": 1,
+      "explanation": "I retrovirus (come l'HIV) possiedono un genoma costituito da RNA a singolo filamento a polarità positiva. Per potersi replicare e integrare nel genoma della cellula ospite, utilizzano l'enzima retrovirale trascrittasi inversa (una DNA polimerasi RNA-dipendente), che retrotrascrive l'RNA virale in una molecola di DNA a doppio filamento (cDNA provirale). Tale provirus viene poi integrato stabilmente nel genoma dell'ospite grazie all'enzima integrasi.\n\nPerché le altre sono sbagliate:\n• A) DNA polimerasi DNA-dipendente: sintetizza DNA partendo da uno stampo di DNA, enzima standard della replicazione cellulare, non responsabile della retrotrascrizione a partire dall'RNA virale.\n• C) RNA polimerasi II: è l'enzima cellulare dell'ospite responsabile della trascrizione degli mRNA a partire dal DNA (viene sfruttato successivamente per trascrivere il genoma virale integrato, ma non per replicare direttamente l'RNA retrovirale iniziale).\n• D) telomerasi umana: è una ribonucleoproteina cellulare specifica che allunga le estremità telomeriche dei cromosomi eucariotici per contrastare il problema della replicazione terminale.\n• E) primasi: è una RNA polimerasi DNA-dipendente cellulare che sintetizza i brevi inneschi a RNA (primer) necessari per l'avvio della replicazione del DNA."
+    },
+    {
+      "id": "bio-u1-q003",
+      "topic": "bio-u1-t4",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Secondo la teoria endosimbiontica i mitocondri derivano da:",
+      "options": [
+        "virus",
+        "batteri aerobi inglobati",
+        "cianobatteri",
+        "il nucleo",
+        "il reticolo endoplasmatico"
+      ],
+      "answer": 1,
+      "explanation": "La teoria endosimbiontica formulata da Lynn Margulis sostiene che i mitocondri derivino da antichi procarioti aerobi (alfaproteobatteri) inglobati da una cellula procariotica ospite ancestrale o proto-eucariotica mediante fagocitosi, stabilendo una simbiosi mutualistica vantaggiosa. A supporto di questa teoria vi sono la presenza nei mitocondri di una propria doppia membrana, di un genoma proprio a DNA circolare privo di istoni e di ribosomi 70S sensibili agli antibiotici batterici.\n\nPerché le altre sono sbagliate:\n• A) virus: sono parassiti endocellulari obbligati acellulari privi di metabolismo autonomo, di apparato di traduzione o di membrane cellulari con fosforilazione ossidativa.\n• C) cianobatteri: sono procarioti fotosintetici autotrofi da cui, secondo la teoria endosimbiontica, si sono originati i cloroplasti delle cellule vegetali, non i mitocondri.\n• D) il nucleo: è l'organello cellulare delimitato da un involucro a doppia membrana contenente il genoma principale dell'eucariote, non un precursore ancestrale dei mitocondri.\n• E) il reticolo endoplasmatico: fa parte del sistema delle endomembrane della cellula eucariotica, originatosi per invaginazione della membrana plasmatica e non per endosimbiosi procariotica."
+    },
+    {
+      "id": "bio-u1-q004",
+      "topic": "bio-u1-t3",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "I batteri con parete spessa di peptidoglicano che trattengono il cristal-violetto sono detti Gram-______.",
+      "answers": [
+        "positivi",
+        "positivo",
+        "+"
+      ],
+      "explanation": "I Gram-negativi hanno parete sottile e membrana esterna con LPS."
+    },
+    {
+      "id": "bio-u1-q005",
+      "topic": "bio-u1-t5",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Gli enzimi che aggiungono gruppi fosfato alle proteine si chiamano ______.",
+      "answers": [
+        "chinasi",
+        "kinasi",
+        "protein chinasi"
+      ],
+      "explanation": "Le fosfatasi rimuovono i fosfati."
+    },
+    {
+      "id": "bio-u2-q001",
+      "topic": "bio-u2-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il nucleosoma è formato da DNA avvolto attorno a un ottamero di istoni costituito da:",
+      "options": [
+        "H1 ×8",
+        "H2A, H2B, H3, H4 (due copie ciascuno)",
+        "H1, H2A, H3, H4",
+        "solo H3 e H4",
+        "protamine"
+      ],
+      "answer": 1,
+      "explanation": "Il nucleosoma è l'unità strutturale fondamentale della cromatina eucariotica. Il nucleo centrale (core nucleosomico) è costituito da un ottamero istonico formato da un tetramero (H3)₂-(H4)₂ associato a due dimeri H2A-H2B, attorno al quale si avvolge un tratto di DNA a doppio filamento di circa 146-147 coppie di basi compiendo 1,65 giri superelicoidali sinistrorsi.\n\nPerché le altre sono sbagliate:\n• A) H1 ×8: l'istone H1 non forma un ottamero e non fa parte del core nucleosomico; è l'istone di legame (linker) che si associa all'esterno del nucleosoma per favorire la compattazione in fibra da 30 nm.\n• C) H1, H2A, H3, H4: include l'istone H1 (che è linker esterno) e omette H2B, oltre a non indicare la stechiometria di due copie per ciascuno dei quattro istoni core.\n• D) solo H3 e H4: H3 e H4 formano il tetramero centrale (H3)₂-(H4)₂, ma per completare l'ottamero sono indispensabili anche i due dimeri H2A-H2B.\n• E) protamine: sono piccole proteine basiche ricche di arginina che sostituiscono gli istoni durante la spermiogenesi nei gameti maschili per compattare massimamente il DNA nello spermatozoo."
+    },
+    {
+      "id": "bio-u2-q002",
+      "topic": "bio-u2-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "L'acetilazione degli istoni in genere:",
+      "options": [
+        "compatta la cromatina e reprime la trascrizione",
+        "rilassa la cromatina e favorisce la trascrizione",
+        "metila il DNA",
+        "taglia il DNA",
+        "non ha effetti"
+      ],
+      "answer": 1,
+      "explanation": "L'acetilazione dei residui di lisina sulle code N-terminali degli istoni core è catalizzata dagli enzimi istone acetiltransferasi (HAT). Questo gruppo acetile neutralizza la carica positiva del gruppo amminico delle lisine, riducendo l'attrazione elettrostatica tra le code istoniche basiche e i gruppi fosfato carichi negativamente del DNA. Di conseguenza, la fibra cromatinica si decondensa (eucromatina), rendendo il DNA accessibile ai fattori di trascrizione e alla RNA polimerasi e stimolando la trascrizione genica.\n\nPerché le altre sono sbagliate:\n• A) compatta la cromatina e reprime la trascrizione: questo è invece l'effetto della deacetilazione degli istoni (catalizzata dalle istone deacetilasi, HDAC), che ripristina la carica positiva delle lisine e promuove la formazione di eterocromatina trascrizionalmente inattiva.\n• C) metila il DNA: la metilazione del DNA avviene sulle citosine nei dinucleotidi CpG ad opera delle DNA metiltransferasi (DNMT) ed è una reazione chimicamente distinta dall'acetilazione istonica.\n• D) taglia il DNA: il taglio del DNA è operato da enzimi nucleasi (come endonucleasi, esonucleasi o topoisomerasi), non dalle istone acetiltransferasi.\n• E) non ha effetti: le modificazioni post-traduzionali degli istoni costituiscono il codice istonico, uno dei principali meccanismi di regolazione epigenetica dell'espressione genica."
+    },
+    {
+      "id": "bio-u2-q003",
+      "topic": "bio-u2-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Le sequenze LINE e SINE sono:",
+      "options": [
+        "sequenze ripetute in tandem",
+        "sequenze ripetute intersperse (retrotrasposoni)",
+        "geni per rRNA",
+        "telomeri",
+        "microsatelliti"
+      ],
+      "answer": 1,
+      "explanation": "Le sequenze LINE (Long Interspersed Nuclear Elements, es. LINE-1 di circa 6-7 kb) e SINE (Short Interspersed Nuclear Elements, es. elementi Alu di circa 300 bp) sono retrotrasposoni non LTR, ossia sequenze di DNA moderatamente ripetute e intersperse lungo tutto il genoma. Si moltiplicano e si inseriscono in nuove posizioni genomiche attraverso un meccanismo di tipo \"copia e incolla\" mediato da un intermedio a RNA retrotrascritto in DNA da una trascrittasi inversa.\n\nPerché le altre sono sbagliate:\n• A) sequenze ripetute in tandem: sono costituite da copie di sequenze ripetute disposte l'una di seguito all'altra su un unico locus cromosomico, come i DNA satelliti centromerici, minisatelliti e microsatelliti.\n• C) geni per rRNA: sono disposti in tandem clusterizzati nelle regioni organizzatrici nucleolari (NOR) sui bracci corti dei cromosomi acrocentrici umani (13, 14, 15, 21, 22), non sono elementi trasponibili interspersi.\n• D) telomeri: sono sequenze ripetute in tandem non codificanti (nell'uomo TTAGGG) posizionate esclusivamente alle estremità terminali dei cromosomi lineari.\n• E) microsatelliti: detti anche STR (Short Tandem Repeats), sono brevi ripetizioni in tandem di 1-6 nucleotidi (es. dinucleotidi CA), non retrotrasposoni interspersi."
+    },
+    {
+      "id": "bio-u2-q004",
+      "topic": "bio-u2-t2",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "La cromatina condensata e trascrizionalmente poco attiva si chiama ______.",
+      "answers": [
+        "eterocromatina"
+      ],
+      "explanation": "L'eucromatina è decondensata e attiva."
+    },
+    {
+      "id": "bio-u2-q005",
+      "topic": "bio-u2-t1",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Le estremità dei cromosomi lineari eucariotici si chiamano ______.",
+      "answers": [
+        "telomeri",
+        "telomero"
+      ],
+      "explanation": "Sequenze ripetute (TTAGGG nell'uomo) mantenute dalla telomerasi."
+    },
+    {
+      "id": "bio-u3-q001",
+      "topic": "bio-u3-t1",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "I frammenti di Okazaki si formano:",
+      "options": [
+        "sul filamento guida",
+        "sul filamento lento (discontinuo)",
+        "durante la trascrizione",
+        "durante lo splicing",
+        "solo nei procarioti"
+      ],
+      "answer": 1,
+      "explanation": "Durante la replicazione semiconservativa del DNA, la DNA polimerasi sintetizza il nuovo filamento esclusivamente in direzione 5'→3'. Poiché i due filamenti parentali sono antiparalleli e la forcella di replicazione si apre in una sola direzione, un solo filamento (filamento guida o leading) può essere sintetizzato in modo continuo; l'altro filamento (filamento lento, ritardato o lagging) deve essere sintetizzato in modo discontinuo sotto forma di corti segmenti denominati frammenti di Okazaki, ciascuno innescato da un primer a RNA e successivamente uniti dalla DNA ligasi.\n\nPerché le altre sono sbagliate:\n• A) sul filamento guida: il filamento guida cresce in modo continuo nella stessa direzione di avanzamento della forcella replicativa, senza discontinuità né frammenti di Okazaki.\n• C) durante la trascrizione: la trascrizione è la sintesi di RNA a singolo filamento catalizzata dalla RNA polimerasi e produce una molecola continua senza frammenti di Okazaki.\n• D) durante lo splicing: è il processo di maturazione post-trascrizionale dell'mRNA eucariotico in cui gli introni vengono rimossi e gli esoni saldati insieme nello spliceosoma.\n• E) solo nei procarioti: i frammenti di Okazaki si formano sia nei procarioti (dove sono lunghi circa 1000-2000 nucleotidi) sia negli eucarioti (dove sono più brevi, circa 100-200 nucleotidi)."
+    },
+    {
+      "id": "bio-u3-q002",
+      "topic": "bio-u3-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Negli eucarioti gli mRNA sono trascritti dalla:",
+      "options": [
+        "RNA polimerasi I",
+        "RNA polimerasi II",
+        "RNA polimerasi III",
+        "primasi",
+        "trascrittasi inversa"
+      ],
+      "answer": 1,
+      "explanation": "Negli eucarioti esistono tre principali RNA polimerasi nucleari con compiti specializzati. La RNA polimerasi II è l'enzima deputato alla trascrizione di tutti i geni che codificano per proteine (sintesi dei precursori degli mRNA, pre-mRNA) e di alcuni piccoli RNA non codificanti, tra cui la maggior parte degli snRNA e i miRNA.\n\nPerché le altre sono sbagliate:\n• A) RNA polimerasi I: trascrive quasi esclusivamente i geni per i grandi RNA ribosomiali (precursore 45S che dà origine agli rRNA 28S, 18S e 5,8S) nel nucleolo.\n• C) RNA polimerasi III: trascrive piccoli RNA funzionali stabili, principalmente i tRNA, l'rRNA 5S e l'snRNA U6.\n• D) primasi: è una RNA polimerasi specializzata nella sintesi di oligonucleotidi di innesco (primer) necessari per la replicazione del DNA, non sintetizza mRNA.\n• E) trascrittasi inversa: è una DNA polimerasi RNA-dipendente tipica dei retrovirus e dei retrotrasposoni (e presente nella telomerasi), che sintetizza DNA a partire da uno stampo di RNA."
+    },
+    {
+      "id": "bio-u3-q003",
+      "topic": "bio-u3-t7",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il fatto che più codoni codifichino per lo stesso amminoacido indica che il codice genetico è:",
+      "options": [
+        "ambiguo",
+        "degenerato (ridondante)",
+        "sovrapposto",
+        "non universale",
+        "a doppietti"
+      ],
+      "answer": 1,
+      "explanation": "Il codice genetico è definito \"degenerato\" o \"ridondante\" perché esistono 64 possibili triplette (codoni) a fronte di soli 20 amminoacidi standard (più i 3 codoni di stop: UAA, UAG, UGA). Di conseguenza, quasi tutti gli amminoacidi (eccetto metionina e triptofano, codificati da un solo codone) sono specificati da più di un codone sinonimo (ad esempio leucina, arginina e serina sono codificate da 6 codoni ciascuna).\n\nPerché le altre sono sbagliate:\n• A) ambiguo: il codice genetico NON è ambiguo; un codice ambiguo significherebbe che un dato codone può specificare amminoacidi diversi, mentre nel codice genetico ogni codone specifica in modo univoco uno e un solo amminoacido.\n• C) sovrapposto: il codice genetico non è sovrapposto (è continuo e privo di virgole); le triplette vengono lette consecutivamente tre nucleotidi alla volta senza condividere basi tra codoni adiacenti.\n• D) non universale: il codice genetico è quasi universale, essendo condiviso da tutti gli organismi viventi dai batteri all'uomo, salvo rare eccezioni nei mitocondri o in alcuni protozoi ciliati.\n• E) a doppietti: il codice genetico è basato su triplette (3 nucleotidi per codone, 4³ = 64 combinazioni), mentre un codice a doppietti genererebbe solo 4² = 16 combinazioni, insufficienti a codificare 20 amminoacidi."
+    },
+    {
+      "id": "bio-u3-q004",
+      "topic": "bio-u3-t6",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La rimozione degli introni dal pre-mRNA si chiama ______.",
+      "answers": [
+        "splicing"
+      ],
+      "explanation": "È svolta dallo spliceosoma (snRNP); lo splicing alternativo genera isoforme diverse."
+    },
+    {
+      "id": "bio-u3-q005",
+      "topic": "bio-u3-t7",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Il codone di inizio della traduzione è ______.",
+      "answers": [
+        "AUG"
+      ],
+      "explanation": "AUG codifica la metionina; i codoni di stop sono UAA, UAG, UGA."
+    },
+    {
+      "id": "bio-u4-q001",
+      "topic": "bio-u4-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Dall'incrocio Aa × Aa (A dominante) la proporzione fenotipica attesa è:",
+      "options": [
+        "1:1",
+        "1:2:1",
+        "3:1",
+        "9:3:3:1",
+        "tutti dominanti"
+      ],
+      "answer": 2,
+      "explanation": "Secondo la prima legge di Mendel (legge della segregazione), ciascun genitore eterozigote Aa produce gameti contenenti l'allele A o l'allele a con frequenza pari al 50% (1/2 A e 1/2 a). Compilando il quadrato di Punnett, le combinazioni genotipiche della progenie sono: 1/4 AA, 2/4 (1/2) Aa e 1/4 aa, con un rapporto genotipico di 1:2:1. Poiché l'allele A è completamente dominante su a, sia gli individui AA sia gli eterozigoti Aa manifestano il fenotipo dominante (1/4 + 2/4 = 3/4), mentre solo gli omozigoti recessivi aa manifestano il fenotipo recessivo (1/4), determinando un rapporto fenotipico di 3:1.\n\nPerché le altre sono sbagliate:\n• A) 1:1: è il rapporto fenotipico e genotipico atteso da un reincrocio (test cross) tra un eterozigote e un omozigote recessivo (Aa × aa).\n• B) 1:2:1: rappresenta il rapporto GENOTIPICO (1 AA : 2 Aa : 1 aa) dell'incrocio tra due eterozigoti, oppure il rapporto fenotipico nel caso di dominanza incompleta o codominanza, ma non in caso di dominanza completa dove il rapporto fenotipico è 3:1.\n• D) 9:3:3:1: è il rapporto fenotipico classico della progenie F2 in un incrocio diidrido mendeliano tra due doppi eterozigoti per geni indipendenti (AaBb × AaBb), non in un monoibrido.\n• E) tutti dominanti: si otterrebbero incrociando un omozigote dominante con un eterozigote o con un omozigote recessivo (AA × AA, AA × Aa o AA × aa), ma non dall'incrocio Aa × Aa in cui il 25% della prole manifesta il fenotipo recessivo aa."
+    },
+    {
+      "id": "bio-u4-q002",
+      "topic": "bio-u4-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Una malattia X-linked recessiva:",
+      "options": [
+        "colpisce più spesso le femmine",
+        "è trasmessa da padre a figlio maschio",
+        "colpisce più spesso i maschi; le madri portatrici la trasmettono a metà dei figli maschi",
+        "compare in ogni generazione",
+        "è trasmessa solo per via materna a tutti i figli"
+      ],
+      "answer": 2,
+      "explanation": "Nelle malattie a trasmissione recessiva legata al cromosoma X (X-linked recessiva, come emofilia A/B o daltonismo), i maschi (XY) sono emizigoti per i geni localizzati sul cromosoma X: possedendo un unico cromosoma X di origine materna, basta un singolo allele mutato per manifestare la patologia fenotipica. Le femmine (XX), per manifestare la malattia, dovrebbero possedere entrambi gli alleli mutati (evento molto raro). Una donna eterozigote portatrice sana (X^A X^a) trasmette il cromosoma X con la mutazione al 50% dei propri figli maschi (che risulteranno affetti) e al 50% delle figlie femmine (che saranno portatrici sane).\n\nPerché le altre sono sbagliate:\n• A) colpisce più spesso le femmine: è una caratteristica delle malattie X-linked DOMINANTI, mentre le malattie recessive legate all'X colpiscono quasi esclusivamente o con frequenza enormemente maggiore i maschi.\n• B) è trasmessa da padre a figlio maschio: un padre trasmette sempre il proprio cromosoma Y ai figli maschi e il proprio cromosoma X alle figlie femmine; la trasmissione maschio-maschio è quindi impossibile per patologie legate al cromosoma X (esclude l'eredità X-linked).\n• D) compare in ogni generazione: la trasmissione verticale continua generazione dopo generazione è tipica delle malattie autosomiche dominanti; le malattie recessive mostrano tipicamente salti di generazione.\n• E) è trasmessa solo per via materna a tutti i figli: questa è la caratteristica tipica dell'eredità mitocondriale (materna), in cui una madre affetta trasmette il DNA mitocondriale alterato alla totalità della prole."
+    },
+    {
+      "id": "bio-u4-q003",
+      "topic": "bio-u4-t4",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "La sindrome di Down è più frequentemente dovuta a:",
+      "options": [
+        "monosomia del 21",
+        "trisomia libera del 21 da non-disgiunzione",
+        "delezione del 5p",
+        "triploidia",
+        "mutazione puntiforme"
+      ],
+      "answer": 1,
+      "explanation": "La sindrome di Down (o trisomia 21) è l'aneuploidia autosomica vitale più frequente. In circa il 95% dei casi è dovuta a una trisomia 21 libera e completa (cariotipo 47,XX,+21 o 47,XY,+21) causata da un evento di non-disgiunzione meiotica dei cromosomi omologhi o dei cromatidi fratelli durante la gametogenesi, prevalentemente durante la meiosi I materna, con frequenza che correla fortemente con l'avanzare dell'età materna.\n\nPerché le altre sono sbagliate:\n• A) monosomia del 21: la monosomia per un intero autosoma è sempre letale nell'uomo allo stadio embrionale precoce e non è compatibile con la vita.\n• C) delezione del 5p: la delezione parziale del braccio corto del cromosoma 5 causa la sindrome del \"cri du chat\" (pianto del gatto), una sindrome genetica completamente distinta dalla sindrome di Down.\n• D) triploidia: la triploidia (3n = 69 cromosomi) è una poliploidia (presenza di un intero assetto cromosomico sovrannumerario), letale in epoca perinatale, che non corrisponde all'aneuploidia per il cromosoma 21.\n• E) mutazione puntiforme: la sindrome di Down è un'anomalia cromosomica numerica (aneuploidia dell'intero cromosoma 21), non una malattia monogenica causata da mutazioni puntiformi di singoli nucleotidi."
+    },
+    {
+      "id": "bio-u4-q004",
+      "topic": "bio-u4-t2",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Nel sistema AB0, il gruppo AB è un esempio di ______ (gli alleli A e B si esprimono entrambi).",
+      "answers": [
+        "codominanza"
+      ],
+      "explanation": "A e B sono codominanti tra loro e dominanti su 0."
+    },
+    {
+      "id": "bio-u4-q005",
+      "topic": "bio-u4-t2",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Dall'incrocio di due diibridi AaBb × AaBb (geni indipendenti) la frazione di figli aabb è 1/____.",
+      "numeric": {
+        "value": 16,
+        "tolerance": 0.001
+      },
+      "explanation": "1/4 · 1/4 = 1/16."
+    },
+    {
+      "id": "bio-u5-q001",
+      "topic": "bio-u5-t9",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Gli enzimi lisosomiali sono indirizzati ai lisosomi grazie al segnale:",
+      "options": [
+        "KDEL",
+        "mannosio-6-fosfato",
+        "sequenza di localizzazione nucleare",
+        "SKL",
+        "ubiquitina"
+      ],
+      "answer": 1,
+      "explanation": "Le idrolasi acide destinate ai lisosomi vengono sintetizzate nel reticolo endoplasmatico rugoso e trasferite al cis-Golgi. Qui, l'enzima GlcNAc-fosfotransferasi riconosce un patch segnale tridimensionale sulla proteina e aggiunge un gruppo fosfato al residuo di mannosio di un oligosaccaride N-linked, generando il segnale mannosio-6-fosfato (M6P). Nel trans-Golgi network, specifici recettori transmembrana per l'M6P legano le idrolasi lisosomiali e le instradano in vescicole rivestite di clatrina dirette agli endosomi tardivi e ai lisosomi.\n\nPerché le altre sono sbagliate:\n• A) KDEL: è il peptide segnale C-terminale (Lys-Asp-Glu-Leu) responsabile della ritenzione e del recupero retrogrado (tramite vescicole COP I) delle proteine solubili residenti nel lume del reticolo endoplasmatico.\n• C) sequenza di localizzazione nucleare: (NLS, Nuclear Localization Signal), è una sequenza ricca di amminoacidi basici (lisina e arginina) che media l'importazione di proteine nel nucleo attraverso i pori nucleari legando le importine.\n• D) SKL: (Ser-Lys-Leu all'estremità C-terminale) è la sequenza segnale di importazione (PTS1) delle proteine destinate alla matrice dei perossisomi.\n• E) ubiquitina: è un piccolo peptide regolatorio di 76 amminoacidi che, coniugato covalentemente a proteine bersaglio tramite residui di lisina (poliubiquitinazione), ne determina la degradazione da parte del proteasoma 26S."
+    },
+    {
+      "id": "bio-u5-q002",
+      "topic": "bio-u5-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La pompa Na⁺/K⁺ ATPasi per ogni ATP idrolizzato trasporta:",
+      "options": [
+        "3 Na⁺ dentro e 2 K⁺ fuori",
+        "3 Na⁺ fuori e 2 K⁺ dentro",
+        "2 Na⁺ fuori e 3 K⁺ dentro",
+        "1 Na⁺ e 1 K⁺ nella stessa direzione",
+        "solo Na⁺"
+      ],
+      "answer": 1,
+      "explanation": "La pompa sodio-potassio (Na⁺/K⁺ ATPasi) è una proteina integrale di membrana appartenente alle ATPasi di tipo P che opera un trasporto attivo primario contro gradiente elettrochimico. Per ogni molecola di ATP idrolizzata ad ADP e fosfato inorganico, la pompa estrude 3 ioni Na⁺ fuori dalla cellula verso lo spazio extracellulare e introduce 2 ioni K⁺ all'interno del citoplasma. Questo rapporto asimmetrico (3:2) rende la pompa elettrogenica, contribuendo al mantenimento del potenziale di membrana a riposo e dei gradienti osmotici ed elettrochimici cellulari.\n\nPerché le altre sono sbagliate:\n• A) 3 Na⁺ dentro e 2 K⁺ fuori: inverte il verso del trasporto fisiologico: la concentrazione di Na⁺ è già fisiologicamente molto più alta all'esterno e quella di K⁺ all'interno, quindi la pompa deve spingere il sodio fuori e il potassio dentro.\n• C) 2 Na⁺ fuori e 3 K⁺ dentro: inverte la stechiometria degli ioni trasportati; sono 3 i cationi sodio espulsi e 2 i cationi potassio importati.\n• D) 1 Na⁺ e 1 K⁺ nella stessa direzione: descriverebbe un cotrasporto (simporto), mentre la pompa Na⁺/K⁺ è un antiporto con stechiometria 3:2 che trasporta i due ioni in direzioni opposte.\n• E) solo Na⁺: la pompa estrude Na⁺ solo in concomitanza con l'ingresso di K⁺ (meccanismo a due stati conformazionali fosforilato/defosforilato E1 ed E2 che richiede entrambi gli ioni per completare il ciclo catalitico)."
+    },
+    {
+      "id": "bio-u5-q003",
+      "topic": "bio-u5-t11",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Le chinesine sono proteine motrici che si muovono in genere:",
+      "options": [
+        "lungo l'actina verso l'estremità +",
+        "lungo i microtubuli verso l'estremità +",
+        "lungo i microtubuli verso l'estremità −",
+        "lungo i filamenti intermedi",
+        "solo nelle ciglia"
+      ],
+      "answer": 1,
+      "explanation": "Le chinesine sono proteine motrici citoscheletriche ATP-dipendenti che interagiscono con i microtubuli. La maggior parte delle chinesine (chinesine convenzionali della famiglia chinesina-1) si sposta in direzione anterograda lungo il microtubulo verso l'estremità positiva (plus-end-directed), ossia dal centro della cellula (dove si trova il centrosoma, ancoraggio dell'estremità minus) verso la periferia cellulare e la membrana plasmatica, trasportando vescicole secretorie e organelli.\n\nPerché le altre sono sbagliate:\n• A) lungo l'actina verso l'estremità +: i motori proteici che si muovono lungo i microfilamenti di actina sono le miosine (in particolare miosina II e miosina V), non le chinesine.\n• C) lungo i microtubuli verso l'estremità −: il movimento verso l'estremità minus (retrogrado, dalla periferia verso il centro cellulare/centrosoma) è caratteristico delle dineine citoplasmatiche, non delle chinesine tipiche.\n• D) lungo i filamenti intermedi: i filamenti intermedi (es. cheratina, vimentina, lamine) non presentano polarità strutturale intrinseca e non fungono da binari per motori proteici.\n• E) solo nelle ciglia: le chinesine sono ubiquitarie in tutto il citoplasma cellulare dove mediano il trasporto intracellulare di organelli e vescicole, oltre a partecipare alla formazione del fuso mitotico (le proteine motrici specifiche delle ciglia sono le dineine assonemali)."
+    },
+    {
+      "id": "bio-u5-q004",
+      "topic": "bio-u5-t7",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La particella che riconosce la sequenza segnale di una proteina nascente e la porta al RE si chiama ____ (sigla).",
+      "answers": [
+        "SRP"
+      ],
+      "explanation": "Signal Recognition Particle: si lega al suo recettore sul RE e trasferisce il ribosoma al traslocone."
+    },
+    {
+      "id": "bio-u5-q005",
+      "topic": "bio-u5-t5",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il traslocatore della membrana mitocondriale esterna si chiama ____ (sigla).",
+      "answers": [
+        "TOM"
+      ],
+      "explanation": "TOM = membrana esterna; TIM = membrana interna; SAM per le proteine β-barrel; OXA per l'inserzione dalla matrice."
+    },
+    {
+      "id": "bio-u6-q001",
+      "topic": "bio-u6-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Ras è attivata quando:",
+      "options": [
+        "lega GDP",
+        "un GEF scambia GDP con GTP",
+        "un GAP idrolizza GTP",
+        "viene ubiquitinata",
+        "lega cAMP"
+      ],
+      "answer": 1,
+      "explanation": "Ras è una piccola GTPasi monomerica ancorata al versante citosolico della membrana plasmatica che agisce da interruttore molecolare nelle vie di trasduzione del segnale (es. via MAPK/ERK). Nello stato inattivo, Ras è legata a guanosin difosfato (GDP). L'attivazione avviene quando fattori di scambio nucleotidico della guanina (GEF, come Sos) stimolano il rilascio di GDP e il conseguente legame di GTP (più abbondante nel citosol), inducendo un cambio conformazionale che permette a Ras-GTP di reclutare e attivare la chinasi Raf.\n\nPerché le altre sono sbagliate:\n• A) lega GDP: quando Ras è legata a GDP si trova nella conformazione inattiva \"spenta\".\n• C) un GAP idrolizza GTP: le proteine che attivano la GTPasi (GAP) stimolano la debole attività enzimatica intrinseca di idrolisi del GTP di Ras in GDP + Pi, accelerando lo spegnimento e l'inattivazione di Ras.\n• D) viene ubiquitinata: l'ubiquitinazione è un segnale di degradazione o smistamento endosomiale, non il meccanismo che commuta Ras nel suo stato attivo di signaling.\n• E) lega cAMP: il secondo messaggero cAMP lega e attiva la protein chinasi A (PKA) o i fattori EPAC, non si lega direttamente a Ras."
+    },
+    {
+      "id": "bio-u6-q002",
+      "topic": "bio-u6-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Le giunzioni che permettono il passaggio diretto di ioni e piccole molecole tra cellule adiacenti sono:",
+      "options": [
+        "giunzioni occludenti",
+        "desmosomi",
+        "giunzioni comunicanti (gap)",
+        "emidesmosomi",
+        "giunzioni aderenti"
+      ],
+      "answer": 2,
+      "explanation": "Le giunzioni comunicanti (o giunzioni gap) mettono in comunicazione diretta il citoplasma di due cellule adiacenti creando un accoppiamento metabolico ed elettrico. Ciascun canale intracellulare è formato dall'allineamento di due emicanali chiamati connessoni (uno su ciascuna membrana plasmatica), ciascuno costituito da un anello di 6 subunità proteiche chiamate connessine. Attraverso il poro acquoso (del diametro di circa 1,5 nm) possono passare liberamente ioni inorganici (come Na⁺, K⁺, Ca²⁺) e piccole molecole idrosolubili fino a circa 1000-1200 Da (come cAMP, IP₃, ATP, amminoacidi, glucosio).\n\nPerché le altre sono sbagliate:\n• A) giunzioni occludenti: (tight junctions o zonulae occludentes), formate da occludine e claudine, sigillano lo spazio intercellulare tra cellule epiteliali impedendo il passaggio paracellulare di molecole e separando il dominio apicale da quello basolaterale.\n• B) desmosomi: (maculae adherentes), sono giunzioni meccaniche di ancoraggio che legano i filamenti intermedi (cheratine) di cellule adiacenti mediante caderine desmosomiali (desmogleine e desmocolline), conferendo resistenza meccanica a trazioni senza formare pori di passaggio.\n• D) emidesmosomi: ancorano la superficie basale delle cellule epiteliali alla lamina basale sottostante mediante integrine (come α6β4) collegate ai filamenti intermedi, non collegano cellule adiacenti né consentono il passaggio intercellulare.\n• E) giunzioni aderenti: (zonulae adherentes), ancorano i filamenti di actina citoscheletrici tra cellule vicine attraverso caderine classiche e catenine, garantendo coesione tissutale e regolazione morfogenetica ma non permettendo il transito diretto citoplasmatico."
+    },
+    {
+      "id": "bio-u6-q003",
+      "topic": "bio-u6-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "L'ossido nitrico (NO) agisce:",
+      "options": [
+        "legando un recettore di membrana tirosin-chinasico",
+        "diffondendo nella cellula bersaglio e attivando la guanilato ciclasi solubile",
+        "aprendo canali per il Na⁺",
+        "come secondo messaggero lipidico",
+        "legando recettori nucleari"
+      ],
+      "answer": 1,
+      "explanation": "L'ossido nitrico (NO) è un mediatore chimico paracrino gassoso sintetizzato dall'enzima ossido nitrico sintasi (NOS) a partire dall'amminoacido L-arginina. Essendo un gas privo di carica e altamente lipofilo, NO attraversa rapidamente le membrane cellulari per diffusione semplice senza bisogno di recettori di membrana. All'interno della cellula bersaglio (ad esempio le fibrocellule muscolari lisce della parete vasale), lega con altissima affinità il gruppo eme della guanilato ciclasi solubile citosolica (sGC), attivandola a catalizzare la conversione di GTP in cGMP. L'aumento di cGMP attiva la protein chinasi G (PKG), determinando vasodilatazione e rilassamento muscolare.\n\nPerché le altre sono sbagliate:\n• A) legando un recettore di membrana tirosin-chinasico: i recettori tirosin-chinasici (RTK) legano ligandi idrofilici extracellulari macromolecolari (come fattori di crescita EGF, PDGF, FGF o insulina), non gas diffusibili come NO.\n• C) aprendo canali per il Na⁺: NO non è un neurotrasmettitore canale-dipendente (come l'acetilcolina sui recettori nicotinici).\n• D) come secondo messaggero lipidico: i secondi messaggeri lipidici sono molecole come diacilglicerolo (DAG), inositolo trifosfato (IP₃) o fosfatidilinositoli fosforilati (PIP₃), generati dall'idrolisi enzimatica di lipidi di membrana, non molecole gassose.\n• E) legando recettori nucleari: i recettori nucleari legano ormoni steroidei, ormoni tiroidei o acido retinoico, modulando direttamente la trascrizione genica; NO invece agisce a livello citosolico sulla guanilato ciclasi solubile con effetti enzimatici rapidi."
+    },
+    {
+      "id": "bio-u6-q004",
+      "topic": "bio-u6-t1",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "I recettori transmembrana che ancorano la cellula alla matrice extracellulare (es. fibronectina) sono le ______.",
+      "answers": [
+        "integrine",
+        "integrina"
+      ],
+      "explanation": "Collegano la MEC al citoscheletro e trasducono segnali meccanici."
+    },
+    {
+      "id": "bio-u6-q005",
+      "topic": "bio-u6-t3",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "L'AMP ciclico è un esempio di secondo ______.",
+      "answers": [
+        "messaggero"
+      ],
+      "explanation": "Prodotto dall'adenilato ciclasi attivata da proteine Gs."
+    },
+    {
+      "id": "bio-u7-q001",
+      "topic": "bio-u7-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La fosforilazione di Rb da parte di ciclina D-CDK4/6:",
+      "options": [
+        "blocca il ciclo in G1",
+        "libera E2F permettendo la trascrizione dei geni per la fase S",
+        "attiva p53",
+        "avvia l'apoptosi",
+        "degrada la securina"
+      ],
+      "answer": 1,
+      "explanation": "La proteina del retinoblastoma (pRb) è un oncosoppressore chiave che controlla il punto di restrizione (checkpoint G1/S). Nello stato ipofosforilato, Rb si lega al fattore di trascrizione E2F, bloccandone l'attività e reprimendo la trascrizione tramite il reclutamento di deacetilasi istoniche. Quando la cellula riceve stimoli mitogenici, i complessi ciclina D-CDK4 e ciclina D-CDK6 fosforilano parzialmente Rb, seguita dall'iperfosforilazione da parte di ciclina E-CDK2. Questa fosforilazione altera la conformazione di Rb causandone il distacco da E2F; E2F libero può così attivare la trascrizione dei geni essenziali per l'ingresso e la progressione nella fase S (come ciclina E, ciclina A, DNA polimerasi e timidina chinasi).\n\nPerché le altre sono sbagliate:\n• A) blocca il ciclo in G1: la forma ipofosforilata (non fosforilata) di Rb blocca il ciclo in G1; la sua fosforilazione rimuove il freno permettendo al ciclo cellulare di proseguire oltre il punto di restrizione.\n• C) attiva p53: p53 è attivato da danni al DNA (tramite chinasi ATM/ATR e Chk1/Chk2), ipossia o stress oncogenico, e promuove l'espressione di p21 che inibisce i complessi ciclina-CDK, non viene attivato dalla fosforilazione di Rb.\n• D) avvia l'apoptosi: la liberazione di E2F e la progressione del ciclo favoriscono la proliferazione cellulare, mentre l'apoptosi è innescata da segnali di morte o dall'oncosoppressore p53 in caso di danno irreparabile.\n• E) degrada la securina: la degradazione della securina avviene durante la transizione metafase-anafase ad opera del complesso APC/C (Anaphase-Promoting Complex) coniugato a Cdc20, portando all'attivazione della separasi per la scissione delle coesine, un evento della mitosi del tutto distinto dal passaggio G1/S."
+    },
+    {
+      "id": "bio-u7-q002",
+      "topic": "bio-u7-t4",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il crossing-over avviene durante:",
+      "options": [
+        "l'anafase II",
+        "la profase I",
+        "la metafase della mitosi",
+        "la telofase I",
+        "la fase S"
+      ],
+      "answer": 1,
+      "explanation": "Il crossing-over è il processo biologico di ricombinazione genica omologa che avviene durante la profase della prima divisione meiotica (meiosi I). Più precisamente, ha luogo nello stadio di pachitene della profase I, dopo che i cromosomi omologhi si sono appaiati stabilmente formando le tetradi (o bivalenti) tenute insieme dal complesso sinaptonemale durante lo zigotene. Durante il crossing-over, endonucleasi specifiche tagliano e ricongiungono segmenti cromatidici corrispondenti tra cromatidi non fratelli di cromosomi omologhi, formando chiasmi visibili nel successivo stadio di diplotene e generando nuove combinazioni alleliche.\n\nPerché le altre sono sbagliate:\n• A) l'anafase II: durante l'anafase II della meiosi si separano i cromatidi fratelli verso i poli opposti del fuso meiotico, senza alcun evento di ricombinazione o scambio di tratti di DNA.\n• C) la metafase della mitosi: nella metafase mitotica i cromosomi duplicati si allineano singolarmente sulla piastra equatoriale; la mitosi fisiologica non prevede appaiamento tra omologhi né crossing-over.\n• D) la telofase I: è la fase conclusiva della prima divisione meiotica in cui i due gruppi aploidi di cromosomi dicromatidici raggiungono i poli opposti e si riformano gli involucri nucleari prima della citocinesi.\n• E) la fase S: è la fase del ciclo cellulare dedicata alla replicazione del DNA, in cui il patrimonio genetico viene duplicato ma non si verificano appaiamento di omologhi o crossing-over meiotico."
+    },
+    {
+      "id": "bio-u7-q003",
+      "topic": "bio-u7-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Nella via intrinseca dell'apoptosi, il rilascio del citocromo c dal mitocondrio porta alla formazione:",
+      "options": [
+        "del proteasoma",
+        "dell'apoptosoma (con Apaf-1) e all'attivazione della caspasi-9",
+        "del DISC",
+        "dell'inflammasoma",
+        "del complesso APC/C"
+      ],
+      "answer": 1,
+      "explanation": "La via intrinseca (o mitocondriale) dell'apoptosi è innescata da segnali di stress cellulare interno (come danni estesi al DNA o stress ossidativo). Proteine pro-apoptotiche della famiglia Bcl-2 (Bax e Bak) oligomerizzano sulla membrana mitocondriale esterna aumentandone la permeabilità (MOMP) e provocando la fuoriuscita del citocromo c dallo spazio intermembrana nel citosol. Nel citosol, il citocromo c si lega alla proteina adattatrice Apaf-1 (Apoptotic Protease Activating Factor-1) in presenza di dATP/ATP, inducendone l'oligomerizzazione a formare una struttura a ruota a sette raggi chiamata apoptosoma. L'apoptosoma recluta e attiva la caspasi iniziatrice caspasi-9, la quale a sua volta taglia e attiva proteoliticamente le caspasi esecutrici (caspasi-3 e caspasi-7).\n\nPerché le altre sono sbagliate:\n• A) del proteasoma: è un grande complesso multiproteico citosolico e nucleare deputato alla degradazione ATP-dipendente delle proteine marcate con ubiquitina, non dipende dal rilascio di citocromo c.\n• C) del DISC: il DISC (Death-Inducing Signaling Complex) è il complesso di segnalazione formato sulla membrana plasmatica nella via ESTRINSECA dell'apoptosi a seguito del legame dei recettori di morte (es. Fas o TNFR) con i loro ligandi, che porta al reclutamento della proteina FADD e all'attivazione della caspasi-8 o 10.\n• D) dell'inflammasoma: è un complesso multiproteico citosolico della risposta immunitaria innata (contenente sensori come NLRP3) che attiva la caspasi-1 per la maturazione delle citochine pro-infiammatorie (IL-1β e IL-18) e la piroptosi.\n• E) del complesso APC/C: l'Anaphase-Promoting Complex/Ciclosoma è una E3 ubiquitina ligasi che regola la transizione metafase-anafase e l'uscita dalla mitosi degradando ciclina B e securina, non fa parte dell'apoptosi."
+    },
+    {
+      "id": "bio-u7-q004",
+      "topic": "bio-u7-t2",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "La proteina oncosoppressore detta \"guardiano del genoma\", attivata dal danno al DNA, è ____.",
+      "answers": [
+        "p53",
+        "TP53"
+      ],
+      "explanation": "Induce arresto del ciclo (via p21), riparazione o apoptosi."
+    },
+    {
+      "id": "bio-u7-q005",
+      "topic": "bio-u7-t3",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il complesso che ubiquitina securina e cicline mitotiche per avviare l'anafase è l'____ (sigla).",
+      "answers": [
+        "APC/C",
+        "APC",
+        "APC C",
+        "ciclosoma"
+      ],
+      "explanation": "Anaphase Promoting Complex/Cyclosome: la degradazione della securina libera la separasi che taglia le coesine."
+    }
+  ]
+}

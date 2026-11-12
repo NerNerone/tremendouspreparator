@@ -1,0 +1,65 @@
+[package]
+name = "tremendouspreparator"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "Semestre Aperto Prep — app Android privata (Rust + Slint, Material 3)"
+
+[lib]
+name = "prepapp"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "prepapp-desktop"
+path = "src/main.rs"
+
+[dependencies]
+prep-core = { path = "../prep-core" }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-android-activity-06", "renderer-femtovg"] }
+jni = "0.21"
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+# --- configurazione APK (cargo-apk) ---
+[package.metadata.android]
+package = "it.tremendouspreparator.app"
+apk_name = "SemestreAperto"
+build_targets = ["aarch64-linux-android"]
+strip = "strip"
+resources = "../../android/res"
+
+[package.metadata.android.sdk]
+min_sdk_version = 34
+target_sdk_version = 35
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.INTERNET"
+
+# promemoria giornaliero (codice Java in android/java, aggiunto dalla CI)
+[[package.metadata.android.uses_permission]]
+name = "android.permission.POST_NOTIFICATIONS"
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.RECEIVE_BOOT_COMPLETED"
+
+[package.metadata.android.application]
+label = "Semestre Aperto"
+icon = "@mipmap/ic_launcher"
+theme = "@android:style/Theme.DeviceDefault.NoActionBar"
+has_code = true
+
+[package.metadata.android.application.activity]
+name = "it.tremendouspreparator.app.MainActivity"
+orientation = "portrait"
+config_changes = "orientation|screenSize|screenLayout|keyboardHidden|uiMode|density"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+slint = { version = "=1.18.1" }
+png = "0.17"
+zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }

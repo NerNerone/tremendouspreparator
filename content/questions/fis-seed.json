@@ -1,0 +1,550 @@
+{
+  "schema": 1,
+  "questions": [
+    {
+      "id": "fis-u1-q001",
+      "topic": "fis-u1-t1",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Quanto vale (3 × 10⁴) · (2 × 10⁻⁶)?",
+      "options": [
+        "6 × 10⁻²",
+        "6 × 10⁻²⁴",
+        "5 × 10⁻²",
+        "6 × 10¹⁰",
+        "6 × 10²"
+      ],
+      "answer": 0,
+      "explanation": "Il prodotto di due numeri in notazione scientifica (a · 10ⁿ) · (b · 10ᵐ) si calcola moltiplicando i coefficienti numerici (mantisse) e sommando algebricamente gli esponenti delle potenze di 10: (3 · 2) · 10^(4 + (-6)) = 6 · 10⁻².\n\nPerché le altre sono sbagliate:\n• B) 6 × 10⁻²⁴: moltiplica gli esponenti (4 · (-6) = -24) anziché sommarli.\n• C) 5 × 10⁻²: somma i coefficienti (3 + 2 = 5) anziché moltiplicarli.\n• D) 6 × 10¹⁰: sottrae l'esponente negativo (4 - (-6) = 10) anziché sommarlo algebricamente.\n• E) 6 × 10²: commette un errore di segno nella somma algebrica degli esponenti (4 - 6 = -2, non +2)."
+    },
+    {
+      "id": "fis-u1-q002",
+      "topic": "fis-u1-t2",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Una velocità di 72 km/h espressa in m/s vale:",
+      "options": [
+        "7,2 m/s",
+        "20 m/s",
+        "36 m/s",
+        "259,2 m/s",
+        "2 m/s"
+      ],
+      "answer": 1,
+      "explanation": "Per convertire una velocità da km/h a m/s si divide il valore numerico per 3,6, poiché 1 km/h = (1000 m)/(3600 s) = (1/3,6) m/s. Pertanto: 72 / 3,6 = 20 m/s.\n\nPerché le altre sono sbagliate:\n• A) 7,2 m/s: corrisponde a una divisione arbitraria per 10 anziché per il fattore di conversione 3,6.\n• C) 36 m/s: corrisponde a un dimezzamento del valore (72 / 2), privo di giustificazione fisica.\n• D) 259,2 m/s: moltiplica per 3,6 anziché dividere (72 · 3,6 = 259,2), operazione che convertirebbe erroneamente da m/s a km/h.\n• E) 2 m/s: deriva da una divisione per 36 anziché per 3,6 (errore di un ordine di grandezza)."
+    },
+    {
+      "id": "fis-u1-q003",
+      "topic": "fis-u1-t4",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il prodotto scalare di due vettori non nulli perpendicolari è:",
+      "options": [
+        "massimo",
+        "uguale al prodotto dei moduli",
+        "nullo",
+        "un vettore perpendicolare a entrambi",
+        "negativo"
+      ],
+      "answer": 2,
+      "explanation": "Il prodotto scalare tra due vettori a e b è definito da a · b = |a| |b| cos θ. Se i due vettori sono perpendicolari, l'angolo compreso è θ = 90° e cos 90° = 0, per cui il prodotto scalare è identicamente nullo.\n\nPerché le altre sono sbagliate:\n• A) massimo: il prodotto scalare è massimo quando i vettori sono paralleli e concordi (θ = 0°, cos 0° = 1).\n• B) uguale al prodotto dei moduli: questa condizione si realizza solo se i vettori sono paralleli e concordi (cos θ = 1).\n• D) un vettore perpendicolare a entrambi: confonde il prodotto scalare (che restituisce un numero reale scalare) con il prodotto vettoriale a × b.\n• E) negativo: il prodotto scalare è negativo solo quando l'angolo compreso è ottuso (90° < θ ≤ 180°)."
+    },
+    {
+      "id": "fis-u1-q004",
+      "topic": "fis-u1-t3",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Quanto vale sen 30°? (scrivi il numero decimale)",
+      "numeric": {
+        "value": 0.5,
+        "tolerance": 0.01
+      },
+      "explanation": "sen 30° = 1/2."
+    },
+    {
+      "id": "fis-u1-q005",
+      "topic": "fis-u1-t2",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Nel Sistema Internazionale l'unità di misura della forza è il ______.",
+      "answers": [
+        "newton",
+        "N"
+      ],
+      "explanation": "1 N = 1 kg·m/s²."
+    },
+    {
+      "id": "fis-u2-q001",
+      "topic": "fis-u2-t1",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un corpo parte da fermo e si muove di moto uniformemente accelerato con a = 2 m/s². Che distanza percorre in 5 s?",
+      "options": [
+        "10 m",
+        "20 m",
+        "25 m",
+        "50 m",
+        "100 m"
+      ],
+      "answer": 2,
+      "explanation": "La legge oraria del moto rettilineo uniformemente accelerato con partenza da fermo (v₀ = 0) e posizione iniziale nulla (s₀ = 0) è s = 1/2 · a · t². Sostituendo i dati: s = 1/2 · 2 m/s² · (5 s)² = 1 · 25 = 25 m.\n\nPerché le altre sono sbagliate:\n• A) 10 m: corrisponde alla velocità istantanea raggiunta a t = 5 s (v = a · t = 2 · 5 = 10 m/s), non allo spazio percorso.\n• B) 20 m: valore errato che non soddisfa la legge oraria del moto.\n• D) 50 m: dimentica il fattore 1/2 nella legge oraria (a · t² = 2 · 25 = 50 m).\n• E) 100 m: calcola erroneamente (a · t)² = 10² = 100 m."
+    },
+    {
+      "id": "fis-u2-q002",
+      "topic": "fis-u2-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Una forza risultante di 10 N agisce su una massa di 2 kg. L'accelerazione è:",
+      "options": [
+        "0,2 m/s²",
+        "5 m/s²",
+        "8 m/s²",
+        "12 m/s²",
+        "20 m/s²"
+      ],
+      "answer": 1,
+      "explanation": "Per la seconda legge di Newton (secondo principio della dinamica, F = m · a), l'accelerazione è direttamente proporzionale alla forza risultante e inversamente proporzionale alla massa del corpo: a = F / m = 10 N / 2 kg = 5 m/s².\n\nPerché le altre sono sbagliate:\n• A) 0,2 m/s²: inverte il rapporto dividendo la massa per la forza (2 / 10 = 0,2).\n• C) 8 m/s²: sottrae arbitrariamente la massa dalla forza (10 - 2 = 8), operazione priva di senso fisico.\n• D) 12 m/s²: somma arbitrariamente forza e massa (10 + 2 = 12).\n• E) 20 m/s²: moltiplica la forza per la massa (10 · 2 = 20) anziché calcolare il rapporto prescritto dal secondo principio."
+    },
+    {
+      "id": "fis-u2-q003",
+      "topic": "fis-u2-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Se la velocità di un corpo raddoppia, la sua energia cinetica:",
+      "options": [
+        "raddoppia",
+        "resta uguale",
+        "si dimezza",
+        "quadruplica",
+        "aumenta di 2 J"
+      ],
+      "answer": 3,
+      "explanation": "L'energia cinetica di un corpo di massa m in moto con velocità v è data da Ec = 1/2 · m · v². Poiché Ec è direttamente proporzionale al quadrato della velocità, se la velocità raddoppia (v' = 2v) l'energia cinetica diventa Ec' = 1/2 · m · (2v)² = 4 · (1/2 · m · v²) = 4 Ec, ossia quadruplica.\n\nPerché le altre sono sbagliate:\n• A) raddoppia: confonde la dipendenza quadratica dell'energia cinetica con la dipendenza lineare (valida invece per la quantità di moto p = m · v).\n• B) resta uguale: l'energia cinetica dipende esplicitamente dalla velocità, non può rimanere invariata.\n• C) si dimezza: presuppone erroneamente una proporzionalità inversa rispetto alla velocità.\n• E) aumenta di 2 J: la variazione è moltiplicativa (fattore 4), non un incremento additivo fisso indipendente da massa e velocità iniziale."
+    },
+    {
+      "id": "fis-u2-q004",
+      "topic": "fis-u2-t1",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un oggetto in caduta libera parte da fermo. Dopo 2 s la sua velocità è circa ____ m/s (g = 9,8 m/s²).",
+      "numeric": {
+        "value": 19.6,
+        "tolerance": 0.02,
+        "unit": "m/s"
+      },
+      "explanation": "v = g·t = 9,8 · 2 = 19,6 m/s."
+    },
+    {
+      "id": "fis-u2-q005",
+      "topic": "fis-u2-t4",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La quantità di moto di un corpo di 3 kg che si muove a 4 m/s vale ____ kg·m/s.",
+      "numeric": {
+        "value": 12,
+        "tolerance": 0.01,
+        "unit": "kg·m/s"
+      },
+      "explanation": "p = m·v = 3 · 4 = 12 kg·m/s."
+    },
+    {
+      "id": "fis-u3-q001",
+      "topic": "fis-u3-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Secondo la legge di Stevino, la pressione in un liquido in quiete:",
+      "options": [
+        "non dipende dalla profondità",
+        "cresce linearmente con la profondità",
+        "cresce col quadrato della profondità",
+        "diminuisce con la profondità",
+        "dipende dalla forma del recipiente"
+      ],
+      "answer": 1,
+      "explanation": "La legge di Stevino afferma che la pressione idrostatica a una profondità h in un fluido incomprimibile omogeneo di densità ρ è p = p₀ + ρ · g · h, dove p₀ è la pressione alla superficie libera e g è l'accelerazione di gravità. La pressione cresce quindi in modo direttamente proporzionale (lineare) con la profondità h, ed è indipendente dall'area della sezione e dalla forma geometrica del recipiente (paradosso idrostatico).\n\nPerché le altre sono sbagliate:\n• A) non dipende dalla profondità: la pressione aumenta progressivamente a causa del peso della colonna fluida sovrastante.\n• C) cresce col quadrato della profondità: la dipendenza da h è lineare di primo grado, non di secondo grado.\n• D) diminuisce con la profondità: all'aumentare della profondità aumenta il peso del fluido soprastante, quindi la pressione aumenta.\n• E) dipende dalla forma del recipiente: la pressione dipende solo dal dislivello verticale h e dalla densità del fluido, non dal volume totale o dalla forma del contenitore."
+    },
+    {
+      "id": "fis-u3-q002",
+      "topic": "fis-u3-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "In un vaso con una stenosi (restringimento), rispetto al tratto a monte, nel tratto ristretto:",
+      "options": [
+        "la velocità diminuisce e la pressione aumenta",
+        "la velocità aumenta e la pressione diminuisce",
+        "velocità e pressione aumentano",
+        "velocità e pressione diminuiscono",
+        "la portata aumenta"
+      ],
+      "answer": 1,
+      "explanation": "Per l'equazione di continuità (Q = A · v = costante), nei tratti a sezione ridotta (A₂ < A₁) la velocità del fluido deve aumentare (v₂ > v₁). Per il teorema di Bernoulli (p + 1/2 · ρ · v² + ρ · g · h = costante), a parità di quota l'incremento dell'energia cinetica per unità di volume determina una corrispondente diminuzione della pressione idrostatica locale (p₂ < p₁). Questo fenomeno è noto come effetto Venturi.\n\nPerché le altre sono sbagliate:\n• A) la velocità diminuisce e la pressione aumenta: descrive il comportamento opposto, tipico di un allargamento del condotto (dilatazione aneurismatica).\n• C) velocità e pressione aumentano: violerebbe il principio di conservazione dell'energia meccanica espresso dall'equazione di Bernoulli.\n• D) velocità e pressione diminuiscono: l'equazione di continuità impone che la velocità cresca al diminuire della sezione.\n• E) la portata aumenta: in un condotto senza ramificazioni e in regime stazionario la portata volumetrica rimane costante lungo tutto il percorso."
+    },
+    {
+      "id": "fis-u3-q003",
+      "topic": "fis-u3-t4",
+      "type": "mcq",
+      "difficulty": 3,
+      "source": "seed",
+      "text": "Per la legge di Poiseuille, se il raggio di un vaso si dimezza (a parità di differenza di pressione), la portata:",
+      "options": [
+        "si dimezza",
+        "si riduce a 1/4",
+        "si riduce a 1/8",
+        "si riduce a 1/16",
+        "raddoppia"
+      ],
+      "answer": 3,
+      "explanation": "La legge di Poiseuille stabilisce che la portata volumetrica laminare di un fluido viscoso attraverso un condotto cilindrico di raggio r e lunghezza L è Q = (π · Δp · r⁴) / (8 · η · L). La portata è proporzionale alla quarta potenza del raggio (Q ∝ r⁴). Se il raggio si dimezza (r' = r/2), la portata diventa Q' ∝ (1/2)⁴ = 1/16 Q, riducendosi a un sedicesimo del valore originario (e la resistenza idraulica aumenta di 16 volte).\n\nPerché le altre sono sbagliate:\n• A) si dimezza: presuppone una dipendenza lineare dal raggio (r¹), non corretta per il moto laminare viscoso.\n• B) si riduce a 1/4: corrisponderebbe a una dipendenza dall'area trasversale (r²), che non tiene conto del profilo parabolico di velocità.\n• C) si riduce a 1/8: corrisponderebbe a una dipendenza cubica (r³).\n• E) raddoppia: un restringimento del vaso aumenta la resistenza al flusso e causa una drastica riduzione della portata a parità di gradiente pressorio."
+    },
+    {
+      "id": "fis-u3-q004",
+      "topic": "fis-u3-t2",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Il principio di ________ afferma che un corpo immerso in un fluido riceve una spinta verso l'alto pari al peso del fluido spostato.",
+      "answers": [
+        "Archimede"
+      ],
+      "explanation": "Spinta di Archimede: S = ρ_fluido · V_immerso · g."
+    },
+    {
+      "id": "fis-u3-q005",
+      "topic": "fis-u3-t1",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Una forza di 50 N agisce perpendicolarmente su una superficie di 0,25 m². La pressione vale ____ Pa.",
+      "numeric": {
+        "value": 200,
+        "tolerance": 0.01,
+        "unit": "Pa"
+      },
+      "explanation": "p = F/A = 50/0,25 = 200 Pa."
+    },
+    {
+      "id": "fis-u4-q001",
+      "topic": "fis-u4-t1",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Un'onda ha frequenza 100 Hz e lunghezza d'onda 3,4 m. La sua velocità è:",
+      "options": [
+        "34 m/s",
+        "340 m/s",
+        "29,4 m/s",
+        "3400 m/s",
+        "0,034 m/s"
+      ],
+      "answer": 1,
+      "explanation": "La velocità di propagazione di un'onda è legata alla frequenza f e alla lunghezza d'onda λ dalla relazione fondamentale v = λ · f. Inserendo i dati forniti: v = 3,4 m · 100 Hz = 340 m/s (corrispondente alla velocità del suono nell'aria a temperatura ambiente).\n\nPerché le altre sono sbagliate:\n• A) 34 m/s: commette un errore decimale moltiplicando per 10 anziché per 100.\n• C) 29,4 m/s: esegue impropriamente il rapporto tra frequenza e lunghezza d'onda (100 / 3,4 ≈ 29,4).\n• D) 3400 m/s: moltiplica erroneamente per un fattore 1000 anziché 100.\n• E) 0,034 m/s: esegue il rapporto inverso λ / f = 3,4 / 100 = 0,034, dimensionalmente non corretto."
+    },
+    {
+      "id": "fis-u4-q002",
+      "topic": "fis-u4-t4",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Se l'intensità di un suono aumenta di un fattore 100, il livello sonoro aumenta di:",
+      "options": [
+        "2 dB",
+        "10 dB",
+        "20 dB",
+        "100 dB",
+        "40 dB"
+      ],
+      "answer": 2,
+      "explanation": "Il livello di intensità sonora β espresso in decibel è definito su scala logaritmica dalla formula β = 10 · log₁₀(I / I₀), dove I₀ = 10⁻¹² W/m² è la soglia convenzionale di udibilità. Se l'intensità aumenta di un fattore 100 (I' = 100 I), la variazione del livello sonoro è Δβ = 10 · log₁₀(100 I / I₀) - 10 · log₁₀(I / I₀) = 10 · log₁₀(100) = 10 · 2 = 20 dB.\n\nPerché le altre sono sbagliate:\n• A) 2 dB: dimentica il fattore di scala 10 nella definizione di decibel (log₁₀(100) = 2 Bel, cioè 20 dB).\n• B) 10 dB: corrisponderebbe a un aumento di intensità di un fattore 10 (10 · log₁₀(10) = 10 dB).\n• D) 100 dB: confonde l'incremento lineare dell'intensità con la variazione sulla scala logaritmica dei decibel (100 dB corrisponderebbe a un fattore 10¹⁰).\n• E) 40 dB: corrisponderebbe a un fattore moltiplicativo di intensità pari a 10⁴ = 10 000."
+    },
+    {
+      "id": "fis-u4-q003",
+      "topic": "fis-u4-t5",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Quando una sorgente sonora si avvicina a un osservatore fermo, l'osservatore percepisce:",
+      "options": [
+        "una frequenza più bassa",
+        "la stessa frequenza",
+        "una frequenza più alta",
+        "un'intensità costante",
+        "una velocità del suono maggiore"
+      ],
+      "answer": 2,
+      "explanation": "In base all'effetto Doppler, quando una sorgente sonora si muove verso un osservatore stazionario con velocità v_s, i fronti d'onda si comprimono nella direzione del moto. La lunghezza d'onda apparente diminuisce (λ' = λ - v_s · T) e la frequenza percepita dall'osservatore risulta più elevata rispetto a quella emessa: f' = f · [v / (v - v_s)] > f, rendendo il suono più acuto.\n\nPerché le altre sono sbagliate:\n• A) una frequenza più bassa: si verificherebbe se la sorgente si stesse allontanando dall'osservatore (f' = f · [v / (v + v_s)] < f).\n• B) la stessa frequenza: si registrerebbe unicamente in assenza di moto relativo tra sorgente e osservatore (v_s = 0).\n• D) un'intensità costante: avvicinandosi la sorgente, la distanza si riduce e l'intensità sonora aumenta progressivamente.\n• E) una velocità del suono maggiore: la velocità del suono v dipende esclusivamente dalle proprietà meccaniche e termodinamiche del mezzo (aria), non dal moto della sorgente."
+    },
+    {
+      "id": "fis-u4-q004",
+      "topic": "fis-u4-t3",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Per una sorgente puntiforme, se la distanza raddoppia l'intensità diventa ____ di quella iniziale (scrivi la frazione come decimale).",
+      "numeric": {
+        "value": 0.25,
+        "tolerance": 0.01
+      },
+      "explanation": "I ∝ 1/r²: (1/2)² = 1/4 = 0,25."
+    },
+    {
+      "id": "fis-u4-q005",
+      "topic": "fis-u4-t1",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Il periodo di un'onda con frequenza 50 Hz è ____ s.",
+      "numeric": {
+        "value": 0.02,
+        "tolerance": 0.01,
+        "unit": "s"
+      },
+      "explanation": "T = 1/f = 1/50 = 0,02 s."
+    },
+    {
+      "id": "fis-u5-q001",
+      "topic": "fis-u5-t4",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "In una trasformazione isoterma di un gas ideale:",
+      "options": [
+        "il lavoro è nullo",
+        "il calore scambiato è nullo",
+        "la variazione di energia interna è nulla",
+        "la pressione è costante",
+        "il volume è costante"
+      ],
+      "answer": 2,
+      "explanation": "Per la prima legge di Joule l'energia interna di un gas ideale dipende unicamente dalla sua temperatura termodinamica: U = n · c_V · T. In una trasformazione isoterma la temperatura rimane costante (ΔT = 0), da cui segue immediatamente ΔU = 0. In accordo con il primo principio della termodinamica (ΔU = Q - L), tutto il calore scambiato con l'ambiente viene interamente convertito in lavoro utile: Q = L.\n\nPerché le altre sono sbagliate:\n• A) il lavoro è nullo: il lavoro è nullo nelle trasformazioni isocore a volume costante (L = ∫ p dV = 0).\n• B) il calore scambiato è nullo: lo scambio di calore è nullo nelle trasformazioni adiabatiche (Q = 0).\n• D) la pressione è costante: la pressione è costante nelle trasformazioni isobare; nell'isoterma pressione e volume variano in modo inversamente proporzionale (p · V = costante).\n• E) il volume è costante: il volume rimane costante nelle trasformazioni isocore."
+    },
+    {
+      "id": "fis-u5-q002",
+      "topic": "fis-u5-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il rendimento di una macchina di Carnot che lavora tra 600 K e 300 K è:",
+      "options": [
+        "25%",
+        "33%",
+        "50%",
+        "67%",
+        "100%"
+      ],
+      "answer": 2,
+      "explanation": "Il rendimento termico η di una macchina termica reversibile operante secondo un ciclo di Carnot tra due sorgenti a temperature assolute T_c (calda) e T_f (fredda) è dato da η = 1 - (T_f / T_c). Sostituendo le temperature fornite: η = 1 - (300 K / 600 K) = 1 - 0,5 = 0,5, corrispondente al 50%.\n\nPerché le altre sono sbagliate:\n• A) 25%: non corrisponde al rapporto termodinamico tra 300 K e 600 K.\n• B) 33%: corrisponderebbe a un rapporto T_f / T_c = 2/3 (ad esempio con 400 K e 600 K).\n• D) 67%: corrisponderebbe a un rendimento di circa 2/3, ottenibile con T_f / T_c = 1/3 (ad esempio 200 K e 600 K).\n• E) 100%: per il secondo principio della termodinamica (enunciato di Kelvin-Planck) nessuna macchina ciclica può convertire integralmente il calore assorbito in lavoro (rendimento unitario richiederebbe T_f = 0 K, irraggiungibile per il terzo principio)."
+    },
+    {
+      "id": "fis-u5-q003",
+      "topic": "fis-u5-t3",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Quale meccanismo di trasmissione del calore può avvenire anche nel vuoto?",
+      "options": [
+        "conduzione",
+        "convezione",
+        "irraggiamento",
+        "evaporazione",
+        "nessuno"
+      ],
+      "answer": 2,
+      "explanation": "L'irraggiamento è la modalità di trasmissione del calore per mezzo di onde elettromagnetiche emesse dalla superficie dei corpi a qualunque temperatura superiore allo zero assoluto (legge di Stefan-Boltzmann). Poiché le onde elettromagnetiche si propagano perfettamente nel vuoto senza bisogno di alcun supporto materiale (a differenza di conduzione e convezione), l'irraggiamento è l'unico meccanismo che consente all'energia termica del Sole di raggiungere la Terra attraverso lo spazio vuoto.\n\nPerché le altre sono sbagliate:\n• A) conduzione: presuppone un mezzo materiale continuo e avviene mediante collisioni microscopiche e scambi di energia cinetica tra particelle contigue.\n• B) convezione: richiede il moto macroscopico di correnti fluide ed è possibile solo in liquidi e gas soggetti a gravità.\n• D) evaporazione: è un passaggio di stato di aggregazione della materia che richiede liquido e trasporto molecolare.\n• E) nessuno: affermazione falsa poiché l'irraggiamento termico non necessita di materia per propagarsi."
+    },
+    {
+      "id": "fis-u5-q004",
+      "topic": "fis-u5-t2",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Per scaldare 2 kg di acqua (c = 4186 J/(kg·K)) di 10 K servono circa ____ J.",
+      "numeric": {
+        "value": 83720,
+        "tolerance": 0.02,
+        "unit": "J"
+      },
+      "explanation": "Q = m·c·ΔT = 2 · 4186 · 10 = 83 720 J."
+    },
+    {
+      "id": "fis-u5-q005",
+      "topic": "fis-u5-t1",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "La temperatura di 27 °C corrisponde a ____ K.",
+      "numeric": {
+        "value": 300.15,
+        "tolerance": 0.002,
+        "unit": "K"
+      },
+      "explanation": "T(K) = T(°C) + 273,15 = 300,15 K (≈ 300 K)."
+    },
+    {
+      "id": "fis-u6-q001",
+      "topic": "fis-u6-t1",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Se la distanza tra due cariche puntiformi raddoppia, la forza di Coulomb tra loro:",
+      "options": [
+        "raddoppia",
+        "si dimezza",
+        "si riduce a 1/4",
+        "quadruplica",
+        "resta uguale"
+      ],
+      "answer": 2,
+      "explanation": "La legge di Coulomb stabilisce che il modulo della forza elettrostatica tra due cariche puntiformi q₁ e q₂ è inversamente proporzionale al quadrato della loro distanza r: F = k_e · (|q₁ · q₂| / r²). Se la distanza raddoppia (r' = 2r), la nuova forza diventa F' = k_e · [|q₁ · q₂| / (2r)²] = 1/4 · [k_e · (|q₁ · q₂| / r²)] = 1/4 F, riducendosi a un quarto del valore iniziale.\n\nPerché le altre sono sbagliate:\n• A) raddoppia: presuppone un'errata proporzionalità diretta con la distanza.\n• B) si dimezza: presuppone un'errata proporzionalità inversa lineare (F ∝ 1/r).\n• D) quadruplica: presuppone un'errata proporzionalità diretta col quadrato della distanza (F ∝ r²).\n• E) resta uguale: la forza elettrostatica varia marcatamente al mutare della distanza tra le cariche."
+    },
+    {
+      "id": "fis-u6-q002",
+      "topic": "fis-u6-t4",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Due resistenze da 6 Ω collegate in parallelo hanno una resistenza equivalente di:",
+      "options": [
+        "12 Ω",
+        "6 Ω",
+        "3 Ω",
+        "1/3 Ω",
+        "36 Ω"
+      ],
+      "answer": 2,
+      "explanation": "Per due resistori collegati in parallelo, l'inverso della resistenza equivalente è dato dalla somma degli inversi delle resistenze dei singoli rami: 1/R_eq = 1/R₁ + 1/R₂ = 1/(6 Ω) + 1/(6 Ω) = 2/(6 Ω) = 1/(3 Ω). Calcolando il reciproco si ottiene R_eq = 3 Ω (in generale per N resistori identici in parallelo: R_eq = R / N = 6 / 2 = 3 Ω).\n\nPerché le altre sono sbagliate:\n• A) 12 Ω: corrisponde al collegamento in serie (R_eq = R₁ + R₂ = 6 + 6 = 12 Ω).\n• B) 6 Ω: in un collegamento in parallelo la resistenza equivalente è sempre strettamente minore di ciascuna resistenza componente.\n• D) 1/3 Ω: corrisponde al valore numerico della conduttanza equivalente G_eq = 1/R_eq (espressa in Siemens), omettendo il passaggio finale dell'inversione.\n• E) 36 Ω: calcola il prodotto delle due resistenze (6 · 6 = 36) senza dividerlo per la loro somma."
+    },
+    {
+      "id": "fis-u6-q003",
+      "topic": "fis-u6-t6",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La forza di Lorentz su una carica in moto in un campo magnetico uniforme:",
+      "options": [
+        "è parallela alla velocità",
+        "è sempre perpendicolare alla velocità e non compie lavoro",
+        "aumenta l'energia cinetica della carica",
+        "è nulla se v è perpendicolare a B",
+        "non dipende dalla carica"
+      ],
+      "answer": 1,
+      "explanation": "La forza magnetica di Lorentz che agisce su una carica q in moto con velocità v immersa in un campo magnetico uniforme B è data dal prodotto vettoriale F_L = q · (v × B). Per le proprietà algebriche del prodotto vettoriale, F_L è in ogni istante ortogonale sia a v sia a B. Essendo sempre F_L ⊥ v, la potenza istantanea erogata è P = F_L · v = 0 e il lavoro compiuto è nullo (L = 0). La forza devia la traiettoria modificando la direzione del moto, ma lascia rigorosamente inalterati il modulo della velocità e l'energia cinetica.\n\nPerché le altre sono sbagliate:\n• A) è parallela alla velocità: il prodotto vettoriale produce per definizione un vettore sempre ortogonale ai vettori operandi.\n• C) aumenta l'energia cinetica della carica: non compiendo lavoro (L = 0), per il teorema delle forze vive ΔEc = L = 0, per cui l'energia cinetica non varia.\n• D) è nulla se v è perpendicolare a B: quando v ⊥ B l'angolo è 90° e la forza è massima (F = |q| · v · B); è invece nulla se v è parallelo a B (sin 0° = 0).\n• E) non dipende dalla carica: il modulo della forza di Lorentz è direttamente proporzionale alla carica q (F = |q| · v · B · sin θ)."
+    },
+    {
+      "id": "fis-u6-q004",
+      "topic": "fis-u6-t4",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "In un resistore da 10 Ω ai cui capi c'è una d.d.p. di 5 V scorre una corrente di ____ A.",
+      "numeric": {
+        "value": 0.5,
+        "tolerance": 0.01,
+        "unit": "A"
+      },
+      "explanation": "Prima legge di Ohm: I = V/R = 5/10 = 0,5 A."
+    },
+    {
+      "id": "fis-u6-q005",
+      "topic": "fis-u6-t5",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un condensatore da 2 µF caricato a 10 V immagazzina un'energia di ____ J (notazione scientifica ammessa, es. 1e-4).",
+      "numeric": {
+        "value": 0.0001,
+        "tolerance": 0.01,
+        "unit": "J"
+      },
+      "explanation": "E = ½CV² = ½ · 2·10⁻⁶ · 100 = 10⁻⁴ J."
+    },
+    {
+      "id": "fis-u7-q001",
+      "topic": "fis-u7-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un isotopo ha emivita di 6 ore. Dopo 18 ore la frazione di nuclei non ancora decaduti è:",
+      "options": [
+        "1/2",
+        "1/3",
+        "1/6",
+        "1/8",
+        "1/18"
+      ],
+      "answer": 3,
+      "explanation": "La legge del decadimento radioattivo stabilisce che il numero di nuclei radioattivi residui varia nel tempo secondo N(t) = N₀ · (1/2)^(t / t_1/2), dove t_1/2 è l'emivita (tempo di dimezzamento). In un tempo t = 18 ore con un'emivita di 6 ore, il numero di dimezzamenti trascorsi è n = 18 / 6 = 3. La frazione di nuclei superstiti non ancora decaduti è quindi (1/2)³ = 1/8.\n\nPerché le altre sono sbagliate:\n• A) 1/2: corrisponde alla frazione superstite dopo una sola emivita (6 ore).\n• B) 1/3: confonde la legge esponenziale in base 2 con una proporzionalità inversa lineare del tipo 1/n.\n• C) 1/6: calcola erroneamente il prodotto 1 / (2 · 3) oppure divide 1 per le 6 ore di emivita.\n• E) 1/18: divide impropriamente per il numero totale di ore trascorse, ignorando la natura esponenziale del processo di decadimento."
+    },
+    {
+      "id": "fis-u7-q002",
+      "topic": "fis-u7-t2",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Quale tra queste radiazioni elettromagnetiche ha la frequenza più alta?",
+      "options": [
+        "onde radio",
+        "microonde",
+        "infrarosso",
+        "ultravioletto",
+        "raggi gamma"
+      ],
+      "answer": 4,
+      "explanation": "Nello spettro della radiazione elettromagnetica la frequenza cresce progressivamente lungo la successione: onde radio (< 10⁹ Hz), microonde (10⁹ - 10¹¹ Hz), infrarosso, luce visibile, ultravioletto, raggi X e raggi gamma (> 10¹⁹ Hz). I raggi gamma possiedono le lunghezze d'onda più corte (inferiori a 10⁻¹¹ m) e la frequenza più elevata in assoluto, cui corrisponde, per la legge di Planck-Einstein E = h · f, la massima energia fotonica.\n\nPerché le altre sono sbagliate:\n• A) onde radio: hanno la frequenza più bassa e la lunghezza d'onda più estesa dell'intero spettro.\n• B) microonde: hanno frequenze dell'ordine dei gigahertz, inferiori a quelle di infrarossi, luce visibile, UV e raggi gamma.\n• C) infrarosso: ha frequenze inferiori a quelle della luce visibile e delle radiazioni ionizzanti.\n• D) ultravioletto: ha frequenze superiori alla luce visibile ma inferiori rispetto a raggi X e raggi gamma."
+    },
+    {
+      "id": "fis-u7-q003",
+      "topic": "fis-u7-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Nel decadimento α il nucleo emette:",
+      "options": [
+        "un elettrone",
+        "un positrone",
+        "un nucleo di elio (2 protoni e 2 neutroni)",
+        "un fotone ad alta energia",
+        "un neutrone"
+      ],
+      "answer": 2,
+      "explanation": "Nel decadimento α, un nucleo atomico instabile decade emettendo una particella α, la quale è costituita fisicamente da un nucleo di elio-4 (⁴₂He²⁺), composto da 2 protoni e 2 neutroni legati dalla forza nucleare forte. Come risultato di tale emissione, il nucleo genitore si trasforma in un nucleo figlio con numero atomico ridotto di 2 unità (Z → Z - 2) e numero di massa ridotto di 4 unità (A → A - 4).\n\nPerché le altre sono sbagliate:\n• A) un elettrone: l'emissione di un elettrone veloce (particella β⁻) caratterizza il decadimento β⁻ (trasformazione di un neutrone in protone, elettrone e antineutrino).\n• B) un positrone: l'emissione di un positrone (particella β⁺) caratterizza il decadimento β⁺ (trasformazione di un protone in neutrone, positrone e neutrino).\n• D) un fotone ad alta energia: l'emissione di radiazione gamma (fotoni γ) caratterizza la diseccitazione nucleare gamma, senza alcuna variazione di Z o di A.\n• E) un neutrone: l'emissione neutronica spontanea è un processo radioattivo differente dal decadimento alfa, tipico di nuclidi ad altissimo eccesso di neutroni."
+    },
+    {
+      "id": "fis-u7-q004",
+      "topic": "fis-u7-t3",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "L'energia di un fotone è E = h·f, dove h è la costante di ______.",
+      "answers": [
+        "Planck"
+      ],
+      "explanation": "h ≈ 6,63 × 10⁻³⁴ J·s."
+    },
+    {
+      "id": "fis-u7-q005",
+      "topic": "fis-u7-t7",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La luce passa dall'aria (n = 1) al vetro (n = 1,5). La sua velocità nel vetro è ____ × 10⁸ m/s (c = 3 × 10⁸ m/s; scrivi solo la mantissa).",
+      "numeric": {
+        "value": 2,
+        "tolerance": 0.01
+      },
+      "explanation": "v = c/n = 3·10⁸/1,5 = 2·10⁸ m/s."
+    }
+  ]
+}

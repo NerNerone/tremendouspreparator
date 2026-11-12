@@ -1,0 +1,864 @@
+// Componenti Material 3 Expressive riutilizzabili: forme ampie che cambiano alla pressione,
+// movimento a molla (curve "expressive spatial/effects"), indicatori ondulati.
+import { ScrollView } from "std-widgets.slint";
+import { M3, Icons, Type, Shape, Motion } from "theme.slint";
+import { AppState } from "state.slint";
+
+export component Icon inherits Image {
+    in property <color> tint: M3.on-surface;
+    colorize: tint;
+    width: 24px;
+    height: 24px;
+    image-fit: contain;
+}
+
+// Pagina: entra con dissolvenza e leggero scivolamento verso l'alto
+export component Page inherits Rectangle {
+    property <float> enter: 0;
+    init => {
+        enter = 1;
+    }
+    animate enter {
+        duration: Motion.spatial;
+        easing: cubic-bezier(0.38, 1.21, 0.22, 1.0);
+    }
+    opacity: min(1, enter * 1.4);
+    y: (1 - enter) * 40px;
+}
+
+// Contenuto che si anima ogni volta che `key` cambia (nuova domanda, nuova sezione…)
+export component Swap inherits Rectangle {
+    in property <string> key;
+    property <float> k: 0;
+    property <float> f: k - floor(k);
+    changed key => {
+        k = floor(k) + 1;
+    }
+    animate k {
+        duration: Motion.spatial;
+        easing: cubic-bezier(0.38, 1.21, 0.22, 1.0);
+    }
+    inner := Rectangle {
+        x: f == 0 ? 0px : (1 - f) * 28px;
+        width: parent.width;
+        height: parent.height;
+        opacity: f == 0 ? 1 : f;
+        @children
+    }
+}
+
+// Increspatura Material al tocco
+export component Ripple inherits Rectangle {
+    in property <bool> pressed;
+    in property <length> px;
+    in property <length> py;
+    in property <color> tint: M3.on-surface;
+    clip: true;
+    property <float> alpha: root.pressed ? 1 : 0;
+    animate alpha { duration: 280ms; }
+    property <float> grow: root.pressed || root.alpha > 0.02 ? 1 : 0;
+    animate grow {
+        duration: root.pressed ? 450ms : 0ms;
+        easing: cubic-bezier(0.2, 0, 0, 1);
+    }
+    Rectangle {
+        property <length> d: max(root.width, root.height) * 2.3 * root.grow;
+        x: root.px - self.width / 2;
+        y: root.py - self.height / 2;
+        width: self.d;
+        height: self.d;
+        border-radius: self.d / 2;
+        background: root.tint.with-alpha(0.16 * root.alpha);
+    }
+}
+
+export component VIcon inherits VerticalLayout {
+    in property <image> source;
+    in property <color> tint: M3.on-surface;
+    in property <length> size: 24px;
+    alignment: center;
+    Icon {
+        source: root.source;
+        tint: root.tint;
+        width: root.size;
+        height: root.size;
+    }
+}
+
+export component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <color> tint: M3.on-surface-variant;
+    in property <bool> enabled: true;
+    in property <bool> filled: false;
+    callback clicked;
+    width: 48px;
+    height: 48px;
+    Rectangle {
+        width: 40px;
+        height: 40px;
+        // pressione: da cerchio a quadrato arrotondato (shape morph)
+        border-radius: ta.pressed ? 12px : 20px;
+        background: root.filled ? M3.secondary-container : ta.pressed ? root.tint.with-alpha(0.12) : root.tint.with-alpha(0);
+        animate background { duration: Motion.fast-effects; }
+        animate border-radius {
+            duration: Motion.fast-spatial;
+            easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+        }
+        Icon {
+            source: root.icon;
+            tint: root.enabled ? root.tint : M3.on-surface.with-alpha(0.38);
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// kind: 0 filled, 1 tonal, 2 outlined, 3 text, 4 errore
+export component M3Button inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon: false;
+    in property <int> kind: 0;
+    in property <bool> enabled: true;
+    // pulsanti affiancati su schermi stretti: margini interni ridotti
+    in property <bool> compact: false;
+    /// variante minimale (azioni secondarie dentro un riquadro): più bassa, testo piccolo, senza rimpicciolirsi alla pressione
+    in property <bool> small: false;
+    callback clicked;
+    property <color> fg: !root.enabled ? M3.on-surface.with-alpha(0.38) : root.kind == 0 ? M3.on-primary : root.kind == 1 ? M3.on-secondary-container : root.kind == 4 ? M3.on-error : M3.primary;
+    min-height: root.small ? 34px : 48px;
+    min-width: root.small ? 0px : 64px;
+    // pillola che alla pressione diventa un quadrato arrotondato (Expressive)
+    border-radius: ta.pressed ? Shape.md : self.height / 2;
+    animate border-radius {
+        duration: Motion.fast-spatial;
+        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+    }
+    background: !root.enabled && (root.kind <= 1 || root.kind == 4) ? M3.on-surface.with-alpha(0.12) : root.kind == 0 ? M3.primary : root.kind == 1 ? M3.secondary-container : root.kind == 4 ? M3.error : transparent;
+    border-width: root.kind == 2 ? 1px : 0px;
+    border-color: M3.outline;
+    HorizontalLayout {
+        padding-left: root.compact ? 4px : root.small ? 10px : root.kind == 3 ? 12px : 24px;
+        padding-right: root.compact ? 4px : root.small ? 12px : root.kind == 3 ? 12px : 24px;
+        spacing: root.small ? 6px : 8px;
+        alignment: center;
+        if root.has-icon: VIcon {
+            source: root.icon;
+            tint: root.fg;
+            size: root.small ? 16px : 18px;
+        }
+        Text {
+            text: root.text;
+            color: root.fg;
+            font-size: root.small ? Type.label : root.compact ? Type.body : Type.body-large;
+            font-weight: 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    Ripple {
+        border-radius: root.border-radius;
+        pressed: ta.pressed;
+        px: ta.pressed-x;
+        py: ta.pressed-y;
+        tint: root.fg;
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    transform-scale-x: ta.pressed && !root.small ? 95% : 100%;
+    transform-scale-y: ta.pressed && !root.small ? 95% : 100%;
+    animate transform-scale-x, transform-scale-y {
+        duration: Motion.fast-spatial;
+        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+    }
+    animate background { duration: Motion.effects; }
+}
+
+export component Chip inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected;
+    in property <image> icon;
+    in property <bool> has-icon: false;
+    in property <color> accent: M3.on-secondary-container;
+    callback clicked;
+    height: 36px;
+    border-radius: root.selected ? 18px : Shape.sm;
+    animate border-radius {
+        duration: Motion.fast-spatial;
+        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+    }
+    background: root.selected ? M3.secondary-container : transparent;
+    border-width: root.selected ? 0px : 1px;
+    border-color: M3.outline;
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 14px;
+        spacing: 6px;
+        alignment: center;
+        if root.has-icon: VIcon {
+            source: root.icon;
+            tint: root.selected ? root.accent : M3.on-surface-variant;
+            size: 18px;
+        }
+        Text {
+            text: root.text;
+            color: root.selected ? M3.on-secondary-container : M3.on-surface-variant;
+            font-size: Type.body;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+
+    animate background, border-width { duration: 200ms; }
+    Ripple {
+        border-radius: root.border-radius;
+        pressed: ta.pressed;
+        px: ta.pressed-x;
+        py: ta.pressed-y;
+    }
+
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// Indicatore lineare Material 3 Expressive: parte attiva, spazio, binario e punto finale.
+export component LinearProgress inherits Rectangle {
+    in property <float> value;
+    in property <color> fill: M3.primary;
+    in property <color> track: M3.secondary-container;
+    height: 8px;
+    property <float> enter: 0;
+    init => {
+        enter = 1;
+    }
+    animate enter {
+        duration: 900ms;
+        delay: 120ms;
+        easing: cubic-bezier(0.38, 1.21, 0.22, 1.0);
+    }
+    property <float> v: max(0, min(1, root.value)) * root.enter;
+    property <length> active: root.width * root.v;
+    property <length> gap: root.v > 0.005 && root.v < 0.995 ? 4px : 0px;
+    Rectangle {
+        x: root.active + root.gap;
+        width: max(0px, root.width - self.x);
+        height: root.height;
+        border-radius: root.height / 2;
+        background: root.track;
+    }
+
+    // punto finale (stop indicator)
+    if root.v < 0.97: Rectangle {
+        x: root.width - root.height;
+        width: root.height;
+        height: root.height;
+        border-radius: root.height / 2;
+        background: root.fill.with-alpha(0.8);
+        transform-scale-x: 50%;
+        transform-scale-y: 50%;
+    }
+    Rectangle {
+        x: 0px;
+        width: root.active;
+        height: root.height;
+        border-radius: root.height / 2;
+        background: root.fill;
+    }
+}
+
+// Indicatore ondulato Material 3 Expressive (come nel lettore multimediale di Android):
+// la parte completata è un'onda che scorre, il resto un binario piatto con punto finale.
+export component WavyProgress inherits Rectangle {
+    in property <float> value;
+    in property <color> fill: M3.primary;
+    in property <color> track: M3.secondary-container;
+    in property <length> amp: 4px;
+    in property <length> wavelength: 40px;
+    in property <length> thickness: 5px;
+    /// l'onda scorre in continuazione (come l'indicatore ondulato di Material 3 Expressive)
+    in property <bool> moving: true;
+    /// animazione d'ingresso (riempimento da zero); se false compare già al suo valore
+    in property <bool> intro: true;
+    /// millisecondi per far scorrere l'onda di una lunghezza d'onda
+    in property <float> period: 1800;
+    height: root.amp * 2 + root.thickness + 2px;
+    property <float> enter: root.intro ? 0 : 1;
+    init => {
+        if (root.intro) {
+            enter = 1;
+        }
+    }
+    animate enter {
+        duration: 1100ms;
+        delay: 150ms;
+        easing: cubic-bezier(0.38, 1.21, 0.22, 1.0);
+    }
+    property <float> v: max(0, min(1, root.value)) * root.enter;
+    property <length> r: root.thickness / 2;
+    // fine della parte completata (compreso il cappuccio tondo)
+    property <length> active: max(root.thickness, root.width * root.v);
+    property <length> gap: root.v < 0.995 ? 6px : 0px;
+    // fase continua: animation-tick() ridisegna a ogni fotogramma finché la barra è visibile
+    property <float> phase: root.moving ? mod(animation-tick() / 1ms, root.period) / root.period : 0;
+
+    // binario piatto
+    Rectangle {
+        x: root.active + root.gap;
+        y: (root.height - root.thickness) / 2;
+        width: max(0px, root.width - self.x);
+        height: root.thickness;
+        border-radius: root.r;
+        background: root.track;
+    }
+
+    // punto finale (stop indicator)
+    if root.v < 0.97: Rectangle {
+        x: root.width - root.thickness;
+        y: (root.height - root.thickness) / 2;
+        width: root.thickness;
+        height: root.thickness;
+        border-radius: root.r;
+        background: root.fill;
+    }
+
+    // onda: un solo tracciato, lungo esattamente quanto la parte completata, con estremi arrotondati
+    Path {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        // coordinate del tracciato = pixel logici dell'elemento (senza adattamento: con
+        // l'adattamento predefinito Slint toglie lo spessore del tratto e rimpicciolisce l'onda)
+        fit: ImageFit.preserve;
+        stroke: root.fill;
+        stroke-width: root.thickness;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+        commands: AppState.wave-path(root.r / 1px, (root.active - root.r) / 1px, root.height / 2px, root.amp / 1px, root.wavelength / 1px, root.phase);
+    }
+}
+
+// Indicatore di caricamento Expressive: una forma "a biscotto" che ruota e pulsa.
+export component MorphLoader inherits Rectangle {
+    in property <color> fill: M3.primary;
+    width: 28px;
+    height: 28px;
+    property <float> t: 0;
+    init => {
+        t = 1;
+    }
+    animate t {
+        duration: 1400ms;
+        iteration-count: -1;
+    }
+    Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        fill: root.fill;
+        transform-rotation: root.t * 360deg;
+        transform-scale-x: 85% + 15% * abs(sin(root.t * 360deg));
+        transform-scale-y: 85% + 15% * abs(sin(root.t * 360deg));
+        commands: "M50 4 Q61 4 66 13 Q76 9 83 17 Q91 24 87 34 Q96 39 96 50 Q96 61 87 66 Q91 76 83 83 Q76 91 66 87 Q61 96 50 96 Q39 96 34 87 Q24 91 17 83 Q9 76 13 66 Q4 61 4 50 Q4 39 13 34 Q9 24 17 17 Q24 9 34 13 Q39 4 50 4 Z";
+    }
+}
+
+// Anello di avanzamento (valore 0..1)
+export component RingProgress inherits Rectangle {
+    in property <float> value;
+    in property <color> fill: M3.primary;
+    in property <color> track: M3.secondary-container;
+    in property <length> thickness: 10px;
+    out property <float> shown: max(0, min(0.9999, root.value)) * root.enter;
+    property <float> enter: 0;
+    init => {
+        enter = 1;
+    }
+    animate enter {
+        duration: 1200ms;
+        delay: 150ms;
+        easing: cubic-bezier(0.2, 0, 0, 1);
+    }
+    property <float> v: root.shown;
+    property <float> r: 50 - root.thickness / root.width * 100 / 2;
+    property <angle> a: 360deg * root.v;
+    Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        stroke: root.track;
+        stroke-width: root.thickness;
+        commands: "M 50 " + (50 - root.r) + " A " + root.r + " " + root.r + " 0 1 1 " + (49.99) + " " + (50 - root.r);
+    }
+
+    if root.v > 0.001: Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        stroke: root.fill;
+        stroke-width: root.thickness;
+        commands: "M 50 " + (50 - root.r) + " A " + root.r + " " + root.r + " 0 " + (root.v > 0.5 ? "1" : "0") + " 1 " + (50 + root.r * sin(root.a)) + " " + (50 - root.r * cos(root.a));
+    }
+    @children
+}
+
+export component Card inherits Rectangle {
+    in property <color> bg: M3.surface-container-low;
+    in property <bool> clickable: false;
+    in property <int> stagger: 0;
+    callback clicked;
+    property <float> enter: 0;
+    init => {
+        enter = 1;
+    }
+    animate enter {
+        duration: Motion.spatial;
+        delay: min(root.stagger, 8) * 50ms;
+        easing: cubic-bezier(0.38, 1.21, 0.22, 1.0);
+    }
+    opacity: min(1, root.enter * 1.4);
+    transform-scale-x: 92% + 8% * root.enter;
+    transform-scale-y: 92% + 8% * root.enter;
+    background: root.bg;
+    animate background { duration: Motion.effects; }
+    border-radius: Shape.xl;
+    drop-shadow-blur: 3px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-color: M3.dark ? #00000000 : #00000022;
+    // sotto ai figli: i pulsanti interni (es. "Apri") ricevono il tocco
+    ta := TouchArea {
+        enabled: root.clickable;
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    @children
+    if root.clickable: Ripple {
+        border-radius: root.border-radius;
+        pressed: ta.pressed;
+        px: ta.pressed-x;
+        py: ta.pressed-y;
+    }
+}
+
+export component SectionTitle inherits Text {
+    color: M3.on-surface-variant;
+    font-size: Type.body;
+    font-weight: 700;
+}
+
+export component TopBar inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    in property <bool> can-back;
+    in property <color> bg: M3.surface;
+    callback back;
+    height: 64px;
+    background: root.bg;
+    HorizontalLayout {
+        padding-left: root.can-back ? 4px : 16px;
+        padding-right: 4px;
+        spacing: 4px;
+        if root.can-back: IconButton {
+            icon: Icons.back;
+            tint: M3.on-surface;
+            clicked => {
+                root.back();
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.title;
+                font-size: Type.title-large;
+                font-weight: 600;
+                color: M3.on-surface;
+                overflow: elide;
+            }
+
+            if root.subtitle != "": Text {
+                text: root.subtitle;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                overflow: elide;
+            }
+        }
+
+        @children
+    }
+}
+
+export component NavItem inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <bool> active;
+    in property <int> badge: 0;
+    callback clicked;
+    VerticalLayout {
+        alignment: center;
+        spacing: 4px;
+        Rectangle {
+            height: 32px;
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 56px;
+                    Rectangle {
+                        width: root.active ? 56px : ta.pressed ? 40px : 0px;
+                        x: (parent.width - self.width) / 2;
+                        border-radius: 16px;
+                        background: root.active ? M3.secondary-container : M3.on-surface.with-alpha(0.08);
+                        animate width {
+                            duration: Motion.fast-spatial;
+                            easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+                        }
+                    }
+
+                    Icon {
+                        source: root.icon;
+                        tint: root.active ? M3.on-secondary-container : M3.on-surface-variant;
+                        transform-scale-x: root.active ? 108% : 100%;
+                        transform-scale-y: root.active ? 108% : 100%;
+                        animate transform-scale-x, transform-scale-y {
+                            duration: Motion.fast-spatial;
+                            easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+                        }
+                    }
+
+                    if root.badge > 0: Rectangle {
+                        x: 38px;
+                        y: 0px;
+                        height: 16px;
+                        width: max(16px, bt.preferred-width + 8px);
+                        border-radius: 8px;
+                        background: M3.error;
+                        transform-scale-x: root.badge > 0 ? 100% : 0%;
+                        transform-scale-y: root.badge > 0 ? 100% : 0%;
+                        animate transform-scale-x, transform-scale-y { duration: 250ms; easing: ease-out-back; }
+                        bt := Text {
+                            text: root.badge > 99 ? "99+" : root.badge;
+                            color: M3.on-error;
+                            font-size: 11px;
+                            font-weight: 700;
+                        }
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: root.label;
+            horizontal-alignment: center;
+            font-size: Type.label;
+            font-weight: root.active ? 700 : 500;
+            color: root.active ? M3.on-surface : M3.on-surface-variant;
+        }
+    }
+
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component ListRow inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    in property <string> trailing;
+    in property <float> value: -1;
+    in property <color> accent: M3.primary;
+    in property <bool> chevron: true;
+    callback clicked;
+    // l'altezza segue il contenuto: titolo e sottotitolo possono andare a capo
+    min-height: max(64px, row.preferred-height);
+    border-radius: ta.pressed ? Shape.xl : Shape.lg;
+    animate border-radius {
+        duration: Motion.fast-spatial;
+        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+    }
+    Ripple {
+        border-radius: root.border-radius;
+        pressed: ta.pressed;
+        px: ta.pressed-x;
+        py: ta.pressed-y;
+    }
+    row := HorizontalLayout {
+        padding: 12px;
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            // larghezza esplicita: Slint calcola l'altezza dei testi a capo dentro una riga
+            // orizzontale come se avessero tutta la larghezza, e la riga risultava più bassa
+            width: root.width - 24px - (root.trailing != "" ? 60px : 0px) - (root.chevron ? 36px : 0px);
+            spacing: 4px;
+            alignment: center;
+            Text {
+                text: root.title;
+                color: M3.on-surface;
+                font-size: Type.body-large;
+                wrap: word-wrap;
+            }
+
+            if root.subtitle != "": Text {
+                text: root.subtitle;
+                color: M3.on-surface-variant;
+                font-size: Type.label;
+                wrap: word-wrap;
+            }
+            if root.value >= 0: LinearProgress {
+                value: root.value;
+                fill: root.accent;
+                height: 6px;
+            }
+        }
+
+        if root.trailing != "": Text {
+            text: root.trailing;
+            color: M3.on-surface;
+            font-size: Type.title;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+        if root.chevron: VIcon {
+            source: Icons.chevron;
+            tint: M3.on-surface-variant;
+        }
+    }
+
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// state: 0 normale, 1 selezionata, 2 corretta, 3 sbagliata (scelta), 4 disabilitata
+export component OptionTile inherits Rectangle {
+    in property <string> letter;
+    in property <string> text;
+    in property <string> note;
+    in property <int> state;
+    callback clicked;
+    property <color> bg: root.state == 1 ? M3.secondary-container : root.state == 2 ? M3.success-container : root.state == 3 ? M3.error-container : M3.surface-container-low;
+    property <color> fg: root.state == 2 ? M3.on-success-container : root.state == 3 ? M3.on-error-container : root.state == 1 ? M3.on-secondary-container : M3.on-surface;
+    min-height: max(56px, opt-row.preferred-height);
+    border-radius: root.state == 1 || root.state == 2 || root.state == 3 ? Shape.xl : Shape.lg-inc;
+    animate border-radius {
+        duration: Motion.fast-spatial;
+        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+    }
+    background: root.bg;
+    border-width: root.state == 0 || root.state == 4 ? 1px : 2px;
+    border-color: root.state == 1 ? M3.primary : root.state == 2 ? M3.success : root.state == 3 ? M3.error : M3.outline-variant;
+    animate background, border-color { duration: 150ms; }
+    opt-row := HorizontalLayout {
+        padding: 12px;
+        spacing: 12px;
+        Rectangle {
+            width: 32px;
+            height: 32px;
+            // lettera: cerchio → quadrato arrotondato ruotato quando scelta
+            border-radius: root.state == 0 || root.state == 4 ? 16px : 10px;
+            transform-rotation: root.state == 1 ? 45deg : 0deg;
+            animate border-radius, transform-rotation {
+                duration: Motion.fast-spatial;
+                easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+            }
+            background: root.state == 1 ? M3.primary : root.state == 2 ? M3.success : root.state == 3 ? M3.error : M3.surface-container-highest;
+            Text {
+                text: root.letter;
+                font-weight: 700;
+                transform-rotation: root.state == 1 ? -45deg : 0deg;
+                animate transform-rotation {
+                    duration: Motion.fast-spatial;
+                    easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+                }
+                color: root.state == 1 ? M3.on-primary : root.state == 2 || root.state == 3 ? M3.surface : M3.on-surface-variant;
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 6px;
+            Text {
+                text: root.text;
+                color: root.fg;
+                font-size: Type.body-large;
+                wrap: word-wrap;
+            }
+
+            if root.note != "": Text {
+                text: root.note;
+                color: root.state == 4 ? M3.on-surface-variant : root.fg.with-alpha(0.85);
+                font-size: Type.body;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    Ripple {
+        border-radius: root.border-radius;
+        pressed: ta.pressed;
+        px: ta.pressed-x;
+        py: ta.pressed-y;
+    }
+
+    property <float> pop: 0;
+    changed state => {
+        if (root.state == 2 || root.state == 3 || root.state == 1) {
+            pop = floor(pop) + 1;
+        }
+    }
+    animate pop {
+        duration: Motion.spatial;
+        easing: cubic-bezier(0.38, 1.21, 0.22, 1.0);
+    }
+    property <float> pf: pop - floor(pop);
+    transform-scale-x: pf == 0 ? 100% : 100% + 3% * sin(pf * 180deg);
+    transform-scale-y: pf == 0 ? 100% : 100% + 3% * sin(pf * 180deg);
+
+    ta := TouchArea {
+        enabled: root.state != 4;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component Pill inherits Rectangle {
+    in property <string> text;
+    in property <color> bg: M3.secondary-container;
+    in property <color> fg: M3.on-secondary-container;
+    height: 24px;
+    border-radius: 12px;
+    background: root.bg;
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        Text {
+            text: root.text;
+            color: root.fg;
+            font-size: Type.label;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component RefBox inherits Rectangle {
+    in property <string> label;
+    callback open;
+    border-radius: Shape.lg-inc;
+    background: M3.surface.with-alpha(0.55);
+    border-width: 1px;
+    border-color: M3.outline-variant;
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 10px;
+        VIcon {
+            source: Icons.book;
+            tint: M3.primary;
+            size: 22px;
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: "Se vuoi approfondire";
+                font-size: Type.label;
+                font-weight: 700;
+                color: M3.primary;
+            }
+
+            Text {
+                text: root.label;
+                font-size: Type.body;
+                color: M3.on-surface;
+                wrap: word-wrap;
+            }
+        }
+
+        M3Button {
+            kind: 3;
+            text: "Apri";
+            clicked => {
+                root.open();
+            }
+        }
+    }
+}
+
+export component StarRating inherits HorizontalLayout {
+    in-out property <int> value;
+    spacing: 0px;
+    for i in 5: IconButton {
+        icon: i < root.value ? Icons.star : Icons.star-outline;
+        tint: i < root.value ? #F2A900 : M3.on-surface-variant;
+        clicked => {
+            root.value = root.value == i + 1 ? 0 : i + 1;
+        }
+    }
+}
+
+// Area scorrevole verticale che è essa stessa il layout del contenuto (padding, spacing,
+// alignment come un VerticalLayout). Il segnaposto di fine sta nello stesso layout dei figli:
+// preferred-height di Slint sottostima i testi a capo dentro righe orizzontali (i figli
+// «sbordano» ma restano nelle posizioni giuste), quindi l'altezza scorrevole si prende dalla
+// posizione reale di scroller-end e non da preferred-height. Prima lo scroll si fermava prima
+// della fine (schede Studio, tabelle del lettore).
+export component Scroller inherits ScrollView {
+    in property <length> pad: 0px;
+    in property <length> pad-top: root.pad;
+    in property <length> pad-bottom: root.pad;
+    in property <length> pad-left: root.pad;
+    in property <length> pad-right: root.pad;
+    in property <length> gap: 0px;
+    in property <LayoutAlignment> align: LayoutAlignment.start;
+    mouse-drag-pan-enabled: AppState.drag-pan;
+    content-width: self.visible-width;
+    // + margine di sicurezza: se un testo a capo resta comunque sottostimato, il fondo è raggiungibile
+    content-height: max(self.visible-height, scroller-end.y + root.pad-bottom + 32px);
+    Rectangle {
+        width: root.visible-width;
+        VerticalLayout {
+            x: 0px;
+            y: 0px;
+            width: root.visible-width;
+            height: max(root.visible-height, self.preferred-height);
+            padding-top: root.pad-top;
+            padding-left: root.pad-left;
+            padding-right: root.pad-right;
+            padding-bottom: 0px;
+            spacing: root.gap;
+            alignment: root.align;
+            @children
+            scroller-end := Rectangle {
+                height: 0px;
+            }
+        }
+    }
+}

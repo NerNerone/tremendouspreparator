@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primo piano: libro aperto con una linea di battito cardiaco (studio + medicina). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFF6EDFF"
+        android:pathData="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74Z" />
+    <path android:fillColor="#FFEADDFF"
+        android:pathData="M54,42C62,36.5 70.5,35.5 78,38L78,70C70.5,67.5 62,68.5 54,74Z" />
+    <path android:strokeColor="#FF381E72" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"
+        android:pathData="M33,57L43,57L47,49L52.5,66L57,51L60,57L75,57" />
+</vector>

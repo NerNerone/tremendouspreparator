@@ -1,0 +1,541 @@
+{
+  "schema": 1,
+  "questions": [
+    {
+      "id": "chi-u1-q001",
+      "topic": "chi-u1-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Quanti elettroni può contenere al massimo un orbitale?",
+      "options": [
+        "1",
+        "2, con spin opposti",
+        "2, con spin uguali",
+        "6",
+        "8"
+      ],
+      "answer": 1,
+      "explanation": "In base al principio di esclusione di Pauli, in un atomo non possono esistere due elettroni con la stessa quaterna di numeri quantici (n, l, m, s). Poiché un orbitale è definito univocamente dai primi tre numeri quantici (n, l, m), può ospitare al massimo due elettroni, purché abbiano numero quantico di spin opposto (s = +1/2 e s = −1/2, antiparalleli).\n\nPerché le altre sono sbagliate:\n• A) 1: un orbitale può contenere un singolo elettrone solo se è semi-occupato, ma la sua capienza massima è di due elettroni.\n• C) 2, con spin uguali: due elettroni con lo stesso spin nello stesso orbitale violerebbero il principio di esclusione di Pauli (avrebbero identica quaterna di numeri quantici).\n• D) 6: sei è il numero massimo di elettroni ospitabili nell'intero sottolivello p (costituito da 3 orbitali degeneri: 3 × 2 = 6 elettroni), non in un singolo orbitale.\n• E) 8: otto è il numero massimo di elettroni che satura un guscio elettronico esterno (ottetto, formato da un orbitale s e tre orbitali p), non la capienza di un singolo orbitale."
+    },
+    {
+      "id": "chi-u1-q002",
+      "topic": "chi-u1-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Nella molecola di metano (CH₄) il carbonio è ibridato:",
+      "options": [
+        "sp",
+        "sp²",
+        "sp³",
+        "sp³d",
+        "non è ibridato"
+      ],
+      "answer": 2,
+      "explanation": "Nel metano (CH₄), il carbonio centrale forma quattro legami singoli σ equivalenti con quattro atomi di idrogeno. Per minimizzare le repulsioni elettrostatiche tra i doppietti di legame (teoria VSEPR), l'atomo di carbonio combina il suo orbitale 2s con i tre orbitali 2p, formando quattro orbitali ibridi degeneri sp³ disposti secondo una geometria tetraedrica con angoli di legame di 109,5°.\n\nPerché le altre sono sbagliate:\n• A) sp: l'ibridazione sp coinvolge un orbitale s e un orbitale p (geometria lineare, angoli di 180°), tipica degli alchini (es. etino HC≡CH) e di molecole come CO₂ e BeCl₂.\n• B) sp²: l'ibridazione sp² coinvolge un orbitale s e due orbitali p (geometria trigonale planare, angoli di 120°), tipica degli alcheni (es. etene H₂C=CH₂) e dei composti aromatici.\n• D) sp³d: l'ibridazione sp³d richiede orbitali d disponibili e si osserva in elementi del terzo periodo in poi con ottetto espanso (geometria bipiramidale trigonale, es. PCl₅); il carbonio, appartenendo al secondo periodo, non possiede orbitali d nella shell di valenza.\n• E) non è ibridato: senza ibridazione il carbonio nella configurazione fondamentale 1s² 2s² 2p² avrebbe solo due elettroni spaiati (formerebbe solo 2 legami covalenti a 90°) anziché i quattro legami tetraedrici sperimentalmente osservati nel CH₄."
+    },
+    {
+      "id": "chi-u1-q003",
+      "topic": "chi-u1-t10",
+      "type": "mcq",
+      "difficulty": 3,
+      "source": "seed",
+      "text": "Una reazione con ΔH < 0 e ΔS > 0 è:",
+      "options": [
+        "sempre spontanea",
+        "mai spontanea",
+        "spontanea solo ad alta temperatura",
+        "spontanea solo a bassa temperatura",
+        "all'equilibrio"
+      ],
+      "answer": 0,
+      "explanation": "La variazione di energia libera di Gibbs è definita dalla relazione fondamentale ΔG = ΔH − TΔS. Una reazione è termodinamicamente spontanea quando ΔG < 0. Se il processo è esotermico (ΔH < 0) e comporta un aumento di entropia (ΔS > 0), il termine −TΔS è sempre negativo a qualsiasi temperatura assoluta (T > 0 K), rendendo ΔG rigorosamente negativo in ogni condizione termica.\n\nPerché le altre sono sbagliate:\n• B) mai spontanea: una reazione non è mai spontanea quando ΔH > 0 e ΔS < 0, poiché ΔG risulta positivo a qualunque temperatura.\n• C) spontanea solo ad alta temperatura: questo accade quando sia ΔH sia ΔS sono positivi (ΔH > 0 e ΔS > 0), dove il termine entropico favorevole −TΔS prevale solo quando T > ΔH / ΔS.\n• D) spontanea solo a bassa temperatura: questo accade quando sia ΔH sia ΔS sono negativi (ΔH < 0 e ΔS < 0), dove la reazione è favorita solo se T < ΔH / ΔS.\n• E) all'equilibrio: una reazione si trova all'equilibrio termodinamico solo quando l'energia libera non varia, ossia ΔG = 0."
+    },
+    {
+      "id": "chi-u1-q004",
+      "topic": "chi-u1-t4",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Quante moli ci sono in 36 g di acqua (MM = 18 g/mol)?",
+      "numeric": {
+        "value": 2,
+        "tolerance": 0.01,
+        "unit": "mol"
+      },
+      "explanation": "n = m/MM = 36/18 = 2 mol."
+    },
+    {
+      "id": "chi-u1-q005",
+      "topic": "chi-u1-t1",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Gli atomi di uno stesso elemento con diverso numero di neutroni si chiamano ______.",
+      "answers": [
+        "isotopi",
+        "isotopo"
+      ],
+      "explanation": "Stesso Z (numero atomico), diverso A (numero di massa)."
+    },
+    {
+      "id": "chi-u2-q001",
+      "topic": "chi-u2-t7",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un globulo rosso immerso in una soluzione ipotonica:",
+      "options": [
+        "raggrinzisce (crenazione)",
+        "resta invariato",
+        "si rigonfia e può andare incontro a emolisi",
+        "perde tutti i soluti",
+        "diventa ipertonico"
+      ],
+      "answer": 2,
+      "explanation": "In una soluzione ipotonica la concentrazione osmolare dei soluti all'esterno della cellula è inferiore a quella del citoplasma eritrocitario (circa 300 mOsm/L). Poiché la membrana plasmatica è semipermeabile, l'acqua si muove per osmosi dal compartimento a minore concentrazione di soluto (esterno) verso quello a maggiore concentrazione (interno del globulo rosso). L'ingresso netto di solvente provoca l'aumento del volume cellulare, la distensione della membrana e infine la lisi osmotica dell'eritrocito (emolisi).\n\nPerché le altre sono sbagliate:\n• A) raggrinzisce (crenazione): il raggrinzimento per disidratazione (crenatura eritrocitaria) si verifica quando il globulo rosso è immerso in una soluzione ipertonica, che richiama acqua verso l'esterno.\n• B) resta invariato: il volume cellulare rimane inalterato solo in soluzioni isotoniche (fisiologiche, es. NaCl allo 0,9% p/v), in cui il flusso osmotico netto di acqua attraverso la membrana è nullo.\n• D) perde tutti i soluti: la membrana cellulare intatta trattiene i soluti macromolecolari e le specie ioniche; l'equilibrio viene ricercato tramite il movimento dell'acqua (solvente), non per svuotamento selettivo dei soluti.\n• E) diventa ipertonico: l'ingresso di acqua diluisce il contenuto intracellulare, rendendo la cellula ipotonica rispetto allo stato di partenza anziché ipertonica."
+    },
+    {
+      "id": "chi-u2-q002",
+      "topic": "chi-u2-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Quale di queste NON è una proprietà colligativa?",
+      "options": [
+        "abbassamento crioscopico",
+        "innalzamento ebullioscopico",
+        "pressione osmotica",
+        "abbassamento della pressione di vapore",
+        "densità della soluzione"
+      ],
+      "answer": 4,
+      "explanation": "Le proprietà colligative sono quelle proprietà fisiche delle soluzioni che dipendono esclusivamente dal numero totale di particelle di soluto disciolte in un dato volume di solvente (concentrazione molale o osmolare), e non dalla loro natura chimica o massa molecolare. La densità è invece una proprietà intensiva non colligativa, poiché dipende strettamente dalla massa e dal volume specifico dei singoli componenti (natura chimica del soluto e del solvente).\n\nPerché le altre sono sbagliate:\n• A) abbassamento crioscopico: è una proprietà colligativa, quantificata da ΔTcr = Kcr · m · i.\n• B) innalzamento ebullioscopico: è una proprietà colligativa, quantificata da ΔTeb = Keb · m · i.\n• C) pressione osmotica: è una classica proprietà colligativa, calcolata con l'equazione di van 't Hoff Π = iCRT.\n• D) abbassamento della pressione di vapore: è una proprietà colligativa descritta dalla legge di Raoult (ΔP = P° · Xsoluto)."
+    },
+    {
+      "id": "chi-u2-q003",
+      "topic": "chi-u2-t6",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il coefficiente di van't Hoff (i) ideale di CaCl₂ in acqua è:",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "0,5"
+      ],
+      "answer": 2,
+      "explanation": "Il cloruro di calcio (CaCl₂) è un elettrolita forte che in soluzione acquosa si dissocia completamente secondo la reazione:\nCaCl₂ → Ca²⁺ + 2Cl⁻\nIl coefficiente di van 't Hoff ideale i rappresenta il numero di particelle (ioni) liberate per ogni unità formula disciolta. Da una molecola di CaCl₂ si generano un catione Ca²⁺ e due anioni Cl⁻, per un totale di 1 + 2 = 3 ioni (i = 3).\n\nPerché le altre sono sbagliate:\n• A) 1: i = 1 è tipico dei soluti non elettroliti che non si dissociano in acqua, come il glucosio, l'urea o il saccarosio.\n• B) 2: i = 2 caratterizza gli elettroliti forti binari che liberano due ioni, come NaCl, KCl o MgSO₄.\n• D) 4: i = 4 si ottiene da sali che liberano quattro ioni per unità formula, come FeCl₃ (Fe³⁺ + 3Cl⁻) o Al(NO₃)₃.\n• E) 0,5: un valore di i < 1 si riscontrerebbe solo in caso di associazione o dimerizzazione tra le molecole di soluto in solventi apolari, fenomeno che non si verifica per un sale ionico in acqua."
+    },
+    {
+      "id": "chi-u2-q004",
+      "topic": "chi-u2-t3",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Sciogliendo 0,5 mol di NaCl in 250 mL di soluzione si ottiene una concentrazione di ____ M.",
+      "numeric": {
+        "value": 2,
+        "tolerance": 0.01,
+        "unit": "M"
+      },
+      "explanation": "M = n/V(L) = 0,5/0,25 = 2 mol/L."
+    },
+    {
+      "id": "chi-u2-q005",
+      "topic": "chi-u2-t6",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "L'osmolarità di una soluzione 0,15 M di NaCl (dissociazione completa) è ____ Osm.",
+      "numeric": {
+        "value": 0.3,
+        "tolerance": 0.01,
+        "unit": "Osm"
+      },
+      "explanation": "0,15 · 2 = 0,30 osmol/L (circa quella del plasma, ~300 mOsm/L)."
+    },
+    {
+      "id": "chi-u3-q001",
+      "topic": "chi-u3-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un catalizzatore:",
+      "options": [
+        "sposta l'equilibrio verso i prodotti",
+        "aumenta la costante di equilibrio",
+        "abbassa l'energia di attivazione senza essere consumato",
+        "rende spontanea una reazione con ΔG > 0",
+        "aumenta il ΔH della reazione"
+      ],
+      "answer": 2,
+      "explanation": "Un catalizzatore è una sostanza che aumenta la velocità di una reazione chimica fornendo un cammino di reazione alternativo caratterizzato da una minore energia di attivazione (Ea). Al termine del ciclo catalitico la sostanza viene rigenerata inalterata, senza essere consumata né comparire nel bilancio stechiometrico globale.\n\nPerché le altre sono sbagliate:\n• A) sposta l'equilibrio verso i prodotti: il catalizzatore accelera sia la reazione diretta sia quella inversa nella stessa proporzione, consentendo di raggiungere l'equilibrio più rapidamente senza alterarne la posizione.\n• B) aumenta la costante di equilibrio: la costante di equilibrio Keq dipende esclusivamente dalla temperatura e dalla differenza di energia libera standard (ΔG° = −RT ln K), valori che non vengono alterati dal catalizzatore.\n• D) rende spontanea una reazione con ΔG > 0: il catalizzatore influisce esclusivamente sugli aspetti cinetici e non può modificare la termodinamica della reazione; una reazione endoergonica (ΔG > 0) rimane non spontanea.\n• E) aumenta il ΔH della reazione: l'entalpia di reazione ΔH è una funzione di stato pari alla differenza tra l'entalpia dei prodotti e quella dei reagenti; il catalizzatore abbassa lo stato di transizione senza variare le energie di reagenti e prodotti."
+    },
+    {
+      "id": "chi-u3-q002",
+      "topic": "chi-u3-t4",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Per l'equilibrio N₂ + 3H₂ ⇌ 2NH₃, aumentando la pressione (riducendo il volume) l'equilibrio:",
+      "options": [
+        "si sposta a sinistra",
+        "si sposta a destra",
+        "non cambia",
+        "si blocca",
+        "inverte il segno di ΔH"
+      ],
+      "answer": 1,
+      "explanation": "In base al principio di Le Châtelier, quando si perturba un sistema all'equilibrio aumentando la pressione (o riducendo il volume), il sistema reagisce spostandosi nella direzione che comporta una diminuzione del numero totale di moli di gas, così da attenuare l'aumento di pressione. Nella sintesi dell'ammoniaca si hanno 1 + 3 = 4 moli di gas tra i reagenti e sole 2 moli tra i prodotti: l'aumento di pressione favorisce quindi la reazione diretta, spostando l'equilibrio verso destra (formazione di NH₃).\n\nPerché le altre sono sbagliate:\n• A) si sposta a sinistra: lo spostamento a sinistra verso i reagenti avverrebbe in caso di diminuzione della pressione (espansione del volume), che favorisce il lato con maggior numero di moli gassose (4 moli).\n• C) non cambia: la pressione non altererebbe la posizione dell'equilibrio solo se la variazione del numero di moli gassose fosse nulla (Δngas = 0).\n• D) si blocca: le reazioni all'equilibrio dinamico non si bloccano mai; le velocità diretta e inversa continuano a procedere a livello microscopico.\n• E) inverte il segno di ΔH: l'entalpia di reazione ΔH è una grandezza termodinamica intrinseca alla trasformazione chimica e il suo segno non dipende dalla pressione del sistema."
+    },
+    {
+      "id": "chi-u3-q003",
+      "topic": "chi-u3-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Secondo l'equazione di Arrhenius, aumentando la temperatura la costante cinetica k:",
+      "options": [
+        "diminuisce",
+        "aumenta",
+        "resta costante",
+        "si annulla",
+        "dipende solo dalla concentrazione"
+      ],
+      "answer": 1,
+      "explanation": "L'equazione di Arrhenius esprime la dipendenza della costante di velocità k dalla temperatura assoluta T:\nk = A · e^(−Ea/RT)\nAll'aumentare della temperatura T, la frazione Ea/(RT) diminuisce, rendendo l'esponente −Ea/(RT) meno negativo; di conseguenza il fattore esponenziale e^(−Ea/RT) aumenta, determinando un incremento della costante cinetica k e quindi della velocità di reazione. Fisicamente, un aumento di temperatura accresce la frazione di molecole dotate di energia cinetica uguale o superiore all'energia di attivazione Ea.\n\nPerché le altre sono sbagliate:\n• A) diminuisce: k diminuirebbe con la temperatura solo in rari processi senza barriera di attivazione con pre-equilibrio esotermico, ma per la formulazione canonica di Arrhenius (Ea > 0) k cresce sempre al crescere di T.\n• C) resta costante: la costante di velocità k non è indipendente dalla temperatura; varia in modo esponenziale con essa.\n• D) si annulla: per T → 0 K il termine k tende a zero, ma aumentando la temperatura k cresce progressivamente.\n• E) dipende solo dalla concentrazione: la costante cinetica k è indipendente dalle concentrazioni dei reagenti, le quali compaiono invece nell'equazione cinetica generale v = k [A]^m [B]^n."
+    },
+    {
+      "id": "chi-u3-q004",
+      "topic": "chi-u3-t5",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "L'aggiunta di uno ione già presente in soluzione riduce la solubilità di un sale poco solubile: è l'effetto dello ione ______.",
+      "answers": [
+        "comune",
+        "in comune"
+      ],
+      "explanation": "Il prodotto ionico supera Kps e l'equilibrio si sposta verso il solido."
+    },
+    {
+      "id": "chi-u3-q005",
+      "topic": "chi-u3-t4",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Se Keq ≫ 1, all'equilibrio prevalgono i ______.",
+      "answers": [
+        "prodotti"
+      ],
+      "explanation": "K = [prodotti]/[reagenti] all'equilibrio."
+    },
+    {
+      "id": "chi-u4-q001",
+      "topic": "chi-u4-t1",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Il pH di una soluzione 0,01 M di HCl è:",
+      "options": [
+        "1",
+        "2",
+        "7",
+        "12",
+        "0,01"
+      ],
+      "answer": 1,
+      "explanation": "L'acido cloridrico (HCl) è un acido forte monoprotico che in soluzione acquosa si dissocia completamente:\nHCl + H₂O → H₃O⁺ + Cl⁻\nDi conseguenza, la concentrazione degli ioni idronio [H₃O⁺] coincide con la concentrazione nominale dell'acido: [H₃O⁺] = 0,01 M = 10⁻² M. Il pH è definito come:\npH = −log₁₀[H₃O⁺] = −log₁₀(10⁻²) = 2\n\nPerché le altre sono sbagliate:\n• A) 1: un pH pari a 1 corrisponderebbe a una concentrazione [H₃O⁺] = 0,1 M = 10⁻¹ M.\n• C) 7: il pH 7 corrisponde alla neutralità dell'acqua pura a 25 °C, mentre una soluzione di acido forte è nettamente acida.\n• D) 12: un pH pari a 12 identifica una soluzione fortemente basica ([OH⁻] = 10⁻² M), come una soluzione di NaOH 0,01 M.\n• E) 0,01: 0,01 M è il valore della concentrazione molare del soluto, non il valore della funzione logaritmica negativa pH."
+    },
+    {
+      "id": "chi-u4-q002",
+      "topic": "chi-u4-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "In un tampone, quando [A⁻] = [HA], il pH è:",
+      "options": [
+        "7",
+        "uguale al pKa",
+        "uguale a pKa + 1",
+        "uguale al pKb",
+        "uguale a 14 − pKa"
+      ],
+      "answer": 1,
+      "explanation": "L'equazione di Henderson-Hasselbalch per un sistema tampone acido debole/base coniugata (HA/A⁻) è:\npH = pKa + log₁₀([A⁻]/[HA])\nQuando la concentrazione della base coniugata è identica a quella dell'acido indissociato ([A⁻] = [HA]), il loro rapporto vale 1. Poiché log₁₀(1) = 0, l'equazione si riduce a:\npH = pKa + 0 = pKa\nQuesta condizione corrisponde al punto di massima capacità tamponante del sistema.\n\nPerché le altre sono sbagliate:\n• A) 7: il pH del tampone coincide con 7 solo nel caso particolare in cui il pKa dell'acido sia esattamente uguale a 7 (a 25 °C).\n• C) uguale a pKa + 1: il pH vale pKa + 1 quando la base coniugata è dieci volte più concentrata dell'acido indissociato ([A⁻]/[HA] = 10, log₁₀(10) = 1).\n• D) uguale al pKb: per un acido debole il pKb è legato dalla relazione pKa + pKb = 14; il pH di semicompensazione non eguaglia il pKb.\n• E) uguale a 14 − pKa: 14 − pKa corrisponde al valore del pKb della base coniugata a 25 °C, non al pH del tampone."
+    },
+    {
+      "id": "chi-u4-q003",
+      "topic": "chi-u4-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il principale sistema tampone del plasma sanguigno è:",
+      "options": [
+        "fosfato",
+        "acido carbonico/bicarbonato",
+        "ammonio/ammoniaca",
+        "acetato",
+        "emoglobina libera nel plasma"
+      ],
+      "answer": 1,
+      "explanation": "Il sistema tampone fondamentale dello spazio extracellulare e del plasma sanguigno è la coppia acido carbonico/bicarbonato (H₂CO₃/HCO₃⁻), associata all'anidride carbonica in equilibrio idratato:\nCO₂ + H₂O ⇌ H₂CO₃ ⇌ H⁺ + HCO₃⁻\nQuesto sistema è estremamente efficiente nel mantenere il pH plasmatico nell'intervallo fisiologico (7,35 - 7,45) in quanto è un sistema aperto: la componente volatile (CO₂) è regolata rapidamente dalla ventilazione polmonare, mentre la concentrazione di bicarbonato (HCO₃⁻) è controllata a livello renale.\n\nPerché le altre sono sbagliate:\n• A) fosfato: il tampone diidrogenofosfato/monoidrogenofosfato (H₂PO₄⁻/HPO₄²⁻) è il principale tampone chimico intracellulare e urinario, ma nel plasma la sua concentrazione è troppo bassa rispetto al bicarbonato.\n• C) ammonio/ammoniaca: la coppia NH₄⁺/NH₃ agisce prevalentemente a livello tubulare renale per l'escrezione dei protoni nelle urine.\n• D) acetato: la coppia acido acetico/acetato non è un tampone fisiologico del plasma umano.\n• E) emoglobina libera nel plasma: l'emoglobina costituisce un potente tampone all'interno degli eritrociti, ma in condizioni fisiologiche non si trova libera nel plasma."
+    },
+    {
+      "id": "chi-u4-q004",
+      "topic": "chi-u4-t1",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Una soluzione ha pOH = 4. Il suo pH (a 25 °C) è ____.",
+      "numeric": {
+        "value": 10,
+        "tolerance": 0.001
+      },
+      "explanation": "pH + pOH = 14 → pH = 10."
+    },
+    {
+      "id": "chi-u4-q005",
+      "topic": "chi-u4-t4",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "In una cella galvanica la riduzione avviene al ______.",
+      "answers": [
+        "catodo"
+      ],
+      "explanation": "Riduzione al catodo, ossidazione all'anodo."
+    },
+    {
+      "id": "chi-u5-q001",
+      "topic": "chi-u5-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Due molecole che sono immagini speculari non sovrapponibili sono:",
+      "options": [
+        "diastereoisomeri",
+        "enantiomeri",
+        "isomeri di struttura",
+        "conformeri",
+        "epimeri"
+      ],
+      "answer": 1,
+      "explanation": "Gli enantiomeri (o isomeri ottici) sono stereoisomeri le cui strutture molecolari sono l'una l'immagine speculare non sovrapponibile dell'altra (chiralità). Essi possiedono identiche proprietà chimico-fisiche in ambiente achirale (stesso punto di fusione, punto di ebollizione, densità e solubilità), ma ruotano il piano della luce polarizzata dello stesso angolo in direzioni opposte (destrogiri e levogiri) e mostrano diversa reattività verso reagenti o recettori chirali.\n\nPerché le altre sono sbagliate:\n• A) diastereoisomeri: sono stereoisomeri che non sono immagini speculari l'uno dell'altro; possiedono proprietà fisiche e chimiche differenti.\n• C) isomeri di struttura: presentano la medesima formula molecolare bruta ma differiscono per la connettività con cui gli atomi sono legati nella catena.\n• D) conformeri: sono forme interconvertibili della stessa molecola per semplice rotazione attorno a legami singoli carbonio-carbonio (es. conformazioni sfalsata ed eclissata).\n• E) epimeri: sono diastereoisomeri che differiscono per la configurazione stereochimica di uno solo tra più centri chirali presenti nella molecola (tipico dei carboidrati, es. D-glucosio e D-galattosio)."
+    },
+    {
+      "id": "chi-u5-q002",
+      "topic": "chi-u5-t7",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Secondo la regola di Hückel un composto ciclico planare e coniugato è aromatico se ha:",
+      "options": [
+        "4n elettroni π",
+        "4n + 2 elettroni π",
+        "6n elettroni σ",
+        "un numero dispari di elettroni π",
+        "almeno un eteroatomo"
+      ],
+      "answer": 1,
+      "explanation": "La regola di Hückel stabilisce che un composto monociclico, planare e completamente coniugato (con un orbitale p su ogni atomo del ciclo) possiede una stabilità termodinamica eccezionale (aromaticità) se la nuvola ciclica delocalizzata contiene (4n + 2) elettroni π, dove n è un numero intero non negativo (n = 0, 1, 2, 3...). Per n = 1 si hanno 6 elettroni π (come nel benzene), per n = 2 si hanno 10 elettroni π (come nel naftalene o nell'anione ciclononatetraenile).\n\nPerché le altre sono sbagliate:\n• A) 4n elettroni π: composti ciclici, planari e coniugati con 4n elettroni π sono classificati come antiaromatici (particolarmente instabili, es. ciclobutadiene con 4 elettroni π).\n• C) 6n elettroni σ: la regola di Hückel riguarda esclusivamente gli elettroni π delocalizzati nel sistema coniugato perpendicolare al piano dell'anello, non gli elettroni dei legami σ.\n• D) un numero dispari di elettroni π: (4n + 2) produce sempre un numero pari di elettroni (2, 6, 10, 14...); un numero dispari indicherebbe una specie radicalica.\n• E) almeno un eteroatomo: l'aromaticità non richiede necessariamente la presenza di eteroatomi (il benzene C₆H₆ è l'idrocarburo aromatico per eccellenza); gli eterocicli aromatici (come piridina o furano) sono solo una sottoclasse."
+    },
+    {
+      "id": "chi-u5-q003",
+      "topic": "chi-u5-t4",
+      "type": "mcq",
+      "difficulty": 3,
+      "source": "seed",
+      "text": "Una reazione SN2:",
+      "options": [
+        "procede via carbocatione",
+        "ha cinetica del primo ordine",
+        "avviene in un solo stadio con inversione di configurazione",
+        "è favorita sui carboni terziari",
+        "porta a una miscela racemica"
+      ],
+      "answer": 2,
+      "explanation": "La sostituzione nucleofila bimolecolare (SN2) è un processo concertato che si compie in un unico stadio senza intermedi di reazione. Il nucleofilo attacca il carbonio elettrofilo dal lato opposto rispetto al gruppo uscente (attacco da tergo); nello stato di transizione pentacoordinato il legame con il nucleofilo si forma contemporaneamente alla rottura del legame con il gruppo uscente, provocando la completa inversione della configurazione stereochimica al carbonio (inversione di Walden).\n\nPerché le altre sono sbagliate:\n• A) procede via carbocatione: la formazione di un intermedio carbocationico planare è caratteristica del meccanismo SN1, non della SN2.\n• B) ha cinetica del primo ordine: la reazione SN2 presenta cinetica del secondo ordine globale (v = k [substrato][nucleofilo]), poiché entrambi i reagenti partecipano allo stadio che determina la velocità.\n• D) è favorita sui carboni terziari: a causa dell'ingombro sterico nello stato di transizione, la reattività SN2 è massima sui substrati metilici e primari, mentre i carboni terziari risultano praticamente inerti a questo meccanismo.\n• E) porta a una miscela racemica: la racemizzazione (perdita di attività ottica per attacco su entrambi i lobi dell'intermedio carbocationico planare) è tipica della SN1, mentre la SN2 è stereospecifica con inversione pura al 100%."
+    },
+    {
+      "id": "chi-u5-q004",
+      "topic": "chi-u5-t6",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La reazione tipica degli alcheni è l'addizione ______.",
+      "answers": [
+        "elettrofila"
+      ],
+      "explanation": "Il doppio legame ricco di elettroni attacca un elettrofilo (es. H⁺ di HBr)."
+    },
+    {
+      "id": "chi-u5-q005",
+      "topic": "chi-u5-t1",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "In un alchino il carbonio del triplo legame è ibridato ____.",
+      "answers": [
+        "sp"
+      ],
+      "explanation": "Due orbitali sp (geometria lineare, 180°) e due orbitali p per i due legami π."
+    },
+    {
+      "id": "chi-u6-q001",
+      "topic": "chi-u6-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Dalla reazione di un'aldeide con un alcol si ottiene inizialmente:",
+      "options": [
+        "un estere",
+        "un emiacetale",
+        "un etere",
+        "un'ammide",
+        "un chetone"
+      ],
+      "answer": 1,
+      "explanation": "L'addizione nucleofila dell'ossigeno ossidrilico di una molecola di alcol (R'−OH) al carbonio carbonilico elettrofilo di un'aldeide (R−CHO) porta alla formazione di un emiacetale (o semiacetale). La struttura dell'emiacetale è caratterizzata dalla presenza, sullo stesso atomo di carbonio, di un gruppo ossidrile (−OH) e di un gruppo alcossilico (−OR'); in presenza di un eccesso di alcol e catalisi acida l'emiacetale può poi trasformarsi in acetale con perdita di una molecola d'acqua.\n\nPerché le altre sono sbagliate:\n• A) un estere: un estere si ottiene tipicamente dalla reazione di esterificazione tra un acido carbossilico (o suo derivato acilico) e un alcol.\n• C) un etere: un etere (R−O−R') deriva dalla disidratazione intermolecolare di due alcoli o da una sintesi di Williamson tra un alcossido e un alogenuro alchilico.\n• D) un'ammide: un'ammide si forma per condensazione tra un acido carbossilico (o suo derivato) e un'ammina o ammoniaca.\n• E) un chetone: un chetone non si forma dalla reazione tra aldeide e alcol (un chetone con un alcol genererebbe invece un emichetale)."
+    },
+    {
+      "id": "chi-u6-q002",
+      "topic": "chi-u6-t1",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "L'ossidazione di un alcol primario porta a:",
+      "options": [
+        "chetone e poi acido carbossilico",
+        "aldeide e poi acido carbossilico",
+        "etere",
+        "alchene",
+        "nessuna reazione"
+      ],
+      "answer": 1,
+      "explanation": "Un alcol primario (R−CH₂OH) presenta due atomi di idrogeno legati al carbonio funzionale. La sua ossidazione controllata (ad esempio con clorocromato di piridinio, PCC) rimuove una prima coppia di idrogeni portando all'aldeide corrispondente (R−CHO). In presenza di ossidanti forti in ambiente acquoso (come KMnO₄ o reagente di Jones CrO₃/H₂SO₄) l'aldeide si ossida ulteriormente formando l'acido carbossilico (R−COOH).\n\nPerché le altre sono sbagliate:\n• A) chetone e poi acido carbossilico: sono gli alcoli secondari (R−CH(OH)−R') a ossidarsi a chetoni, i quali non si ossidano ulteriormente ad acidi carbossilici senza la rottura di legami C−C.\n• C) etere: gli eteri derivano dalla condensazione di alcoli per disidratazione catalizzata da acidi, non da processi ossidativi.\n• D) alchene: la conversione di un alcol in alchene è una reazione di disidratazione (eliminazione di acqua), non di ossidazione.\n• E) nessuna reazione: sono gli alcoli terziari a non subire ossidazione in condizioni blande perché privi di idrogeni sul carbonio legato all'ossidrile."
+    },
+    {
+      "id": "chi-u6-q003",
+      "topic": "chi-u6-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Le ammine hanno carattere:",
+      "options": [
+        "acido, per il gruppo OH",
+        "basico, per il doppietto libero sull'azoto",
+        "neutro",
+        "ossidante",
+        "elettrofilo"
+      ],
+      "answer": 1,
+      "explanation": "Le ammine (R−NH₂, R₂NH, R₃N) si comportano come basi di Brønsted-Lowry e come basi di Lewis grazie alla presenza del doppietto elettronico non condiviso (lone pair) sull'atomo di azoto ibridato sp³. Tale doppietto può coordinare prontamente un protone (H⁺) formando ioni alchilammonio (R−NH₃⁺), conferendo alle ammine carattere basico e nucleofilo.\n\nPerché le altre sono sbagliate:\n• A) acido, per il gruppo OH: le ammine contengono atomi di azoto e non possiedono gruppi ossidrili (−OH), tipici di alcoli e acidi carbossilici.\n• C) neutro: le soluzioni acquose di ammine hanno pH decisamente basico (> 7) a causa della liberazione di ioni OH⁻ per idrolisi: R−NH₂ + H₂O ⇌ R−NH₃⁺ + OH⁻.\n• D) ossidante: le ammine non fungono da specie ossidanti; al contrario, possono essere suscettibili all'ossidazione ad ammino-ossidi, nitrocomposti o immine.\n• E) elettrofilo: a causa dell'alta densità di carica negativa concentrata sul lone pair dell'azoto, le ammine agiscono da specie nucleofile (donatrici di elettroni) e non da elettrofili."
+    },
+    {
+      "id": "chi-u6-q004",
+      "topic": "chi-u6-t4",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "La reazione tra un acido carbossilico e un alcol in ambiente acido si chiama esterificazione di ______.",
+      "answers": [
+        "Fischer"
+      ],
+      "explanation": "Reazione reversibile di sostituzione nucleofila acilica con eliminazione di acqua."
+    },
+    {
+      "id": "chi-u6-q005",
+      "topic": "chi-u6-t3",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "L'equilibrio tra forma chetonica ed enolica di un composto carbonilico si chiama tautomeria cheto-______.",
+      "answers": [
+        "enolica"
+      ],
+      "explanation": "Coinvolge l'idrogeno in α al carbonile (es. fosfoenolpiruvato)."
+    },
+    {
+      "id": "chi-u7-q001",
+      "topic": "chi-u7-t1",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Al punto isoelettrico un amminoacido:",
+      "options": [
+        "ha carica netta positiva",
+        "ha carica netta negativa",
+        "ha carica netta zero",
+        "non è ionizzato in nessun gruppo",
+        "è completamente protonato"
+      ],
+      "answer": 2,
+      "explanation": "Il punto isoelettrico (pI) è il valore di pH della soluzione al quale la molecola dell'amminoacido possiede una carica elettrica netta esattamente pari a zero. In questa condizione l'amminoacido si trova prevalentemente sotto forma di zwitterione (ione dipolare), in cui il gruppo carbossilico è deprotonato e carico negativamente (−COO⁻) e il gruppo amminico è protonato e carico positivamente (−NH₃⁺). Sottoposto a un campo elettrico in elettroforesi a pH = pI, l'amminoacido non migra verso nessun elettrodo.\n\nPerché le altre sono sbagliate:\n• A) ha carica netta positiva: una carica netta positiva si manifesta a valori di pH inferiori al punto isoelettrico (pH < pI), dove l'eccesso di protoni induce la protonazione anche del carbossile (−COOH e −NH₃⁺).\n• B) ha carica netta negativa: una carica netta negativa si manifesta a valori di pH superiori al punto isoelettrico (pH > pI), dove la deprotonazione coinvolge anche il gruppo amminico (−COO⁻ e −NH₂).\n• D) non è ionizzato in nessun gruppo: l'amminoacido è ampiamente ionizzato sotto forma zwitterionica; la neutralità complessiva è data dal perfetto bilanciamento delle cariche opposte, non dall'assenza di ionizzazione.\n• E) è completamente protonato: la forma completamente protonata (−COOH e −NH₃⁺, cationica) predomina a pH molto acidi ben al di sotto del pI."
+    },
+    {
+      "id": "chi-u7-q002",
+      "topic": "chi-u7-t3",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Il glicogeno è:",
+      "options": [
+        "un disaccaride",
+        "un eteropolisaccaride",
+        "un omopolisaccaride di glucosio ramificato (α1→4 e α1→6)",
+        "un polimero di fruttosio",
+        "un lipide complesso"
+      ],
+      "answer": 2,
+      "explanation": "Il glicogeno è il principale polisaccaride di riserva energetica negli organismi animali, accumulato prevalentemente nel fegato e nel muscolo scheletrico. È un omopolisaccaride costituito esclusivamente da unità di D-glucosio legate linearmente mediante legami glicosidici α(1→4) e con frequenti punti di ramificazione introdotti da legami α(1→6) ogni 8-12 residui di glucosio (strutturalmente analogo all'amilopectina vegetale, ma con un grado di ramificazione significativamente maggiore).\n\nPerché le altre sono sbagliate:\n• A) un disaccaride: i disaccaridi sono formati da due sole unità monosaccaridiche (come maltosio, saccarosio o lattosio), mentre il glicogeno è un polimero macromolecolare composto da decine di migliaia di unità.\n• B) un eteropolisaccaride: gli eteropolisaccaridi (come i glicosamminoglicani, eparina o acido ialuronico) contengono monomeri di tipo diverso, mentre il glicogeno è costituito esclusivamente da glucosio (omopolisaccaride).\n• D) un polimero di fruttosio: i polimeri composti da unità di fruttosio sono i fruttani (come l'inulina vegetale), non il glicogeno.\n• E) un lipide complesso: il glicogeno appartiene alla classe chimica dei carboidrati (glucidi) e non a quella dei lipidi."
+    },
+    {
+      "id": "chi-u7-q003",
+      "topic": "chi-u7-t5",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Quale base azotata è presente nell'RNA ma non nel DNA?",
+      "options": [
+        "adenina",
+        "guanina",
+        "citosina",
+        "timina",
+        "uracile"
+      ],
+      "answer": 4,
+      "explanation": "La base pirimidinica uracile (2,4-diosso-pirimidina) è presente nei ribonucleotidi dell'RNA al posto della timina (5-metiluracile), che si trova invece nel DNA. L'uracile differisce dalla timina per l'assenza del gruppo metilico (−CH₃) in posizione C5 dell'anello pirimidinico e forma due legami a idrogeno accoppiandosi specificamente con l'adenina.\n\nPerché le altre sono sbagliate:\n• A) adenina: è una base purinica comune presente sia nel DNA sia nell'RNA.\n• B) guanina: è una base purinica comune presente sia nel DNA sia nell'RNA.\n• C) citosina: è una base pirimidinica comune presente sia nel DNA sia nell'RNA.\n• D) timina: è la base pirimidinica caratteristica presente nel DNA ma assente nell'RNA."
+    },
+    {
+      "id": "chi-u7-q004",
+      "topic": "chi-u7-t2",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "seed",
+      "text": "Il legame che unisce due amminoacidi in una proteina si chiama legame ______.",
+      "answers": [
+        "peptidico",
+        "ammidico"
+      ],
+      "explanation": "È un legame ammidico planare con parziale carattere di doppio legame."
+    },
+    {
+      "id": "chi-u7-q005",
+      "topic": "chi-u7-t4",
+      "type": "fill",
+      "difficulty": 2,
+      "source": "seed",
+      "text": "Un trigliceride è formato da una molecola di ______ esterificata con tre acidi grassi.",
+      "answers": [
+        "glicerolo",
+        "glicerina"
+      ],
+      "explanation": "Glicerolo (1,2,3-propantriolo) + 3 acidi grassi → triacilglicerolo + 3 H₂O."
+    }
+  ]
+}

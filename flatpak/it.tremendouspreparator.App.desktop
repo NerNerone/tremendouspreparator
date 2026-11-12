@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Semestre Aperto
+GenericName=Preparazione esami di Medicina
+Comment=Quiz, simulazioni e flashcard per il semestre aperto
+Exec=semestre-aperto
+Icon=it.tremendouspreparator.App
+Terminal=false
+Categories=Education;Science;
+Keywords=medicina;quiz;flashcard;studio;
+StartupWMClass=semestre-aperto

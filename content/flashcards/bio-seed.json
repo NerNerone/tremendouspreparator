@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "cards": [
+    {
+      "id": "bio-u1-c001",
+      "topic": "bio-u1-t2",
+      "front": "Ciclo litico vs lisogenico?",
+      "back": "Litico: il fago si replica e lisa la cellula. Lisogenico: il genoma del fago si integra come profago e viene replicato con il cromosoma batterico.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u1-c002",
+      "topic": "bio-u1-t5",
+      "front": "Principali modificazioni post-traduzionali?",
+      "back": "Fosforilazione, acetilazione, glicosilazione, ubiquitinazione, aggiunta di lipidi (es. prenilazione, palmitoilazione).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u1-c003",
+      "topic": "bio-u1-t1",
+      "front": "Postulati della teoria cellulare?",
+      "back": "Tutti gli organismi sono fatti di cellule; la cellula è l'unità strutturale e funzionale; ogni cellula deriva da un'altra cellula.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u2-c001",
+      "topic": "bio-u2-t2",
+      "front": "Metilazione del DNA?",
+      "back": "Aggiunta di metili alle citosine nelle isole CpG: in genere silenzia la trascrizione (modifica epigenetica).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u2-c002",
+      "topic": "bio-u2-t3",
+      "front": "Microsatelliti vs minisatelliti?",
+      "back": "Ripetizioni in tandem: microsatelliti unità di 1–6 bp (STR); minisatelliti unità di ~10–100 bp (VNTR).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u2-c003",
+      "topic": "bio-u2-t1",
+      "front": "Elementi minimi di un cromosoma eucariotico?",
+      "back": "Origini di replicazione, centromero, telomeri.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u3-c001",
+      "topic": "bio-u3-t3",
+      "front": "Operone Lac in presenza di lattosio e assenza di glucosio?",
+      "back": "L'allolattosio inattiva il repressore e il complesso CAP-cAMP attiva la trascrizione: massima espressione.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u3-c002",
+      "topic": "bio-u3-t6",
+      "front": "Maturazione del pre-mRNA eucariotico?",
+      "back": "Capping al 5' (7-metilguanosina), poliadenilazione al 3', splicing degli introni.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u3-c003",
+      "topic": "bio-u3-t9",
+      "front": "Via ubiquitina-proteasoma?",
+      "back": "E1 (attivazione), E2 (coniugazione), E3 (ligasi) poliubiquitinano la proteina, poi degradata dal proteasoma 26S.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u4-c001",
+      "topic": "bio-u4-t3",
+      "front": "Penetranza vs espressività?",
+      "back": "Penetranza: % di portatori del genotipo che manifestano il fenotipo. Espressività: grado di gravità con cui si manifesta.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u4-c002",
+      "topic": "bio-u4-t5",
+      "front": "Caratteristiche dell'eredità mitocondriale?",
+      "back": "Trasmessa solo dalla madre a tutti i figli; eteroplasmia possibile.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u4-c003",
+      "topic": "bio-u4-t1",
+      "front": "Riparazione delle rotture a doppio filamento?",
+      "back": "Ricombinazione omologa (fedele, usa il cromatidio fratello, in S/G2) e NHEJ (unione non omologa, soggetta a errori).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u5-c001",
+      "topic": "bio-u5-t4",
+      "front": "Ruolo di Ran nel trasporto nucleare?",
+      "back": "Ran-GTP (alta nel nucleo grazie a RanGEF) dissocia le importine dal carico e si lega alle esportine; RanGAP nel citosol idrolizza GTP.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u5-c002",
+      "topic": "bio-u5-t7",
+      "front": "UPR ed ERAD?",
+      "back": "UPR: risposta allo stress del RE da proteine mal ripiegate. ERAD: retrotraslocazione nel citosol e degradazione proteasomica (es. CFTR ΔF508 nella fibrosi cistica).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u5-c003",
+      "topic": "bio-u5-t8",
+      "front": "Rivestimenti delle vescicole?",
+      "back": "Clatrina (membrana plasmatica/TGN → endosomi), COPII (RE → Golgi), COPI (Golgi → RE e tra cisterne).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u6-c001",
+      "topic": "bio-u6-t3",
+      "front": "Cascata Ras-MAPK?",
+      "back": "RTK → Grb2/SOS (GEF) → Ras-GTP → Raf → MEK → ERK → fattori di trascrizione (proliferazione).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u6-c002",
+      "topic": "bio-u6-t2",
+      "front": "Desmosomi vs emidesmosomi?",
+      "back": "Desmosomi: cellula-cellula tramite caderine (desmogleine) e filamenti intermedi. Emidesmosomi: cellula-lamina basale tramite integrine.",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u6-c003",
+      "topic": "bio-u6-t3",
+      "front": "Proteine G trimeriche: attivazione?",
+      "back": "Il GPCR attivato agisce da GEF su Gα (GDP → GTP); Gα-GTP e Gβγ si separano e regolano effettori (adenilato ciclasi, PLC).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u7-c001",
+      "topic": "bio-u7-t1",
+      "front": "Fasi del ciclo cellulare e checkpoint?",
+      "back": "G1 – S – G2 – M; checkpoint G1/S (restrizione), G2/M, del fuso (metafase/anafase).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u7-c002",
+      "topic": "bio-u7-t4",
+      "front": "Differenze tra mitosi e meiosi?",
+      "back": "Mitosi: 1 divisione, 2 cellule diploidi identiche. Meiosi: 2 divisioni, 4 cellule aploidi diverse (crossing-over e assortimento indipendente).",
+      "source": "seed"
+    },
+    {
+      "id": "bio-u7-c003",
+      "topic": "bio-u7-t5",
+      "front": "Necrosi vs apoptosi?",
+      "back": "Necrosi: morte accidentale con rigonfiamento, lisi e infiammazione. Apoptosi: morte programmata con caspasi, condensazione, corpi apoptotici, senza infiammazione.",
+      "source": "seed"
+    }
+  ]
+}

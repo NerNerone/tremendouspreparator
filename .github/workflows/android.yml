@@ -1,0 +1,193 @@
+name: APK Android e Flatpak
+
+# Costruisce l'APK (arm64) e il Flatpak (x86_64) a ogni modifica del codice su main e li allega a
+# una release. I contenuti non fanno parte di questo repository.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "android/**"
+      - "flatpak/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Rust stable + target Android
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test del nucleo e validazione contenuti
+        run: |
+          cargo test -p prep-core
+          cargo run -q -p prep-core --bin prep -- validate
+
+      - name: Installa cargo-apk
+        run: cargo install cargo-apk --version 0.10.0 --locked
+
+      - name: Numero di versione
+        run: |
+          sed -i "0,/^version = \".*\"/s//version = \"0.1.${{ github.run_number }}\"/" crates/prep-app/Cargo.toml
+          grep -m1 '^version' crates/prep-app/Cargo.toml
+
+      - name: Chiave di firma
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          KS="$RUNNER_TEMP/release.jks"
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$KS"
+            echo "SIGNING_NOTE=Firmata con la chiave stabile (secret ANDROID_KEYSTORE_B64): si installa sopra le versioni precedenti." >> "$GITHUB_ENV"
+          else
+            KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
+            keytool -genkeypair -keystore "$KS" -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
+              -alias temp -keyalg RSA -keysize 2048 -validity 365 -dname "CN=Semestre Aperto (temporanea)"
+            echo "::warning::Secret ANDROID_KEYSTORE_B64/ANDROID_KEYSTORE_PASSWORD mancanti: APK firmato con chiave temporanea"
+            echo "SIGNING_NOTE=ATTENZIONE: firmata con chiave temporanea, per aggiornare va disinstallata la versione precedente." >> "$GITHUB_ENV"
+          fi
+          echo "::add-mask::$KEYSTORE_PASSWORD"
+          echo "CARGO_APK_RELEASE_KEYSTORE=$KS" >> "$GITHUB_ENV"
+          echo "CARGO_APK_RELEASE_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Build APK (arm64, firmato)
+        working-directory: crates/prep-app
+        run: |
+          export ANDROID_NDK_ROOT="$ANDROID_NDK_LATEST_HOME"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          export APP_BUILD="${{ github.run_number }}-${GITHUB_SHA::7}"
+          echo "NDK: $ANDROID_NDK_ROOT"
+          cargo apk build --release --lib
+          ls -la ../../target/release/apk/
+
+      - name: Codice Java del promemoria e APK finale
+        # cargo-apk non compila Java né dichiara receiver: si ricompone l'APK con il suo
+        # manifest (più il receiver), la libreria Rust e classes.dex, poi si firma.
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          JAR="$ANDROID_HOME/platforms/android-35/android.jar"
+          B=target/release/apk
+          W="$RUNNER_TEMP/apkw"
+          rm -rf "$W"; mkdir -p "$W/classes" "$W/dex"
+          python3 android/patch_manifest.py "$B/AndroidManifest.xml" "$W/AndroidManifest.xml"
+          javac --release 17 -cp "$JAR" -d "$W/classes" $(find android/java -name '*.java')
+          "$BT/d8" --release --min-api 34 --lib "$JAR" --output "$W/dex" $(find "$W/classes" -name '*.class')
+          "$BT/aapt" package -f -F "$W/app.unaligned.apk" -M "$W/AndroidManifest.xml" -S android/res -I "$JAR"
+          cp -r "$B/lib" "$W/"
+          cp "$W/dex/classes.dex" "$W/"
+          (cd "$W" && "$BT/aapt" add app.unaligned.apk classes.dex $(find lib -type f))
+          "$BT/zipalign" -f -p 4 "$W/app.unaligned.apk" "$W/app.aligned.apk"
+          "$BT/apksigner" sign --ks "$CARGO_APK_RELEASE_KEYSTORE" \
+            --ks-pass env:CARGO_APK_RELEASE_KEYSTORE_PASSWORD --key-pass env:CARGO_APK_RELEASE_KEYSTORE_PASSWORD \
+            --out "$B/SemestreAperto.apk" "$W/app.aligned.apk"
+          "$BT/apksigner" verify "$B/SemestreAperto.apk"
+          "$BT/aapt" dump badging "$B/SemestreAperto.apk" | head -4
+          unzip -l "$B/SemestreAperto.apk"
+
+      # copia di comodo: il file vero è nella release; se il servizio artifact di GitHub
+      # non risponde non deve bloccare la pubblicazione
+      - uses: actions/upload-artifact@v7
+        continue-on-error: true
+        timeout-minutes: 4
+        with:
+          name: SemestreAperto-apk
+          path: target/release/apk/SemestreAperto.apk
+
+      - name: Pubblica release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v0.1.${{ github.run_number }}"
+          gh release create "$TAG" target/release/apk/SemestreAperto.apk \
+            --target "$GITHUB_SHA" \
+            --title "Semestre Aperto $TAG" \
+            --notes "APK Android (arm64) e Flatpak x86_64. Commit ${GITHUB_SHA::7}. ${SIGNING_NOTE} I contenuti (quiz, flashcard, libri) non sono inclusi: si importano da Opzioni → Pacchetto contenuti." \
+            --latest
+
+  flatpak:
+    # pacchetto desktop x86_64 (Framework Laptop 12 / Linux), allegato alla stessa release
+    needs: apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop
+
+      - name: Dipendenze di sistema
+        run: |
+          # risoluzione DNS robusta (bypass systemd-resolved) e bypass mirror Azure su runner noble
+          echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" | sudo tee /etc/resolv.conf
+          sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list /etc/apt/apt-mirrors.txt 2>/dev/null || true
+          for i in 1 2 3; do sudo apt-get update -qq && break || sleep 5; done
+          sudo apt-get install -y -qq libfontconfig1-dev libxkbcommon-dev libwayland-dev flatpak flatpak-builder
+          # bubblewrap (flatpak-builder) ha bisogno degli user namespace non privilegiati
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      - name: Compila il binario desktop
+        run: |
+          export APP_BUILD="${{ github.run_number }}-${GITHUB_SHA::7}"
+          sed -i "0,/^version = \".*\"/s//version = \"0.1.${{ github.run_number }}\"/" crates/prep-app/Cargo.toml
+          cargo build --release -p tremendouspreparator --bin prepapp-desktop
+          cp target/release/prepapp-desktop flatpak/semestre-aperto
+          ldd flatpak/semestre-aperto
+
+      - name: Runtime Flatpak
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+
+      - name: Costruisci il bundle
+        run: |
+          cd flatpak
+          flatpak-builder --user --force-clean --repo=repo build it.tremendouspreparator.App.yml
+          flatpak build-bundle repo ../SemestreAperto-x86_64.flatpak it.tremendouspreparator.App \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+          ls -la ../SemestreAperto-x86_64.flatpak
+
+      # copia di comodo: il file vero è nella release; se il servizio artifact di GitHub
+      # non risponde non deve bloccare la pubblicazione
+      - uses: actions/upload-artifact@v7
+        continue-on-error: true
+        timeout-minutes: 4
+        with:
+          name: SemestreAperto-flatpak
+          path: SemestreAperto-x86_64.flatpak
+
+      - name: Allega alla release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v0.1.${{ github.run_number }}" SemestreAperto-x86_64.flatpak --clobber

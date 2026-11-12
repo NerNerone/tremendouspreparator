@@ -1,0 +1,11 @@
+/target
+/.devdata
+*.apk
+*.idsig
+*.jks
+*.keystore
+/tools/node_modules
+/flatpak/semestre-aperto
+/flatpak/.flatpak-builder
+__pycache__/
+/SemestreAperto-contenuti*.json.gz

@@ -1,0 +1,389 @@
+// Stato condiviso tra UI e Rust.
+
+export struct SubjectVM {
+    id: string,
+    name: string,
+    mastery: float,
+    predicted: string,
+    flagged: int,
+    due: int,
+    new-cards: int,
+    learned: int,
+    questions: int,
+    note: string,
+    pace: string,
+}
+
+export struct UnitVM {
+    id: string,
+    n: int,
+    name: string,
+    cfu: string,
+    mastery: float,
+    touched: float,
+    questions: int,
+    cards: int,
+    flagged: int,
+    note: string,
+    time: string,
+}
+
+export struct TopicVM {
+    id: string,
+    name: string,
+    mastery: float,
+    detail: string,
+    has-ai: bool,
+    ai-text: string,
+    note: string,
+    questions: int,
+}
+
+export struct OptionVM {
+    letter: string,
+    text: string,
+    state: int,
+    // dopo la risposta: perché questa opzione è giusta o sbagliata
+    note: string,
+}
+
+export struct NavCellVM {
+    n: int,
+    answered: bool,
+    unsure: bool,
+    current: bool,
+}
+
+export struct NavRowVM {
+    cells: [NavCellVM],
+}
+
+export struct ResultItemVM {
+    n: int,
+    text: string,
+    status: int, // 0 corretta, 1 sbagliata, 2 omessa, 3 flashcard
+    unsure: bool,
+    given: string,
+    correct-text: string,
+    explanation: string,
+    ref-label: string,
+    secs: string,
+    slow: bool,
+}
+
+export struct BlockVM {
+    kind: int, // 0 titolo, 1 paragrafo, 2 punto elenco, 3 numerato, 4 citazione, 5 mono, 6 pagina, 7 figura, 8 riga, 9 riga di tabella, 10 formula SVG, 11 formula testo
+    text: string,
+    level: int, // per le righe di tabella: 1 = intestazione
+    label: string,
+    cells: [string],
+    img: image,
+}
+
+export struct TocVM {
+    idx: int,
+    title: string,
+    level: int,
+    page: string,
+    current: bool,
+}
+
+export struct FeedbackVM {
+    date: string,
+    title: string,
+    text: string,
+    rating: int,
+    status: string,
+    reply: string,
+    pending: bool,
+}
+
+export struct BookVM {
+    id: string,
+    title: string,
+    author: string,
+    chapters: int,
+    available: bool,
+}
+
+export struct FlagVM {
+    id: string,
+    text: string,
+    where: string,
+    flagged: bool,
+    wrong: bool,
+}
+
+export struct ExamDateVM {
+    label: string,
+    date: string,
+    days: int,
+}
+
+export struct ElementVM {
+    z: int,
+    sym: string,
+    name: string,
+    mass: string,
+    col: int, // 1..18
+    row: int, // 1..7, 9 lantanidi, 10 attinidi
+    cat: int,
+}
+
+export struct ElementDetailVM {
+    z: int,
+    sym: string,
+    name: string,
+    cat: int,
+    cat-name: string,
+    mass: string,
+    config: string,
+    protons: string,
+    electrons: string,
+    neutrons: string,
+    position: string,
+    en: string,
+    ea: string,
+    ie: string,
+    radius: string,
+    state: string,
+    ox: string,
+    metal: string,
+    tendency: string,
+    bonds: string,
+}
+
+export struct GoalVM {
+    topic: string,
+    name: string,
+    info: string,
+    done: int,
+    target: int,
+    selected: bool,
+}
+
+export global AppState {
+    // solo test desktop (PREP_DRAGPAN=1): il mouse trascina il contenuto come un dito
+    in property <bool> drag-pan: false;
+    // tracciato della barra ondulata (calcolato in Rust): onda da x0 a x1 centrata su cy,
+    // ampiezza amp, lunghezza d'onda wl, fase 0..1; coordinate in pixel logici
+    pure callback wave-path(float, float, float, float, float, float) -> string;
+    // navigazione: 0 home, 1 studio, 2 unità, 3 quiz, 4 risultati, 5 flashcard, 6 insicure, 7 impostazioni, 8 mazzi, 9 lettore, 10 feedback, 11 obiettivi, 12 tavola periodica
+    in-out property <int> page: 0;
+    in-out property <int> tab: 0;
+
+    // home
+    in property <float> overall;
+    in property <string> overall-label;
+    in property <string> total-time;
+    in property <string> paused-title;
+    in property <string> paused-info;
+    in property <[ExamDateVM]> exam-dates;
+    // obiettivi del giorno: proposta (confirmed = false) o obiettivi confermati con avanzamento
+    in property <[GoalVM]> goals;
+    in property <bool> goals-confirmed;
+    in property <string> goals-note;
+    in property <string> goals-status;
+    // obiettivi di oggi ancora da completare (badge della scheda)
+    in property <int> goals-left;
+    // ripasso distanziato: argomenti non toccati da qualche giorno
+    in property <[GoalVM]> review-goals;
+    // scorrimento della Home (l'intestazione si comprime)
+    in-out property <length> home-scroll;
+    /// la barra ondulata della Home ha già fatto l'animazione d'ingresso in questa sessione
+    in-out property <bool> home-intro-done;
+    /// Obiettivi: riquadro espanso dal tocco ("g:<topic>" o "r:<topic>"), mostra Studia / Allenati / Ripassa
+    in-out property <string> goals-open;
+    in property <[SubjectVM]> subjects;
+    in property <int> flagged-count;
+    in property <int> wrong-count;
+    in property <int> due-count;
+    in property <string> ai-summary;
+    in property <[string]> ai-priorities;
+    in property <string> sync-status;
+    /// proprietario, repository e token GitHub impostati
+    in property <bool> sync-configured;
+    // pacchetto contenuti (quiz, flashcard, libri in un file)
+    in property <string> pack-status;
+    in property <bool> pack-busy;
+    in property <bool> on-android;
+    in property <bool> syncing;
+    in property <string> content-info;
+    in-out property <string> toast;
+
+    // studio
+    in-out property <string> current-subject: "fis";
+    in property <[UnitVM]> units;
+    in property <UnitVM> unit;
+    in property <[TopicVM]> topics;
+
+    // quiz
+    in property <int> quiz-mode; // 0 allenamento, 1 simulazione, 2 ripasso
+    in property <string> quiz-title;
+    in property <int> q-index;
+    in property <int> q-total;
+    in property <string> q-text;
+    in property <string> q-topic;
+    in property <bool> q-is-mcq;
+    in property <[OptionVM]> q-options;
+    in-out property <string> q-fill;
+    in property <bool> q-unsure;
+    in property <bool> q-answered;
+    in property <bool> q-correct;
+    in property <string> q-correct-text;
+    in property <string> q-explanation;
+    // testo di provenienza della domanda (libro, eserciziario, prova ufficiale)
+    in property <string> q-source;
+    in property <bool> q-can-confirm;
+    in property <string> q-ref;
+    in property <string> q-elapsed;
+    in property <bool> q-slow;
+    in property <string> time-left;
+    in property <bool> time-warning;
+    in property <[NavRowVM]> nav-rows;
+    in property <int> answered-count;
+
+    // risultati
+    in property <string> r-title;
+    in property <string> r-points;
+    in property <string> r-summary;
+    in property <bool> r-is-exam;
+    in property <bool> r-passed;
+    in property <[ResultItemVM]> r-items;
+    in property <string> r-sync;
+    in-out property <int> r-rating;
+    in-out property <string> r-feedback;
+    in property <bool> r-feedback-sent;
+
+    // flashcard
+    in property <string> c-front;
+    in property <string> c-back;
+    in property <string> c-topic;
+    in property <bool> c-flipped;
+    in property <bool> c-unsure;
+    in property <int> c-index;
+    in property <int> c-total;
+    in property <bool> c-done;
+    in property <string> c-summary;
+    in property <string> c-ref;
+    in-out property <string> c-note;
+    in property <string> c-note-shown;
+
+    // libri e lettore
+    in property <[BookVM]> books;
+    in property <string> rd-book;
+    in property <string> rd-title;
+    in property <string> rd-page-label;
+    in property <[BlockVM]> rd-blocks;
+    in property <bool> rd-has-prev;
+    in property <bool> rd-has-next;
+    in-out property <bool> rd-toc-visible;
+    in property <[TocVM]> rd-toc;
+    in-out property <length> rd-scroll;
+
+    // insicure
+    in property <[FlagVM]> flags;
+
+    // feedback
+    in-out property <string> fb-category: "contenuti";
+    in-out property <string> fb-text;
+    in property <string> fb-item;
+    in property <string> fb-item-text;
+    in property <[FeedbackVM]> feedbacks;
+
+    // impostazioni
+    in-out property <string> s-owner;
+    in-out property <string> s-repo;
+    in-out property <string> s-branch;
+    in-out property <string> s-token;
+    in-out property <bool> s-rem-on: true;
+    in-out property <string> s-rem-time: "18:30";
+    in property <string> app-version;
+    in property <string> exam-rules;
+
+    // dialogo di conferma
+    in property <bool> dialog-visible;
+    in property <string> dialog-title;
+    in property <string> dialog-text;
+    in property <string> dialog-confirm;
+    in property <string> dialog-alt;
+
+    callback go-tab(int);
+    callback back() -> bool;
+    callback open-unit(string);
+    callback select-subject(string);
+    /// swipe in Studio: materia successiva (+1) o precedente (-1)
+    callback step-subject(int);
+    callback start-practice(string, string);
+    callback start-exam(string);
+    callback start-official(string, string);
+    callback start-review(string);
+    callback start-cards(string, string);
+
+    callback select-option(int);
+    callback fill-edited(string);
+    callback toggle-unsure();
+    callback confirm();
+    callback next();
+    callback skip();
+    callback prev();
+    callback goto(int);
+    callback finish();
+
+    callback result-toggle-flag(int);
+    callback results-close();
+
+    callback card-flip();
+    callback card-grade(int);
+    callback card-toggle-unsure();
+
+    callback flag-toggle(string);
+
+    callback send-session-feedback();
+    callback send-feedback();
+    callback report-result(int);
+    callback clear-fb-item();
+
+    callback open-ref-quiz();
+    callback open-ref-result(int);
+    callback open-ref-card();
+    callback open-book(string);
+    callback reader-prev();
+    callback reader-next();
+    callback reader-goto(int);
+
+    callback sync-now();
+    callback save-settings();
+    callback import-pack();
+    callback save-reminder();
+    callback goals-toggle(int);
+    callback goals-confirm();
+    callback goals-edit();
+    callback goals-train(string);
+    callback goals-study(string);
+    callback goals-review(string);
+    callback goals-add(string);
+    callback goals-remove(int);
+    callback goals-pick-subject(string);
+    callback open-settings();
+    callback open-feedback();
+    // tavola periodica e nomenclatura
+    in property <[ElementVM]> pt-elements;
+    in property <ElementDetailVM> pt-detail;
+    in-out property <bool> pt-has-sel;
+    in-out property <int> pt-filter: -1;
+    callback open-periodic();
+    callback pt-select(int);
+    callback open-nomenclature();
+    // il capitolo di nomenclatura c'è solo se è tra i contenuti importati
+    in property <bool> has-nomenclature;
+    in property <string> goal-subject;
+    in property <[GoalVM]> goal-topics;
+
+    callback dialog-ok();
+    callback dialog-alt-clicked();
+    callback pause-quiz();
+    callback resume-quiz();
+    callback discard-paused();
+    callback dialog-cancel();
+}

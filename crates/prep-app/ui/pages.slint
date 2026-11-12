@@ -1,0 +1,3077 @@
+import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type, Shape } from "theme.slint";
+import { AppState, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, BlockVM, TocVM, FeedbackVM } from "state.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "components.slint";
+
+component SubjectCard inherits Card {
+    in property <SubjectVM> s;
+    clickable: true;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: M3.subject(root.s.id);
+                }
+            }
+
+            Text {
+                text: root.s.name;
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+                horizontal-stretch: 1;
+                overflow: elide;
+            }
+
+            Text {
+                text: round(root.s.mastery * 100) + "%";
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.subject(root.s.id);
+            }
+        }
+
+        WavyProgress {
+            intro: !AppState.home-intro-done;
+            value: root.s.mastery;
+            fill: M3.subject(root.s.id);
+            amp: 3px;
+            wavelength: 28px;
+            thickness: 4px;
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "Punteggio atteso " + root.s.predicted + (root.s.pace != "" ? "\n" + root.s.pace : "");
+                wrap: word-wrap;
+                color: M3.on-surface-variant;
+                font-size: Type.label;
+                horizontal-stretch: 1;
+            }
+
+            if root.s.flagged > 0: Pill {
+                text: root.s.flagged + " insicure";
+                bg: M3.tertiary-container;
+                fg: M3.on-tertiary-container;
+            }
+        }
+    }
+}
+
+export component HomePage inherits Page {
+    // intestazione grande che si comprime scorrendo (0 = aperta, 1 = compatta)
+    property <length> hero-max: 288px;
+    property <length> hero-min: 140px;
+    property <float> t: max(0, min(1, -sv.content-y / (root.hero-max - root.hero-min)));
+    property <length> hero-h: root.hero-max - (root.hero-max - root.hero-min) * root.t;
+    // l'ingresso animato delle barre si vede solo la prima volta: tornando alla Home
+    // (la pagina viene ricreata) le barre compaiono già piene, senza svuotarsi e ripartire
+    Timer {
+        interval: 1500ms;
+        running: !AppState.home-intro-done;
+        triggered => {
+            AppState.home-intro-done = true;
+        }
+    }
+
+    sv := Scroller {
+        width: 100%;
+        height: 100%;
+        content-y <=> AppState.home-scroll;
+        align: start;
+        pad: 16px;
+        pad-top: root.hero-max + 4px;
+        gap: 14px;
+        // sincronizzazione, sotto la preparazione (solo se GitHub è configurato in Impostazioni)
+        if AppState.sync-configured: HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: AppState.sync-status;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+            }
+
+            if AppState.syncing: Rectangle {
+                width: 48px;
+                MorphLoader { }
+            }
+            if !AppState.syncing: M3Button {
+                text: "Sincronizza";
+                kind: 1;
+                has-icon: true;
+                icon: Icons.sync;
+                clicked => {
+                    AppState.sync-now();
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            for d in AppState.exam-dates: Pill {
+                text: d.label + ": " + (d.days > 0 ? "tra " + d.days + " giorni" : d.days == 0 ? "OGGI" : "passato");
+                bg: d.days >= 0 && d.days <= 7 ? M3.error-container : M3.tertiary-container;
+                fg: d.days >= 0 && d.days <= 7 ? M3.on-error-container : M3.on-tertiary-container;
+            }
+        }
+
+            if AppState.paused-title != "": Card {
+                bg: M3.tertiary-container;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        VIcon {
+                            source: Icons.pause;
+                            tint: M3.on-tertiary-container;
+                            size: 20px;
+                        }
+
+                        Text {
+                            text: "In pausa: " + AppState.paused-title;
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-tertiary-container;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+                    }
+
+                    Text {
+                        text: AppState.paused-info;
+                        font-size: Type.label;
+                        color: M3.on-tertiary-container;
+                        wrap: word-wrap;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: end;
+                        M3Button {
+                            text: "Scarta";
+                            kind: 3;
+                            clicked => {
+                                AppState.discard-paused();
+                            }
+                        }
+
+                        M3Button {
+                            text: "Riprendi";
+                            has-icon: true;
+                            icon: Icons.play;
+                            clicked => {
+                                AppState.resume-quiz();
+                            }
+                        }
+                    }
+                }
+            }
+
+            if AppState.goals.length > 0: Card {
+                clickable: true;
+                bg: M3.secondary-container;
+                clicked => {
+                    AppState.go-tab(4);
+                }
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    VIcon {
+                        source: Icons.target;
+                        tint: M3.on-secondary-container;
+                    }
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text {
+                            text: AppState.goals-confirmed ? "Obiettivi di oggi" : "Scegli gli obiettivi di oggi";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-secondary-container;
+                        }
+
+                        Text {
+                            text: AppState.goals-confirmed ? AppState.goals-status : "Una proposta è pronta nella scheda Obiettivi";
+                            font-size: Type.label;
+                            color: M3.on-secondary-container;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    VIcon {
+                        source: Icons.chevron;
+                        tint: M3.on-secondary-container;
+                    }
+                }
+            }
+
+            for s[i] in AppState.subjects: SubjectCard {
+                s: s;
+                stagger: i + 1;
+                clicked => {
+                    AppState.select-subject(s.id);
+                    AppState.go-tab(1);
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                M3Button {
+                    kind: 1;
+                    has-icon: true;
+                    icon: Icons.flag;
+                    text: "Ripasso (" + (AppState.flagged-count + AppState.wrong-count) + ")";
+                    enabled: AppState.flagged-count + AppState.wrong-count > 0;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.start-review("");
+                    }
+                }
+
+                M3Button {
+                    kind: 1;
+                    has-icon: true;
+                    icon: Icons.cards;
+                    text: "Flashcard (" + AppState.due-count + ")";
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.start-cards("all", "");
+                    }
+                }
+            }
+
+            if AppState.ai-summary != "": Card {
+                bg: M3.surface-container;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Icon {
+                            source: Icons.ai;
+                            tint: M3.primary;
+                            width: 20px;
+                            height: 20px;
+                        }
+
+                        Text {
+                            text: "Revisione AI";
+                            font-weight: 700;
+                            font-size: Type.title;
+                            color: M3.on-surface;
+                        }
+                    }
+
+                    Text {
+                        text: AppState.ai-summary;
+                        wrap: word-wrap;
+                        color: M3.on-surface;
+                    }
+
+                    for p in AppState.ai-priorities: Text {
+                        text: "• " + p;
+                        wrap: word-wrap;
+                        color: M3.on-surface-variant;
+                        font-size: Type.body;
+                    }
+                }
+            }
+
+            Text {
+                text: AppState.content-info;
+                color: M3.on-surface-variant;
+                font-size: Type.label;
+                wrap: word-wrap;
+                horizontal-alignment: center;
+            }
+        }
+
+    // intestazione: titolo, impostazioni, percentuale grande e barra ondulata
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.hero-h;
+        background: M3.surface;
+        Rectangle {
+            x: 12px;
+            y: 56px;
+            width: parent.width - 24px;
+            height: parent.height - 64px;
+            border-radius: Shape.xl - 8px * root.t;
+            background: M3.primary-container;
+            clip: true;
+            // percentuale: grande e a sinistra, poi piccola a destra; «Preparazione» resta sempre
+            // allineato a sinistra (prima scivolava a destra accanto alla percentuale)
+            pct := Text {
+                x: 20px + (parent.width - 40px - self.width) * root.t;
+                y: 14px - 4px * root.t;
+                text: round(AppState.overall * 100) + "%";
+                font-size: Type.display-large * (1 - root.t) + 26px * root.t;
+                font-weight: 800;
+                color: M3.on-primary-container;
+            }
+
+            Text {
+                x: 20px;
+                y: 104px - 88px * root.t;
+                width: parent.width - 40px - (pct.width + 12px) * root.t;
+                text: "Preparazione";
+                font-size: Type.title-large * (1 - root.t) + Type.title * root.t;
+                font-weight: 700;
+                color: M3.on-primary-container;
+                overflow: elide;
+            }
+
+            Text {
+                x: 20px;
+                y: 134px;
+                width: parent.width - 40px;
+                text: AppState.overall-label + (AppState.total-time != "" ? "\n" + AppState.total-time : "");
+                font-size: Type.label;
+                color: M3.on-primary-container;
+                opacity: max(0, 1 - root.t * 2.2);
+                wrap: word-wrap;
+            }
+
+            WavyProgress {
+                intro: !AppState.home-intro-done;
+                x: 20px;
+                y: parent.height - self.height - 18px + 4px * root.t;
+                width: parent.width - 40px;
+                value: AppState.overall;
+                fill: M3.primary;
+                track: M3.surface.with-alpha(0.7);
+                amp: 6px - 3px * root.t;
+                wavelength: 44px - 12px * root.t;
+                thickness: 7px - 2px * root.t;
+            }
+        }
+
+        // riga del titolo
+        HorizontalLayout {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: 56px;
+            padding-left: 20px;
+            padding-right: 4px;
+            Text {
+                text: "Semestre Aperto";
+                font-size: Type.title-large;
+                font-weight: 700;
+                color: M3.on-surface;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            IconButton {
+                icon: Icons.tune;
+                tint: M3.on-surface;
+                clicked => {
+                    AppState.open-settings();
+                }
+            }
+        }
+    }
+}
+
+export component GoalsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Obiettivi";
+            subtitle: "Argomenti di oggi: proposti in base ai progressi, o scelti da te";
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 14px;
+            if AppState.goals.length > 0: Card {
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    VIcon {
+                        source: Icons.check;
+                        tint: M3.primary;
+                        size: 20px;
+                    }
+
+                    Text {
+                        text: AppState.goals-confirmed ? "Obiettivi di oggi" : "Proposta per oggi";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                        horizontal-stretch: 1;
+                    }
+                }
+
+                Text {
+                    text: AppState.goals-confirmed ? AppState.goals-status : AppState.goals-note;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                for g[i] in AppState.goals: Rectangle {
+                    border-radius: 12px;
+                    background: g.selected || AppState.goals-confirmed ? M3.secondary-container : M3.surface-container-high;
+                    animate background { duration: 180ms; }
+                    TouchArea {
+                        clicked => {
+                            AppState.goals-open = AppState.goals-open == "g:" + g.topic ? "" : "g:" + g.topic;
+                        }
+                    }
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            if !AppState.goals-confirmed: Switch {
+                                checked: g.selected;
+                                toggled => {
+                                    AppState.goals-toggle(i);
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                Text {
+                                    text: g.name;
+                                    font-weight: 600;
+                                    color: M3.on-secondary-container;
+                                    wrap: word-wrap;
+                                }
+
+                                Text {
+                                    text: g.info;
+                                    font-size: Type.label;
+                                    color: M3.on-secondary-container.with-alpha(0.8);
+                                    wrap: word-wrap;
+                                }
+                            }
+
+                            if AppState.goals-confirmed: IconButton {
+                                icon: Icons.remove;
+                                tint: M3.on-secondary-container;
+                                clicked => {
+                                    AppState.goals-remove(i);
+                                }
+                            }
+                        }
+
+                        if AppState.goals-open == "g:" + g.topic: HorizontalLayout {
+                            spacing: 6px;
+                            alignment: end;
+                            M3Button {
+                                text: "Studia";
+                                kind: 3;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.book;
+                                clicked => {
+                                    AppState.goals-study(g.topic);
+                                }
+                            }
+
+                            if AppState.goals-confirmed: M3Button {
+                                text: g.done >= g.target ? "Fatto" : "Allenati";
+                                kind: g.done >= g.target ? 3 : 1;
+                                small: true;
+                                has-icon: true;
+                                icon: g.done >= g.target ? Icons.check : Icons.play;
+                                clicked => {
+                                    AppState.goals-train(g.topic);
+                                }
+                            }
+                        }
+
+                        if AppState.goals-confirmed: LinearProgress {
+                            value: g.target > 0 ? min(1, g.done / g.target) : 0;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    if AppState.goals-confirmed: M3Button {
+                        text: "Nuova proposta";
+                        kind: 3;
+                        clicked => {
+                            AppState.goals-edit();
+                        }
+                    }
+                    if !AppState.goals-confirmed: M3Button {
+                        text: "Conferma obiettivi";
+                        has-icon: true;
+                        icon: Icons.check;
+                        clicked => {
+                            AppState.goals-confirm();
+                        }
+                    }
+                }
+            }
+            }
+
+
+            if AppState.review-goals.length > 0: Card {
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    VIcon {
+                        source: Icons.sync;
+                        tint: M3.on-tertiary-container;
+                        size: 20px;
+                    }
+
+                    Text {
+                        text: "Obiettivi di ripasso";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                        horizontal-stretch: 1;
+                    }
+                }
+
+                Text {
+                    text: "Argomenti che non tocchi da qualche giorno: un breve ripasso con domande già viste e nuove li fissa nella memoria.";
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                for r in AppState.review-goals: Rectangle {
+                    border-radius: 12px;
+                    background: M3.tertiary-container;
+                    TouchArea {
+                        clicked => {
+                            AppState.goals-open = AppState.goals-open == "r:" + r.topic ? "" : "r:" + r.topic;
+                        }
+                    }
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 6px;
+                        Text {
+                            text: r.name;
+                            font-weight: 600;
+                            color: M3.on-tertiary-container;
+                            wrap: word-wrap;
+                        }
+
+                        Text {
+                            text: r.info;
+                            font-size: Type.label;
+                            color: M3.on-tertiary-container.with-alpha(0.8);
+                            wrap: word-wrap;
+                        }
+
+                        if AppState.goals-open == "r:" + r.topic: HorizontalLayout {
+                            spacing: 6px;
+                            alignment: end;
+                            M3Button {
+                                text: "Studia";
+                                kind: 3;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.book;
+                                clicked => {
+                                    AppState.goals-study(r.topic);
+                                }
+                            }
+
+                            M3Button {
+                                text: "Ripassa";
+                                kind: 1;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.sync;
+                                clicked => {
+                                    AppState.goals-review(r.topic);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            }
+
+            SectionTitle {
+            text: "Aggiungi un argomento";
+            }
+
+            HorizontalLayout {
+            spacing: 8px;
+            for s in AppState.subjects: Chip {
+                text: s.id == "chi" ? "Chimica" : s.name;
+                selected: AppState.goal-subject == s.id;
+                clicked => {
+                    AppState.goals-pick-subject(s.id);
+                }
+            }
+            }
+
+            for t in AppState.goal-topics: Rectangle {
+            min-height: max(56px, gt-row.preferred-height);
+            border-radius: Shape.lg;
+            background: t.selected ? M3.secondary-container : M3.surface-container-low;
+            animate background { duration: 200ms; }
+            gt-row := HorizontalLayout {
+                padding: 10px;
+                padding-left: 14px;
+                spacing: 8px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: t.name;
+                        wrap: word-wrap;
+                        color: M3.on-surface;
+                    }
+
+                    Text {
+                        text: t.info;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+
+                IconButton {
+                    icon: t.selected ? Icons.check : Icons.add;
+                    filled: !t.selected;
+                    tint: t.selected ? M3.primary : M3.on-secondary-container;
+                    clicked => {
+                        AppState.goals-add(t.topic);
+                    }
+                }
+            }
+            }
+        }
+    }
+}
+
+export component StudyPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Studio";
+            subtitle: "Allenamento per unità e simulazioni d'esame";
+        }
+
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-bottom: 8px;
+            spacing: 8px;
+            for s in AppState.subjects: Chip {
+                text: s.id == "chi" ? "Chimica" : s.name;
+                selected: AppState.current-subject == s.id;
+                clicked => {
+                    AppState.select-subject(s.id);
+                }
+            }
+        }
+
+        // lo scroll verticale sta fuori, lo swipe orizzontale dentro: il Flickable vede per primo il
+        // dito e scorre in verticale; i gesti orizzontali passano allo swipe (materia prec./succ.).
+        // Al contrario (swipe fuori) lo SwipeGestureHandler tratteneva la pressione e lo scroll non partiva.
+        Scroller {
+            vertical-stretch: 1;
+            swipe := SwipeGestureHandler {
+                handle-swipe-left: true;
+                handle-swipe-right: true;
+                property <length> dx: self.swiping ? self.current-position.x - self.pressed-position.x : 0px;
+                height: content-end.y + 16px;
+                swiped => {
+                    if (self.current-position.x - self.pressed-position.x < -60px) {
+                        AppState.step-subject(1);
+                    } else if (self.current-position.x - self.pressed-position.x > 60px) {
+                        AppState.step-subject(-1);
+                    }
+                }
+                content := VerticalLayout {
+                    x: swipe.dx * 0.35;
+                    width: parent.width;
+                    // preferred-height sottostima i testi a capo nelle righe orizzontali: i figli
+                    // «sbordano» ma restano nelle posizioni giuste, quindi la fine reale è content-end.y
+                    height: self.preferred-height;
+                    // niente opacity qui: un elemento trasparente viene disegnato in una texture
+                    // grande quanto lui e oltre il limite della GPU sparisce tutto
+                    animate x { duration: 180ms; easing: ease-out; }
+                    alignment: start;
+                    padding: 16px;
+                    padding-top: 4px;
+                    spacing: 12px;
+                    if AppState.current-subject == "chi": Card {
+                        bg: M3.surface-container;
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 10px;
+                            Text {
+                                text: "Strumenti di chimica";
+                                font-size: Type.title;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                M3Button {
+                                    text: "Tavola periodica";
+                                    kind: 1;
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.open-periodic();
+                                    }
+                                }
+                                if AppState.has-nomenclature: M3Button {
+                                    text: "Nomenclatura";
+                                    kind: 1;
+                                    has-icon: true;
+                                    icon: Icons.book;
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.open-nomenclature();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Card {
+                        bg: M3.surface-container;
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 10px;
+                            Text {
+                                text: "Simulazione d'esame";
+                                font-size: Type.title;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                            }
+
+                            Text {
+                                text: AppState.exam-rules;
+                                wrap: word-wrap;
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                M3Button {
+                                    text: "Simula esame";
+                                    has-icon: true;
+                                    icon: Icons.timer;
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.start-exam(AppState.current-subject);
+                                    }
+                                }
+
+                                M3Button {
+                                    text: "Quiz misto";
+                                    kind: 2;
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.start-practice("subject", AppState.current-subject);
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: "Prove ufficiali 2025 (domande reali, ordine originale):";
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                M3Button {
+                                    text: "1° appello";
+                                    kind: 1;
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.start-official(AppState.current-subject, "e25a1");
+                                    }
+                                }
+
+                                M3Button {
+                                    text: "2° appello";
+                                    kind: 1;
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.start-official(AppState.current-subject, "e25a2");
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if AppState.books.length > 0: SectionTitle {
+                        text: "Libri";
+                    }
+                    for b[i] in AppState.books: Card {
+                        clickable: true;
+                        stagger: i + 1;
+                        clicked => {
+                            AppState.open-book(b.id);
+                        }
+                        HorizontalLayout {
+                            padding: 14px;
+                            spacing: 12px;
+                            VIcon {
+                                source: Icons.book;
+                                tint: M3.subject(AppState.current-subject);
+                            }
+
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: b.title;
+                                    font-size: Type.body-large;
+                                    font-weight: 600;
+                                    color: M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+
+                                Text {
+                                    text: (b.author != "" ? b.author + " · " : "") + b.chapters + " capitoli" + (b.available ? "" : " · da scaricare (sincronizza)");
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+
+                            VIcon {
+                                source: Icons.chevron;
+                                tint: M3.on-surface-variant;
+                            }
+                        }
+                    }
+
+                    SectionTitle {
+                        text: "Unità didattiche";
+                    }
+
+                    for u[i] in AppState.units: uc := Card {
+                        clickable: true;
+                        stagger: i + 1;
+                        clicked => {
+                            AppState.open-unit(u.id);
+                        }
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 8px;
+                            HorizontalLayout {
+                                spacing: 10px;
+                                Rectangle {
+                                    width: 32px;
+                                    height: 32px;
+                                    border-radius: 10px;
+                                    background: M3.subject(AppState.current-subject).with-alpha(0.16);
+                                    Text {
+                                        text: u.n;
+                                        font-weight: 800;
+                                        color: M3.subject(AppState.current-subject);
+                                    }
+                                }
+
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 2px;
+                                    // larghezza esplicita: così l'altezza del titolo a capo è calcolata
+                                    // sulla larghezza vera e la scheda non viene tagliata
+                                    width: uc.width - 28px - 32px - 20px - 48px;
+                                    Text {
+                                        text: u.name;
+                                        font-size: Type.body-large;
+                                        font-weight: 600;
+                                        color: M3.on-surface;
+                                        wrap: word-wrap;
+                                    }
+
+                                    Text {
+                                        text: "CFU " + u.cfu + " · " + u.questions + " domande · " + u.cards + " flashcard" + (u.flagged > 0 ? " · " + u.flagged + " insicure" : "") + (u.time != "" ? "\nTempo: " + u.time : "");
+                                        font-size: Type.label;
+                                        color: M3.on-surface-variant;
+                                        wrap: word-wrap;
+                                    }
+                                }
+
+                                Text {
+                                    text: round(u.mastery * 100) + "%";
+                                    font-weight: 700;
+                                    font-size: Type.title;
+                                    color: M3.level(u.mastery);
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            LinearProgress {
+                                value: u.mastery;
+                                fill: M3.subject(AppState.current-subject);
+                                height: 6px;
+                            }
+                        }
+                    }
+                    content-end := Rectangle {
+                        height: 0px;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component UnitPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Unità " + AppState.unit.n;
+            subtitle: AppState.unit.name;
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            Card {
+                bg: M3.surface-container;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        Text {
+                            text: AppState.unit.name;
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+
+                        Text {
+                            text: round(AppState.unit.mastery * 100) + "%";
+                            font-size: Type.headline;
+                            font-weight: 800;
+                            color: M3.level(AppState.unit.mastery);
+                        }
+                    }
+
+                    LinearProgress {
+                        value: AppState.unit.mastery;
+                        fill: M3.subject(AppState.current-subject);
+                    }
+
+                    Text {
+                        text: "CFU " + AppState.unit.cfu + " · " + AppState.unit.questions + " domande · " + AppState.unit.cards + " flashcard · argomenti affrontati " + round(AppState.unit.touched * 100) + "%" + (AppState.unit.time != "" ? "\nTempo: " + AppState.unit.time : "");
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+
+                    if AppState.unit.note != "": Text {
+                        text: "AI: " + AppState.unit.note;
+                        font-size: Type.body;
+                        color: M3.on-surface;
+                        wrap: word-wrap;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Quiz";
+                            has-icon: true;
+                            icon: Icons.play;
+                            horizontal-stretch: 1;
+                            enabled: AppState.unit.questions > 0;
+                            clicked => {
+                                AppState.start-practice("unit", AppState.unit.id);
+                            }
+                        }
+
+                        M3Button {
+                            text: "Flashcard";
+                            kind: 1;
+                            has-icon: true;
+                            icon: Icons.cards;
+                            horizontal-stretch: 1;
+                            enabled: AppState.unit.cards > 0;
+                            clicked => {
+                                AppState.start-cards("unit", AppState.unit.id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            SectionTitle {
+                text: "Argomenti del syllabus";
+            }
+
+            for t in AppState.topics: VerticalLayout {
+                ListRow {
+                    title: t.name;
+                    subtitle: t.detail + (t.has-ai ? " · " + t.ai-text : "");
+                    value: t.mastery;
+                    accent: M3.level(t.mastery);
+                    trailing: round(t.mastery * 100) + "%";
+                    chevron: t.questions > 0;
+                    clicked => {
+                        if (t.questions > 0) {
+                            AppState.start-practice("topic", t.id);
+                        }
+                    }
+                }
+
+                if t.note != "": Text {
+                    text: "AI: " + t.note;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+}
+
+component NavCell inherits Rectangle {
+    in property <int> n;
+    in property <bool> answered;
+    in property <bool> unsure;
+    in property <bool> current;
+    callback clicked;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background: root.current ? M3.primary : root.answered ? M3.secondary-container : transparent;
+    border-width: root.unsure ? 2px : 1px;
+    border-color: root.unsure ? M3.error : M3.outline-variant;
+    Text {
+        text: root.n;
+        font-size: Type.label;
+        font-weight: 700;
+        color: root.current ? M3.on-primary : M3.on-surface;
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component QuizPage inherits Page {
+    // dopo la conferma la spiegazione compare in fondo: scorre fino a mostrarla tutta
+    property <bool> answered-now: AppState.q-answered;
+    property <length> scroll-goal;
+    property <bool> scrolling;
+    property <int> settle;
+    changed answered-now => {
+        if (answered-now && AppState.quiz-mode != 1) {
+            root.settle = 0;
+            root.scrolling = true;
+        }
+    }
+    Timer {
+        interval: 16ms;
+        running: root.scrolling;
+        triggered => {
+            // l'obiettivo si ricalcola a ogni passo: la scheda può finire di impaginarsi dopo
+            root.settle += 1;
+            root.scroll-goal = max(0px, min(
+                fbtop.y + 4px,
+                fbend.y + 16px - qsv.visible-height,
+                qsv.content-height - qsv.visible-height));
+            if (root.settle > 60 || (root.settle > 4 && abs(root.scroll-goal + qsv.content-y) < 1px)) {
+                qsv.content-y = -max(root.scroll-goal, -qsv.content-y);
+                root.scrolling = false;
+            } else if (root.scroll-goal > -qsv.content-y) {
+                qsv.content-y += (-root.scroll-goal - qsv.content-y) * 0.22;
+            }
+        }
+    }
+    VerticalLayout {
+        TopBar {
+            title: AppState.quiz-title;
+            subtitle: "Domanda " + (AppState.q-index + 1) + " di " + AppState.q-total + (AppState.quiz-mode == 1 ? " · risposte " + AppState.answered-count : "");
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+            IconButton {
+                icon: Icons.pause;
+                clicked => {
+                    AppState.pause-quiz();
+                }
+            }
+            if AppState.quiz-mode == 1: Rectangle {
+                width: 100px;
+                Pill {
+                    text: AppState.time-left;
+                    bg: AppState.time-warning ? M3.error-container : M3.secondary-container;
+                    fg: AppState.time-warning ? M3.on-error-container : M3.on-secondary-container;
+                }
+            }
+        }
+
+        LinearProgress {
+            height: 4px;
+            border-radius: 0px;
+            value: AppState.q-total > 0 ? (AppState.q-index + 1) / AppState.q-total : 0;
+        }
+
+        Swap {
+            key: "" + AppState.q-index;
+            vertical-stretch: 1;
+        qsv := ScrollView {
+            mouse-drag-pan-enabled: AppState.drag-pan;
+            // il layout stima un'altezza minore del reale con testo a capo (spiegazioni lunghe su
+            // schermi stretti): l'area scorrevole arriva fino all'ultimo elemento effettivo
+            content-height: max(self.visible-height, qend.y + 16px);
+            Rectangle {
+            VerticalLayout {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: self.preferred-height;
+                alignment: start;
+                padding: 16px;
+                spacing: 12px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Pill {
+                        text: AppState.q-is-mcq ? "Risposta multipla" : "Completamento";
+                    }
+
+                    Text {
+                        text: AppState.q-topic;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        overflow: elide;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+
+                    Rectangle {
+                        height: 24px;
+                        border-radius: 12px;
+                        background: AppState.q-slow ? M3.warn-container : M3.surface-container-high;
+                        animate background { duration: 400ms; }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 10px;
+                            spacing: 4px;
+                            VIcon {
+                                source: Icons.timer;
+                                size: 14px;
+                                tint: AppState.q-slow ? M3.on-warn-container : M3.on-surface-variant;
+                            }
+
+                            Text {
+                                text: AppState.q-elapsed;
+                                font-size: Type.label;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                                color: AppState.q-slow ? M3.on-warn-container : M3.on-surface-variant;
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: AppState.q-text;
+                    font-size: 18px;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+
+                // segnaposto (altezza 0) dove inizia la parte con la spiegazione, per lo scroll automatico
+                fbtop := Rectangle {
+                    height: 0px;
+                }
+
+                if AppState.q-is-mcq: VerticalLayout {
+                    spacing: 10px;
+                    for o[i] in AppState.q-options: OptionTile {
+                        letter: o.letter;
+                        text: o.text;
+                        note: o.note;
+                        state: o.state;
+                        clicked => {
+                            AppState.select-option(i);
+                        }
+                    }
+                }
+
+                if !AppState.q-is-mcq: LineEdit {
+                    text <=> AppState.q-fill;
+                    placeholder-text: "Scrivi la risposta (parola o numero)";
+                    enabled: !AppState.q-answered;
+                    font-size: 18px;
+                    edited(t) => {
+                        AppState.fill-edited(t);
+                    }
+                    accepted => {
+                        if (AppState.quiz-mode == 1) {
+                            AppState.next();
+                        } else if (AppState.q-can-confirm) {
+                            AppState.confirm();
+                        }
+                    }
+                }
+
+                if AppState.q-answered && AppState.quiz-mode != 1: Card {
+                    bg: AppState.q-correct ? M3.success-container : M3.error-container;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Icon {
+                                source: AppState.q-correct ? Icons.check : Icons.close;
+                                tint: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                            }
+
+                            Text {
+                                text: AppState.q-correct ? "Corretto" : "Sbagliato";
+                                font-size: Type.title;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                                color: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                            }
+                        }
+
+                        Text {
+                            text: "Risposta: " + AppState.q-correct-text;
+                            wrap: word-wrap;
+                            font-weight: 600;
+                            color: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                        }
+
+                        if AppState.q-explanation != "": Text {
+                            text: AppState.q-explanation;
+                            wrap: word-wrap;
+                            color: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                        }
+                        if AppState.q-ref != "": RefBox {
+                            label: AppState.q-ref;
+                            open => {
+                                AppState.open-ref-quiz();
+                            }
+                        }
+                    }
+                }
+
+                fbend := Rectangle {
+                    height: 0px;
+                }
+
+                if AppState.q-source != "": Text {
+                    text: "Fonte: " + AppState.q-source;
+                    wrap: word-wrap;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    opacity: 0.85;
+                }
+
+                if AppState.quiz-mode == 1: VerticalLayout {
+                    spacing: 6px;
+                    padding-top: 8px;
+                    SectionTitle {
+                        text: "Vai alla domanda";
+                    }
+
+                    for row in AppState.nav-rows: HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+                        for c in row.cells: NavCell {
+                            n: c.n;
+                            answered: c.answered;
+                            unsure: c.unsure;
+                            current: c.current;
+                            clicked => {
+                                AppState.goto(c.n - 1);
+                            }
+                        }
+                    }
+                }
+
+                // fine reale del contenuto: l'altezza stimata dal layout con testo a capo può essere minore
+                qend := Rectangle {
+                    height: 0px;
+                }
+            }
+        }
+        }
+        }
+
+        Rectangle {
+            background: M3.surface-container;
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 8px;
+                Chip {
+                    text: "Insicura";
+                    has-icon: true;
+                    icon: AppState.q-unsure ? Icons.flag : Icons.flag-outline;
+                    accent: M3.error;
+                    selected: AppState.q-unsure;
+                    clicked => {
+                        AppState.toggle-unsure();
+                    }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+
+                if AppState.quiz-mode == 1: IconButton {
+                    icon: Icons.chevron-left;
+                    enabled: AppState.q-index > 0;
+                    clicked => {
+                        AppState.prev();
+                    }
+                }
+                if AppState.quiz-mode == 1 && AppState.q-index + 1 < AppState.q-total: IconButton {
+                    icon: Icons.chevron;
+                    filled: true;
+                    clicked => {
+                        AppState.next();
+                    }
+                }
+                if AppState.quiz-mode == 1: M3Button {
+                    text: "Consegna";
+                    clicked => {
+                        AppState.finish();
+                    }
+                }
+                if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
+                    text: "Salta";
+                    kind: 3;
+                    clicked => {
+                        AppState.skip();
+                    }
+                }
+                if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
+                    text: "Conferma";
+                    enabled: AppState.q-can-confirm;
+                    clicked => {
+                        AppState.confirm();
+                    }
+                }
+                if AppState.quiz-mode != 1 && AppState.q-answered: M3Button {
+                    text: AppState.q-index + 1 < AppState.q-total ? "Avanti" : "Fine";
+                    clicked => {
+                        AppState.next();
+                    }
+                }
+            }
+        }
+    }
+}
+
+component ResultTile inherits Rectangle {
+    in property <ResultItemVM> item;
+    callback toggle-flag;
+    callback open-ref;
+    callback report;
+    property <bool> expanded: false;
+    border-radius: 14px;
+    background: M3.surface-container-low;
+    TouchArea {
+        clicked => {
+            root.expanded = !root.expanded;
+        }
+    }
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 10px;
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+                background: root.item.status == 0 ? M3.success : root.item.status == 1 ? M3.error : root.item.status == 2 ? M3.outline : M3.primary;
+                Text {
+                    text: root.item.n;
+                    color: M3.surface;
+                    font-weight: 700;
+                    font-size: Type.label;
+                }
+            }
+
+            Text {
+                text: root.item.text;
+                color: M3.on-surface;
+                wrap: word-wrap;
+                overflow: elide;
+                // chiusa: al massimo tre righe circa, senza lasciare spazio vuoto sotto
+                height: root.expanded ? self.preferred-height : min(self.preferred-height, 60px);
+                horizontal-stretch: 1;
+            }
+
+            IconButton {
+                icon: root.item.unsure ? Icons.flag : Icons.flag-outline;
+                tint: root.item.unsure ? M3.error : M3.on-surface-variant;
+                clicked => {
+                    root.toggle-flag();
+                }
+            }
+        }
+
+        Text {
+            text: (root.item.status == 3 ? "" : "Tua: " + (root.item.given == "" ? "—" : root.item.given) + " · ") + "Corretta: " + root.item.correct-text + (root.item.secs != "" ? " · " + root.item.secs + (root.item.slow ? " (lenta)" : "") : "");
+            color: M3.on-surface-variant;
+            font-size: Type.label;
+            wrap: word-wrap;
+        }
+
+        if root.expanded && root.item.explanation != "": Text {
+            text: root.item.explanation;
+            color: M3.on-surface;
+            font-size: Type.body;
+            wrap: word-wrap;
+        }
+        if root.expanded && root.item.ref-label != "": RefBox {
+            label: root.item.ref-label;
+            open => {
+                root.open-ref();
+            }
+        }
+        if root.expanded && AppState.sync-configured: HorizontalLayout {
+            alignment: end;
+            M3Button {
+                kind: 3;
+                text: "Segnala un problema";
+                has-icon: true;
+                icon: Icons.report;
+                clicked => {
+                    root.report();
+                }
+            }
+        }
+    }
+}
+
+export component ResultsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: AppState.r-title;
+            subtitle: AppState.r-sync;
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 10px;
+            Card {
+                bg: AppState.r-is-exam ? (AppState.r-passed ? M3.success-container : M3.error-container) : M3.primary-container;
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 6px;
+                    Text {
+                        text: AppState.r-points;
+                        font-size: Type.display;
+                        font-weight: 800;
+                        horizontal-alignment: center;
+                        color: M3.on-surface;
+                    }
+
+                    if AppState.r-is-exam: Text {
+                        text: AppState.r-passed ? "Prova superata (≥ 18)" : "Sotto la soglia di 18";
+                        horizontal-alignment: center;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: AppState.r-summary;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                        color: M3.on-surface;
+                    }
+                }
+            }
+
+            // feedback per Claude: solo con GitHub configurato (finisce nel repository)
+            if AppState.sync-configured: Card {
+                bg: M3.surface-container;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: AppState.r-feedback-sent ? "Grazie, feedback inviato!" : "Ti ha soddisfatto questo quiz?";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    if !AppState.r-feedback-sent: StarRating {
+                        value <=> AppState.r-rating;
+                    }
+                    if !AppState.r-feedback-sent: TextEdit {
+                        text <=> AppState.r-feedback;
+                        placeholder-text: "Proposte o modifiche (domande poco chiare, troppo facili/difficili, argomenti da aggiungere…)";
+                        wrap: word-wrap;
+                        min-height: 96px;
+                    }
+                    if !AppState.r-feedback-sent: HorizontalLayout {
+                        alignment: end;
+                        M3Button {
+                            text: "Invia feedback";
+                            kind: 1;
+                            has-icon: true;
+                            icon: Icons.feedback;
+                            enabled: AppState.r-rating > 0 || AppState.r-feedback != "";
+                            clicked => {
+                                AppState.send-session-feedback();
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                text: "Tocca una domanda per la spiegazione; la bandierina segna/toglie \"insicura\".";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+
+            for it[i] in AppState.r-items: ResultTile {
+                item: it;
+                toggle-flag => {
+                    AppState.result-toggle-flag(i);
+                }
+                open-ref => {
+                    AppState.open-ref-result(i);
+                }
+                report => {
+                    AppState.report-result(i);
+                }
+            }
+        }
+
+        Rectangle {
+            background: M3.surface-container;
+            HorizontalLayout {
+                padding: 12px;
+                M3Button {
+                    text: "Fatto";
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.results-close();
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component CardsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Flashcard";
+            subtitle: AppState.c-done ? "Sessione completata" : (AppState.c-index + 1) + " di " + AppState.c-total + " · " + AppState.c-topic;
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        if AppState.c-done: VerticalLayout {
+            vertical-stretch: 1;
+            padding: 24px;
+            spacing: 16px;
+            alignment: center;
+            Text {
+                text: AppState.c-summary;
+                font-size: Type.title-large;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+                color: M3.on-surface;
+            }
+
+            M3Button {
+                text: "Chiudi";
+                clicked => {
+                    AppState.back();
+                }
+            }
+        }
+
+        if !AppState.c-done: cv := VerticalLayout {
+            vertical-stretch: 1;
+            padding: 16px;
+            spacing: 12px;
+            property <float> flip: AppState.c-flipped ? 1 : 0;
+            animate flip {
+                duration: 420ms;
+                easing: ease-in-out;
+            }
+            property <bool> show-back: self.flip > 0.5;
+            LinearProgress {
+                value: AppState.c-total > 0 ? AppState.c-index / AppState.c-total : 0;
+                height: 4px;
+            }
+
+            Swap {
+                key: "" + AppState.c-index;
+                vertical-stretch: 1;
+            Card {
+                width: parent.width;
+                height: parent.height;
+                bg: cv.show-back ? M3.surface-container-high : M3.surface-container-low;
+                transform-scale-x: max(0.02, abs(1 - 2 * cv.flip)) * 100%;
+                clickable: true;
+                clicked => {
+                    AppState.card-flip();
+                }
+                Scroller {
+                    pad: 24px;
+                    gap: 16px;
+                    align: center;
+                    Text {
+                        text: AppState.c-front;
+                        font-size: 20px;
+                        font-weight: 600;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                        color: M3.on-surface;
+                    }
+
+                    if cv.show-back: Rectangle {
+                        height: 1px;
+                        background: M3.outline-variant;
+                    }
+                    if cv.show-back: Text {
+                        text: AppState.c-back;
+                        font-size: 17px;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                        color: M3.on-surface;
+                    }
+                    if cv.show-back && AppState.c-ref != "": RefBox {
+                        label: AppState.c-ref;
+                        open => {
+                            AppState.open-ref-card();
+                        }
+                    }
+                    if cv.show-back && AppState.c-note-shown != "": Rectangle {
+                        border-radius: 10px;
+                        background: M3.secondary-container;
+                        HorizontalLayout {
+                            padding: 10px;
+                            Text {
+                                text: "La tua spiegazione: " + AppState.c-note-shown;
+                                wrap: word-wrap;
+                                font-size: Type.body;
+                                color: M3.on-secondary-container;
+                            }
+                        }
+                    }
+                    if !cv.show-back: Text {
+                        text: "Tocca per vedere la risposta";
+                        font-size: Type.label;
+                        horizontal-alignment: center;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            }
+
+            if !cv.show-back: TextEdit {
+                text <=> AppState.c-note;
+                placeholder-text: "Prima di girare: spiegala a parole tue (facoltativo, resta nel tuo storico)";
+                wrap: word-wrap;
+                min-height: 72px;
+                max-height: 120px;
+            }
+
+            HorizontalLayout {
+                alignment: center;
+                Chip {
+                    text: "Insicura";
+                    has-icon: true;
+                    icon: AppState.c-unsure ? Icons.flag : Icons.flag-outline;
+                    accent: M3.error;
+                    selected: AppState.c-unsure;
+                    clicked => {
+                        AppState.card-toggle-unsure();
+                    }
+                }
+            }
+
+            if !AppState.c-flipped: M3Button {
+                text: "Mostra risposta";
+                clicked => {
+                    AppState.card-flip();
+                }
+            }
+            if AppState.c-flipped: HorizontalLayout {
+                spacing: 6px;
+                M3Button {
+                    text: "Ancora";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 4;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(0);
+                    }
+                }
+
+                M3Button {
+                    text: "Difficile";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 1;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(1);
+                    }
+                }
+
+                M3Button {
+                    text: "Bene";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 1;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(2);
+                    }
+                }
+
+                M3Button {
+                    text: "Facile";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 0;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(3);
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component DecksPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Flashcard";
+            subtitle: AppState.due-count + " da ripassare oggi";
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            M3Button {
+                text: "Ripassa tutte le materie";
+                has-icon: true;
+                icon: Icons.play;
+                clicked => {
+                    AppState.start-cards("all", "");
+                }
+            }
+
+            for s[i] in AppState.subjects: Card {
+                clickable: true;
+                stagger: i + 1;
+                clicked => {
+                    AppState.start-cards("subject", s.id);
+                }
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 12px;
+                            height: 12px;
+                            border-radius: 6px;
+                            background: M3.subject(s.id);
+                        }
+                    }
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        Text {
+                            text: s.name;
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            wrap: word-wrap;
+                        }
+
+                        Text {
+                            text: s.due + " da ripassare · " + s.new-cards + " nuove · " + s.learned + " in ripasso";
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    VIcon {
+                        source: Icons.chevron;
+                        tint: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            // carte già studiate: non spariscono, si ripassano quando si vuole
+            Text {
+                text: "In ripasso";
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            Text {
+                text: "Le carte che hai già studiato (risposte con \"Bene\" o \"Facile\") restano qui fino alla prossima scadenza: puoi ripassarle quando vuoi.";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            for s[i] in AppState.subjects: HorizontalLayout {
+                spacing: 12px;
+                Rectangle {
+                    width: 10px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 10px;
+                            height: 10px;
+                            border-radius: 5px;
+                            background: M3.subject(s.id);
+                        }
+                    }
+                }
+                Text {
+                    text: s.name + " · " + s.learned + " carte";
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    wrap: word-wrap;
+                    color: M3.on-surface;
+                }
+                M3Button {
+                    small: true;
+                    kind: 1;
+                    text: "Ripassa";
+                    enabled: s.learned > 0;
+                    clicked => {
+                        AppState.start-cards("learned-subject", s.id);
+                    }
+                }
+            }
+
+            Text {
+                text: "Ripetizione dilazionata: \"Ancora\" la ripropone tra 10 minuti, \"Bene\"/\"Facile\" allungano l'intervallo (max 21 giorni). Le carte segnate insicure contano come \"Difficile\".";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
+
+export component FlagsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Insicure e sbagliate";
+            subtitle: AppState.flagged-count + " segnalate · " + AppState.wrong-count + " sbagliate";
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 10px;
+            M3Button {
+                text: "Ripassa ora";
+                has-icon: true;
+                icon: Icons.play;
+                enabled: AppState.flags.length > 0;
+                clicked => {
+                    AppState.start-review("");
+                }
+            }
+
+            if AppState.flags.length == 0: Text {
+                text: "Niente da ripassare. Durante i quiz usa \"Insicura\" sulle domande in cui hai tirato a indovinare: finiranno qui e verranno committate nel repository.";
+                wrap: word-wrap;
+                color: M3.on-surface-variant;
+            }
+
+            for f in AppState.flags: Rectangle {
+                border-radius: 14px;
+                background: M3.surface-container-low;
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text {
+                            text: f.text;
+                            wrap: word-wrap;
+                            color: M3.on-surface;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: f.where;
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                                horizontal-stretch: 1;
+                                wrap: word-wrap;
+                            }
+
+                            if f.wrong: Pill {
+                                text: "sbagliata";
+                                bg: M3.error-container;
+                                fg: M3.on-error-container;
+                            }
+                        }
+                    }
+
+                    IconButton {
+                        icon: f.flagged ? Icons.flag : Icons.flag-outline;
+                        tint: f.flagged ? M3.error : M3.on-surface-variant;
+                        clicked => {
+                            AppState.flag-toggle(f.id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component SettingsPage inherits Page {
+    property <bool> gh-open: false;
+    VerticalLayout {
+        TopBar {
+            title: "Opzioni";
+            subtitle: AppState.app-version;
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            if AppState.sync-configured: Card {
+                clickable: true;
+                bg: M3.tertiary-container;
+                clicked => {
+                    AppState.open-feedback();
+                }
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    VIcon {
+                        source: Icons.feedback;
+                        tint: M3.on-tertiary-container;
+                    }
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text {
+                            text: "Feedback";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-tertiary-container;
+                        }
+
+                        Text {
+                            text: "Proposte e segnalazioni: Claude le legge, le integra e ti risponde qui (" + AppState.feedbacks.length + " inviati)";
+                            font-size: Type.label;
+                            color: M3.on-tertiary-container;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    VIcon {
+                        source: Icons.chevron;
+                        tint: M3.on-tertiary-container;
+                    }
+                }
+            }
+
+            // repository GitHub: chiuso è solo una riga con lo stato; si apre toccandolo
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Rectangle {
+                        height: gh-head.preferred-height;
+                        gh-head := HorizontalLayout {
+                            spacing: 12px;
+                            VIcon {
+                                source: Icons.sync;
+                                tint: M3.on-surface-variant;
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "Repository GitHub";
+                                    font-size: Type.title;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                }
+                                if !root.gh-open: Text {
+                                    text: AppState.sync-configured ? AppState.s-owner + "/" + AppState.s-repo + " · " + AppState.sync-status : "Non configurato: sincronizzazione e feedback disattivati";
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+                            VIcon {
+                                source: Icons.chevron;
+                                tint: M3.on-surface-variant;
+                                transform-rotation: root.gh-open ? -90deg : 90deg;
+                                animate transform-rotation { duration: 200ms; }
+                            }
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.gh-open = !root.gh-open;
+                            }
+                        }
+                    }
+
+                    if root.gh-open: Text {
+                        text: "Ogni quiz, simulazione, ripasso e segnalazione viene committato come file JSON in progress/sessions/. Serve un token \"fine-grained\" limitato a questo repository con permesso Contents: Read and write.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    if root.gh-open: LineEdit {
+                        text <=> AppState.s-owner;
+                        placeholder-text: "Proprietario (nome utente GitHub)";
+                    }
+
+                    if root.gh-open: LineEdit {
+                        text <=> AppState.s-repo;
+                        placeholder-text: "Repository";
+                    }
+
+                    if root.gh-open: LineEdit {
+                        text <=> AppState.s-branch;
+                        placeholder-text: "Branch (vuoto = predefinito)";
+                    }
+
+                    if root.gh-open: LineEdit {
+                        text <=> AppState.s-token;
+                        placeholder-text: "Token GitHub (github_pat_…)";
+                        input-type: password;
+                    }
+
+                    if root.gh-open: M3Button {
+                        text: "Salva e sincronizza";
+                        has-icon: true;
+                        icon: Icons.sync;
+                        enabled: !AppState.syncing;
+                        clicked => {
+                            AppState.save-settings();
+                        }
+                    }
+
+                    if root.gh-open: Text {
+                        text: AppState.sync-status;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: "Pacchetto contenuti";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    Text {
+                        text: "Quiz, flashcard e libri in un unico file (SemestreAperto-contenuti.json.gz), pubblicato nelle release «Contenuti» del repository: aggiorna i contenuti senza reinstallare l'app e senza token. I tuoi progressi non vengono toccati."
+                            + (AppState.on-android
+                            ? " Puoi anche aprire il file da Download o dal browser con «Apri con Semestre Aperto»."
+                            : " Il file va messo nella cartella Download.");
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    M3Button {
+                        text: AppState.pack-busy ? "Importazione…" : "Importa pacchetto";
+                        has-icon: true;
+                        icon: Icons.sync;
+                        enabled: !AppState.pack-busy && !AppState.syncing;
+                        clicked => {
+                            AppState.import-pack();
+                        }
+                    }
+
+                    Text {
+                        text: AppState.pack-status;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Promemoria";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    Text {
+                        text: "Quattro notifiche al giorno: obiettivi, sessione in pausa, flashcard da ripassare e giorni all'appello, con testi diversi a seconda dell'ora. Con gli obiettivi confermati, su Android resta anche una notifica fissa con l'avanzamento.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    Switch {
+                        text: "Promemoria attivi";
+                        checked <=> AppState.s-rem-on;
+                    }
+
+                    LineEdit {
+                        text <=> AppState.s-rem-time;
+                        placeholder-text: "08:30, 13:45, 17:30, 21:00";
+                        enabled: AppState.s-rem-on;
+                    }
+
+                    Text {
+                        text: "Orari: mattina, dopo pranzo, pomeriggio, sera (separati da virgola). La prima fascia propone gli obiettivi, l'ultima ti ricorda quelli non finiti.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    M3Button {
+                        text: "Salva promemoria";
+                        clicked => {
+                            AppState.save-reminder();
+                        }
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Regole d'esame 2026/27";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    Text {
+                        text: AppState.exam-rules;
+                        wrap: word-wrap;
+                        font-size: Type.body;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Come si calcola la barra";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    Text {
+                        text: "Per ogni argomento: accuratezza recente (ultime 3 risposte, insicura = metà) × copertura (domande diverse viste, fino a 6). Unità = media degli argomenti, materia = media pesata per CFU. Quando chiedi a Claude una revisione, il file progress/assessment.json fissa un nuovo valore per argomento e la stima riparte da lì con le nuove risposte.";
+                        wrap: word-wrap;
+                        font-size: Type.body;
+                        color: M3.on-surface-variant;
+                    }
+
+                    Text {
+                        text: AppState.content-info;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+        }
+    }
+}
+
+component BlockView inherits VerticalLayout {
+    in property <BlockVM> b;
+    in property <length> avail-width: 360px;
+        padding-left: root.b.kind == 2 ? 12px * root.b.level : 0px;
+        padding-bottom: root.b.kind == 9 ? 0px : 12px;
+        if root.b.kind == 0: Text {
+            text: root.b.text;
+            wrap: word-wrap;
+            color: M3.on-surface;
+            font-weight: 700;
+            font-size: root.b.level <= 1 ? 24px : root.b.level == 2 ? 20px : 17px;
+        }
+        if root.b.kind == 1: Text {
+            text: root.b.text;
+            wrap: word-wrap;
+            color: M3.on-surface;
+            font-size: 16px;
+        }
+        if root.b.kind == 2 || root.b.kind == 3: HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: root.b.kind == 2 ? "•" : root.b.label;
+                color: M3.primary;
+                font-size: 16px;
+                font-weight: 700;
+                min-width: 16px;
+            }
+
+            Text {
+                text: root.b.text;
+                wrap: word-wrap;
+                color: M3.on-surface;
+                font-size: 16px;
+                horizontal-stretch: 1;
+            }
+        }
+        if root.b.kind == 4: HorizontalLayout {
+            spacing: 10px;
+            Rectangle {
+                width: 3px;
+                background: M3.primary;
+            }
+
+            Text {
+                text: root.b.text;
+                wrap: word-wrap;
+                color: M3.on-surface-variant;
+                font-size: 16px;
+                font-italic: true;
+                horizontal-stretch: 1;
+            }
+        }
+        if root.b.kind == 5: Rectangle {
+            background: M3.surface-container-high;
+            border-radius: 8px;
+            HorizontalLayout {
+                padding: 10px;
+                Text {
+                    text: root.b.text;
+                    wrap: word-wrap;
+                    font-family: "monospace";
+                    font-size: 13px;
+                    color: M3.on-surface;
+                }
+            }
+        }
+        if root.b.kind == 6: HorizontalLayout {
+            spacing: 8px;
+            Rectangle {
+                height: 1px;
+                y: parent.height / 2;
+                background: M3.outline-variant;
+                horizontal-stretch: 1;
+            }
+
+            Text {
+                text: root.b.text;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+            }
+        }
+        if root.b.kind == 7: Rectangle {
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: M3.outline-variant;
+            HorizontalLayout {
+                padding: 10px;
+                Text {
+                    text: "Figura: " + root.b.text;
+                    wrap: word-wrap;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                }
+            }
+        }
+        if root.b.kind == 8: Rectangle {
+            height: 1px;
+            background: M3.outline-variant;
+        }
+        if root.b.kind == 10: HorizontalLayout {
+            alignment: center;
+            padding-top: 4px;
+            padding-bottom: 4px;
+            Image {
+                source: root.b.img;
+                colorize: M3.on-surface;
+                image-fit: contain;
+                width: min(root.avail-width, self.source.width * 1.15px);
+                height: self.width * self.source.height / max(1, self.source.width);
+            }
+        }
+        if root.b.kind == 11: Text {
+            text: root.b.text;
+            wrap: word-wrap;
+            horizontal-alignment: center;
+            font-size: 17px;
+            font-italic: true;
+            color: M3.on-surface;
+        }
+        if root.b.kind == 9: Rectangle {
+            background: root.b.level == 1 ? M3.secondary-container : M3.surface-container-low;
+            border-width: 1px;
+            border-color: M3.outline-variant;
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 8px;
+                for c in root.b.cells: Text {
+                    text: c;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                    font-size: 14px;
+                    font-weight: root.b.level == 1 ? 700 : 400;
+                    color: M3.on-surface;
+                }
+            }
+        }
+}
+
+export component ReaderPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: AppState.rd-title;
+            subtitle: AppState.rd-book + (AppState.rd-page-label != "" ? " · " + AppState.rd-page-label : "");
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+            IconButton {
+                icon: Icons.toc;
+                filled: AppState.rd-toc-visible;
+                clicked => {
+                    AppState.rd-toc-visible = !AppState.rd-toc-visible;
+                }
+            }
+        }
+
+        if !AppState.rd-toc-visible: Swap {
+            key: AppState.rd-title;
+            vertical-stretch: 1;
+        // ScrollView con altezza presa dalla fine reale del contenuto: con le tabelle (testo a capo
+        // in righe orizzontali) Slint sottostima l'altezza preferita e lo scroll col dito si fermava
+        rsv := ScrollView {
+            mouse-drag-pan-enabled: AppState.drag-pan;
+            width: parent.width;
+            height: parent.height;
+            horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            content-width: self.visible-width;
+            content-height: max(self.visible-height, endm.y + 24px);
+            content-y <=> AppState.rd-scroll;
+            VerticalLayout {
+                x: 0px;
+                y: 0px;
+                width: rsv.visible-width;
+                height: self.preferred-height;
+                alignment: start;
+                padding: 18px;
+                padding-top: 4px;
+                spacing: 0px;
+                for b in AppState.rd-blocks: BlockView {
+                    b: b;
+                    avail-width: rsv.visible-width - 36px;
+                }
+                endm := Rectangle {
+                    height: 0px;
+                }
+            }
+        }
+        }
+        if AppState.rd-toc-visible: Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 8px;
+            for t in AppState.rd-toc: Rectangle {
+                min-height: max(44px, toc-row.preferred-height);
+                border-radius: 10px;
+                background: t.current ? M3.secondary-container : tta.pressed ? M3.on-surface.with-alpha(0.08) : transparent;
+                toc-row := HorizontalLayout {
+                    padding-left: 12px + 14px * max(0, t.level - 1);
+                    padding-right: 12px;
+                    spacing: 8px;
+                    Text {
+                        text: t.title;
+                        wrap: word-wrap;
+                        vertical-alignment: center;
+                        font-weight: t.level <= 1 ? 700 : 400;
+                        color: M3.on-surface;
+                        horizontal-stretch: 1;
+                    }
+
+                    Text {
+                        text: t.page;
+                        vertical-alignment: center;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+
+                tta := TouchArea {
+                    clicked => {
+                        AppState.reader-goto(t.idx);
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            background: M3.surface-container;
+            HorizontalLayout {
+                padding: 10px;
+                spacing: 8px;
+                M3Button {
+                    kind: 1;
+                    text: "Precedente";
+                    has-icon: true;
+                    icon: Icons.chevron-left;
+                    enabled: AppState.rd-has-prev;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.reader-prev();
+                    }
+                }
+
+                M3Button {
+                    kind: 1;
+                    text: "Successiva";
+                    enabled: AppState.rd-has-next;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.reader-next();
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component FeedbackPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Feedback";
+            subtitle: "Proposte e segnalazioni: Claude le legge e le integra";
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: "Nuovo feedback";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Chip {
+                            text: "Contenuti";
+                            selected: AppState.fb-category == "contenuti";
+                            clicked => {
+                                AppState.fb-category = "contenuti";
+                            }
+                        }
+
+                        Chip {
+                            text: "Domanda";
+                            selected: AppState.fb-category == "domanda";
+                            clicked => {
+                                AppState.fb-category = "domanda";
+                            }
+                        }
+
+                        Chip {
+                            text: "App";
+                            selected: AppState.fb-category == "app";
+                            clicked => {
+                                AppState.fb-category = "app";
+                            }
+                        }
+
+                        Chip {
+                            text: "Altro";
+                            selected: AppState.fb-category == "altro";
+                            clicked => {
+                                AppState.fb-category = "altro";
+                            }
+                        }
+                    }
+
+                    if AppState.fb-item != "": Rectangle {
+                        border-radius: 10px;
+                        background: M3.tertiary-container;
+                        HorizontalLayout {
+                            padding: 10px;
+                            spacing: 8px;
+                            Text {
+                                text: "Riguarda: " + AppState.fb-item-text;
+                                wrap: word-wrap;
+                                color: M3.on-tertiary-container;
+                                font-size: Type.label;
+                                horizontal-stretch: 1;
+                            }
+
+                            IconButton {
+                                icon: Icons.close;
+                                tint: M3.on-tertiary-container;
+                                clicked => {
+                                    AppState.clear-fb-item();
+                                }
+                            }
+                        }
+                    }
+
+                    TextEdit {
+                        text <=> AppState.fb-text;
+                        placeholder-text: "Scrivi qui: cosa cambiare, cosa aggiungere, errori trovati…";
+                        wrap: word-wrap;
+                        min-height: 140px;
+                    }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        M3Button {
+                            text: "Invia";
+                            has-icon: true;
+                            icon: Icons.feedback;
+                            enabled: AppState.fb-text != "";
+                            clicked => {
+                                AppState.send-feedback();
+                            }
+                        }
+                    }
+                }
+            }
+
+            if AppState.feedbacks.length > 0: SectionTitle {
+                text: "Inviati";
+            }
+            for f in AppState.feedbacks: Rectangle {
+                border-radius: 14px;
+                background: M3.surface-container-low;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 6px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: f.date + " · " + f.title + (f.rating > 0 ? " · " + f.rating + "/5" : "");
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                            horizontal-stretch: 1;
+                            wrap: word-wrap;
+                        }
+
+                        Pill {
+                            text: f.status;
+                            bg: f.pending ? M3.warn-container : f.reply != "" ? M3.success-container : M3.secondary-container;
+                            fg: f.pending ? M3.on-warn-container : f.reply != "" ? M3.on-success-container : M3.on-secondary-container;
+                        }
+                    }
+
+                    if f.text != "": Text {
+                        text: f.text;
+                        wrap: word-wrap;
+                        color: M3.on-surface;
+                    }
+                    if f.reply != "": Rectangle {
+                        border-radius: 10px;
+                        background: M3.primary-container;
+                        HorizontalLayout {
+                            padding: 10px;
+                            spacing: 8px;
+                            VIcon {
+                                source: Icons.ai;
+                                tint: M3.on-primary-container;
+                                size: 18px;
+                            }
+
+                            Text {
+                                text: f.reply;
+                                wrap: word-wrap;
+                                color: M3.on-primary-container;
+                                horizontal-stretch: 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------- tavola periodica ----------
+
+component PtProp inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <color> accent: M3.primary;
+    spacing: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    Text {
+        text: root.label;
+        width: 42%;
+        color: M3.on-surface-variant;
+        font-size: Type.label;
+        wrap: word-wrap;
+        vertical-alignment: top;
+    }
+    Text {
+        text: root.value;
+        horizontal-stretch: 1;
+        color: M3.on-surface;
+        font-size: Type.body;
+        font-weight: 500;
+        wrap: word-wrap;
+    }
+}
+
+component PtSection inherits VerticalLayout {
+    in property <string> title;
+    in property <color> accent;
+    spacing: 2px;
+    Text {
+        text: root.title;
+        font-size: Type.label;
+        font-weight: 700;
+        color: root.accent;
+    }
+    Rectangle {
+        height: 1px;
+        background: M3.outline-variant;
+    }
+    @children
+}
+
+export component PeriodicPage inherits Page {
+    property <length> cell: 46px;
+    property <length> gap: 3px;
+    property <length> lab: 22px;
+    property <length> head: 24px;
+    property <length> table-w: root.lab + 18 * (root.cell + root.gap) + 16px;
+    property <length> table-h: root.head + 9 * (root.cell + root.gap) + 22px;
+    property <[string]> cats: ["Non metalli", "Gas nobili", "Metalli alcalini", "Alcalino-terrosi", "Semimetalli", "Alogeni", "Metalli del blocco p", "Metalli di transizione", "Lantanidi", "Attinidi"];
+    // pannello dei dettagli: 0 = chiuso, 1 = aperto
+    property <float> sheet: AppState.pt-has-sel ? 1 : 0;
+    animate sheet {
+        duration: 320ms;
+        easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+    }
+    VerticalLayout {
+        TopBar {
+            title: "Tavola periodica";
+            subtitle: "Tocca un elemento per le sue proprietà";
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        // la pagina scorre in verticale; legenda e tavola scorrono solo in orizzontale
+        // (i due gesti non si contendono il dito: in verticale vince la pagina)
+        Scroller {
+            vertical-stretch: 1;
+            pad-top: 0px;
+            pad-bottom: 16px;
+            gap: 8px;
+            // legenda: tocca una famiglia per evidenziarla. Flickable semplice: la ScrollView
+            // riserva spazio alla barra anche nascosta e tagliava le etichette
+            Flickable {
+                height: 48px;
+                interactive: true;
+                content-width: max(self.width, legend.preferred-width);
+                content-height: 48px;
+                legend := HorizontalLayout {
+                    x: 0px;
+                    y: 0px;
+                    height: 48px;
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+                    spacing: 6px;
+                    alignment: start;
+                    for c[i] in root.cats: Rectangle {
+                        width: lt.preferred-width + 24px;
+                        border-radius: 16px;
+                        background: AppState.pt-filter == i ? M3.element-accent(i) : M3.element(i);
+                        animate background { duration: 160ms; }
+                        lt := Text {
+                            text: c;
+                            font-size: Type.label;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                            color: AppState.pt-filter == i ? M3.surface : M3.on-element(i);
+                        }
+                        TouchArea {
+                            clicked => {
+                                AppState.pt-filter = AppState.pt-filter == i ? -1 : i;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // tavola: gruppi in alto, periodi a sinistra; scorre solo in orizzontale
+            Flickable {
+                height: root.table-h;
+                interactive: true;
+                content-height: root.table-h;
+                content-width: max(self.width, root.table-w);
+                Rectangle {
+                    x: 0px;
+                    y: 0px;
+                    width: root.table-w;
+                    height: root.table-h;
+                    // disegnata una volta come immagine e poi solo spostata: con 118 caselle e
+                    // 354 testi ridisegnati a ogni fotogramma lo scorrimento andava a scatti
+                    cache-rendering-hint: true;
+                for g in 18: Text {
+                    x: 8px + root.lab + g * (root.cell + root.gap);
+                    y: 2px;
+                    width: root.cell;
+                    height: root.head - 4px;
+                    text: g + 1;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: Type.label;
+                    font-weight: 700;
+                    color: M3.on-surface-variant;
+                }
+                for p in 7: Text {
+                    x: 4px;
+                    y: root.head + p * (root.cell + root.gap);
+                    width: root.lab;
+                    height: root.cell;
+                    text: p + 1;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: Type.label;
+                    font-weight: 700;
+                    color: M3.on-surface-variant;
+                }
+                for f in 2: Text {
+                    x: 4px;
+                    y: root.head + (7 + f) * (root.cell + root.gap) + 10px;
+                    width: root.lab + 2 * (root.cell + root.gap);
+                    height: root.cell;
+                    text: f == 0 ? "Lantanidi" : "Attinidi";
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                    font-size: 10px;
+                    color: M3.on-surface-variant;
+                }
+                for e in AppState.pt-elements: Rectangle {
+                    property <bool> sel: AppState.pt-has-sel && AppState.pt-detail.z == e.z;
+                    property <bool> dim: AppState.pt-filter >= 0 && AppState.pt-filter != e.cat;
+                    x: 8px + root.lab + (e.col - 1) * (root.cell + root.gap) + (e.row > 7 ? 1 : 0) * 0px;
+                    y: root.head + (e.row > 7 ? (e.row - 2) * (root.cell + root.gap) + 10px : (e.row - 1) * (root.cell + root.gap));
+                    width: root.cell;
+                    height: root.cell;
+                    border-radius: sel ? 12px : 7px;
+                    background: M3.element(e.cat);
+                    border-width: sel ? 2px : 0px;
+                    border-color: M3.element-accent(e.cat);
+                    opacity: dim ? 0.22 : 1;
+                    animate opacity, border-radius { duration: 160ms; }
+                    Text {
+                        x: 3px;
+                        y: 1px;
+                        text: e.z;
+                        font-size: 8px;
+                        color: M3.on-element(e.cat).with-alpha(0.75);
+                    }
+                    Text {
+                        y: 9px;
+                        width: parent.width;
+                        text: e.sym;
+                        horizontal-alignment: center;
+                        font-size: 16px;
+                        font-weight: 800;
+                        color: M3.element-accent(e.cat);
+                    }
+                    Text {
+                        y: parent.height - self.height - 2px;
+                        width: parent.width;
+                        text: e.mass;
+                        horizontal-alignment: center;
+                        font-size: 7px;
+                        color: M3.on-element(e.cat).with-alpha(0.75);
+                    }
+                    TouchArea {
+                        clicked => {
+                            AppState.pt-select(e.z);
+                        }
+                    }
+                }
+                }
+            }
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+            Rectangle {
+                height: how.preferred-height + 32px;
+                border-radius: 16px;
+                background: M3.surface-container;
+                how := VerticalLayout {
+                    x: 16px;
+                    y: 16px;
+                    width: parent.width - 32px;
+                    spacing: 8px;
+                    Text {
+                        text: "Come leggere la tavola";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: "• Gruppi (colonne 1–18): stessi elettroni di valenza, proprietà chimiche simili.\n• Periodi (righe 1–7): stesso numero di gusci elettronici.\n• Da sinistra a destra lungo il periodo e salendo nel gruppo crescono elettronegatività, energia di ionizzazione e affinità elettronica; il raggio atomico e il carattere metallico invece diminuiscono.\n• A sinistra i metalli (tendono a cedere elettroni), a destra i non metalli (tendono ad acquistarli), lungo la scaletta i semimetalli.";
+                        wrap: word-wrap;
+                        color: M3.on-surface-variant;
+                        font-size: Type.body;
+                    }
+                }
+            }
+            }
+        }
+    }
+
+    // velo: toccandolo il pannello si chiude
+    if root.sheet > 0.01: Rectangle {
+        background: M3.scrim.with-alpha(0.45 * root.sheet);
+        TouchArea {
+            clicked => {
+                AppState.pt-has-sel = false;
+            }
+        }
+    }
+
+    // pannello dal basso con tutte le proprietà dell'elemento
+    Rectangle {
+        visible: root.sheet > 0.01;
+        x: 0px;
+        width: root.width;
+        height: min(root.height * 0.82, 640px);
+        y: root.height - self.height * root.sheet;
+        border-top-left-radius: 28px;
+        border-top-right-radius: 28px;
+        background: M3.surface-container-low;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #0005;
+        // assorbe i tocchi (non arrivano alla tavola sotto)
+        TouchArea { }
+        // maniglia: trascinando in giù il pannello si chiude
+        SwipeGestureHandler {
+            y: 0px;
+            height: 36px;
+            handle-swipe-down: true;
+            swiped => {
+                if (self.current-position.y - self.pressed-position.y > 40px) {
+                    AppState.pt-has-sel = false;
+                }
+            }
+            Rectangle {
+                y: 12px;
+                width: 36px;
+                height: 4px;
+                border-radius: 2px;
+                background: M3.on-surface-variant.with-alpha(0.4);
+            }
+        }
+        IconButton {
+            x: parent.width - self.width - 8px;
+            y: 6px;
+            icon: Icons.close;
+            clicked => {
+                AppState.pt-has-sel = false;
+            }
+        }
+        Scroller {
+            y: 40px;
+            height: parent.height - 40px;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 14px;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+                        HorizontalLayout {
+                            spacing: 14px;
+                            Rectangle {
+                                width: 92px;
+                                height: 92px;
+                                border-radius: 18px;
+                                background: M3.element(AppState.pt-detail.cat);
+                                Text {
+                                    x: 8px;
+                                    y: 6px;
+                                    text: AppState.pt-detail.z;
+                                    font-size: Type.label;
+                                    color: M3.on-element(AppState.pt-detail.cat);
+                                }
+                                Text {
+                                    text: AppState.pt-detail.sym;
+                                    font-size: 38px;
+                                    font-weight: 800;
+                                    color: M3.element-accent(AppState.pt-detail.cat);
+                                }
+                                Text {
+                                    y: parent.height - self.height - 6px;
+                                    width: parent.width;
+                                    horizontal-alignment: center;
+                                    text: AppState.pt-detail.mass;
+                                    font-size: 10px;
+                                    color: M3.on-element(AppState.pt-detail.cat);
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: AppState.pt-detail.name;
+                                    font-size: Type.title-large;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: AppState.pt-detail.cat-name + (AppState.pt-detail.metal != "" ? " · " + AppState.pt-detail.metal : "");
+                                    font-size: Type.body;
+                                    font-weight: 600;
+                                    color: M3.element-accent(AppState.pt-detail.cat);
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: AppState.pt-detail.position;
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+
+                        PtSection {
+                            title: "STRUTTURA DELL'ATOMO";
+                            accent: M3.element-accent(AppState.pt-detail.cat);
+                            PtProp { label: "Protoni (numero atomico Z)"; value: AppState.pt-detail.protons; }
+                            PtProp { label: "Elettroni (atomo neutro)"; value: AppState.pt-detail.electrons; }
+                            PtProp { label: "Neutroni (isotopo più comune)"; value: AppState.pt-detail.neutrons; }
+                            PtProp { label: "Massa atomica"; value: AppState.pt-detail.mass + " u"; }
+                            PtProp { label: "Configurazione elettronica"; value: AppState.pt-detail.config; }
+                        }
+
+                        PtSection {
+                            title: "PROPRIETÀ PERIODICHE";
+                            accent: M3.element-accent(AppState.pt-detail.cat);
+                            PtProp { label: "Elettronegatività (Pauling)"; value: AppState.pt-detail.en; }
+                            PtProp { label: "Affinità elettronica"; value: AppState.pt-detail.ea; }
+                            PtProp { label: "Energia di 1ª ionizzazione"; value: AppState.pt-detail.ie; }
+                            PtProp { label: "Raggio atomico"; value: AppState.pt-detail.radius; }
+                            PtProp { label: "Stato a 25 °C"; value: AppState.pt-detail.state; }
+                        }
+
+                        PtSection {
+                            title: "COMPORTAMENTO CHIMICO";
+                            accent: M3.element-accent(AppState.pt-detail.cat);
+                            PtProp { label: "Elettroni: cede o acquista?"; value: AppState.pt-detail.tendency; }
+                            PtProp { label: "Legami tipici e con chi"; value: AppState.pt-detail.bonds; }
+                            PtProp { label: "Numeri di ossidazione"; value: AppState.pt-detail.ox; }
+                        }
+                    }
+        }
+    }
+}

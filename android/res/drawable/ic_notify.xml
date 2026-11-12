@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icona monocromatica delle notifiche: libro aperto con battito. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3" android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M24,12C17,7.5 10,6.5 4,8.5L4,36C10,34 17,35 24,40C31,35 38,34 44,36L44,8.5C38,6.5 31,7.5 24,12Z" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3"
+        android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"
+        android:pathData="M8,25L15,25L18.5,18L23,32L27,20L29.5,25L40,25" />
+</vector>

@@ -1,0 +1,42 @@
+# Flatpak x86_64 (desktop Linux, es. Framework Laptop 12 con Aurora/KDE).
+# Il binario viene compilato dalla CI (cargo build --release) e copiato qui come
+# flatpak/semestre-aperto prima di flatpak-builder.
+app-id: it.tremendouspreparator.App
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+command: semestre-aperto
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # promemoria giornaliero: notifiche e avvio automatico all'accesso
+  - --talk-name=org.freedesktop.Notifications
+  - --filesystem=xdg-config/autostart:create
+  # importazione del pacchetto contenuti (SemestreAperto-contenuti.json.gz) da Download
+  - --filesystem=xdg-download:ro
+modules:
+  - name: semestre-aperto
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 semestre-aperto /app/bin/semestre-aperto
+      - install -Dm644 it.tremendouspreparator.App.desktop /app/share/applications/it.tremendouspreparator.App.desktop
+      - install -Dm644 it.tremendouspreparator.App.metainfo.xml /app/share/metainfo/it.tremendouspreparator.App.metainfo.xml
+      - install -Dm644 icon-256.png /app/share/icons/hicolor/256x256/apps/it.tremendouspreparator.App.png
+      - install -Dm644 icon-128.png /app/share/icons/hicolor/128x128/apps/it.tremendouspreparator.App.png
+      - install -Dm644 it.tremendouspreparator.App.svg /app/share/icons/hicolor/scalable/apps/it.tremendouspreparator.App.svg
+    sources:
+      - type: file
+        path: semestre-aperto
+      - type: file
+        path: it.tremendouspreparator.App.desktop
+      - type: file
+        path: it.tremendouspreparator.App.metainfo.xml
+      - type: file
+        path: icon-256.png
+      - type: file
+        path: icon-128.png
+      - type: file
+        path: it.tremendouspreparator.App.svg

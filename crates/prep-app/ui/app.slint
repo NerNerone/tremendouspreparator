@@ -1,0 +1,209 @@
+import { M3, Icons, Type } from "theme.slint";
+import { AppState } from "state.slint";
+import { NavItem, M3Button } from "components.slint";
+import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, FlagsPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, PeriodicPage } from "pages.slint";
+
+export { AppState }
+
+export component AppWindow inherits Window {
+    title: "Semestre Aperto";
+    preferred-width: 412px;
+    preferred-height: 900px;
+    background: M3.surface;
+    default-font-size: 14px;
+
+    property <bool> show-nav: AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11;
+
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Back || e.text == Key.Escape) {
+                if (AppState.back()) {
+                    return accept;
+                }
+            }
+            return reject;
+        }
+
+        VerticalLayout {
+            padding-top: root.safe-area-insets.top;
+            padding-bottom: max(root.safe-area-insets.bottom, root.virtual-keyboard-size.height);
+            Rectangle {
+                vertical-stretch: 1;
+                if AppState.page == 0: HomePage { }
+                if AppState.page == 1: StudyPage { }
+                if AppState.page == 2: UnitPage { }
+                if AppState.page == 3: QuizPage { }
+                if AppState.page == 4: ResultsPage { }
+                if AppState.page == 5: CardsPage { }
+                if AppState.page == 6: FlagsPage { }
+                if AppState.page == 7: SettingsPage { }
+                if AppState.page == 8: DecksPage { }
+                if AppState.page == 9: ReaderPage { }
+                if AppState.page == 10: FeedbackPage { }
+                if AppState.page == 11: GoalsPage { }
+                if AppState.page == 12: PeriodicPage { }
+            }
+
+            // barra di navigazione flessibile (Material 3 Expressive)
+            if root.show-nav && root.virtual-keyboard-size.height == 0: Rectangle {
+                height: 72px;
+                background: M3.surface-container;
+                HorizontalLayout {
+                    NavItem {
+                        icon: Icons.home;
+                        label: "Home";
+                        active: AppState.tab == 0;
+                        clicked => {
+                            AppState.go-tab(0);
+                        }
+                    }
+
+                    NavItem {
+                        icon: Icons.school;
+                        label: "Studio";
+                        active: AppState.tab == 1;
+                        clicked => {
+                            AppState.go-tab(1);
+                        }
+                    }
+
+                    NavItem {
+                        icon: Icons.cards;
+                        label: "Flashcard";
+                        active: AppState.tab == 2;
+                        badge: AppState.due-count;
+                        clicked => {
+                            AppState.go-tab(2);
+                        }
+                    }
+
+                    NavItem {
+                        icon: Icons.flag;
+                        label: "Insicure";
+                        active: AppState.tab == 3;
+                        badge: AppState.flagged-count;
+                        clicked => {
+                            AppState.go-tab(3);
+                        }
+                    }
+
+                    NavItem {
+                        icon: Icons.target;
+                        label: "Obiettivi";
+                        active: AppState.tab == 4;
+                        badge: AppState.goals-left;
+                        clicked => {
+                            AppState.go-tab(4);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // snackbar
+    if AppState.toast != "": Rectangle {
+        property <float> enter: 0;
+        init => {
+            enter = 1;
+        }
+        animate enter {
+            duration: 350ms;
+            easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+        }
+        opacity: self.enter;
+        x: 16px;
+        width: root.width - 32px;
+        y: root.height - max(root.safe-area-insets.bottom, root.virtual-keyboard-size.height) - (root.show-nav ? 80px : 72px) - self.height - 8px + (1 - self.enter) * 40px;
+        height: max(48px, tt.preferred-height + 24px);
+        border-radius: 8px;
+        background: M3.inverse-surface;
+        drop-shadow-blur: 6px;
+        drop-shadow-color: #0005;
+        tt := Text {
+            x: 16px;
+            width: parent.width - 32px;
+            text: AppState.toast;
+            color: M3.inverse-on-surface;
+            wrap: word-wrap;
+            vertical-alignment: center;
+        }
+
+        TouchArea {
+            clicked => {
+                AppState.toast = "";
+            }
+        }
+    }
+
+    // dialogo di conferma
+    if AppState.dialog-visible: Rectangle {
+        property <float> enter: 0;
+        init => {
+            enter = 1;
+        }
+        animate enter {
+            duration: 300ms;
+            easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+        }
+        background: M3.scrim.with-alpha(0.6 * self.enter);
+        TouchArea { }
+        Rectangle {
+            opacity: parent.enter;
+            transform-scale-x: 85% + 15% * parent.enter;
+            transform-scale-y: 85% + 15% * parent.enter;
+            width: min(root.width - 48px, 360px);
+            height: dl.preferred-height;
+            border-radius: 28px;
+            background: M3.surface-container-high;
+            dl := VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+                Text {
+                    text: AppState.dialog-title;
+                    font-size: Type.headline;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: AppState.dialog-text;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+                    M3Button {
+                        kind: 3;
+                        text: "Annulla";
+                        clicked => {
+                            AppState.dialog-cancel();
+                        }
+                    }
+
+                    if AppState.dialog-alt != "": M3Button {
+                        kind: 3;
+                        text: AppState.dialog-alt;
+                        clicked => {
+                            AppState.dialog-alt-clicked();
+                        }
+                    }
+
+                    M3Button {
+                        kind: 3;
+                        text: AppState.dialog-confirm;
+                        clicked => {
+                            AppState.dialog-ok();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    init => {
+        fs.focus();
+    }
+}

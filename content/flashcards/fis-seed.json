@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "cards": [
+    {
+      "id": "fis-u1-c001",
+      "topic": "fis-u1-t2",
+      "front": "Grandezze fondamentali del SI e loro unità?",
+      "back": "Lunghezza (m), massa (kg), tempo (s), corrente (A), temperatura (K), quantità di sostanza (mol), intensità luminosa (cd).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u1-c002",
+      "topic": "fis-u1-t4",
+      "front": "Modulo del prodotto vettoriale |a × b|?",
+      "back": "|a||b| sen θ; direzione perpendicolare al piano di a e b (regola della mano destra).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u1-c003",
+      "topic": "fis-u1-t2",
+      "front": "Differenza tra grandezze estensive e intensive?",
+      "back": "Estensive dipendono dalla quantità di materia (massa, volume, energia); intensive no (temperatura, densità, pressione).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u2-c001",
+      "topic": "fis-u2-t1",
+      "front": "Accelerazione centripeta nel moto circolare uniforme?",
+      "back": "a_c = v²/r = ω²r, diretta verso il centro.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u2-c002",
+      "topic": "fis-u2-t3",
+      "front": "Teorema dell'energia cinetica?",
+      "back": "Il lavoro totale delle forze su un corpo è uguale alla variazione della sua energia cinetica: L = ΔEc.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u2-c003",
+      "topic": "fis-u2-t5",
+      "front": "Condizioni di equilibrio di un corpo rigido?",
+      "back": "Risultante delle forze nulla (equilibrio traslazionale) e somma dei momenti nulla (equilibrio rotazionale).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u3-c001",
+      "topic": "fis-u3-t3",
+      "front": "Equazione di continuità?",
+      "back": "Portata Q = A·v costante lungo un condotto (fluido incomprimibile): dove la sezione si restringe, la velocità aumenta.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u3-c002",
+      "topic": "fis-u3-t4",
+      "front": "Legge di Poiseuille?",
+      "back": "Q = π r⁴ Δp / (8 η L); resistenza idraulica R = 8ηL/(π r⁴).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u3-c003",
+      "topic": "fis-u3-t5",
+      "front": "Legge di Laplace per una superficie sferica?",
+      "back": "Δp = 2τ/r: la pressione di curvatura cresce al diminuire del raggio (es. alveoli, surfactante).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u4-c001",
+      "topic": "fis-u4-t1",
+      "front": "Relazione tra velocità, frequenza e lunghezza d'onda?",
+      "back": "v = λ·f, con T = 1/f e ω = 2πf.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u4-c002",
+      "topic": "fis-u4-t4",
+      "front": "Livello di intensità sonora in decibel?",
+      "back": "β = 10·log₁₀(I/I₀), con I₀ = 10⁻¹² W/m² (soglia di udibilità).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u4-c003",
+      "topic": "fis-u4-t2",
+      "front": "Interferenza costruttiva e distruttiva?",
+      "back": "Costruttiva: onde in fase (differenza di cammino = nλ). Distruttiva: in opposizione di fase (differenza = (n+½)λ).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u5-c001",
+      "topic": "fis-u5-t4",
+      "front": "Primo principio della termodinamica?",
+      "back": "ΔU = Q − L (Q assorbito dal sistema, L compiuto dal sistema).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u5-c002",
+      "topic": "fis-u5-t4",
+      "front": "Trasformazione adiabatica?",
+      "back": "Nessuno scambio di calore (Q = 0): ΔU = −L. Per un gas ideale pV^γ = costante.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u5-c003",
+      "topic": "fis-u5-t5",
+      "front": "Enunciato di Clausius del secondo principio?",
+      "back": "Il calore non può passare spontaneamente da un corpo più freddo a uno più caldo.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u6-c001",
+      "topic": "fis-u6-t2",
+      "front": "Relazione tra campo elettrico uniforme e d.d.p.?",
+      "back": "ΔV = E·d; il lavoro su una carica è L = q·ΔV.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u6-c002",
+      "topic": "fis-u6-t4",
+      "front": "Potenza dissipata per effetto Joule?",
+      "back": "P = V·I = R·I² = V²/R.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u6-c003",
+      "topic": "fis-u6-t7",
+      "front": "Legge di Faraday-Neumann-Lenz?",
+      "back": "f.e.m. = −ΔΦ(B)/Δt: la corrente indotta si oppone alla variazione di flusso che la genera.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u7-c001",
+      "topic": "fis-u7-t4",
+      "front": "Legge di Lambert-Beer?",
+      "back": "I = I₀·e^(−μx) (o assorbanza A = ε·c·l): l'intensità decresce esponenzialmente con lo spessore attraversato.",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u7-c002",
+      "topic": "fis-u7-t5",
+      "front": "Legge del decadimento radioattivo?",
+      "back": "N(t) = N₀·e^(−λt); emivita T½ = ln2/λ; attività A = λN (Bq).",
+      "source": "seed"
+    },
+    {
+      "id": "fis-u7-c003",
+      "topic": "fis-u7-t7",
+      "front": "Equazione delle lenti sottili (punti coniugati)?",
+      "back": "1/p + 1/q = 1/f; ingrandimento G = −q/p.",
+      "source": "seed"
+    }
+  ]
+}

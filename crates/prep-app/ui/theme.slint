@@ -1,0 +1,152 @@
+// Token Material 3 (schema baseline, chiaro/scuro secondo il sistema).
+import { Palette } from "std-widgets.slint";
+
+export global M3 {
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    out property <color> primary: dark ? #D0BCFF : #6750A4;
+    out property <color> on-primary: dark ? #381E72 : #FFFFFF;
+    out property <color> primary-container: dark ? #4F378B : #EADDFF;
+    out property <color> on-primary-container: dark ? #EADDFF : #21005D;
+    out property <color> secondary: dark ? #CCC2DC : #625B71;
+    out property <color> secondary-container: dark ? #4A4458 : #E8DEF8;
+    out property <color> on-secondary-container: dark ? #E8DEF8 : #1D192B;
+    out property <color> tertiary-container: dark ? #633B48 : #FFD8E4;
+    out property <color> on-tertiary-container: dark ? #FFD8E4 : #31111D;
+    out property <color> surface: dark ? #141218 : #FEF7FF;
+    out property <color> surface-container-low: dark ? #1D1B20 : #F7F2FA;
+    out property <color> surface-container: dark ? #211F26 : #F3EDF7;
+    out property <color> surface-container-high: dark ? #2B2930 : #ECE6F0;
+    out property <color> surface-container-highest: dark ? #36343B : #E6E0E9;
+    out property <color> on-surface: dark ? #E6E0E9 : #1D1B20;
+    out property <color> on-surface-variant: dark ? #CAC4D0 : #49454F;
+    out property <color> outline: dark ? #938F99 : #79747E;
+    out property <color> outline-variant: dark ? #49454F : #CAC4D0;
+    out property <color> error: dark ? #F2B8B5 : #B3261E;
+    out property <color> on-error: dark ? #601410 : #FFFFFF;
+    out property <color> error-container: dark ? #8C1D18 : #F9DEDC;
+    out property <color> on-error-container: dark ? #F9DEDC : #410E0B;
+    out property <color> success: dark ? #7DD99A : #1B6B38;
+    out property <color> success-container: dark ? #1F5130 : #C9F0D3;
+    out property <color> on-success-container: dark ? #C9F0D3 : #062111;
+    out property <color> warn-container: dark ? #5C3B00 : #FFDDB3;
+    out property <color> on-warn-container: dark ? #FFDDB3 : #2A1800;
+    out property <color> inverse-surface: dark ? #E6E0E9 : #322F35;
+    out property <color> inverse-on-surface: dark ? #322F35 : #F5EFF7;
+    out property <color> scrim: #00000099;
+
+    out property <color> fis: dark ? #9ECAFF : #0061A4;
+    out property <color> chi: dark ? #7DD99A : #1B6B38;
+    out property <color> bio: dark ? #FFB4A8 : #A23F2F;
+
+    public pure function subject(id: string) -> color {
+        if (id == "fis") { return fis; }
+        if (id == "chi") { return chi; }
+        if (id == "bio") { return bio; }
+        return primary;
+    }
+
+    /// tavola periodica: colore di fondo e del testo per famiglia di elementi
+    /// (0 non metallo, 1 gas nobile, 2 alcalino, 3 alcalino-terroso, 4 semimetallo, 5 alogeno,
+    /// 6 metallo del blocco p, 7 transizione, 8 lantanide, 9 attinide)
+    public pure function element(cat: int) -> color {
+        if (cat == 0) { return dark ? #2E5A3A : #CDEFD5; }
+        if (cat == 1) { return dark ? #4A3F6B : #E4DBFF; }
+        if (cat == 2) { return dark ? #6B3A2E : #FFD6CC; }
+        if (cat == 3) { return dark ? #6B4E1F : #FFE3B8; }
+        if (cat == 4) { return dark ? #2E5560 : #C8EEF2; }
+        if (cat == 5) { return dark ? #5A5A1F : #F4F0B5; }
+        if (cat == 6) { return dark ? #3B4A5C : #D6E2EF; }
+        if (cat == 7) { return dark ? #24456B : #CFE2FF; }
+        if (cat == 8) { return dark ? #5E2E55 : #F7D3EE; }
+        if (cat == 9) { return dark ? #632A3C : #F6D0DA; }
+        return surface-container-high;
+    }
+    public pure function on-element(cat: int) -> color {
+        return dark ? #F2EEF6 : #1B1A1F;
+    }
+    public pure function element-accent(cat: int) -> color {
+        if (cat == 0) { return dark ? #8FD9A3 : #1E6B36; }
+        if (cat == 1) { return dark ? #C7B8FF : #5B45A8; }
+        if (cat == 2) { return dark ? #FFB3A1 : #A0371F; }
+        if (cat == 3) { return dark ? #FFC977 : #8A5600; }
+        if (cat == 4) { return dark ? #85D6E0 : #146470; }
+        if (cat == 5) { return dark ? #E1DA74 : #6B6400; }
+        if (cat == 6) { return dark ? #A9C0DA : #3B5675; }
+        if (cat == 7) { return dark ? #9DC2FF : #2659A6; }
+        if (cat == 8) { return dark ? #F2A6E2 : #8E2C7C; }
+        if (cat == 9) { return dark ? #F5A3B8 : #9A2B4A; }
+        return primary;
+    }
+
+    /// colore in base alla padronanza (rosso → ambra → verde)
+    public pure function level(v: float) -> color {
+        if (v >= 0.7) { return success; }
+        if (v >= 0.4) { return dark ? #FFB868 : #8A5100; }
+        return error;
+    }
+}
+
+export global Icons {
+    out property <image> home: @image-url("icons/home.svg");
+    out property <image> school: @image-url("icons/school.svg");
+    out property <image> cards: @image-url("icons/cards.svg");
+    out property <image> flag: @image-url("icons/flag.svg");
+    out property <image> flag-outline: @image-url("icons/flag-outline.svg");
+    out property <image> tune: @image-url("icons/tune.svg");
+    out property <image> sync: @image-url("icons/sync.svg");
+    out property <image> back: @image-url("icons/back.svg");
+    out property <image> check: @image-url("icons/check.svg");
+    out property <image> close: @image-url("icons/close.svg");
+    out property <image> timer: @image-url("icons/timer.svg");
+    out property <image> play: @image-url("icons/play.svg");
+    out property <image> chevron: @image-url("icons/chevron.svg");
+    out property <image> chevron-left: @image-url("icons/chevron-left.svg");
+    out property <image> insights: @image-url("icons/insights.svg");
+    out property <image> quiz: @image-url("icons/quiz.svg");
+    out property <image> ai: @image-url("icons/ai.svg");
+    out property <image> book: @image-url("icons/book.svg");
+    out property <image> toc: @image-url("icons/toc.svg");
+    out property <image> star: @image-url("icons/star.svg");
+    out property <image> star-outline: @image-url("icons/star-outline.svg");
+    out property <image> feedback: @image-url("icons/feedback.svg");
+    out property <image> report: @image-url("icons/report.svg");
+    out property <image> pause: @image-url("icons/pause.svg");
+    out property <image> target: @image-url("icons/target.svg");
+    out property <image> add: @image-url("icons/add.svg");
+    out property <image> remove: @image-url("icons/remove.svg");
+}
+
+export global Type {
+    // Material 3 Expressive: scala "emphasized", display grande per i numeri in evidenza
+    out property <length> display-large: 64px;
+    out property <length> display: 36px;
+    out property <length> headline: 24px;
+    out property <length> title-large: 22px;
+    out property <length> title: 16px;
+    out property <length> body-large: 16px;
+    out property <length> body: 14px;
+    out property <length> label: 12px;
+}
+
+// Material 3 Expressive — forme: angoli più ampi, pillole, forme che cambiano alla pressione.
+export global Shape {
+    out property <length> xs: 4px;
+    out property <length> sm: 8px;
+    out property <length> md: 12px;
+    out property <length> lg: 16px;
+    out property <length> lg-inc: 20px;
+    out property <length> xl: 28px;
+    out property <length> xl-inc: 32px;
+    out property <length> xxl: 48px;
+}
+
+// Material 3 Expressive — movimento a molla (token ufficiali approssimati con cubic-bezier):
+// "spatial" (posizione, dimensione, forma: con un po' di rimbalzo) ed "effects" (colore, opacità).
+export global Motion {
+    out property <duration> fast-spatial: 350ms;
+    out property <duration> spatial: 500ms;
+    out property <duration> slow-spatial: 650ms;
+    out property <duration> fast-effects: 150ms;
+    out property <duration> effects: 200ms;
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>it.tremendouspreparator.App</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <name>Semestre Aperto</name>
+  <summary>Preparazione alle prove del semestre aperto di Medicina</summary>
+  <description>
+    <p>App privata di studio: quiz per argomento, simulazioni d'esame, prove ufficiali, flashcard,
+    libri integrati e progressi sincronizzati con il repository GitHub personale.</p>
+  </description>
+  <launchable type="desktop-id">it.tremendouspreparator.App.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1" date="2026-11-10"/>
+  </releases>
+</component>
