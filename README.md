@@ -120,8 +120,11 @@ app e computer (app aperta su entrambi) i dispositivi si trovano da soli: i prog
 in comune si uniscono (le sessioni sono file che non cambiano, quindi basta scambiarsi quelli
 mancanti) e un esame installato su un dispositivo si può scaricare sull'altro.
 
-Non c'è un server dell'app: i messaggi viaggiano come eventi Nostr *effimeri* attraverso relay
-pubblici (modificabili), che li inoltrano senza salvarli. Dal nome utente e dalla password si
+Non c'è un server dell'app. I dispositivi si trovano attraverso relay Nostr pubblici (modificabili)
+con eventi *effimeri*, che i relay inoltrano senza salvarli; poi aprono un **collegamento diretto
+WebRTC** (DataChannel; [str0m](https://github.com/algesten/str0m) nell'app nativa, il WebRTC del
+browser nella web app) e i dati passano da lì, con l'indirizzo pubblico scoperto tramite STUN. Se la
+rete non permette il diretto si torna ai relay, a meno di scegliere «Solo collegamento diretto». Dal nome utente e dalla password si
 ricava con PBKDF2 una chiave: i relay vedono solo un tag casuale e dati cifrati con
 XChaCha20-Poly1305. Il protocollo è in [`prep-core/src/p2p.rs`](crates/prep-core/src/p2p.rs),
 i collegamenti in [`prep-app/src/net.rs`](crates/prep-app/src/net.rs). Chi conosce nome utente e

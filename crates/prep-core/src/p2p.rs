@@ -242,6 +242,11 @@ pub enum Msg {
         exam: String,
         error: String,
     },
+    /// appuntamento per il collegamento diretto (WebRTC): `kind` = "offer" | "answer"
+    Rtc {
+        kind: String,
+        sdp: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -320,6 +325,14 @@ pub struct Peer {
 pub enum Event {
     /// dispositivo trovato o aggiornato (id)
     Peer(String),
+    /// dispositivo appena entrato nella stanza (o riavviato): va (ri)aperto il collegamento diretto
+    Joined(String),
+    /// appuntamento WebRTC ricevuto da un dispositivo
+    Signal {
+        from: String,
+        kind: String,
+        sdp: String,
+    },
     /// file di progressi ricevuti per un esame
     Files {
         exam: String,
@@ -519,6 +532,9 @@ impl Engine {
                 let known = self.peers.contains_key(&from);
                 self.peers.insert(from.clone(), Peer { name, platform, exams: exams.clone(), last_seen: now });
                 self.events.push(Event::Peer(from.clone()));
+                if !known || !reply {
+                    self.events.push(Event::Joined(from.clone()));
+                }
                 if !reply || !known {
                     if !reply {
                         out.push(self.hello(host, Some(&from), true));
@@ -643,6 +659,11 @@ impl Engine {
                     out.push(Out::new(Some(&from), Msg::PackGet { exam, from: first, count: WINDOW }));
                 }
             }
+            Msg::Rtc { kind, sdp } => {
+                if sdp.len() < 64 * 1024 {
+                    self.events.push(Event::Signal { from, kind, sdp });
+                }
+            }
             Msg::PackErr { exam, error } => {
                 if self.dl.as_ref().is_some_and(|d| d.exam == exam && d.from == from) {
                     self.dl = None;
@@ -651,6 +672,16 @@ impl Engine {
             }
         }
         out
+    }
+
+    /// Messaggio d'appuntamento WebRTC per un dispositivo (passa dai relay, cifrato).
+    pub fn signal(&self, to: &str, kind: &str, sdp: &str) -> Out {
+        Out::new(Some(to), Msg::Rtc { kind: kind.to_string(), sdp: sdp.to_string() })
+    }
+
+    /// Chi apre il collegamento diretto tra due dispositivi: quello con l'id minore.
+    pub fn initiates(&self, peer: &str) -> bool {
+        self.device.as_str() < peer
     }
 
     /// Secondi dall'inizio dello scaricamento in corso.

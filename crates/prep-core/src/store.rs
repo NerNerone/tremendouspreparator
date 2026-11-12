@@ -60,6 +60,9 @@ pub struct Settings {
     /// relay Nostr da usare; vuoto = quelli predefiniti
     #[serde(default)]
     pub relays: Vec<String>,
+    /// sincronizzazione e condivisione solo con collegamento diretto (niente dati attraverso i relay)
+    #[serde(default)]
+    pub direct_only: bool,
     /// versione delle note legali accettata (0 = mai)
     #[serde(default)]
     pub legal_accepted: u32,
@@ -108,6 +111,7 @@ impl Default for Settings {
             p2p_auto: false,
             p2p_password: String::new(),
             relays: vec![],
+            direct_only: false,
             legal_accepted: 0,
         }
     }

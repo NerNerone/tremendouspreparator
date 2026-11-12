@@ -30,7 +30,7 @@ use std::time::Duration;
 use web_time::Instant;
 
 /// Versione delle note legali: aumentandola l'app le richiede di nuovo.
-const LEGAL_VERSION: u32 = 1;
+const LEGAL_VERSION: u32 = 2;
 const LEGAL_TEXT: &str = "Tremendous Preparator è un programma libero (licenza GPL-3.0 o successive), fornito «così com'è», \
 senza garanzie di alcun tipo. Chi lo ha scritto non risponde di danni o conseguenze derivanti dal suo uso.
 
@@ -40,8 +40,10 @@ responsabilità: assicurati di averne il diritto, usalo solo per studio personal
 diritto. Nessuno ne verifica la correttezza: controlla sempre sulle fonti ufficiali.
 
 • Servizi esterni. L'app non ha server e non raccoglie dati. Se attivi la sincronizzazione tra dispositivi, i dati \
-viaggiano cifrati attraverso relay pubblici gestiti da terzi, che scegli tu nelle Opzioni; se configuri GitHub, i \
-progressi vanno nel tuo repository. Questi servizi hanno le loro condizioni e la loro gestione dei dati (per esempio \
+viaggiano cifrati, direttamente tra i dispositivi quando la rete lo permette e altrimenti attraverso relay pubblici \
+gestiti da terzi, che scegli tu nelle Opzioni; per stabilire il collegamento diretto l'app chiede il proprio indirizzo \
+a server STUN pubblici (Google, Cloudflare), che non ricevono dati. Se configuri GitHub, i progressi vanno nel tuo \
+repository. Questi servizi hanno le loro condizioni e la loro gestione dei dati (per esempio \
 possono vedere l'indirizzo IP): usarli è una tua scelta, e la password della sincronizzazione va custodita da te.
 
 • Risultati. Percentuali di preparazione, punteggi attesi, simulazioni e obiettivi sono stime indicative e non \
@@ -301,6 +303,19 @@ struct P2p {
     code: String,
     /// condivisione: nome dell'esame mandato (vuoto se si riceve)
     sending: String,
+    /// collegamenti diretti (WebRTC) con i dispositivi della stanza
+    direct: BTreeMap<String, Direct>,
+    /// dispositivi con cui il collegamento diretto non è riuscito (si riprova al prossimo ingresso)
+    failed: BTreeSet<String>,
+    /// numeratore dei messaggi arrivati per via diretta (id per scartare i doppioni)
+    rtc_seq: u64,
+}
+
+/// Collegamento diretto con un dispositivo: aperto o in apertura, con i messaggi in attesa.
+struct Direct {
+    conn: crate::direct::Conn,
+    open: bool,
+    pending: std::collections::VecDeque<Vec<u8>>,
 }
 
 /// Filtri del quiz personalizzato (scheda Quiz).
@@ -418,6 +433,12 @@ impl p2p::Host for Ctrl {
         let _ = self.exams.save(&self.store.base);
         Ok(name)
     }
+}
+
+/// Evento di un collegamento diretto consegnato sul thread dell'interfaccia (vedi `direct`).
+pub(crate) fn on_direct_event(sess: usize, peer: String, ev: crate::direct::DirectEvent) {
+    let k = if sess == 0 { Sess::Sync } else { Sess::Share };
+    with_ctrl(|c| c.direct_event(k, peer, ev));
 }
 
 /// Evento di rete consegnato sul thread dell'interfaccia (vedi `net`).
@@ -1347,6 +1368,7 @@ impl Ctrl {
         st.set_s_token(ss(&s.token));
         st.set_s_username(ss(&s.username));
         st.set_p2p_auto(s.p2p_auto);
+        st.set_p2p_direct_only(s.direct_only);
         st.set_p2p_password(ss(&s.p2p_password));
         st.set_p2p_relays(ss(if s.relays.is_empty() { p2p::DEFAULT_RELAYS.join(", ") } else { s.relays.join(", ") }));
         st.set_s_rem_on(s.reminder_enabled);
@@ -3044,6 +3066,9 @@ impl Ctrl {
             notice: String::new(),
             code,
             sending,
+            direct: BTreeMap::new(),
+            failed: BTreeSet::new(),
+            rtc_seq: 0,
         };
         match k {
             Sess::Sync => self.p2p = Some(sess),
@@ -3061,6 +3086,9 @@ impl Ctrl {
             p.timer.stop();
             for l in &p.links {
                 l.close();
+            }
+            for d in p.direct.values() {
+                d.conn.close();
             }
         }
         self.refresh_sessions();
@@ -3080,6 +3108,7 @@ impl Ctrl {
             return;
         }
         s.p2p_auto = st.get_p2p_auto();
+        s.direct_only = st.get_p2p_direct_only();
         s.p2p_password = if s.p2p_auto { password.clone() } else { String::new() };
         let _ = self.store.save_settings(&s);
         let device = self.device_id();
@@ -3141,14 +3170,87 @@ impl Ctrl {
         Utc::now().timestamp()
     }
 
-    /// Mette in coda (cifrati e firmati) i messaggi prodotti dal motore.
+    /// Spedisce i messaggi prodotti dal motore: per via diretta se c'è un collegamento con
+    /// il destinatario (o sta per aprirsi), altrimenti cifrati e firmati attraverso i relay.
     fn p2p_enqueue(&mut self, k: Sess, outs: Vec<p2p::Out>) {
+        let direct_only = self.store.settings().direct_only;
         let Some(p) = self.sess_mut(k) else { return };
         let Some(eng) = p.engine.as_ref() else { return };
         let now = Self::now_secs();
         for o in outs {
-            let content = p.room.seal(&eng.wire(&o));
+            let wire = eng.wire(&o);
+            let control = matches!(o.msg, p2p::Msg::Hello { .. } | p2p::Msg::Rtc { .. });
+            if let (Some(to), false) = (o.to.as_deref(), control) {
+                if let Some(d) = p.direct.get_mut(to) {
+                    if d.open {
+                        d.conn.send(wire);
+                    } else {
+                        d.pending.push_back(wire);
+                    }
+                    continue;
+                }
+                if direct_only {
+                    // nessun collegamento diretto con questo dispositivo: niente relay
+                    continue;
+                }
+            } else if o.to.is_none() && direct_only && !control {
+                continue;
+            }
+            let content = p.room.seal(&wire);
             p.queue.push_back(p.signer.event(&p.room.tag, &content, now));
+        }
+    }
+
+    /// Apre (o riapre) il collegamento diretto con un dispositivo.
+    fn direct_open(&mut self, k: Sess, peer: &str, initiator: bool) {
+        let Some(p) = self.sess_mut(k) else { return };
+        if let Some(old) = p.direct.remove(peer) {
+            old.conn.close();
+        }
+        p.failed.remove(peer);
+        let conn = crate::direct::Conn::open(k as usize, peer, initiator);
+        p.direct.insert(peer.to_string(), Direct { conn, open: false, pending: Default::default() });
+    }
+
+    fn direct_event(&mut self, k: Sess, peer: String, ev: crate::direct::DirectEvent) {
+        use crate::direct::DirectEvent;
+        match ev {
+            DirectEvent::Signal(kind, sdp) => {
+                self.with_engine(k, |e, _| vec![e.signal(&peer, &kind, &sdp)]);
+            }
+            DirectEvent::Open => {
+                if let Some(d) = self.sess_mut(k).and_then(|p| p.direct.get_mut(&peer)) {
+                    d.open = true;
+                    for b in d.pending.drain(..) {
+                        d.conn.send(b);
+                    }
+                }
+                self.refresh_sessions();
+            }
+            DirectEvent::Data(bytes) => {
+                let Some(p) = self.sess_mut(k) else { return };
+                p.rtc_seq += 1;
+                let id = format!("rtc:{}", p.rtc_seq);
+                let now = Self::now_secs();
+                self.with_engine(k, |e, c| e.receive(c, &id, &bytes, now));
+            }
+            DirectEvent::Closed(why) => {
+                let direct_only = self.store.settings().direct_only;
+                let Some(p) = self.sess_mut(k) else { return };
+                let Some(d) = p.direct.remove(&peer) else { return };
+                if !why.is_empty() {
+                    p.failed.insert(peer.clone());
+                }
+                // i messaggi rimasti in attesa passano dai relay (se permesso)
+                if !direct_only {
+                    let now = Self::now_secs();
+                    for wire in d.pending {
+                        let content = p.room.seal(&wire);
+                        p.queue.push_back(p.signer.event(&p.room.tag, &content, now));
+                    }
+                }
+                self.refresh_sessions();
+            }
         }
     }
 
@@ -3247,6 +3349,21 @@ impl Ctrl {
         for ev in events {
             match ev {
                 p2p::Event::Peer(_) => {}
+                p2p::Event::Joined(peer) => {
+                    // collegamento diretto: lo apre chi ha l'id minore, l'altro aspetta l'offerta
+                    let initiates = self.sess(k).and_then(|p| p.engine.as_ref()).is_some_and(|e| e.initiates(&peer));
+                    if initiates {
+                        self.direct_open(k, &peer, true);
+                    }
+                }
+                p2p::Event::Signal { from, kind, sdp } => {
+                    if kind == "offer" {
+                        self.direct_open(k, &from, false);
+                    }
+                    if let Some(d) = self.sess(k).and_then(|p| p.direct.get(&from)) {
+                        d.conn.signal(&kind, &sdp);
+                    }
+                }
                 p2p::Event::Files { exam, n } => {
                     let active = exam == self.exams.active;
                     if let Some(p) = self.sess_mut(k) {
@@ -3337,10 +3454,18 @@ impl Ctrl {
                         None => "non sta condividendo nessun esame".to_string(),
                     },
                 };
+                let link = match p.direct.get(id) {
+                    Some(d) if d.open => "collegamento diretto",
+                    Some(_) => "collegamento diretto in apertura…",
+                    None if p.failed.contains(id) && self.store.settings().direct_only => {
+                        "collegamento diretto non riuscito (solo diretto attivo)"
+                    }
+                    None => "tramite relay",
+                };
                 peers.push(PeerVM {
                     id: ss(id),
                     name: ss(&peer.name),
-                    info: ss(info),
+                    info: ss(format!("{info} · {link}")),
                     offers: model(if k == Sess::Share && !p.sending.is_empty() { vec![] } else { offers }),
                 });
             }

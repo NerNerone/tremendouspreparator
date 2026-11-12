@@ -2500,7 +2500,7 @@ export component SettingsPage inherits Page {
                         }
                     }
                     Text {
-                        text: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. L'app non ha server: i dati viaggiano cifrati attraverso relay pubblici di terze parti, scelti da te qui sotto, che di norma li inoltrano senza conservarli. Condividi solo con dispositivi tuoi.";
+                        text: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. L'app non ha server: i dispositivi si trovano attraverso relay pubblici di terze parti (scelti qui sotto), poi i dati viaggiano cifrati direttamente tra loro quando la rete lo permette, altrimenti attraverso i relay, che di norma li inoltrano senza conservarli.";
                         font-size: Type.label;
                         color: M3.on-surface-variant;
                         wrap: word-wrap;
@@ -2568,6 +2568,20 @@ export component SettingsPage inherits Page {
                             } else {
                                 AppState.p2p-connect();
                             }
+                        }
+                    }
+                    if !AppState.p2p-on: HorizontalLayout {
+                        spacing: 8px;
+                        Switch {
+                            checked <=> AppState.p2p-direct-only;
+                        }
+                        Text {
+                            text: "Solo collegamento diretto: i dati non passano mai dai relay (che servono solo a trovarsi). Su alcune reti il diretto non riesce.";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
                         }
                     }
                     if !AppState.p2p-on: LineEdit {
