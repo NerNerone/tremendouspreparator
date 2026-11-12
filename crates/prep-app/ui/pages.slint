@@ -2744,7 +2744,9 @@ export component PeriodicPage inherits Page {
     property <length> table-h: root.head + 9 * (root.cell + root.gap) + 22px;
     property <[string]> cats: ["Non metalli", "Gas nobili", "Metalli alcalini", "Alcalino-terrosi", "Semimetalli", "Alogeni", "Metalli del blocco p", "Metalli di transizione", "Lantanidi", "Attinidi"];
     // pannello dei dettagli: 0 = chiuso, 1 = aperto
-    property <float> sheet: AppState.pt-has-sel ? 1 : 0;
+    // guida «come leggere la tavola», dal pulsante in alto
+    in-out property <bool> info-open;
+    property <float> sheet: AppState.pt-has-sel || root.info-open ? 1 : 0;
     animate sheet {
         duration: 320ms;
         easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
@@ -2757,176 +2759,150 @@ export component PeriodicPage inherits Page {
             back => {
                 AppState.back();
             }
-        }
-
-        // la pagina scorre in verticale; legenda e tavola scorrono solo in orizzontale
-        // (i due gesti non si contendono il dito: in verticale vince la pagina)
-        Scroller {
-            vertical-stretch: 1;
-            pad-top: 0px;
-            pad-bottom: 16px;
-            gap: 8px;
-            // legenda: tocca una famiglia per evidenziarla. Flickable semplice: la ScrollView
-            // riserva spazio alla barra anche nascosta e tagliava le etichette
-            Flickable {
-                height: 48px;
-                interactive: true;
-                content-width: max(self.width, legend.preferred-width);
-                content-height: 48px;
-                legend := HorizontalLayout {
-                    x: 0px;
-                    y: 0px;
-                    height: 48px;
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 8px;
-                    padding-bottom: 8px;
-                    spacing: 6px;
-                    alignment: start;
-                    for c[i] in root.cats: Rectangle {
-                        width: lt.preferred-width + 24px;
-                        border-radius: 16px;
-                        background: AppState.pt-filter == i ? M3.element-accent(i) : M3.element(i);
-                        animate background { duration: 160ms; }
-                        lt := Text {
-                            text: c;
-                            font-size: Type.label;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                            color: AppState.pt-filter == i ? M3.surface : M3.on-element(i);
-                        }
-                        TouchArea {
-                            clicked => {
-                                AppState.pt-filter = AppState.pt-filter == i ? -1 : i;
-                            }
-                        }
-                    }
+            IconButton {
+                icon: Icons.book;
+                filled: root.info-open;
+                clicked => {
+                    root.info-open = !root.info-open;
                 }
             }
+        }
 
-            // tavola: gruppi in alto, periodi a sinistra; scorre solo in orizzontale
-            Flickable {
-                height: root.table-h;
-                interactive: true;
-                content-height: root.table-h;
-                content-width: max(self.width, root.table-w);
-                Rectangle {
-                    x: 0px;
-                    y: 0px;
-                    width: root.table-w;
-                    height: root.table-h;
-                    // disegnata una volta come immagine e poi solo spostata: con 118 caselle e
-                    // 354 testi ridisegnati a ogni fotogramma lo scorrimento andava a scatti
-                    cache-rendering-hint: true;
-                for g in 18: Text {
-                    x: 8px + root.lab + g * (root.cell + root.gap);
-                    y: 2px;
-                    width: root.cell;
-                    height: root.head - 4px;
-                    text: g + 1;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                    font-size: Type.label;
-                    font-weight: 700;
-                    color: M3.on-surface-variant;
-                }
-                for p in 7: Text {
-                    x: 4px;
-                    y: root.head + p * (root.cell + root.gap);
-                    width: root.lab;
-                    height: root.cell;
-                    text: p + 1;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                    font-size: Type.label;
-                    font-weight: 700;
-                    color: M3.on-surface-variant;
-                }
-                for f in 2: Text {
-                    x: 4px;
-                    y: root.head + (7 + f) * (root.cell + root.gap) + 10px;
-                    width: root.lab + 2 * (root.cell + root.gap);
-                    height: root.cell;
-                    text: f == 0 ? "Lantanidi" : "Attinidi";
-                    horizontal-alignment: right;
-                    vertical-alignment: center;
-                    font-size: 10px;
-                    color: M3.on-surface-variant;
-                }
-                for e in AppState.pt-elements: Rectangle {
-                    property <bool> sel: AppState.pt-has-sel && AppState.pt-detail.z == e.z;
-                    property <bool> dim: AppState.pt-filter >= 0 && AppState.pt-filter != e.cat;
-                    x: 8px + root.lab + (e.col - 1) * (root.cell + root.gap) + (e.row > 7 ? 1 : 0) * 0px;
-                    y: root.head + (e.row > 7 ? (e.row - 2) * (root.cell + root.gap) + 10px : (e.row - 1) * (root.cell + root.gap));
-                    width: root.cell;
-                    height: root.cell;
-                    border-radius: sel ? 12px : 7px;
-                    background: M3.element(e.cat);
-                    border-width: sel ? 2px : 0px;
-                    border-color: M3.element-accent(e.cat);
-                    opacity: dim ? 0.22 : 1;
-                    animate opacity, border-radius { duration: 160ms; }
-                    Text {
-                        x: 3px;
-                        y: 1px;
-                        text: e.z;
-                        font-size: 8px;
-                        color: M3.on-element(e.cat).with-alpha(0.75);
-                    }
-                    Text {
-                        y: 9px;
-                        width: parent.width;
-                        text: e.sym;
-                        horizontal-alignment: center;
-                        font-size: 16px;
-                        font-weight: 800;
-                        color: M3.element-accent(e.cat);
-                    }
-                    Text {
-                        y: parent.height - self.height - 2px;
-                        width: parent.width;
-                        text: e.mass;
-                        horizontal-alignment: center;
-                        font-size: 7px;
-                        color: M3.on-element(e.cat).with-alpha(0.75);
+        // legenda: tocca una famiglia per evidenziarla. Flickable semplice: la ScrollView
+        // riserva spazio alla barra anche nascosta e tagliava le etichette
+        Flickable {
+            height: 48px;
+            interactive: true;
+            content-width: max(self.width, legend.preferred-width);
+            content-height: 48px;
+            legend := HorizontalLayout {
+                x: 0px;
+                y: 0px;
+                height: 48px;
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                spacing: 6px;
+                alignment: start;
+                for c[i] in root.cats: Rectangle {
+                    width: lt.preferred-width + 24px;
+                    border-radius: 16px;
+                    background: AppState.pt-filter == i ? M3.element-accent(i) : M3.element(i);
+                    animate background { duration: 160ms; }
+                    lt := Text {
+                        text: c;
+                        font-size: Type.label;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                        color: AppState.pt-filter == i ? M3.surface : M3.on-element(i);
                     }
                     TouchArea {
                         clicked => {
-                            AppState.pt-select(e.z);
+                            AppState.pt-filter = AppState.pt-filter == i ? -1 : i;
                         }
                     }
                 }
-                }
             }
+        }
 
-            HorizontalLayout {
-                padding-left: 16px;
-                padding-right: 16px;
+        // tavola: gruppi in alto, periodi a sinistra. È l'unica area scorrevole della pagina e
+        // scorre in orizzontale e in verticale: niente aree annidate che si contendono il dito
+        // (dentro una pagina scorrevole lo scorrimento laterale non partiva sul telefono)
+        Flickable {
+            vertical-stretch: 1;
+            interactive: true;
+            content-width: max(self.width, root.table-w);
+            content-height: max(self.height, root.table-h);
             Rectangle {
-                height: how.preferred-height + 32px;
-                border-radius: 16px;
-                background: M3.surface-container;
-                how := VerticalLayout {
-                    x: 16px;
-                    y: 16px;
-                    width: parent.width - 32px;
-                    spacing: 8px;
-                    Text {
-                        text: "Come leggere la tavola";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    Text {
-                        text: "• Gruppi (colonne 1–18): stessi elettroni di valenza, proprietà chimiche simili.\n• Periodi (righe 1–7): stesso numero di gusci elettronici.\n• Da sinistra a destra lungo il periodo e salendo nel gruppo crescono elettronegatività, energia di ionizzazione e affinità elettronica; il raggio atomico e il carattere metallico invece diminuiscono.\n• A sinistra i metalli (tendono a cedere elettroni), a destra i non metalli (tendono ad acquistarli), lungo la scaletta i semimetalli.";
-                        wrap: word-wrap;
-                        color: M3.on-surface-variant;
-                        font-size: Type.body;
+                x: 0px;
+                y: 0px;
+                width: root.table-w;
+                height: root.table-h;
+                // disegnata una volta come immagine e poi solo spostata: con 118 caselle e
+                // 354 testi ridisegnati a ogni fotogramma lo scorrimento andava a scatti
+                cache-rendering-hint: true;
+            for g in 18: Text {
+                x: 8px + root.lab + g * (root.cell + root.gap);
+                y: 2px;
+                width: root.cell;
+                height: root.head - 4px;
+                text: g + 1;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: Type.label;
+                font-weight: 700;
+                color: M3.on-surface-variant;
+            }
+            for p in 7: Text {
+                x: 4px;
+                y: root.head + p * (root.cell + root.gap);
+                width: root.lab;
+                height: root.cell;
+                text: p + 1;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: Type.label;
+                font-weight: 700;
+                color: M3.on-surface-variant;
+            }
+            for f in 2: Text {
+                x: 4px;
+                y: root.head + (7 + f) * (root.cell + root.gap) + 10px;
+                width: root.lab + 2 * (root.cell + root.gap);
+                height: root.cell;
+                text: f == 0 ? "Lantanidi" : "Attinidi";
+                horizontal-alignment: right;
+                vertical-alignment: center;
+                font-size: 10px;
+                color: M3.on-surface-variant;
+            }
+            for e in AppState.pt-elements: Rectangle {
+                property <bool> sel: AppState.pt-has-sel && AppState.pt-detail.z == e.z;
+                property <bool> dim: AppState.pt-filter >= 0 && AppState.pt-filter != e.cat;
+                x: 8px + root.lab + (e.col - 1) * (root.cell + root.gap) + (e.row > 7 ? 1 : 0) * 0px;
+                y: root.head + (e.row > 7 ? (e.row - 2) * (root.cell + root.gap) + 10px : (e.row - 1) * (root.cell + root.gap));
+                width: root.cell;
+                height: root.cell;
+                border-radius: sel ? 12px : 7px;
+                background: M3.element(e.cat);
+                border-width: sel ? 2px : 0px;
+                border-color: M3.element-accent(e.cat);
+                opacity: dim ? 0.22 : 1;
+                animate opacity, border-radius { duration: 160ms; }
+                Text {
+                    x: 3px;
+                    y: 1px;
+                    text: e.z;
+                    font-size: 8px;
+                    color: M3.on-element(e.cat).with-alpha(0.75);
+                }
+                Text {
+                    y: 9px;
+                    width: parent.width;
+                    text: e.sym;
+                    horizontal-alignment: center;
+                    font-size: 16px;
+                    font-weight: 800;
+                    color: M3.element-accent(e.cat);
+                }
+                Text {
+                    y: parent.height - self.height - 2px;
+                    width: parent.width;
+                    text: e.mass;
+                    horizontal-alignment: center;
+                    font-size: 7px;
+                    color: M3.on-element(e.cat).with-alpha(0.75);
+                }
+                TouchArea {
+                    clicked => {
+                        AppState.pt-select(e.z);
                     }
                 }
             }
             }
         }
+
     }
 
     // velo: toccandolo il pannello si chiude
@@ -2935,6 +2911,7 @@ export component PeriodicPage inherits Page {
         TouchArea {
             clicked => {
                 AppState.pt-has-sel = false;
+                root.info-open = false;
             }
         }
     }
@@ -2961,6 +2938,7 @@ export component PeriodicPage inherits Page {
             swiped => {
                 if (self.current-position.y - self.pressed-position.y > 40px) {
                     AppState.pt-has-sel = false;
+                    root.info-open = false;
                 }
             }
             Rectangle {
@@ -2977,9 +2955,29 @@ export component PeriodicPage inherits Page {
             icon: Icons.close;
             clicked => {
                 AppState.pt-has-sel = false;
+                root.info-open = false;
             }
         }
-        Scroller {
+        if !AppState.pt-has-sel: Scroller {
+            y: 40px;
+            height: parent.height - 40px;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 10px;
+            Text {
+                text: "Come leggere la tavola";
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            Text {
+                text: "• Gruppi (colonne 1–18): stessi elettroni di valenza, proprietà chimiche simili.\n• Periodi (righe 1–7): stesso numero di gusci elettronici.\n• Da sinistra a destra lungo il periodo e salendo nel gruppo crescono elettronegatività, energia di ionizzazione e affinità elettronica; il raggio atomico e il carattere metallico invece diminuiscono.\n• A sinistra i metalli (tendono a cedere elettroni), a destra i non metalli (tendono ad acquistarli), lungo la scaletta i semimetalli.";
+                wrap: word-wrap;
+                color: M3.on-surface-variant;
+                font-size: Type.body;
+            }
+        }
+        if AppState.pt-has-sel: Scroller {
             y: 40px;
             height: parent.height - 40px;
             pad: 16px;
