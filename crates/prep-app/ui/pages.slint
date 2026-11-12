@@ -2736,7 +2736,9 @@ component PtSection inherits VerticalLayout {
 }
 
 export component PeriodicPage inherits Page {
-    property <length> cell: 46px;
+    // caselle più grandi quando c'è spazio (desktop); testi in proporzione
+    property <length> cell: max(46px, min(68px, (root.width - root.lab - 16px) / 18 - root.gap));
+    property <float> k: root.cell / 46px;
     property <length> gap: 3px;
     property <length> lab: 22px;
     property <length> head: 24px;
@@ -2874,15 +2876,15 @@ export component PeriodicPage inherits Page {
                     x: 3px;
                     y: 1px;
                     text: e.z;
-                    font-size: 8px;
+                    font-size: 8px * root.k;
                     color: M3.on-element(e.cat).with-alpha(0.75);
                 }
                 Text {
-                    y: 9px;
+                    y: 9px * root.k;
                     width: parent.width;
                     text: e.sym;
                     horizontal-alignment: center;
-                    font-size: 16px;
+                    font-size: 16px * root.k;
                     font-weight: 800;
                     color: M3.element-accent(e.cat);
                 }
@@ -2891,7 +2893,7 @@ export component PeriodicPage inherits Page {
                     width: parent.width;
                     text: e.mass;
                     horizontal-alignment: center;
-                    font-size: 7px;
+                    font-size: 7px * root.k;
                     color: M3.on-element(e.cat).with-alpha(0.75);
                 }
                 TouchArea {
@@ -2919,8 +2921,8 @@ export component PeriodicPage inherits Page {
     // pannello dal basso con tutte le proprietà dell'elemento
     Rectangle {
         visible: root.sheet > 0.01;
-        x: 0px;
-        width: root.width;
+        width: min(root.width, 640px);
+        x: (root.width - self.width) / 2;
         height: min(root.height * 0.82, 640px);
         y: root.height - self.height * root.sheet;
         border-top-left-radius: 28px;

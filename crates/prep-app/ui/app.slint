@@ -19,6 +19,10 @@ export component AppWindow inherits Window {
     background: M3.surface;
     default-font-size: 14px;
 
+    // schermi larghi (desktop, browser): il contenuto sta in una colonna centrata, come su un
+    // telefono; la tavola periodica ha più spazio
+    property <length> column-max: AppState.page == 12 ? 1240px : 720px;
+    property <length> side: max(0px, (root.width - root.column-max) / 2);
     property <bool> show-nav: AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11;
 
     fs := FocusScope {
@@ -34,6 +38,8 @@ export component AppWindow inherits Window {
         VerticalLayout {
             padding-top: root.safe-area-insets.top;
             padding-bottom: max(root.safe-area-insets.bottom, root.virtual-keyboard-size.height);
+            padding-left: root.side;
+            padding-right: root.side;
             Rectangle {
                 vertical-stretch: 1;
                 if AppState.page == 0: HomePage { }
@@ -119,8 +125,8 @@ export component AppWindow inherits Window {
             easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
         }
         opacity: self.enter;
-        x: 16px;
-        width: root.width - 32px;
+        x: root.side + 16px;
+        width: root.width - 2 * root.side - 32px;
         y: root.height - max(root.safe-area-insets.bottom, root.virtual-keyboard-size.height) - (root.show-nav ? 80px : 72px) - self.height - 8px + (1 - self.enter) * 40px;
         height: max(48px, tt.preferred-height + 24px);
         border-radius: 8px;
