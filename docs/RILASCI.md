@@ -42,8 +42,8 @@ Controllato sulla [Inclusion Policy](https://f-droid.org/docs/Inclusion_Policy/)
 
 | Requisito | Stato |
 | --- | --- |
-| Licenza libera, sorgente pubblico | GPL-3.0-or-later; font con licenze libere (`crates/prep-app/fonts/LICENSES.txt`) |
-| Solo dipendenze libere, niente Google Play Services/Firebase/analitiche | sì (crate Rust da crates.io, nessuna libreria Java esterna) |
+| Licenza libera, sorgente pubblico | GPL-3.0-or-later; font (OFL, licenza Bitstream/DejaVu) in `crates/prep-app/fonts/LICENSES.txt`, icone Material (Apache-2.0) in `crates/prep-app/ui/icons/LICENSE.txt`, dati della tavola periodica dal pacchetto `mendeleev` (MIT; valori IUPAC/NIST) |
+| Solo dipendenze libere, niente Google Play Services/Firebase/analitiche | crate Rust controllati con `cargo metadata` (target Android, 17/11/2026): MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, GPL-3.0 (Slint), CDLA-Permissive-2.0 (certificati di `webpki-roots`); nessuna libreria Java esterna |
 | Strumenti di build liberi | Rust (rustup), cargo-apk, JDK libero, Android SDK/NDK (ammessi) |
 | applicationId legato a un dominio del progetto | `io.github.nernerone.tremendouspreparator` (GitHub Pages del progetto) |
 | Tag per ogni versione | `vX.Y.Z`, uguale alla versione in `Cargo.toml` |
@@ -65,7 +65,8 @@ toolchain fissate (Rust, NDK) e una verifica con `fdroid build`. Per il primo in
 F-Droid.
 
 Ricetta per [fdroiddata](https://gitlab.com/fdroid/fdroiddata), `metadata/io.github.nernerone.tremendouspreparator.yml`
-(da provare con `fdroid lint` e `fdroid build` nel container di fdroidserver prima di aprire la merge request):
+(mai eseguita: da provare con `fdroid lint` e `fdroid build` nel container di fdroidserver prima di aprire la merge
+request; `cmake` serve a `aws-lc-sys`, dipendenza di str0m per WebRTC):
 
 ```yaml
 Categories:
@@ -85,7 +86,7 @@ Builds:
     commit: v0.2.0
     sudo:
       - apt-get update
-      - apt-get install -y openjdk-17-jdk-headless python3
+      - apt-get install -y openjdk-17-jdk-headless python3 cmake
     output: TremendousPreparator.apk
     srclibs:
       - rustup@<tag>

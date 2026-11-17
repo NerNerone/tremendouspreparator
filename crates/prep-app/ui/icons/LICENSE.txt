@@ -1,0 +1,5 @@
+Icone (file .svg di questa cartella)
+
+Tracciati da Material Icons / Material Symbols di Google
+(https://github.com/google/material-design-icons), Apache License 2.0:
+https://www.apache.org/licenses/LICENSE-2.0
