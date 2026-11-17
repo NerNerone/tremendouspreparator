@@ -2,7 +2,7 @@
 
 App di studio per prepararsi a un esame scritto: quiz, simulazioni d'esame, flashcard con ripasso
 dilazionato e lettore dei libri. Scritta in Rust con interfaccia [Slint](https://slint.dev) in stile
-Material 3; gira su **Android** 8.0+ (arm64), **Linux** (Flatpak x86_64) e nel **browser**.
+Material 3; gira su **Android** 8.0+ (ARM a 64 e 32 bit), **Linux** (Flatpak x86_64) e nel **browser**.
 L'interfaccia è in italiano.
 
 L'app non contiene materiale di studio: domande, flashcard, libri e regole dell'esame arrivano da un
@@ -38,7 +38,7 @@ solo un piccolo [esempio](examples/esempio).
 
 | Piattaforma | Dove |
 | --- | --- |
-| Android 8.0+ (arm64) | APK nelle [release](../../releases) |
+| Android 8.0+ (ARM a 64 e 32 bit) | APK nelle [release](../../releases) |
 | Linux x86_64 | Flatpak nelle stesse release: `flatpak install --user TremendousPreparator-x86_64.flatpak` |
 | Browser / iPhone | <https://nernerone.github.io/tremendouspreparator/> (su iPhone: Safari › Condividi › Aggiungi alla schermata Home) |
 

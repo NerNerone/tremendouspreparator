@@ -1,6 +1,6 @@
 name: APK Android e Flatpak
 
-# Costruisce l'APK (arm64) e il Flatpak (x86_64).
+# Costruisce l'APK (universale: arm64-v8a e armeabi-v7a) e il Flatpak (x86_64).
 # - push su main: release «anteprima» (pre-release, sostituita a ogni build);
 # - tag vX.Y.Z (uguale alla versione in Cargo.toml): release stabile.
 # La versione e il versionCode vengono da Cargo.toml (vedi docs/RILASCI.md).
@@ -43,7 +43,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
-          rustup target add aarch64-linux-android
+          rustup target add aarch64-linux-android armv7-linux-androideabi
 
       - uses: Swatinem/rust-cache@v2
 
@@ -71,7 +71,7 @@ jobs:
       - name: Installa cargo-apk
         run: cargo install cargo-apk --version 0.10.0 --locked
 
-      - name: Build APK (arm64)
+      - name: Build APK (arm64-v8a + armeabi-v7a)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -113,7 +113,7 @@ jobs:
             gh release delete anteprima --cleanup-tag --yes 2>/dev/null || true
             gh release create anteprima TremendousPreparator.apk --target "$GITHUB_SHA" --prerelease \
               --title "Anteprima $VERSION+$APP_BUILD" \
-              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata. APK Android (arm64) e Flatpak x86_64. ${SIGNING_NOTE:-}"
+              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata. APK Android (ARM 64 e 32 bit) e Flatpak x86_64. ${SIGNING_NOTE:-}"
           else
             NOTES="fastlane/metadata/android/it-IT/changelogs/$(python3 tools/version_code.py).txt"
             gh release create "$TAG" TremendousPreparator.apk --verify-tag --latest \

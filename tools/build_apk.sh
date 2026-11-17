@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Costruisce l'APK Android (arm64) dai sorgenti.
+# Costruisce l'APK Android universale (arm64-v8a e armeabi-v7a) dai sorgenti.
 #
 #   tools/build_apk.sh [uscita.apk]
 #
-# Richiede: Rust con il target aarch64-linux-android, cargo-apk 0.10, JDK 17, Android SDK
+# Richiede: Rust con i target aarch64-linux-android e armv7-linux-androideabi, cargo-apk 0.10, JDK 17, Android SDK
 # (ANDROID_HOME, build-tools e platforms/android-35) e NDK (ANDROID_NDK_ROOT).
 #
 # Firma: con KEYSTORE e KEYSTORE_PASSWORD (chiave e alias con la stessa password) l'APK esce
@@ -59,4 +59,4 @@ else
   cp "$W/app.aligned.apk" "$OUT"
   echo "APK non firmato: $OUT"
 fi
-"$BT/aapt" dump badging "$OUT" | sed -n 1,3p
+"$BT/aapt" dump badging "$OUT" | grep -E "^(package|sdkVersion|native-code)"

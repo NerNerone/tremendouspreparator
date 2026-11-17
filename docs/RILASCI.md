@@ -93,7 +93,7 @@ Builds:
     build:
       - bash $$rustup$$/rustup-init.sh -y --profile minimal --default-toolchain <versione>
       - source $HOME/.cargo/env
-      - rustup target add aarch64-linux-android
+      - rustup target add aarch64-linux-android armv7-linux-androideabi
       - cargo install cargo-apk --version 0.10.0 --locked
       - ANDROID_HOME=$$SDK$$ ANDROID_NDK_ROOT=$$NDK$$ tools/build_apk.sh TremendousPreparator.apk
     ndk: <versione>
