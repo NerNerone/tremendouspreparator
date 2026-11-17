@@ -497,6 +497,15 @@ export global AppState {
     callback focus-toggle(string);
     // ricerca per nome tra le app da permettere
     callback focus-search(string);
+    // strumenti per l'AI: dividere un PDF, estrarne il testo
+    callback open-pdf-tools();
+    callback pdf-split();
+    callback pdf-text();
+    in-out property <float> pdf-max-mb: 20;
+    // pagine da usare («25-30, 40»; vuoto = tutte)
+    in-out property <string> pdf-pages;
+    in property <bool> pdf-busy;
+    in property <string> pdf-status;
     // tempo che manca alla fine del blocco a tempo («23:41»; vuoto dopo la scadenza)
     in property <string> focus-left;
     in property <float> focus-left-frac;

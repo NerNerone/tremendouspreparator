@@ -52,5 +52,5 @@ I colori delle materie seguono il loro ordine nel file.
 
 ## 2.3 Consigli
 
-- Prendi le unità e gli argomenti dal programma ufficiale del corso: è anche ciò che chiederai all'LLM di rispettare.
+- Prendi le unità e gli argomenti dal programma ufficiale del corso: è anche ciò che chiederai all'AI di rispettare.
 - Argomenti né troppo larghi né troppo stretti: 3–8 per unità vanno bene. La stima della preparazione lavora per argomento.

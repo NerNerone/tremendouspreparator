@@ -11,6 +11,7 @@ pub mod markdown;
 pub mod model;
 pub mod p2p;
 pub mod pack;
+pub mod pdf;
 pub mod plan;
 pub mod progress;
 pub mod reminder;

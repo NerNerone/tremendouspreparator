@@ -988,11 +988,11 @@ export component Scroller inherits ScrollView {
     }
 }
 
-// riquadro «guida per un LLM»: copia o condivide un testo lungo senza mostrarlo
+// riquadro «guida per un'AI»: copia o condivide un testo lungo senza mostrarlo
 export component LlmCopy inherits Rectangle {
     in property <string> text;
-    in property <string> title: "Tutta la guida per un LLM";
-    in property <string> body: "Un solo testo con istruzioni, formati e prompt: incollalo in una chat con un LLM, scrivi il compito e allega il tuo materiale.";
+    in property <string> title: "Tutta la guida per un'AI";
+    in property <string> body: "Un solo testo con regole severe, formati e prompt: incollalo in una chat con un'AI, scrivi il compito e allega il tuo materiale.";
     callback copied;
     callback share;
     background: M3.tertiary-container;

@@ -108,6 +108,11 @@ pub fn maybe_run(ui: &AppWindow) {
                 }
                 "gjoin" => st.invoke_group_join(arg.into()),
                 "fxdemo" => crate::app::demo_fx(),
+                "pdftools" => st.invoke_open_pdf_tools(),
+                "pdfpages" => st.set_pdf_pages(arg.into()),
+                "pdfmb" => st.set_pdf_max_mb(arg.parse().unwrap_or(20.0)),
+                "pdfsplit" => crate::app::demo_pdf("split", arg),
+                "pdftext" => crate::app::demo_pdf("text", arg),
                 "profileme" => crate::app::demo_profile_me(),
                 "gcal" => st.invoke_gcal_select(arg.parse().unwrap_or(0)),
                 "gcalmonth" => st.invoke_gcal_mode(arg == "1"),

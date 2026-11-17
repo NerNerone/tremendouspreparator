@@ -89,6 +89,13 @@ pub(crate) fn android_save_file(path: &std::path::Path, name: &str) -> Result<()
     android_call("saveFile", Some(&format!("{}\n{name}", path.display())))
 }
 
+/// Fa scegliere una cartella e ci salva i file `(percorso, nome, tipo)` (poi tolti dall'app).
+#[cfg(target_os = "android")]
+pub(crate) fn android_save_files(files: &[(std::path::PathBuf, String, &str)]) -> Result<(), String> {
+    let arg: Vec<String> = files.iter().map(|(p, n, t)| format!("{}\t{n}\t{t}", p.display())).collect();
+    android_call("saveFilesToFolder", Some(&arg.join("\n")))
+}
+
 /// Chiama un metodo `void` di MainActivity, con un argomento stringa facoltativo.
 #[cfg(target_os = "android")]
 fn android_call(method: &str, arg: Option<&str>) -> Result<(), String> {

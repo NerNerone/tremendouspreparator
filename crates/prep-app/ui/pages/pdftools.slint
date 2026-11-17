@@ -1,0 +1,125 @@
+import { M3, Icons, Type } from "../theme.slint";
+import { AppState } from "../state.slint";
+import { LineEdit } from "std-widgets.slint";
+import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip } from "../components.slint";
+
+// strumenti per preparare il materiale da dare a un'AI: dividere i PDF, estrarne il testo
+export component PdfToolsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Strumenti per l'AI";
+            subtitle: "PDF da dividere o da trasformare in testo";
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            // pagine da usare, per entrambi gli strumenti
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Pagine";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    LineEdit {
+                        text <=> AppState.pdf-pages;
+                        placeholder-text: "Tutte (oppure es. 25-30, 40, 45-)";
+                    }
+                    Text {
+                        text: "Vuoto = tutto il PDF. Con le pagine scelte (es. un capitolo: 25-30) si divide o si estrae solo quella parte, sempre sotto il limite per parte.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: "1 · Estrai il testo grezzo dal PDF";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: "Il consigliato. Salva il testo di ogni pagina in un file Markdown, con i segnaposto di pagina. È testo GREZZO: a capo spezzati, titoli non riconosciuti, formule e tabelle rovinate, intestazioni ripetute. Prima di usarlo va revisionato: dallo a un'AI con il prompt 8.5 della guida (revisione grammaticale, semantica e logica), non il PDF: costa meno, sbaglia meno e non ha limiti di MB. Le pagine scansionate (senza testo) vengono segnalate: passale dall'OCR.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                    M3Button {
+                        text: "Estrai il testo grezzo dal PDF";
+                        has-icon: true;
+                        icon: Icons.book;
+                        enabled: !AppState.pdf-busy;
+                        clicked => {
+                            AppState.pdf-text();
+                        }
+                    }
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: "2 · Dividi il PDF in più parti";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: "Per i casi in cui serve passare il PDF all'AI (scansioni che l'OCR non legge, formule e figure da ricomporre): divide il PDF, o solo le pagine scelte qui sopra, in parti sotto il limite di MB per file della tua AI, a pagine intere e in ordine. Il nome di ogni parte dice le pagine che contiene; le parti si danno una alla volta o insieme.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                    Text {
+                        text: "Limite per parte: " + AppState.pdf-max-mb + " MB";
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        for mb in [5, 10, 20, 50, 100]: Chip {
+                            text: mb + " MB";
+                            selected: AppState.pdf-max-mb == mb;
+                            clicked => {
+                                AppState.pdf-max-mb = mb;
+                            }
+                        }
+                    }
+                    M3Button {
+                        text: "Dividi il PDF in più parti";
+                        kind: 1;
+                        enabled: !AppState.pdf-busy;
+                        clicked => {
+                            AppState.pdf-split();
+                        }
+                    }
+                }
+            }
+            if AppState.pdf-status != "": Text {
+                text: AppState.pdf-status;
+                wrap: word-wrap;
+                color: M3.on-surface;
+            }
+            Hint {
+                short: "Le parti e il testo restano sul tuo dispositivo.";
+                full: "Il lavoro si fa tutto sul dispositivo: niente viene mandato da nessuna parte. Su Android scegli la cartella dove salvare i file; sul computer finiscono in Download; nel browser vengono scaricati. Un PDF protetto da password va prima sbloccato.";
+            }
+        }
+    }
+}

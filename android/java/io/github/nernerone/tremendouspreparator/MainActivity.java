@@ -29,6 +29,9 @@ public class MainActivity extends NativeActivity {
     private static final int PICK_PHOTO_GROUP = 4244;
     private static final int PICK_FILE = 4245;
     private static final int SAVE_FILE = 4246;
+    private static final int SAVE_TREE = 4247;
+    /** file da salvare nella cartella scelta: righe «percorso\tnome\ttipo» */
+    private String pendingFiles;
     /** file da salvare dove sceglie l'utente (selettore «Salva») */
     private String pendingSave;
     private BtLink bt;
@@ -142,6 +145,58 @@ public class MainActivity extends NativeActivity {
         });
     }
 
+    /**
+     * Salva più file dell'app in una cartella scelta dall'utente (per esempio le parti di un
+     * PDF diviso); argomento: una riga «percorso\tnome\ttipo» per file.
+     */
+    public void saveFilesToFolder(String arg) {
+        runOnUiThread(() -> {
+            pendingFiles = arg;
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            try {
+                startActivityForResult(i, SAVE_TREE);
+            } catch (Exception e) {
+                pendingFiles = null;
+            }
+        });
+    }
+
+    private void copyToTree(String list, Uri tree) {
+        new Thread(() -> {
+            int ok = 0;
+            int all = 0;
+            try {
+                Uri parent = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree,
+                    android.provider.DocumentsContract.getTreeDocumentId(tree));
+                for (String line : list.split("\n")) {
+                    String[] f = line.split("\t");
+                    if (f.length < 3) continue;
+                    all++;
+                    try {
+                        Uri doc = android.provider.DocumentsContract.createDocument(getContentResolver(), parent, f[2], f[1]);
+                        if (doc == null) continue;
+                        try (InputStream in = new java.io.FileInputStream(f[0]);
+                             OutputStream out = getContentResolver().openOutputStream(doc)) {
+                            if (out == null) continue;
+                            byte[] buf = new byte[1 << 16];
+                            int n;
+                            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                            ok++;
+                        }
+                    } catch (Exception e) {
+                        // questo file no, gli altri sì
+                    }
+                    new File(f[0]).delete();
+                }
+            } catch (Exception e) {
+                // cartella non utilizzabile
+            }
+            final String msg = ok == all ? ok + (ok == 1 ? " file salvato" : " file salvati")
+                : "Salvati " + ok + " file su " + all;
+            runOnUiThread(() -> android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show());
+        }).start();
+    }
+
     /** Apre il selettore di immagini: foto profilo ("user") o del gruppo ("group"). */
     public void pickPhoto(String kind) {
         runOnUiThread(() -> {
@@ -177,6 +232,9 @@ public class MainActivity extends NativeActivity {
         } else if (requestCode == SAVE_FILE && pendingSave != null) {
             copyOut(pendingSave, data.getData());
             pendingSave = null;
+        } else if (requestCode == SAVE_TREE && pendingFiles != null) {
+            copyToTree(pendingFiles, data.getData());
+            pendingFiles = null;
         }
     }
 

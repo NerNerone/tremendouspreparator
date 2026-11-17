@@ -43,26 +43,8 @@ impl Ctrl {
 
     /// «Aggiungi file»: selettore di sistema; il file arriva in import/ come `file-…--<nome>`.
     pub(super) fn contents_add(&mut self) {
-        #[cfg(target_os = "android")]
-        if let Err(e) = crate::android_pick_file() {
-            self.toast(format!("Selettore file non disponibile: {e}"));
-        }
-        #[cfg(target_arch = "wasm32")]
-        crate::web::pick_named_file(self.store.base.join("import"));
-        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-        {
-            let import = self.store.base.join("import");
-            spawn_background(move || {
-                if let Some(p) = crate::desktop_files::pick_file() {
-                    let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                    if let Ok(bytes) = std::fs::read(&p) {
-                        let _ = vfs::create_dir_all(&import);
-                        let dst = import.join(format!("file-{}--{name}", chrono::Utc::now().timestamp_millis()));
-                        let _ = vfs::write(&dst, &bytes);
-                    }
-                }
-            });
-        }
+        self.pdf_pick = None;
+        self.pick_any_file();
     }
 
     /// File scelto dall'utente (dalla cartella import/): pacchetto o file singolo.

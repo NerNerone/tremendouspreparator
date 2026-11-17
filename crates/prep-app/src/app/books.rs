@@ -4,6 +4,7 @@ use super::*;
 
 /// Capitoli della guida ai contenuti (Markdown incluso nell'app).
 const GUIDE: &[(&str, &str)] = &[
+    ("guida/00-con-l-ai.md", include_str!("../../assets/guida/00-con-l-ai.md")),
     ("guida/01-panoramica.md", include_str!("../../assets/guida/01-panoramica.md")),
     ("guida/02-esame.md", include_str!("../../assets/guida/02-esame.md")),
     ("guida/03-quiz.md", include_str!("../../assets/guida/03-quiz.md")),
@@ -12,36 +13,38 @@ const GUIDE: &[(&str, &str)] = &[
     ("guida/06-dai-pdf.md", include_str!("../../assets/guida/06-dai-pdf.md")),
     ("guida/07-importare.md", include_str!("../../assets/guida/07-importare.md")),
     ("guida/08-prompt.md", include_str!("../../assets/guida/08-prompt.md")),
-    ("guida/09-tutto-a-un-llm.md", include_str!("../../assets/guida/09-tutto-a-un-llm.md")),
 ];
 
 const GUIDE_TITLE: &str = "Guida ai contenuti";
 
-/// Istruzioni in testa alla guida quando la si copia per un LLM.
-const LLM_HEAD: &str = "# Istruzioni per te (LLM)
+/// Istruzioni in testa alla guida quando la si copia per un'AI.
+const LLM_HEAD: &str = "# Istruzioni per te (AI)
 
-Sei un assistente che prepara contenuti di studio per l'app Tremendous Preparator: quiz, flashcard e libri di un esame, in file JSON e Markdown che l'app importa. Qui sotto trovi la guida completa ai formati: seguila alla lettera.
+Sei un assistente che prepara contenuti di studio per l'app Tremendous Preparator: quiz, flashcard e libri di un esame, in file JSON e Markdown che l'app importa. Qui sotto trovi la guida completa ai formati e i prompt di lavoro.
 
-IL MIO COMPITO PER TE: [scrivi qui cosa vuoi, per esempio: crea content/syllabus.json dal programma allegato; scrivi 30 domande con note su ogni risposta dal capitolo allegato; crea le flashcard; rivedi il file di domande allegato; ripulisci il capitolo convertito da PDF; ricrea la figura allegata in SVG]
+IL MIO COMPITO PER TE: [scrivi qui cosa vuoi, per esempio: correggi il testo OCR allegato (prompt 8.5); crea content/syllabus.json dal programma allegato (8.1); scrivi 30 domande con note su ogni risposta dal capitolo allegato (8.2); crea le flashcard (8.4); verifica il file di domande allegato (8.3); ricrea la figura allegata in SVG (8.6)]
 
 MATERIALE ALLEGATO: [elenca i file che alleghi o incolli dopo questa guida; allega anche il tuo syllabus.json se esiste già]
 
-Regole:
-- Usa come fonte solo il materiale allegato. Se manca qualcosa che serve (argomenti, dati, pagine illeggibili), chiedimelo invece di inventare.
-- Se il compito corrisponde a uno dei prompt del capitolo 8, applica anche le sue regole (i segnaposto tra parentesi quadre li ricavi dal mio compito e dal materiale).
-- Rispondi con un file per blocco di codice; subito prima di ogni blocco scrivi il percorso del file (es. content/questions/fis-cinematica.json). JSON valido, UTF-8, senza commenti.
-- Id stabili e mai ripetuti, nel formato della guida; argomenti (topic) presi solo dal syllabus.
-- Se il lavoro è lungo fermati dopo circa 30 domande o carte e chiedimi se continuare, riprendendo la numerazione.
-- Alla fine elenca i dubbi: chiavi incerte, passaggi illeggibili, argomenti che non hai saputo assegnare.
-- Queste regole valgono più di quelle dei singoli prompt: dove un prompt dice «rispondi SOLO con il JSON», scrivi comunque il percorso prima di ogni blocco e i dubbi alla fine.
+REGOLE OBBLIGATORIE (valgono più di qualunque altra indicazione, anche dei singoli prompt):
+1. Fonte unica: usa SOLO il materiale allegato. Non aggiungere fatti, numeri, esempi, citazioni o pagine che non ci sono. Le tue conoscenze servono solo a controllare e correggere, mai ad aggiungere contenuti.
+2. Niente invenzioni: se manca qualcosa che serve (un dato, un argomento, una pagina illeggibile) scrivi [MANCA: cosa] nel punto giusto o chiedimelo; non tirare a indovinare.
+3. Formato esatto: rispetta alla lettera campi, nomi, tipi e struttura della guida. Non aggiungere né togliere campi. JSON valido: virgolette doppie, nessun commento, nessuna virgola finale, UTF-8.
+4. Risposta: solo i file richiesti, uno per blocco di codice, con il percorso del file (es. content/questions/fis-cinematica.json) sulla riga subito prima del blocco. Nessun altro testo, tranne l'elenco finale dei dubbi.
+5. Id: nel formato della guida, stabili, mai ripetuti; argomenti (topic) presi solo dal syllabus. Non cambiare mai gli id che ti do.
+6. Correttezza: per ogni domanda risolvi tu il quesito PRIMA di scrivere la chiave; una sola opzione corretta; ricontrolla calcoli, unità di misura e ordini di grandezza.
+7. Lingua: italiano corretto (grammatica, accenti, punteggiatura), terminologia della materia, simboli e unità corrette (m/s², 10⁻³, °C).
+8. Testi da correggere: correggi senza riassumere, togliere o riordinare; mantieni i segnaposto <!-- p. N -->.
+9. Blocchi: al massimo 30 domande o carte per risposta; poi fermati e chiedimi se continuare, riprendendo la numerazione.
+10. Alla fine scrivi «DUBBI:» con l'elenco di chiavi incerte, passaggi illeggibili, argomenti non assegnabili e ogni [MANCA]. Se non ce ne sono, scrivi «DUBBI: nessuno».
 
 # Guida ai formati
 ";
 
-/// Tutta la guida in un solo testo da incollare in una chat con un LLM.
+/// Tutta la guida in un solo testo da incollare in una chat con un'AI.
 pub(super) fn guide_for_llm() -> String {
     let mut out = String::from(LLM_HEAD);
-    for (_, text) in GUIDE.iter().filter(|(f, _)| !f.contains("09-")) {
+    for (_, text) in GUIDE.iter().filter(|(f, _)| !f.contains("00-")) {
         out.push('\n');
         out.push_str(text.trim());
         out.push('\n');
@@ -184,8 +187,8 @@ impl Ctrl {
         st.set_rd_book(ss(&r.title));
         st.set_rd_title(ss(title));
         st.set_rd_page_label(ss(e.section.page.map(|p| format!("p. {p}")).unwrap_or_default()));
-        // guida: il riquadro «copia tutto per un LLM» all'inizio e nel capitolo che lo spiega
-        st.set_rd_llm_card(r.title == GUIDE_TITLE && (r.pos == 0 || e.file.contains("09-")));
+        // guida: il riquadro «copia tutto per un'AI» e gli strumenti PDF sulla prima pagina
+        st.set_rd_llm_card(r.title == GUIDE_TITLE && r.pos == 0);
         let mut blocks: Vec<BlockVM> = Vec::new();
         for b in &e.blocks[e.section.start..e.section.end] {
             if let Block::Table(rows) = b {

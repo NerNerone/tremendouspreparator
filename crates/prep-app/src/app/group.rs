@@ -1362,7 +1362,11 @@ impl Ctrl {
             p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("file-"))
                 && p.extension().is_none_or(|x| x != "tmp")
         }) {
-            self.contents_import(f.clone());
+            if self.pdf_pick.is_some() {
+                self.pdf_file(f.clone());
+            } else {
+                self.contents_import(f.clone());
+            }
             return;
         }
         let next = files.into_iter().find(|p| !vfs::is_dir(p) && p.extension().is_none_or(|x| x != "tmp"));

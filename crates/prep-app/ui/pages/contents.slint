@@ -81,11 +81,23 @@ export component ContentsPage inherits Page {
                     }
                 }
             }
-            M3Button {
-                text: "Guida: come si crea un file";
-                kind: 2;
-                clicked => {
-                    AppState.open-guide();
+            HorizontalLayout {
+                spacing: 8px;
+                M3Button {
+                    text: "Guida";
+                    kind: 2;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.open-guide();
+                    }
+                }
+                M3Button {
+                    text: "Strumenti PDF";
+                    kind: 2;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.open-pdf-tools();
+                    }
                 }
             }
             LlmCopy {

@@ -37,6 +37,7 @@ mod exams;
 mod focus;
 mod goals;
 mod group;
+mod pdftools;
 mod quiz;
 mod quiz_setup;
 mod report;
@@ -88,6 +89,7 @@ const P_GOALS: i32 = 11;
 const P_PERIODIC: i32 = 12;
 const P_GROUP: i32 = 13;
 const P_CONTENTS: i32 = 14;
+const P_PDFTOOLS: i32 = 15;
 
 fn tab_page(tab: i32) -> i32 {
     match tab {
@@ -368,6 +370,9 @@ pub struct Ctrl {
     cam_follow: Option<String>,
     /// profilo aperto (id utente)
     profile_sel: Option<String>,
+    /// strumento PDF in attesa del file scelto
+    pdf_pick: Option<pdftools::PdfTool>,
+    pdf_return: i32,
     group_leave_armed: Option<(String, Instant)>,
     /// giri completati finora oggi (per festeggiare il giro nuovo)
     my_laps: u64,
@@ -576,6 +581,20 @@ pub(crate) fn on_direct_event(sess: usize, peer: String, ev: crate::direct::Dire
 
 /// Modalità dimostrativa: un'immagine scelta come foto profilo (apre il ritaglio).
 #[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
+/// Modalità dimostrativa: un PDF «scelto» per uno strumento («split» o «text»).
+#[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
+pub(crate) fn demo_pdf(tool: &str, path: &str) {
+    with_ctrl(|c| {
+        c.pdf_pick = Some(if tool == "split" { pdftools::PdfTool::Split } else { pdftools::PdfTool::Text });
+        let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        if let Ok(b) = std::fs::read(path) {
+            let dir = c.store.base.join("import");
+            let _ = vfs::create_dir_all(&dir);
+            let _ = vfs::write(&dir.join(format!("file-1--{name}")), &b);
+        }
+    });
+}
+
 /// Modalità dimostrativa: il proprio profilo nel gruppo.
 #[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
 pub(crate) fn demo_profile_me() {
@@ -758,6 +777,11 @@ impl Ctrl {
             }
             P_CONTENTS => {
                 self.set_page(P_SETTINGS);
+                true
+            }
+            P_PDFTOOLS => {
+                // si torna da dove si era venuti (guida o contenuti)
+                self.set_page(self.pdf_return);
                 true
             }
             // dentro una sezione delle Opzioni: si torna al menu
@@ -981,6 +1005,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         focus_query: String::new(),
         cam_follow: None,
         profile_sel: None,
+        pdf_pick: None,
+        pdf_return: P_HOME,
         group_leave_armed: None,
         my_laps: 0,
         bt: BtState::default(),
@@ -1267,6 +1293,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_crop_done(|x, y, s| with_ctrl(|c| c.crop_done(x, y, s)));
     st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));
     st.on_focus_search(|q| with_ctrl(|c| c.focus_search(&q)));
+    st.on_open_pdf_tools(|| with_ctrl(|c| c.open_pdf_tools()));
+    st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
+    st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));
     st.on_open_profile(|id| {
         with_ctrl(|c| {
             c.profile_sel = if id.is_empty() { None } else { Some(id.to_string()) };

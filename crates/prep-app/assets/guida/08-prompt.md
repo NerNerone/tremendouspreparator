@@ -1,12 +1,12 @@
-# 8 Prompt per un LLM
+# 8 Prompt per l'AI
 
-Questi prompt si copiano (pulsante **Copia** sotto ogni riquadro), si incollano in una chat con un modello linguistico (Claude, ChatGPT, Gemini, …) e si completano dove c'è scritto `[…]`. Poi si salva la risposta in un file e la si aggiunge da *Gestisci contenuti*. Se preferisci dare al modello tutti i formati insieme, copia la guida intera (capitolo 9).
+Questi prompt si copiano (pulsante **Copia** sotto ogni riquadro), si incollano in una chat con un'AI (ChatGPT, Claude, Gemini, …) e si completano dove c'è scritto `[…]`. Poi si salva la risposta in un file e la si aggiunge da *Gestisci contenuti*. Se preferisci dare all'AI tutti i formati insieme, copia la guida intera (prima pagina).
 
 Regole che valgono per tutti:
 
-- Dai all'LLM **il testo vero** (capitolo, appunti, programma): incollalo o allegalo. Senza fonte inventa.
+- Dai all'AI **il testo vero** (capitolo, appunti, programma): incollalo o allegalo. Senza fonte inventa.
 - Allega o incolla anche il tuo `syllabus.json` quando il prompt usa gli argomenti: così usa gli id giusti.
-- **Controlla sempre** le risposte corrette: un LLM può sbagliare un calcolo o una chiave. Il prompt 8.3 serve a questo, meglio con un modello diverso da quello che ha scritto le domande.
+- **Controlla sempre** le risposte corrette: un'AI può sbagliare un calcolo o una chiave. Il prompt 8.3 serve a questo, meglio con un'AI diversa da quella che ha scritto le domande.
 - Lavora a pezzi: un capitolo o una sezione per volta (20–30 domande), non un libro intero.
 - Salva il risultato con estensione `.json` (o `.md` per i capitoli), in UTF-8.
 
@@ -128,7 +128,7 @@ Testo:
 
 ## 8.6 Ricomporre una figura
 
-Allega l'immagine (foto o ritaglio della pagina) se il modello le accetta.
+Allega l'immagine (foto o ritaglio della pagina) se l'AI le accetta.
 
 ```
 Ti allego una figura di un libro di [materia] (didascalia: "[didascalia]"). Ricreala come SVG semplice e leggibile per un'app per telefono.
