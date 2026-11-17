@@ -61,6 +61,30 @@ export component AppWindow inherits Window {
                 if AppState.page == 14: ContentsPage { }
             }
 
+            // concentrazione attiva: il tempo che manca, su ogni pagina
+            if AppState.focus-active: Rectangle {
+                height: 30px;
+                background: M3.primary-container;
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Concentrazione";
+                        font-weight: 700;
+                        color: M3.on-primary-container;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        text: AppState.focus-left != "" ? "mancano " + AppState.focus-left : "fino a «Termina»";
+                        font-weight: 800;
+                        color: M3.on-primary-container;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
             // barra di navigazione flessibile (Material 3 Expressive)
             if root.show-nav && root.virtual-keyboard-size.height == 0: Rectangle {
                 height: 72px;

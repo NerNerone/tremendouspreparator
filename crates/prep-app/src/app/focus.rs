@@ -69,7 +69,13 @@ impl Ctrl {
             icon: i.clone().unwrap_or_default(),
             allowed: on,
         };
-        let all: Vec<FocusAppVM> = self.focus_apps.iter().map(|(p, l, i)| vm(p, l, i, allowed.contains(p))).collect();
+        let q = self.focus_query.trim().to_lowercase();
+        let all: Vec<FocusAppVM> = self
+            .focus_apps
+            .iter()
+            .filter(|(p, l, _)| q.is_empty() || l.to_lowercase().contains(&q) || p.to_lowercase().contains(&q))
+            .map(|(p, l, i)| vm(p, l, i, allowed.contains(p)))
+            .collect();
         let chosen: Vec<FocusAppVM> =
             self.focus_apps.iter().filter(|(p, _, _)| allowed.contains(p)).map(|(p, l, i)| vm(p, l, i, true)).collect();
         let ui = self.ui();
@@ -78,6 +84,17 @@ impl Ctrl {
         st.set_focus_overlay_ok(overlay);
         st.set_focus_active(active);
         st.set_focus_status(ss(status));
+        // conto alla rovescia del blocco a tempo
+        let left = if active && until > now_ms { (until - now_ms + 999) / 1000 } else { 0 };
+        st.set_focus_left(ss(if left == 0 {
+            String::new()
+        } else if left >= 3600 {
+            format!("{}:{:02}:{:02}", left / 3600, (left % 3600) / 60, left % 60)
+        } else {
+            format!("{:02}:{:02}", left / 60, left % 60)
+        }));
+        let total = j["total"].as_i64().unwrap_or(0).max(minutes as i64 * 60);
+        st.set_focus_left_frac(if total > 0 { (left as f32 / total as f32).clamp(0.0, 1.0) } else { 0.0 });
         st.set_focus_minutes(minutes as i32);
         st.set_focus_confirm(confirm);
         st.set_focus_confirm_text(ss(format!(
@@ -123,9 +140,16 @@ impl Ctrl {
         self.focus_apps = apps;
     }
 
+    /// Ricerca per nome (o pacchetto) tra le app da permettere.
+    pub(super) fn focus_search(&mut self, q: &str) {
+        self.focus_query = q.to_string();
+        self.refresh_focus();
+    }
+
     pub(super) fn focus_setup(&mut self, open: bool) {
         self.ui().global::<AppState>().set_focus_open(open);
         if open {
+            self.focus_query.clear();
             self.load_focus_apps();
         }
         self.focus_confirm = None;
@@ -151,7 +175,7 @@ impl Ctrl {
         self.refresh_focus();
     }
 
-    /// Avvia concentrazione e sessione di studio, con un tocco di conferma (non si annulla).
+    /// Avvia concentrazione e sessione di studio, dopo la conferma (non si annulla).
     pub(super) fn focus_start(&mut self) {
         let j: serde_json::Value =
             crate::focus::state().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
@@ -159,11 +183,21 @@ impl Ctrl {
             self.toast("Prima concedi «Accesso all'utilizzo» e «Mostra sopra altre app» qui sopra");
             return;
         }
-        if !self.focus_confirm.is_some_and(|t| t.elapsed() < Duration::from_secs(6)) {
-            self.focus_confirm = Some(Instant::now());
-            self.refresh_focus();
-            return;
-        }
+        let minutes = self.focus_minutes();
+        let n = self.store.settings().focus_allowed.len();
+        self.open_dialog(
+            Dialog::FocusStart,
+            "Sei sicuro?",
+            &format!(
+                "La concentrazione blocca il telefono per {minutes} minuti: potrai usare solo questa app{}, il telefono per le chiamate e la sveglia. Le altre app ti riporteranno qui. Non si può annullare prima della scadenza; dopo, il telefono si libera solo con «Termina». Resta attiva anche se riavvii il telefono.",
+                if n > 0 { format!(", le {n} app che hai scelto") } else { String::new() }
+            ),
+            "Blocca e studia",
+        );
+    }
+
+    /// Conferma data: blocco e sessione di studio partono.
+    pub(super) fn focus_begin(&mut self) {
         self.focus_confirm = None;
         let minutes = self.focus_minutes() as i64;
         let until = Utc::now().timestamp_millis() + minutes * 60_000;

@@ -23,6 +23,7 @@ import java.io.OutputStream;
  * files/import/; la parte Rust lo trova lì, lo importa e lo cancella.
  */
 public class MainActivity extends NativeActivity {
+
     private static final int PICK_PACK = 4242;
     private static final int PICK_PHOTO_USER = 4243;
     private static final int PICK_PHOTO_GROUP = 4244;

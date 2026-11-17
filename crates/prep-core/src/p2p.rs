@@ -254,6 +254,7 @@ pub struct Profile {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "t", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)] // messaggi di passaggio, uno alla volta
 pub enum Msg {
     /// presentazione; `reply` = risposta a un'altra presentazione (non va ricambiata)
     Hello {

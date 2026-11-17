@@ -262,6 +262,8 @@ enum Dialog {
     Crash,
     /// togliere un file dai contenuti dell'esame
     RemoveContent(String),
+    /// avviare la concentrazione (blocca il telefono)
+    FocusStart,
 }
 
 pub struct Ctrl {
@@ -358,6 +360,14 @@ pub struct Ctrl {
     gcal_month: bool,
     gcal_off: i32,
     gcal_sel: Option<i64>,
+    /// modalità dimostrativa: vetrina degli effetti sulle monoposto
+    fx_demo: bool,
+    /// ricerca tra le app da permettere nella concentrazione
+    focus_query: String,
+    /// telecamera della gara su un altro membro («Mostra nel circuito»)
+    cam_follow: Option<String>,
+    /// profilo aperto (id utente)
+    profile_sel: Option<String>,
     group_leave_armed: Option<(String, Instant)>,
     /// giri completati finora oggi (per festeggiare il giro nuovo)
     my_laps: u64,
@@ -562,6 +572,26 @@ impl p2p::Host for Ctrl {
 /// Evento di un collegamento diretto consegnato sul thread dell'interfaccia (vedi `direct`).
 pub(crate) fn on_direct_event(sess: usize, peer: String, ev: crate::direct::DirectEvent) {
     with_ctrl(|c| c.direct_event(Sess::from_index(sess), peer, ev));
+}
+
+/// Modalità dimostrativa: un'immagine scelta come foto profilo (apre il ritaglio).
+#[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
+/// Modalità dimostrativa: il proprio profilo nel gruppo.
+#[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
+pub(crate) fn demo_profile_me() {
+    with_ctrl(|c| {
+        c.profile_sel = Some(c.user_id());
+        c.refresh_group();
+    });
+}
+
+/// Modalità dimostrativa: vetrina degli effetti delle monoposto.
+#[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
+pub(crate) fn demo_fx() {
+    with_ctrl(|c| {
+        c.fx_demo = true;
+        c.refresh_group();
+    });
 }
 
 /// Modalità dimostrativa: un'immagine scelta come foto profilo (apre il ritaglio).
@@ -778,6 +808,7 @@ impl Ctrl {
             Some(Dialog::SubmitExam) => self.finish_quiz(),
             Some(Dialog::Crash) => self.crash_report(),
             Some(Dialog::RemoveContent(p)) => self.contents_remove(&p),
+            Some(Dialog::FocusStart) => self.focus_begin(),
             None => {}
         }
     }
@@ -946,6 +977,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         gcal_month: false,
         gcal_off: 0,
         gcal_sel: None,
+        fx_demo: false,
+        focus_query: String::new(),
+        cam_follow: None,
+        profile_sel: None,
         group_leave_armed: None,
         my_laps: 0,
         bt: BtState::default(),
@@ -965,9 +1000,12 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         // studio di gruppo: cronometro e circuito ogni secondo, stanza del gruppo attivo
         c.group_timer.start(TimerMode::Repeated, Duration::from_secs(1), || with_ctrl(|c| c.group_tick()));
         c.ui().global::<AppState>().set_focus_available(crate::focus::available());
-        // l'app riparte senza sessione di studio in corso: il servizio lo deve sapere (resta solo
-        // il blocco a tempo, se non è scaduto), altrimenti aspetterebbe un «Termina» invisibile
-        crate::focus::session(0);
+        // concentrazione ancora attiva (app chiusa dal sistema, telefono riavviato): la sessione
+        // di studio riprende da dove era; altrimenti il servizio deve sapere che non ce n'è una
+        // (resta solo il blocco a tempo, se non è scaduto), o aspetterebbe un «Termina» invisibile
+        if !c.restore_study_session() {
+            crate::focus::session(0);
+        }
         c.refresh_focus();
         // colori del tema: scelti in Aspetto, altrimenti di sistema (Android 12+), altrimenti blu
         c.system_tones = crate::system_tones().filter(|t| crate::palette::dyn_roles(t).is_some());
@@ -1228,6 +1266,22 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_open_guide(|| with_ctrl(|c| c.open_guide()));
     st.on_crop_done(|x, y, s| with_ctrl(|c| c.crop_done(x, y, s)));
     st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));
+    st.on_focus_search(|q| with_ctrl(|c| c.focus_search(&q)));
+    st.on_open_profile(|id| {
+        with_ctrl(|c| {
+            c.profile_sel = if id.is_empty() { None } else { Some(id.to_string()) };
+            c.refresh_group();
+        })
+    });
+    st.on_show_in_circuit(|id| {
+        with_ctrl(|c| {
+            c.profile_sel = None;
+            c.car_sel = id.to_string();
+            c.ui().global::<AppState>().set_car_sel(id.clone());
+            c.cam_follow = Some(id.to_string());
+            c.refresh_group();
+        })
+    });
     st.on_gcal_mode(|month| {
         with_ctrl(|c| {
             c.gcal_month = month;

@@ -111,7 +111,54 @@ impl Ctrl {
         let set = self.store.settings();
         s.photo = set.photo;
         s.prev = set.prev_ids;
+        if hist {
+            s.prof = Some(self.my_prof());
+        }
         s
+    }
+
+    /// Numeri del proprio profilo sull'esame attivo: quiz, simulazioni, flashcard, obiettivi.
+    pub(super) fn my_prof(&self) -> prep_core::group::Prof {
+        use prep_core::session::SessionKind;
+        let today = Local::now().date_naive();
+        let mut p = prep_core::group::Prof {
+            exam: self.exams.get(&self.exams.active).map(|e| e.name.clone()).unwrap_or_default(),
+            ..Default::default()
+        };
+        for s in &self.sessions {
+            let on_today = s.started_at.with_timezone(&Local).date_naive() == today;
+            match s.kind {
+                SessionKind::Practice | SessionKind::Exam | SessionKind::Review => {
+                    let n = s.items.iter().filter(|i| i.given.is_some()).count() as u32;
+                    let ok = s.items.iter().filter(|i| i.correct == Some(true)).count() as u32;
+                    p.q_all += n;
+                    p.q_all_ok += ok;
+                    if on_today {
+                        p.q_today += n;
+                        p.q_today_ok += ok;
+                    }
+                    if s.kind == SessionKind::Exam {
+                        p.sims += 1;
+                    }
+                }
+                SessionKind::Flashcards => {
+                    let n = s.items.iter().filter(|i| i.grade.is_some()).count() as u32;
+                    p.cards_all += n;
+                    if on_today {
+                        p.cards_today += n;
+                    }
+                }
+                SessionKind::Flags => {}
+            }
+        }
+        if let Some(g) = self.today_goals() {
+            let done = prep_core::plan::done_on(&self.content, &self.history, today);
+            p.goals_total = g.topics.len() as u32;
+            p.goals_done =
+                g.topics.iter().zip(&g.targets).filter(|(t, n)| done.get(*t).copied().unwrap_or(0) >= **n).count()
+                    as u32;
+        }
+        p
     }
 
     /// Identificativo dell'utente nei gruppi (uguale su tutti i propri dispositivi che usano
@@ -169,6 +216,10 @@ impl Ctrl {
         };
         if let Some(d) = now {
             self.last_doing = d;
+        }
+        if self.last_doing.is_empty() {
+            // nessuna attività nell'app da quando si studia (libro di carta, appunti…): l'esame
+            return self.exams.get(&self.exams.active).map(|e| e.name.clone()).unwrap_or_default();
         }
         self.last_doing.clone()
     }
@@ -318,8 +369,13 @@ impl Ctrl {
         if state == State::Pause {
             self.pit_since = Some(now);
         }
+        // nuova sessione: l'attività riparte da zero (finché non si apre qualcosa, vale l'esame)
+        if self.study_state == State::Idle && state == State::Studying {
+            self.last_doing.clear();
+        }
         self.study_state = state;
         self.study_since = (state == State::Studying).then_some(now);
+        self.save_study_session(now);
         // concentrazione: il servizio Android sa se si studia (solo «Termina» libera il telefono)
         crate::focus::session(match state {
             State::Idle => 0,
@@ -988,7 +1044,14 @@ impl Ctrl {
                 lane: lane as f32,
                 px,
                 py,
+                fx: 0,
+                mult: 1.0,
+                level: 0.0,
             });
+        }
+        // modalità dimostrativa degli effetti: altre monoposto attorno alla propria
+        if self.fx_demo {
+            fx_showcase(&mut cars);
         }
         // telecamera sulla propria macchina mentre si studia; altrimenti tutto il circuito
         st.set_race_overview(self.study_state != State::Studying);
@@ -1017,6 +1080,25 @@ impl Ctrl {
             st.set_cam_stack(me.stack);
             st.set_cam_run(me.run);
         }
+        // «Mostra nel circuito»: la telecamera segue la monoposto di un altro finché è in pista e
+        // la sua scheda resta aperta
+        if self.cam_follow.is_some() && st.get_car_sel().is_empty() && !self.car_sel.is_empty() {
+            self.car_sel.clear();
+            self.cam_follow = None;
+        }
+        if let Some(fid) = self.cam_follow.clone() {
+            match cars.iter().find(|c| c.id.as_str() == fid && c.racing) {
+                Some(c) => {
+                    st.set_race_overview(false);
+                    st.set_cam_f(c.f + if c.v > 0.0 { c.v * frac as f32 } else { 0.0 });
+                    st.set_cam_side(c.side);
+                    st.set_cam_stack(c.stack);
+                    st.set_cam_run(c.run);
+                }
+                None => self.cam_follow = None,
+            }
+        }
+        let fx_of = |id: &str| cars.iter().find(|c| c.id.as_str() == id).map(fx_text).unwrap_or_default();
         // scheda della macchina toccata
         match all.iter().find(|(id, _, _, _)| *id == self.car_sel) {
             Some((id, s, on, seen)) => {
@@ -1060,6 +1142,10 @@ impl Ctrl {
                 if !s.doing.is_empty() {
                     lines.push(format!("Sta studiando: {}", s.doing));
                 }
+                let fx = fx_of(id);
+                if !fx.is_empty() {
+                    lines.push(fx);
+                }
                 let me = *id == me_id;
                 let photo = self.photo_image(&s.photo.clone());
                 st.set_car_info_has_photo(photo.is_some());
@@ -1074,6 +1160,16 @@ impl Ctrl {
                 st.set_car_info_title(ss(if me { format!("{} (tu)", s.name) } else { s.name.clone() }));
                 st.set_car_info_body(ss(lines.join("\n")));
                 st.set_car_sel(ss(id));
+            }
+            // monoposto della vetrina degli effetti (modalità dimostrativa)
+            None if cars.iter().any(|c| c.id.as_str() == self.car_sel) => {
+                let c = cars.iter().find(|c| c.id.as_str() == self.car_sel).cloned().unwrap();
+                st.set_car_info_has_photo(false);
+                st.set_car_info_color(c.color);
+                st.set_car_info_initial(c.label.clone());
+                st.set_car_info_title(ss(format!("Pilota {}", c.label)));
+                st.set_car_info_body(ss(format!("In pista\n{}", fx_text(&c))));
+                st.set_car_sel(c.id.clone());
             }
             None => {
                 self.car_sel.clear();
@@ -1094,6 +1190,7 @@ impl Ctrl {
         let member_hist = all.iter().find(|(id, _, _, _)| *id == sel).and_then(|(_, s, _, _)| s.hist.as_ref());
         st.set_member_heat(model(member_hist.map(|h| heat_cells(&h.on(today), today)).unwrap_or_default()));
         self.refresh_group_calendar(&all, today);
+        self.refresh_profile(&all, &cars, &ck);
         let p = self.group_period;
         let refs: Vec<(&str, &prep_core::group::Status)> = all.iter().map(|(i, s, _, _)| (i.as_str(), s)).collect();
         let order = standings(refs.into_iter(), &ck, p);
@@ -1131,6 +1228,12 @@ impl Ctrl {
                         (true, State::Idle) => "al paddock",
                     }),
                     me: *id == me_id,
+                    boost: ss(cars
+                        .iter()
+                        .find(|c| c.id.as_str() == id.as_str())
+                        .filter(|c| (c.mult - 1.0).abs() > 0.04)
+                        .map(|c| format!("×{:.1}", c.mult))
+                        .unwrap_or_default()),
                 }
             })
             .collect();
@@ -1473,5 +1576,207 @@ impl Ctrl {
         // si torna indietro finché c'è storia (12 settimane)
         st.set_gcal_can_prev((today - first).num_days() + 7 < HIST_DAYS as i64);
         st.set_gcal_can_next(self.gcal_off > 0);
+    }
+}
+
+/// Vetrina degli effetti (solo modalità dimostrativa): la propria macchina con ritmo al massimo e
+/// concentrazione, e attorno una macchina per effetto.
+fn fx_showcase(cars: &mut Vec<CarVM>) {
+    let Some(me) = cars.iter_mut().find(|c| c.me) else { return };
+    me.fx = 1 | 4;
+    me.mult = 4.5;
+    me.level = 1.0;
+    let base = me.clone();
+    let list: [(&str, u32, f32, f32, i32, f32, f32); 6] = [
+        ("A", 0xffe53935, 0.012, -1.0, 1, 2.5, 0.5),
+        ("B", 0xff43a047, -0.012, 1.0, 2, 1.2, 0.0),
+        ("C", 0xff8e24aa, 0.024, 1.0, 8, 0.8, 0.0),
+        ("D", 0xfffb8c00, -0.024, -1.0, 16 | 1, 1.6, 0.2),
+        ("E", 0xff00acc1, 0.036, 0.0, 32, 1.0, 0.0),
+        ("F", 0xff6d4c41, -0.036, 0.0, 0, 1.0, 0.0),
+    ];
+    for (label, color, df, lane, fx, mult, level) in list {
+        let mut c = base.clone();
+        c.id = ss(format!("demo-{label}"));
+        c.label = ss(label);
+        c.me = false;
+        c.color = slint::Color::from_argb_encoded(color);
+        c.f += df;
+        c.lane = lane;
+        c.fx = fx;
+        c.mult = mult;
+        c.level = level;
+        cars.push(c);
+    }
+}
+
+/// Sessione di studio in corso, salvata per riprenderla se l'app viene chiusa dal sistema o il
+/// telefono si riavvia durante la concentrazione.
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+struct SavedSession {
+    /// 0 nessuna, 1 in pista, 2 pit stop
+    state: i32,
+    /// inizio del tratto in corso (in pista) o della sosta (pit stop)
+    since: i64,
+    /// quando è iniziata la sessione
+    started: i64,
+}
+
+impl Ctrl {
+    fn session_path(&self) -> PathBuf {
+        self.store.base.join("study_session.json")
+    }
+
+    fn save_study_session(&self, now: i64) {
+        use prep_core::group::State;
+        let s = SavedSession {
+            state: match self.study_state {
+                State::Idle => 0,
+                State::Studying => 1,
+                State::Pause => 2,
+            },
+            since: self.study_since.or(self.pit_since).unwrap_or(now),
+            started: now,
+        };
+        if s.state == 0 {
+            let _ = vfs::remove_file(&self.session_path());
+        } else if let Ok(t) = serde_json::to_string(&s) {
+            let _ = vfs::write(&self.session_path(), t.as_bytes());
+        }
+    }
+
+    /// All'avvio: se la concentrazione tiene ancora una sessione aperta, la si riprende (il tempo
+    /// passato da allora conta, al massimo 6 ore come ogni tratto). `false` se non c'è niente da
+    /// riprendere.
+    pub(super) fn restore_study_session(&mut self) -> bool {
+        use prep_core::group::State;
+        let Some(j) = crate::focus::state().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()) else {
+            return false;
+        };
+        let session = j["session"].as_i64().unwrap_or(0);
+        if !j["armed"].as_bool().unwrap_or(false) || session == 0 {
+            return false;
+        }
+        let now = Self::now_secs();
+        let saved: SavedSession = vfs::read_to_string(&self.session_path())
+            .ok()
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or_default();
+        let since = if saved.since > 0 && now - saved.since < 6 * 3600 { saved.since } else { now };
+        if session == 2 {
+            self.study_state = State::Pause;
+            self.pit_since = Some(since);
+            self.study_since = None;
+        } else {
+            self.study_state = State::Studying;
+            self.study_since = Some(since);
+        }
+        crate::focus::session(session as i32);
+        self.toast("Concentrazione ancora attiva: la sessione di studio continua");
+        true
+    }
+}
+
+/// Effetti in corso di una monoposto, a parole (vuoto se nessuno).
+fn fx_text(c: &CarVM) -> String {
+    const NAMES: [&str; 6] =
+        ["ritmo", "gomme nuove", "concentrazione", "penalità", "scia di gruppo", "bandiera gialla"];
+    let names: Vec<&str> = NAMES.iter().enumerate().filter(|(i, _)| c.fx & (1 << i) != 0).map(|(_, n)| *n).collect();
+    if names.is_empty() && (c.mult - 1.0).abs() < 0.04 {
+        return String::new();
+    }
+    let mut t = format!("Moltiplicatore ×{:.1}", c.mult);
+    if !names.is_empty() {
+        t.push_str(&format!(" · {}", names.join(", ")));
+    }
+    t
+}
+
+impl Ctrl {
+    /// Profilo di un membro (o il proprio): stato, studio, mappa di calore e numeri dell'esame;
+    /// le funzioni non usate non compaiono.
+    fn refresh_profile(
+        &mut self,
+        all: &[(String, prep_core::group::Status, bool, i64)],
+        cars: &[CarVM],
+        ck: &prep_core::group::Clock,
+    ) {
+        use prep_core::group::{fmt_secs, live, State};
+        let found = self.profile_sel.as_ref().and_then(|pid| all.iter().find(|(id, _, _, _)| id == pid)).cloned();
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let Some((id, s, on, seen)) = found else {
+            self.profile_sel = None;
+            st.set_profile_open(false);
+            return;
+        };
+        let pct = |ok: u32, n: u32| (ok * 100 + n / 2).checked_div(n).unwrap_or(0);
+        let (t, w, m, _) = live(&s, ck);
+        let mut lines: Vec<String> = Vec::new();
+        let prof = s.prof.clone().unwrap_or_default();
+        if !prof.exam.is_empty() {
+            lines.push(format!("Esame: {}", prof.exam));
+        }
+        let now_line = match (on, s.state) {
+            (false, _) => format!(
+                "Non collegato · visto {}",
+                chrono::DateTime::from_timestamp(seen, 0)
+                    .map(|d| d.with_timezone(&Local).format("%d/%m alle %H:%M").to_string())
+                    .unwrap_or_else(|| "—".into())
+            ),
+            (true, State::Studying) => "In pista".to_string(),
+            (true, State::Pause) => "Al pit stop".to_string(),
+            (true, State::Idle) => "Al paddock".to_string(),
+        };
+        lines.push(if on && s.state != State::Idle && !s.doing.is_empty() {
+            format!("{now_line} · {}", s.doing)
+        } else {
+            now_line
+        });
+        lines.push(format!("Studio: oggi {} · settimana {} · mese {}", fmt_secs(t), fmt_secs(w), fmt_secs(m)));
+        let hist = s.hist.as_ref().map(|h| h.on(ck.today));
+        if let Some(h) = &hist {
+            let days: u64 = h.iter().take(28).map(|x| *x as u64).sum();
+            if days > 0 {
+                lines.push(format!("Media al giorno (ultime 4 settimane): {}", fmt_secs(days / 28)));
+            }
+        }
+        if let Some(c) = cars.iter().find(|c| c.id.as_str() == id) {
+            let fx = fx_text(c);
+            if !fx.is_empty() {
+                lines.push(fx);
+            }
+        }
+        if prof.goals_total > 0 {
+            lines.push(format!("Obiettivi di oggi: {} su {} completati", prof.goals_done, prof.goals_total));
+        }
+        if prof.q_all > 0 {
+            let mut q = format!(
+                "Quiz: oggi {} risposte ({}% giuste) · in tutto {} ({}%)",
+                prof.q_today,
+                pct(prof.q_today_ok, prof.q_today),
+                prof.q_all,
+                pct(prof.q_all_ok, prof.q_all)
+            );
+            if prof.sims > 0 {
+                q.push_str(&format!(" · {} simulazioni", prof.sims));
+            }
+            lines.push(q);
+        }
+        if prof.cards_all > 0 {
+            lines.push(format!("Flashcard: oggi {} · in tutto {}", prof.cards_today, prof.cards_all));
+        }
+        let photo = self.photo_image(&s.photo.clone());
+        let me = id == self.user_id();
+        st.set_profile_id(ss(&id));
+        st.set_profile_name(ss(if me { format!("{} (tu)", s.name) } else { s.name.clone() }));
+        st.set_profile_has_photo(photo.is_some());
+        st.set_profile_photo(photo.unwrap_or_default());
+        st.set_profile_initial(ss(s.name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default()));
+        st.set_profile_color(slint::Color::from_argb_encoded(s.color));
+        st.set_profile_lines(model(lines.iter().map(ss).collect::<Vec<_>>()));
+        st.set_profile_heat(model(hist.map(|h| heat_cells(&h, ck.today)).unwrap_or_default()));
+        st.set_profile_racing(on && s.state == State::Studying);
+        st.set_profile_open(true);
     }
 }

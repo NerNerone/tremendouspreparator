@@ -92,6 +92,30 @@ pub struct Status {
     /// studio degli ultimi giorni, per la mappa di calore (mandato ogni tanto, non sempre)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hist: Option<Hist>,
+    /// profilo: numeri dell'esame attivo (mandato con la mappa di calore)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prof: Option<Prof>,
+}
+
+/// Numeri del profilo per l'esame su cui si studia; a zero le funzioni non usate (che il
+/// profilo non mostra).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct Prof {
+    /// nome dell'esame (pacchetto caricato)
+    pub exam: String,
+    /// risposte ai quiz oggi e in tutto, e quante giuste
+    pub q_today: u32,
+    pub q_today_ok: u32,
+    pub q_all: u32,
+    pub q_all_ok: u32,
+    /// simulazioni d'esame fatte
+    pub sims: u32,
+    /// flashcard ripassate oggi e in tutto
+    pub cards_today: u32,
+    pub cards_all: u32,
+    /// obiettivi di oggi completati e fissati (0 = non usati)
+    pub goals_done: u32,
+    pub goals_total: u32,
 }
 
 /// Secondi di studio per giorno: `secs[0]` è il giorno `day`, `secs[i]` quello di `i` giorni prima.
@@ -208,6 +232,9 @@ impl Member {
         if status.hist.is_none() {
             status.hist = self.devices.get(dev).and_then(|d| d.status.hist.clone());
         }
+        if status.prof.is_none() {
+            status.prof = self.devices.get(dev).and_then(|d| d.status.prof.clone());
+        }
         self.devices.insert(dev.to_string(), DevStatus { status: status.clone(), last_seen: now });
         self.status = status;
         self.last_seen = now;
@@ -295,6 +322,10 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
     out.day = today.format("%Y-%m-%d").to_string();
     out.at = now;
     out.hist = any_hist.then(|| Hist { day: out.day.clone(), secs: hist, what: what.iter().map(top).collect() });
+    // profilo: quello del dispositivo sentito più di recente che lo ha mandato (i progressi
+    // sono sincronizzati tra i propri dispositivi, quindi i numeri coincidono)
+    out.prof =
+        devs.iter().filter(|(s, _)| s.prof.is_some()).max_by_key(|(s, _)| s.at).and_then(|(s, _)| s.prof.clone());
     out.pits = pits;
     out.pit_since = if state == State::Pause { pit_since } else { 0 };
     if !doing.is_empty() {

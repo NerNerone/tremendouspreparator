@@ -227,6 +227,12 @@ export struct CarVM {
     run: float,
     px: float,
     py: float,
+    // effetti in corso (bit): 1 ritmo (fiamma), 2 gomme nuove (scintille), 4 concentrazione
+    // (alone e scia blu), 8 penalità (fumo), 16 scia di gruppo (vento), 32 bandiera gialla
+    fx: int,
+    // moltiplicatore dei punti (velocità) e intensità del ritmo (0..1)
+    mult: float,
+    level: float,
 }
 
 // un giorno del calendario del gruppo: numero del giorno, giorni fa (-1 = fuori dal periodo),
@@ -259,6 +265,8 @@ export struct RankVM {
     has-photo: bool,
     initial: string,
     admin: bool,
+    // moltiplicatore in corso («×2.5»), vuoto se normale
+    boost: string,
 }
 
 export struct ExamDateVM {
@@ -487,6 +495,11 @@ export global AppState {
     in property <[FocusAppVM]> focus-launcher;
     callback focus-setup(bool);
     callback focus-toggle(string);
+    // ricerca per nome tra le app da permettere
+    callback focus-search(string);
+    // tempo che manca alla fine del blocco a tempo («23:41»; vuoto dopo la scadenza)
+    in property <string> focus-left;
+    in property <float> focus-left-frac;
     callback focus-set-minutes(int);
     callback focus-start();
     callback focus-perm(string);
@@ -527,6 +540,19 @@ export global AppState {
     in-out property <image> photo-view-img;
     in-out property <string> photo-view-title;
     in-out property <bool> photo-view-group;
+    // profilo di un membro (aperto dalla classifica)
+    in property <bool> profile-open;
+    in property <string> profile-id;
+    in property <string> profile-name;
+    in property <image> profile-photo;
+    in property <bool> profile-has-photo;
+    in property <string> profile-initial;
+    in property <color> profile-color;
+    in property <[string]> profile-lines;
+    in property <[HeatVM]> profile-heat;
+    in property <bool> profile-racing;
+    callback open-profile(string);
+    callback show-in-circuit(string);
     callback group-kick(string);
     in property <bool> group-can-rename;
     callback group-rename(string);

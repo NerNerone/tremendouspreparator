@@ -53,7 +53,7 @@ public class FocusService extends Service {
     private static final String SVC_PREFS = "focus_svc";
     private static final String CHANNEL = "concentrazione";
     private static final int NOTIFICATION_ID = 4320;
-    private static final long POLL_MS = 700;
+    private static final long POLL_MS = 300;
     /** Durata dell'avviso sovrapposto. */
     private static final long WARNING_MS = 9000;
 
@@ -106,8 +106,8 @@ public class FocusService extends Service {
     }
 
     /** Dopo un riavvio: la sessione di studio non c'è più, resta solo il blocco a tempo. */
+    /** Dopo un riavvio la concentrazione continua com'era (blocco a tempo e sessione aperta). */
     static void afterBoot(Context c) {
-        prefs(c).edit().putInt("session", 0).putBoolean("armed", false).apply();
         ensure(c);
     }
 
@@ -277,6 +277,13 @@ public class FocusService extends Service {
     private void check() {
         if (!hasUsageAccess(this)) return;
         updateForeground();
+        // l'app è davanti (lo sa lei stessa, senza aspettare gli eventi d'uso, che su alcuni
+        // telefoni arrivano in ritardo): niente avviso, e quello eventualmente aperto si chiude
+        if (appInFront(this)) {
+            foreground = getPackageName();
+            hideOverlay();
+            return;
+        }
         SharedPreferences p = svc();
         KeyguardManager km = getSystemService(KeyguardManager.class);
         AudioManager am = getSystemService(AudioManager.class);
@@ -290,16 +297,34 @@ public class FocusService extends Service {
             getPackageName(), allowed, always);
         if (!block) return;
         long now = System.currentTimeMillis();
-        if (now - lastBounce < 1200) return;
+        if (now - lastBounce < 600) return;
         lastBounce = now;
-        // prima l'avviso, poi (al controllo successivo, con l'avviso già visibile: è quello che
-        // permette di riaprire l'app dal servizio) l'app
+        // subito l'avviso e, appena è sullo schermo (è la finestra visibile che permette di
+        // riaprire l'app dal servizio), di nuovo l'app: nessun tempo per usare quella vietata
         if (overlay == null) {
             showOverlay(allowed);
         } else {
             keepOverlay();
-            backToApp(this);
         }
+        handler.postDelayed(() -> backToApp(this), 120);
+    }
+
+    /**
+     * L'app è davanti: il suo processo principale (questo servizio ne ha uno a parte) è in primo
+     * piano. Lo dice il sistema subito, mentre gli eventi d'uso possono arrivare in ritardo.
+     */
+    static boolean appInFront(Context c) {
+        android.app.ActivityManager am = c.getSystemService(android.app.ActivityManager.class);
+        if (am == null) return false;
+        java.util.List<android.app.ActivityManager.RunningAppProcessInfo> ps = am.getRunningAppProcesses();
+        if (ps == null) return false;
+        for (android.app.ActivityManager.RunningAppProcessInfo p : ps) {
+            if (p.processName.equals(c.getPackageName())
+                && p.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static void backToApp(Context c) {
