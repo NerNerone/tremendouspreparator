@@ -13,13 +13,21 @@
 //! ```
 
 use crate::vfs;
-use chrono::{Datelike, Duration, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate, TimeZone};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Durata di un giro del circuito: 1 minuto di studio.
 pub const LAP_SECS: u64 = 60;
+/// Tratto di studio più lungo che si conta senza che il dispositivo si rifaccia vivo.
+const MAX_RUN: i64 = 6 * 3600;
+/// Giorni della mappa di calore mandati agli altri (12 settimane).
+pub const HIST_DAYS: usize = 84;
+/// Giorni per cui si manda anche su cosa si è studiato (il mese del calendario del gruppo).
+pub const WHAT_DAYS: usize = 42;
+/// Attività ricordate per giorno (le più lunghe).
+const WHAT_TOP: usize = 3;
 /// Indirizzo della web app: gli inviti sono link a questa pagina (si aprono anche nell'app).
 pub const APP_URL: &str = "https://nernerone.github.io/tremendouspreparator/";
 /// Colori delle macchinine (ARGB).
@@ -78,6 +86,97 @@ pub struct Status {
     /// sincronizzazione): chi li riceve sposta lì sotto membro, amministratore e rimossi
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prev: Vec<String>,
+    /// secondi di studio del mese di `day` (dal primo del mese alle 00:00)
+    #[serde(default)]
+    pub month: u64,
+    /// studio degli ultimi giorni, per la mappa di calore (mandato ogni tanto, non sempre)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hist: Option<Hist>,
+}
+
+/// Secondi di studio per giorno: `secs[0]` è il giorno `day`, `secs[i]` quello di `i` giorni prima.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct Hist {
+    pub day: String,
+    pub secs: Vec<u32>,
+    /// su cosa (attività, secondi), per i primi [`WHAT_DAYS`] giorni
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub what: Vec<Vec<(String, u32)>>,
+}
+
+impl Hist {
+    /// I giorni riallineati su `today` (`[0]` = oggi), lunghi [`HIST_DAYS`].
+    pub fn on(&self, today: NaiveDate) -> Vec<u32> {
+        let Ok(d) = NaiveDate::parse_from_str(&self.day, "%Y-%m-%d") else { return vec![0; HIST_DAYS] };
+        let off = (today - d).num_days();
+        (0..HIST_DAYS as i64)
+            .map(|i| if i - off < 0 { 0 } else { self.secs.get((i - off) as usize).copied().unwrap_or(0) })
+            .collect()
+    }
+
+    /// Su cosa si è studiato `i` giorni prima di `today`.
+    pub fn what_on(&self, today: NaiveDate, i: usize) -> Vec<(String, u32)> {
+        let Ok(d) = NaiveDate::parse_from_str(&self.day, "%Y-%m-%d") else { return vec![] };
+        let k = i as i64 - (today - d).num_days();
+        if k < 0 {
+            return vec![];
+        }
+        self.what.get(k as usize).cloned().unwrap_or_default()
+    }
+}
+
+/// Le attività più lunghe, dalla più lunga.
+fn top(map: &BTreeMap<String, u64>) -> Vec<(String, u32)> {
+    let mut v: Vec<(String, u32)> = map.iter().map(|(k, x)| (k.clone(), (*x).min(u32::MAX as u64) as u32)).collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    v.truncate(WHAT_TOP);
+    v
+}
+
+/// L'istante `now` e l'inizio esatto (mezzanotte locale) del giorno, della settimana (lunedì)
+/// e del mese che lo contengono: «oggi», «settimana» e «mese» vanno da lì fino a `now`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Clock {
+    pub now: i64,
+    pub today: NaiveDate,
+    pub day0: i64,
+    pub week0: i64,
+    pub month0: i64,
+}
+
+/// Mezzanotte del giorno `d` nel fuso `tz` (dove l'ora legale salta la mezzanotte, il primo
+/// istante del giorno).
+fn midnight<Tz: TimeZone>(tz: &Tz, d: NaiveDate) -> i64 {
+    (0..3)
+        .find_map(|h| tz.from_local_datetime(&d.and_hms_opt(h, 0, 0)?).earliest().map(|x| x.timestamp()))
+        .unwrap_or_else(|| d.and_hms_opt(0, 0, 0).map(|x| x.and_utc().timestamp()).unwrap_or(0))
+}
+
+impl Clock {
+    pub fn new<Tz: TimeZone>(now: i64, tz: &Tz) -> Clock {
+        let today = tz.timestamp_opt(now, 0).earliest().map(|d| d.date_naive()).unwrap_or_default();
+        Clock {
+            now,
+            today,
+            day0: midnight(tz, today),
+            week0: midnight(tz, monday(today)),
+            month0: midnight(tz, today.with_day(1).unwrap_or(today)),
+        }
+    }
+
+    /// Con il fuso del dispositivo.
+    pub fn local(now: i64) -> Clock {
+        Clock::new(now, &chrono::Local)
+    }
+}
+
+/// Secondi del tratto `start..end` che cadono dopo `from`.
+fn part(start: i64, end: i64, from: i64) -> u64 {
+    (end - start.max(from)).max(0) as u64
+}
+
+fn same_month(a: NaiveDate, b: NaiveDate) -> bool {
+    (a.year(), a.month()) == (b.year(), b.month())
 }
 
 /// Stato di un dispositivo di un membro e quando si è fatto sentire.
@@ -104,7 +203,11 @@ pub const ONLINE_SECS: i64 = 45;
 
 impl Member {
     /// Registra lo stato arrivato da un dispositivo.
-    pub fn update(&mut self, dev: &str, status: Status, now: i64) {
+    pub fn update(&mut self, dev: &str, mut status: Status, now: i64) {
+        // la mappa di calore arriva solo ogni tanto: resta quella di prima
+        if status.hist.is_none() {
+            status.hist = self.devices.get(dev).and_then(|d| d.status.hist.clone());
+        }
         self.devices.insert(dev.to_string(), DevStatus { status: status.clone(), last_seen: now });
         self.status = status;
         self.last_seen = now;
@@ -112,28 +215,29 @@ impl Member {
 
     /// Stati dei dispositivi con «collegato» (i membri salvati da versioni precedenti hanno
     /// solo `status`).
-    pub fn device_list(&self, now: i64) -> Vec<(Status, bool)> {
+    pub fn device_list(&self, c: &Clock) -> Vec<(Status, bool)> {
         if self.devices.is_empty() {
-            return vec![frozen(&self.status, self.last_seen, now)];
+            return vec![frozen(&self.status, self.last_seen, c)];
         }
-        self.devices.values().map(|d| frozen(&d.status, d.last_seen, now)).collect()
+        self.devices.values().map(|d| frozen(&d.status, d.last_seen, c)).collect()
     }
 }
 
 /// Lo stato di un dispositivo e se è collegato. Chi non si fa più sentire smette di contare
 /// all'ultima volta che è stato visto (non continua a «studiare» per ore).
-pub fn frozen(s: &Status, last_seen: i64, now: i64) -> (Status, bool) {
-    if now - last_seen < ONLINE_SECS {
+pub fn frozen(s: &Status, last_seen: i64, c: &Clock) -> (Status, bool) {
+    if c.now - last_seen < ONLINE_SECS {
         return (s.clone(), true);
     }
     let mut f = s.clone();
-    if f.state == State::Studying {
-        let extra = (last_seen - f.at).clamp(0, 6 * 3600) as u64;
-        f.today += extra;
-        f.week += extra;
-        f.total += extra;
-        f.at = last_seen.max(f.at);
-    }
+    let to = last_seen.max(f.at);
+    let (t, w, m, tot) = advance(s, to, c);
+    f.today = t;
+    f.week = w;
+    f.month = m;
+    f.total = tot;
+    f.day = c.today.format("%Y-%m-%d").to_string();
+    f.at = to;
     f.state = State::Idle;
     (f, false)
 }
@@ -142,19 +246,35 @@ pub fn frozen(s: &Status, last_seen: i64, now: i64) -> (Status, bool) {
 /// i tempi si sommano (ogni dispositivo conta solo il proprio studio); in pista se almeno un
 /// dispositivo collegato studia, al pit stop se almeno uno è in pausa. Nome, colore e foto
 /// vengono dal dispositivo sentito più di recente. Restituisce anche «collegato».
-pub fn combine(devs: &[(Status, bool)], now: i64, today: NaiveDate) -> (Status, bool) {
+pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
+    let (now, today) = (c.now, c.today);
     let Some(latest) = devs.iter().max_by_key(|(s, _)| s.at) else { return (Status::default(), false) };
     let mut out = latest.0.clone();
-    let (mut t, mut w, mut tot) = (0, 0, 0);
+    let (mut t, mut w, mut m, mut tot) = (0, 0, 0, 0);
+    let mut hist = vec![0u32; HIST_DAYS];
+    let mut what: Vec<BTreeMap<String, u64>> = vec![BTreeMap::new(); WHAT_DAYS];
+    let mut any_hist = false;
     let mut pits = Vec::new();
     let mut state = State::Idle;
     let mut pit_since = 0;
     let mut doing = String::new();
     for (s, on) in devs {
-        let (a, b, c) = live(s, now, today);
+        let (a, b, mm, d) = live(s, c);
         t += a;
         w += b;
-        tot += c;
+        m += mm;
+        tot += d;
+        if let Some(h) = &s.hist {
+            any_hist = true;
+            for (x, y) in hist.iter_mut().zip(h.on(today)) {
+                *x += y;
+            }
+            for (i, w) in what.iter_mut().enumerate() {
+                for (k, v) in h.what_on(today, i) {
+                    *w.entry(k).or_default() += v as u64;
+                }
+            }
+        }
         if s.day == today.format("%Y-%m-%d").to_string() {
             pits.extend(s.pits.iter().copied());
         }
@@ -170,9 +290,11 @@ pub fn combine(devs: &[(Status, bool)], now: i64, today: NaiveDate) -> (Status, 
     out.state = state;
     out.today = t;
     out.week = w;
+    out.month = m;
     out.total = tot;
     out.day = today.format("%Y-%m-%d").to_string();
     out.at = now;
+    out.hist = any_hist.then(|| Hist { day: out.day.clone(), secs: hist, what: what.iter().map(top).collect() });
     out.pits = pits;
     out.pit_since = if state == State::Pause { pit_since } else { 0 };
     if !doing.is_empty() {
@@ -190,6 +312,24 @@ pub fn user_id(username: &str, password: &str, device: &str) -> String {
     }
     let h = crate::p2p::sha256_hex(format!("tp-uid\n{}\n{}", username.trim().to_lowercase(), password).as_bytes());
     format!("u{}", &h[..15])
+}
+
+/// Tra due identificativi dello stesso utente (due suoi dispositivi) quello da tenere: uno
+/// ricavato da nome utente e password (`u…`) vince su quello di un dispositivo, e a parità il
+/// minore. Tutti i dispositivi arrivano così allo stesso, in qualunque ordine si incontrino.
+pub fn pick_user_id<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.is_empty() {
+        return b;
+    }
+    if b.is_empty() {
+        return a;
+    }
+    let derived = |x: &str| x.starts_with('u') && x.len() == 16;
+    match (derived(a), derived(b)) {
+        (true, false) => a,
+        (false, true) => b,
+        _ => a.min(b),
+    }
 }
 
 /// Hash breve di una foto (nome del file e riferimento nei messaggi).
@@ -481,6 +621,9 @@ pub struct StudyLog {
     /// durata dei pit stop finiti, per giorno (solo gli ultimi giorni)
     #[serde(default)]
     pub pits: BTreeMap<String, Vec<u64>>,
+    /// su cosa si è studiato, per giorno: attività → secondi (solo le ultime settimane)
+    #[serde(default)]
+    pub what: BTreeMap<String, BTreeMap<String, u64>>,
 }
 
 fn monday(d: NaiveDate) -> NaiveDate {
@@ -512,6 +655,45 @@ impl StudyLog {
         *self.days.entry(day.format("%Y-%m-%d").to_string()).or_default() += secs;
     }
 
+    /// Registra il tratto di studio `start..end` (secondi Unix) dividendolo alle mezzanotti del
+    /// fuso `tz`: le 23:00–01:00 sono un'ora per giorno.
+    /// `what` è l'attività (es. «Quiz · Chimica»), per il calendario del gruppo.
+    pub fn add_span<Tz: TimeZone>(&mut self, start: i64, end: i64, what: &str, tz: &Tz) {
+        let mut cur = start;
+        let mut last = None;
+        while cur < end {
+            let day = Clock::new(cur, tz).today;
+            let next = midnight(tz, day + Duration::days(1));
+            let stop = if next > cur { end.min(next) } else { end };
+            self.add(day, (stop - cur) as u64);
+            let label = if what.trim().is_empty() { "Studio" } else { what.trim() };
+            *self.what.entry(day.format("%Y-%m-%d").to_string()).or_default().entry(label.to_string()).or_default() +=
+                (stop - cur) as u64;
+            last = Some(day);
+            cur = stop;
+        }
+        if let Some(day) = last {
+            let old = (day - Duration::days(WHAT_DAYS as i64 + 7)).format("%Y-%m-%d").to_string();
+            self.what.retain(|k, _| *k >= old);
+        }
+    }
+
+    /// Su cosa si è studiato il giorno `day` (le attività più lunghe).
+    pub fn what(&self, day: NaiveDate) -> Vec<(String, u32)> {
+        self.what.get(&day.format("%Y-%m-%d").to_string()).map(top).unwrap_or_default()
+    }
+
+    pub fn month(&self, day: NaiveDate) -> u64 {
+        let first = day.with_day(1).unwrap_or(day).format("%Y-%m-%d").to_string();
+        let last = day.format("%Y-%m-%d").to_string();
+        self.days.range(first..=last).map(|(_, v)| v).sum()
+    }
+
+    /// Gli ultimi [`HIST_DAYS`] giorni fino a `day` (`[0]` = `day`).
+    pub fn hist(&self, day: NaiveDate) -> Vec<u32> {
+        (0..HIST_DAYS as i64).map(|i| self.day(day - Duration::days(i)).min(u32::MAX as u64) as u32).collect()
+    }
+
     pub fn day(&self, day: NaiveDate) -> u64 {
         self.days.get(&day.format("%Y-%m-%d").to_string()).copied().unwrap_or(0)
     }
@@ -526,26 +708,37 @@ impl StudyLog {
     }
 }
 
-/// Lo stato da mandare: i numeri del registro più il tratto in corso (`running` secondi).
+/// Lo stato da mandare: i numeri del registro più il tratto in corso (iniziato a `since`),
+/// diviso esattamente tra oggi, settimana e mese. Con `hist` anche la mappa di calore.
 pub fn my_status(
     name: &str,
     color: u32,
     state: State,
     log: &StudyLog,
-    running: u64,
-    today: NaiveDate,
-    now: i64,
+    since: Option<i64>,
+    c: &Clock,
+    hist: bool,
 ) -> Status {
+    let (now, today) = (c.now, c.today);
+    let start = since.map(|t| t.clamp(now - MAX_RUN, now)).unwrap_or(now);
+    let t = log.day(today) + part(start, now, c.day0);
     Status {
         name: name.to_string(),
         color,
         state,
-        today: log.day(today) + running,
-        week: log.week(today) + running,
-        total: log.total() + running,
+        today: t,
+        week: log.week(today) + part(start, now, c.week0),
+        month: log.month(today) + part(start, now, c.month0),
+        total: log.total() + (now - start) as u64,
         day: today.format("%Y-%m-%d").to_string(),
         at: now,
         pits: log.pits(today),
+        hist: hist.then(|| {
+            let mut h = log.hist(today);
+            h[0] = t.min(u32::MAX as u64) as u32;
+            let what = (0..WHAT_DAYS as i64).map(|i| log.what(today - Duration::days(i))).collect();
+            Hist { day: today.format("%Y-%m-%d").to_string(), secs: h, what }
+        }),
         ..Default::default()
     }
 }
@@ -555,52 +748,64 @@ pub fn my_status(
 pub enum Period {
     Today,
     Week,
+    Month,
     Total,
 }
 
-/// Numeri di uno stato aggiornati a `now` (chi sta studiando continua a contare; un giorno o
-/// una settimana passati non contano più per «oggi» e «settimana»).
-pub fn live(s: &Status, now: i64, today: NaiveDate) -> (u64, u64, u64) {
-    let extra = if s.state == State::Studying { (now - s.at).clamp(0, 6 * 3600) as u64 } else { 0 };
+/// Numeri di uno stato portati all'istante `to` (oggi, settimana, mese, totale secondo `c`):
+/// chi sta studiando continua a contare, e il tratto in corso si divide esattamente alla
+/// mezzanotte, al lunedì alle 00:00 e al primo del mese alle 00:00. I numeri di un giorno, una
+/// settimana o un mese ormai passati non contano più.
+fn advance(s: &Status, to: i64, c: &Clock) -> (u64, u64, u64, u64) {
+    let extra = if s.state == State::Studying { (to - s.at).clamp(0, MAX_RUN) } else { 0 };
+    let start = to - extra;
     let day = NaiveDate::parse_from_str(&s.day, "%Y-%m-%d").ok();
-    let t = if day == Some(today) {
-        s.today + extra
-    } else if s.state == State::Studying {
-        extra
-    } else {
-        0
-    };
-    let w = if day.map(monday) == Some(monday(today)) { s.week + extra } else { t };
-    (t, w, s.total + extra)
+    let bt = if day == Some(c.today) { s.today } else { 0 };
+    let bw = if day.map(monday) == Some(monday(c.today)) { s.week } else { 0 };
+    let bm = if day.is_some_and(|d| same_month(d, c.today)) { s.month } else { 0 };
+    (
+        bt + part(start, to, c.day0),
+        bw + part(start, to, c.week0),
+        bm + part(start, to, c.month0),
+        s.total + extra as u64,
+    )
 }
 
-pub fn value(s: &Status, now: i64, today: NaiveDate, p: Period) -> u64 {
-    let (t, w, tot) = live(s, now, today);
+/// Numeri di uno stato adesso: (oggi, settimana, mese, totale) in secondi.
+pub fn live(s: &Status, c: &Clock) -> (u64, u64, u64, u64) {
+    advance(s, c.now, c)
+}
+
+pub fn value(s: &Status, c: &Clock, p: Period) -> u64 {
+    let (t, w, m, tot) = live(s, c);
     match p {
         Period::Today => t,
         Period::Week => w,
+        Period::Month => m,
         Period::Total => tot,
     }
 }
 
-/// Ordine della classifica: (id, stato) dal primo all'ultimo.
+/// Ordine della classifica: (id, stato) dal primo all'ultimo (al secondo).
 pub fn standings<'a>(
     members: impl Iterator<Item = (&'a str, &'a Status)>,
-    now: i64,
-    today: NaiveDate,
+    c: &Clock,
     p: Period,
 ) -> Vec<(&'a str, &'a Status)> {
     let mut v: Vec<(&str, &Status)> = members.collect();
-    v.sort_by(|a, b| value(b.1, now, today, p).cmp(&value(a.1, now, today, p)).then(a.1.name.cmp(&b.1.name)));
+    v.sort_by(|a, b| value(b.1, c, p).cmp(&value(a.1, c, p)).then(a.1.name.cmp(&b.1.name)));
     v
 }
 
+/// Durata con ore, minuti e secondi («1 h 02 min 05 s», «4 min 09 s», «12 s»).
 pub fn fmt_secs(s: u64) -> String {
-    let (h, m) = (s / 3600, (s % 3600) / 60);
+    let (h, m, x) = (s / 3600, (s % 3600) / 60, s % 60);
     if h > 0 {
-        format!("{h} h {m:02} min")
+        format!("{h} h {m:02} min {x:02} s")
+    } else if m > 0 {
+        format!("{m} min {x:02} s")
     } else {
-        format!("{m} min")
+        format!("{x} s")
     }
 }
 
@@ -1020,29 +1225,97 @@ mod tests {
         assert_eq!(room(&code).tag, room(&code.to_lowercase()).tag);
     }
 
+    /// Orologio di prova nel fuso di Roma d'inverno (UTC+1).
+    fn clock(y: i32, mo: u32, d: u32, h: u32, mi: u32, sec: u32) -> Clock {
+        let tz = chrono::FixedOffset::east_opt(3600).unwrap();
+        let now = tz.with_ymd_and_hms(y, mo, d, h, mi, sec).unwrap().timestamp();
+        Clock::new(now, &tz)
+    }
+
     #[test]
     fn study_time_and_ranking() {
-        let today = NaiveDate::from_ymd_opt(2026, 11, 12).unwrap(); // giovedì
+        let c = clock(2026, 11, 12, 10, 0, 0); // giovedì
+        let today = c.today;
         let mut log = StudyLog::default();
         log.add(today, 1800);
         log.add(today - Duration::days(1), 600);
         log.add(today - Duration::days(10), 100);
         assert_eq!(log.day(today), 1800);
         assert_eq!(log.week(today), 2400);
+        assert_eq!(log.month(today), 2500);
         assert_eq!(log.total(), 2500);
-        let now = 1_000_000;
-        let me = my_status("Io", 1, State::Studying, &log, 60, today, now);
-        assert_eq!(me.today, 1860);
-        // chi studia continua a contare
-        assert_eq!(live(&me, now + 100, today).0, 1960);
-        // uno stato di ieri non conta per oggi
-        let old = Status { day: "2026-11-11".into(), today: 999, week: 999, total: 999, at: now, ..Default::default() };
-        assert_eq!(live(&old, now, today), (0, 999, 999));
+        let me = my_status("Io", 1, State::Studying, &log, Some(c.now - 60), &c, true);
+        assert_eq!((me.today, me.week, me.month), (1860, 2460, 2560));
+        assert_eq!(me.hist.as_ref().unwrap().secs[..2], [1860, 600]);
+        // chi studia continua a contare, al secondo
+        let later = Clock { now: c.now + 101, ..c };
+        assert_eq!(live(&me, &later).0, 1961);
+        // uno stato di ieri non conta per oggi (ma per la settimana e il mese sì)
+        let old = Status {
+            day: "2026-11-11".into(),
+            today: 999,
+            week: 999,
+            month: 999,
+            total: 999,
+            at: c.now,
+            ..Default::default()
+        };
+        assert_eq!(live(&old, &c), (0, 999, 999, 999));
         let a = Status { name: "A".into(), today: 10, day: "2026-11-12".into(), ..Default::default() };
-        let b = Status { name: "B".into(), today: 20, day: "2026-11-12".into(), ..Default::default() };
-        let order = standings([("a", &a), ("b", &b)].into_iter(), now, today, Period::Today);
+        let b = Status { name: "B".into(), today: 11, day: "2026-11-12".into(), ..Default::default() };
+        let order = standings([("a", &a), ("b", &b)].into_iter(), &c, Period::Today);
         assert_eq!(order[0].0, "b");
-        assert_eq!(fmt_secs(3725), "1 h 02 min");
+        assert_eq!(fmt_secs(3725), "1 h 02 min 05 s");
+        assert_eq!(fmt_secs(249), "4 min 09 s");
+        assert_eq!(fmt_secs(12), "12 s");
+    }
+
+    #[test]
+    fn periods_start_exactly_at_midnight() {
+        // domenica 31/1 ore 23:00 → lunedì 1/2 ore 01:00: giorno, settimana e mese nuovi
+        let tz = chrono::FixedOffset::east_opt(3600).unwrap();
+        let start = clock(2027, 1, 31, 23, 0, 0);
+        let c = clock(2027, 2, 1, 1, 0, 0);
+        let s = Status {
+            state: State::Studying,
+            day: "2027-01-31".into(),
+            today: 500,
+            week: 5000,
+            month: 50_000,
+            total: 90_000,
+            at: start.now,
+            ..Default::default()
+        };
+        // solo l'ora dopo mezzanotte conta per oggi, la settimana e il mese nuovi
+        assert_eq!(live(&s, &c), (3600, 3600, 3600, 90_000 + 7200));
+        // a mezzanotte e un secondo, solo quel secondo
+        let c1 = clock(2027, 2, 1, 0, 0, 1);
+        assert_eq!(live(&s, &c1).0, 1);
+        // il registro divide il tratto alla mezzanotte
+        let mut log = StudyLog::default();
+        log.add_span(start.now, c.now, "Quiz · Chimica", &tz);
+        assert_eq!(log.what(c.today), vec![("Quiz · Chimica".to_string(), 3600)]);
+        assert_eq!(log.day(start.today), 3600);
+        assert_eq!(log.day(c.today), 3600);
+        assert_eq!(log.month(c.today), 3600);
+        assert_eq!(log.week(c.today), 3600);
+        // chi manda lo stato fa lo stesso conto
+        let me = my_status("Io", 1, State::Studying, &StudyLog::default(), Some(start.now), &c, false);
+        assert_eq!((me.today, me.week, me.month, me.total), (3600, 3600, 3600, 7200));
+        // un dispositivo sparito ieri sera non porta niente a oggi
+        let (f, on) = frozen(&s, start.now + 1800, &c);
+        assert!(!on);
+        assert_eq!(live(&f, &c), (0, 0, 0, 90_000 + 1800));
+        // mappa di calore riallineata su oggi
+        let h = Hist { day: "2027-01-31".into(), secs: vec![7, 8], what: vec![vec![("Flashcard".into(), 7)]] };
+        assert_eq!(h.on(c.today)[..3], [0, 7, 8]);
+        assert_eq!(h.what_on(c.today, 1), vec![("Flashcard".to_string(), 7)]);
+        assert!(h.what_on(c.today, 0).is_empty());
+        // identificativi dello stesso utente: tutti scelgono lo stesso
+        assert_eq!(pick_user_id("u123456789abcdef", "0011223344556677"), "u123456789abcdef");
+        assert_eq!(pick_user_id("0011223344556677", "u123456789abcdef"), "u123456789abcdef");
+        assert_eq!(pick_user_id("u2", "u1"), pick_user_id("u1", "u2"));
+        assert_eq!(pick_user_id("", "abc"), "abc");
     }
 
     #[test]
@@ -1104,12 +1377,13 @@ mod tests {
             now,
         );
         assert_eq!(g.members.len(), 1);
-        let (c, on) = combine(&g.members[&uid].device_list(now + 10), now + 10, today);
+        let ck = |n: i64| Clock { now: n, today, day0: 0, week0: 0, month0: 0 };
+        let (c, on) = combine(&g.members[&uid].device_list(&ck(now + 10)), &ck(now + 10));
         assert!(on);
         assert_eq!(c.state, State::Studying);
         assert_eq!(c.today, 600 + 300 + 10);
         // un dispositivo che tace da troppo non è più in pista, ma il suo tempo resta
-        let (c, on) = combine(&g.members[&uid].device_list(now + 100), now + 100, today);
+        let (c, on) = combine(&g.members[&uid].device_list(&ck(now + 100)), &ck(now + 100));
         assert!(!on && c.state == State::Idle && c.today >= 900);
         // solo l'amministratore toglie membri, e solo con impostazioni più recenti
         assert_eq!(g.apply_info("me", "altro", "N", "", std::slice::from_ref(&uid), now), InfoResult::Ignored);
@@ -1165,7 +1439,8 @@ mod tests {
             Status { state: State::Studying, today: 60, day: "2026-11-12".into(), at: now, ..Default::default() },
             now + 30,
         );
-        let (c, on) = combine(&m.device_list(now + 4000), now + 4000, today);
+        let ck = Clock { now: now + 4000, today, day0: 0, week0: 0, month0: 0 };
+        let (c, on) = combine(&m.device_list(&ck), &ck);
         assert!(!on);
         assert_eq!(c.today, 90);
         assert_eq!(c.state, State::Idle);

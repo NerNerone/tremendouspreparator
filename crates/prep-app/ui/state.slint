@@ -229,6 +229,22 @@ export struct CarVM {
     py: float,
 }
 
+// un giorno del calendario del gruppo: numero del giorno, giorni fa (-1 = fuori dal periodo),
+// intensità 0..4 (-1 = fuori), toccato, oggi
+export struct GHeatVM {
+    day: string,
+    idx: int,
+    level: int,
+    sel: bool,
+    today: bool,
+}
+
+// un giorno della mappa di calore: intensità 0..4 (-1 = giorno che deve ancora venire)
+export struct HeatVM {
+    level: int,
+    label: string,
+}
+
 export struct RankVM {
     pos: int,
     // id utente del membro
@@ -442,6 +458,7 @@ export global AppState {
     in property <float> track-scale: 1;
     in property <float> pad-x: 0.5;
     in property <float> pad-y: 0.65;
+    in property <float> pad-w: 0.2;
     in-out property <string> car-sel;
     in property <string> car-info-title;
     in property <string> car-info-body;
@@ -491,6 +508,25 @@ export global AppState {
     in property <bool> group-has-photo;
     in property <string> group-initial;
     in-out property <string> member-sel;
+    // mappa di calore (ultime 12 settimane): la propria e quella del membro toccato
+    in property <[HeatVM]> my-heat;
+    in property <[HeatVM]> member-heat;
+    in property <string> my-heat-total;
+    // calendario del gruppo
+    in property <[GHeatVM]> gcal-cells;
+    in property <string> gcal-title;
+    in property <bool> gcal-month;
+    in property <[string]> gcal-lines;
+    in property <bool> gcal-can-prev;
+    in property <bool> gcal-can-next;
+    callback gcal-mode(bool);
+    callback gcal-shift(int);
+    callback gcal-select(int);
+    // foto ingrandita (gruppo o membro)
+    in-out property <bool> photo-view;
+    in-out property <image> photo-view-img;
+    in-out property <string> photo-view-title;
+    in-out property <bool> photo-view-group;
     callback group-kick(string);
     in property <bool> group-can-rename;
     callback group-rename(string);

@@ -351,6 +351,13 @@ pub struct Ctrl {
     group_period: prep_core::group::Period,
     group_timer: Timer,
     group_last_send: i64,
+    /// ultima volta che si è mandata la mappa di calore al gruppo
+    hist_sent: i64,
+    /// calendario del gruppo: per mese (o settimana), quanti mesi/settimane indietro, giorno
+    /// toccato (giorni fa)
+    gcal_month: bool,
+    gcal_off: i32,
+    gcal_sel: Option<i64>,
     group_leave_armed: Option<(String, Instant)>,
     /// giri completati finora oggi (per festeggiare il giro nuovo)
     my_laps: u64,
@@ -548,7 +555,7 @@ impl p2p::Host for Ctrl {
         let s = self.store.settings();
         // una foto messa prima che si sincronizzasse vale come la più vecchia possibile
         let at = if s.photo_at == 0 && !s.photo.is_empty() { 1 } else { s.photo_at };
-        Some(p2p::Profile { photo: s.photo, at })
+        Some(p2p::Profile { photo: s.photo, at, uid: s.user_id })
     }
 }
 
@@ -930,6 +937,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         group_period: prep_core::group::Period::Today,
         group_timer: Timer::default(),
         group_last_send: 0,
+        hist_sent: 0,
+        gcal_month: false,
+        gcal_off: 0,
+        gcal_sel: None,
         group_leave_armed: None,
         my_laps: 0,
         bt: BtState::default(),
@@ -1212,6 +1223,25 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_open_guide(|| with_ctrl(|c| c.open_guide()));
     st.on_crop_done(|x, y, s| with_ctrl(|c| c.crop_done(x, y, s)));
     st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));
+    st.on_gcal_mode(|month| {
+        with_ctrl(|c| {
+            c.gcal_month = month;
+            c.gcal_off = 0;
+            c.refresh_group();
+        })
+    });
+    st.on_gcal_shift(|d| {
+        with_ctrl(|c| {
+            c.gcal_off = (c.gcal_off - d).max(0);
+            c.refresh_group();
+        })
+    });
+    st.on_gcal_select(|i| {
+        with_ctrl(|c| {
+            c.gcal_sel = if i < 0 || c.gcal_sel == Some(i as i64) { None } else { Some(i as i64) };
+            c.refresh_group();
+        })
+    });
     st.set_guide_llm(ss(books::guide_for_llm()));
     st.on_rd_copied(|| with_ctrl(|c| c.toast("Copiato: incollalo dove ti serve")));
     st.on_rd_share(|t| {
@@ -1278,7 +1308,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         with_ctrl(|c| {
             c.group_period = match p {
                 1 => prep_core::group::Period::Week,
-                2 => prep_core::group::Period::Total,
+                2 => prep_core::group::Period::Month,
+                3 => prep_core::group::Period::Total,
                 _ => prep_core::group::Period::Today,
             };
             c.refresh_group();

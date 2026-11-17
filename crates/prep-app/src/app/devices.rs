@@ -422,7 +422,9 @@ impl Ctrl {
                 p2p::Event::GroupPhoto { from, hash, bytes } => self.group_photo_in(from, hash, bytes),
                 p2p::Event::Joined(peer) => {
                     if k == Sess::Group {
-                        // chi arriva riceve subito il nostro stato e le impostazioni del gruppo
+                        // chi arriva riceve subito il nostro stato (con la mappa di calore) e le
+                        // impostazioni del gruppo
+                        self.hist_sent = 0;
                         self.group_send();
                         self.group_send_info_as(true);
                         // nel gruppo, collegamenti diretti con al massimo GROUP_DIRECT membri

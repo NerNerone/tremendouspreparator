@@ -91,23 +91,18 @@ impl Ctrl {
         self.ui().global::<AppState>().set_car_swatches(model(v));
     }
 
-    /// Secondi del tratto di studio in corso (non ancora nel registro).
-    pub(super) fn study_running(&self, now: i64) -> u64 {
-        self.study_since.map(|t| (now - t).clamp(0, 6 * 3600) as u64).unwrap_or(0)
-    }
-
-    pub(super) fn my_group_status(&mut self, now: i64) -> prep_core::group::Status {
+    /// Stato da mandare al gruppo; con `hist` anche la mappa di calore (si manda ogni tanto).
+    pub(super) fn my_group_status(&mut self, now: i64, hist: bool) -> prep_core::group::Status {
         let color = self.my_color();
         let name = self.display_name();
-        let today = Local::now().date_naive();
         let mut s = prep_core::group::my_status(
             &name,
             color,
             self.study_state,
             &self.study_log,
-            self.study_running(now),
-            today,
-            now,
+            self.study_since,
+            &prep_core::group::Clock::local(now),
+            hist,
         );
         s.pit_since = self.pit_since.unwrap_or(0);
         s.doing = self.doing();
@@ -181,9 +176,11 @@ impl Ctrl {
     /// Porta nel registro il tratto di studio in corso (alla pausa, alla fine, ogni tanto).
     pub(super) fn study_flush(&mut self, now: i64) {
         if let Some(t) = self.study_since {
-            let secs = (now - t).clamp(0, 6 * 3600) as u64;
-            if secs > 0 {
-                self.study_log.add(Local::now().date_naive(), secs);
+            // diviso alle mezzanotti: un tratto dalle 23 all'una conta un'ora per giorno
+            let start = t.clamp(now - 6 * 3600, now);
+            if now > start {
+                let what = self.doing();
+                self.study_log.add_span(start, now, &what, &Local);
                 let _ = self.study_log.save(&self.store.base);
             }
             self.study_since = if self.study_state == prep_core::group::State::Studying { Some(now) } else { None };
@@ -196,7 +193,12 @@ impl Ctrl {
         }
         let now = Self::now_secs();
         self.group_last_send = now;
-        let status = self.my_group_status(now);
+        // la mappa di calore viaggia al più una volta al minuto
+        let hist = now - self.hist_sent >= 60;
+        if hist {
+            self.hist_sent = now;
+        }
+        let status = self.my_group_status(now, hist);
         self.with_engine(Sess::Group, move |e, _| vec![e.group_status(status)]);
     }
 
@@ -471,6 +473,7 @@ impl Ctrl {
     /// Profilo di un altro proprio dispositivo: se la sua foto è più recente diventa anche
     /// la nostra (o si toglie, se lì è stata tolta); se manca il file lo si chiede a lui.
     pub(super) fn profile_in(&mut self, from: String, p: p2p::Profile) {
+        self.unify_user_id(&p.uid);
         let mut s = self.store.settings();
         let mine = if s.photo_at == 0 && !s.photo.is_empty() { 1 } else { s.photo_at };
         if p.at < mine || (p.at == mine && p.photo <= s.photo) {
@@ -488,6 +491,34 @@ impl Ctrl {
         }
         self.group_send();
         self.refresh_profile_photo();
+        self.refresh_group();
+    }
+
+    /// Un altro proprio dispositivo usa un altro identificativo utente (per esempio è entrato in
+    /// un gruppo prima di collegarsi): tutti passano allo stesso (vedi `pick_user_id`), e il
+    /// vecchio va in `prev_ids` così gli altri membri del gruppo uniscono le due voci.
+    pub(super) fn unify_user_id(&mut self, other: &str) {
+        let mut s = self.store.settings();
+        if s.user_id.is_empty() {
+            let _ = self.user_id();
+            s = self.store.settings();
+        }
+        let mine = s.user_id.clone();
+        let pick = prep_core::group::pick_user_id(&mine, other).to_string();
+        if pick == mine || pick.is_empty() {
+            return;
+        }
+        if !mine.is_empty() && !s.prev_ids.contains(&mine) {
+            s.prev_ids.push(mine.clone());
+        }
+        s.user_id = pick.clone();
+        let _ = self.store.save_settings(&s);
+        if !mine.is_empty() {
+            self.groups.rename_user(&mine, &pick);
+            let _ = self.groups.save(&self.store.base);
+        }
+        self.uid_cache = None;
+        self.group_send();
         self.refresh_group();
     }
 
@@ -781,21 +812,22 @@ impl Ctrl {
     pub(super) fn refresh_group(&mut self) {
         use prep_core::group::{fmt_secs, live, standings, value, Period, State, LAP_SECS};
         let now = Self::now_secs();
-        let today = Local::now().date_naive();
+        let ck = prep_core::group::Clock::local(now);
+        let today = ck.today;
         let me_dev = self.device_id();
         let me_id = self.user_id();
         // io: questo dispositivo più gli altri miei (stesso id utente) visti nel gruppo
         let mine = {
-            let here = self.my_group_status(now);
+            let here = self.my_group_status(now, true);
             let mut devs = vec![(here.clone(), true)];
             if let Some(m) = self.groups.active().and_then(|g| g.members.get(&me_id)) {
                 for (d, ds) in &m.devices {
                     if *d != me_dev {
-                        devs.push(prep_core::group::frozen(&ds.status, ds.last_seen, now));
+                        devs.push(prep_core::group::frozen(&ds.status, ds.last_seen, &ck));
                     }
                 }
             }
-            let (mut c, _) = prep_core::group::combine(&devs, now, today);
+            let (mut c, _) = prep_core::group::combine(&devs, &ck);
             // nome, colore e attività sono quelli di questo dispositivo
             c.name = here.name;
             c.color = here.color;
@@ -809,7 +841,7 @@ impl Ctrl {
         };
         let ui = self.ui();
         let st = ui.global::<AppState>();
-        let (t, _, _) = live(&mine, now, today);
+        let (t, _, _, _) = live(&mine, &ck);
         let laps = t / LAP_SECS;
         if laps > self.my_laps && self.study_state == State::Studying && self.my_laps > 0 {
             if laps.is_multiple_of(10) {
@@ -851,7 +883,7 @@ impl Ctrl {
         let mut all: Vec<(String, prep_core::group::Status, bool, i64)> = Vec::new();
         for (id, m) in &g.members {
             if *id != me_id && *id != me_dev && !g.removed.contains(id) {
-                let (c, on) = prep_core::group::combine(&m.device_list(now), now, today);
+                let (c, on) = prep_core::group::combine(&m.device_list(&ck), &ck);
                 all.push((id.clone(), c, on, m.last_seen));
             }
         }
@@ -870,8 +902,10 @@ impl Ctrl {
             st.set_pad_y(circuit.paddock.1 as f32);
         }
         st.set_track_scale(prep_core::group::circuit_scale(all.len()) as f32);
-        let parked_n = all.iter().filter(|(_, s, on, _)| !*on || s.state == State::Idle).count();
-        let mut parked_i = 0usize;
+        // paddock: un box per membro, quindi cresce con il gruppo (piccolo all'inizio)
+        const SLOT: f64 = 0.075;
+        let pad_w = (SLOT * all.len().max(2) as f64 + 0.05).min(0.95);
+        st.set_pad_w(pad_w as f32);
         let mut lane_i = 0usize;
         let mut cars: Vec<CarVM> = Vec::new();
         let frac = (Utc::now().timestamp_subsec_millis() as f64 / 1000.0).clamp(0.0, 0.999);
@@ -883,15 +917,15 @@ impl Ctrl {
             .map(|(id, s, _, _)| (id.clone(), s.pit_since))
             .collect();
         self.crews.retain(|k, _| pitting.contains(k));
-        for (id, s, on, _) in &all {
+        for (slot, (id, s, on, _)) in all.iter().enumerate() {
             let me = *id == me_id;
             let racing = *on && s.state == State::Studying;
             let pit = *on && s.state == State::Pause;
             let parked = !racing && !pit;
             let (px, py) = if parked {
+                // ognuno nel proprio box (stesso posto ogni volta)
                 let (cx, cy) = circuit.paddock;
-                let x = cx - 0.15 + 0.3 * (parked_i as f64 + 0.5) / parked_n.max(1) as f64;
-                parked_i += 1;
+                let x = cx + SLOT * (slot as f64 - (all.len() as f64 - 1.0) / 2.0);
                 (x as f32, (cy + 0.02) as f32)
             } else {
                 (0.0, 0.0)
@@ -935,7 +969,7 @@ impl Ctrl {
                 empty_crew.clone()
             };
             // posizione con le frazioni di secondo: in pista avanza in modo continuo
-            let secs = live(s, now, today).0 as f64 + if racing { frac } else { 0.0 };
+            let secs = live(s, &ck).0 as f64 + if racing { frac } else { 0.0 };
             cars.push(CarVM {
                 id: ss(id),
                 crew,
@@ -958,7 +992,7 @@ impl Ctrl {
         }
         // telecamera sulla propria macchina mentre si studia; altrimenti tutto il circuito
         st.set_race_overview(self.study_state != State::Studying);
-        let my_secs = live(&mine, now, today).0 as f64 + if self.study_state == State::Studying { frac } else { 0.0 };
+        let my_secs = live(&mine, &ck).0 as f64 + if self.study_state == State::Studying { frac } else { 0.0 };
         st.set_cam_f((my_secs / LAP_SECS as f64) as f32);
         st.set_lap_speed(1.0 / LAP_SECS as f32);
         // piazzole dei pit stop: fuori dalla strada e senza sovrapporsi, anche quando più
@@ -986,7 +1020,7 @@ impl Ctrl {
         // scheda della macchina toccata
         match all.iter().find(|(id, _, _, _)| *id == self.car_sel) {
             Some((id, s, on, seen)) => {
-                let (t_day, t_week, _) = live(s, now, today);
+                let (t_day, t_week, t_month, _) = live(s, &ck);
                 let short = |x: u64| if x < 60 { format!("{x} s") } else { fmt_secs(x) };
                 let mut lines = Vec::new();
                 lines.push(match (*on, s.state) {
@@ -1003,7 +1037,12 @@ impl Ctrl {
                     (true, State::Pause) => "Pit stop".to_string(),
                     (true, State::Idle) => "Sessione terminata: al paddock fino alla prossima".to_string(),
                 });
-                lines.push(format!("Studio: oggi {} · settimana {}", fmt_secs(t_day), fmt_secs(t_week)));
+                lines.push(format!(
+                    "Studio: oggi {} · settimana {} · mese {}",
+                    fmt_secs(t_day),
+                    fmt_secs(t_week),
+                    fmt_secs(t_month)
+                ));
                 let same_day = s.day == today.format("%Y-%m-%d").to_string();
                 let pits: Vec<u64> = if same_day { s.pits.clone() } else { Vec::new() };
                 if pits.is_empty() {
@@ -1041,9 +1080,23 @@ impl Ctrl {
                 st.set_car_sel(ss(""));
             }
         }
+        // mappe di calore: la propria e quella del membro toccato in classifica
+        let my_hist = mine.hist.as_ref().map(|h| h.on(today)).unwrap_or_else(|| self.study_log.hist(today));
+        let active: Vec<u32> = my_hist.iter().copied().filter(|x| *x > 0).collect();
+        st.set_my_heat(model(heat_cells(&my_hist, today)));
+        st.set_my_heat_total(ss(format!(
+            "Ultime 12 settimane: {} in {} giorni · record {}",
+            fmt_secs(my_hist.iter().map(|x| *x as u64).sum()),
+            active.len(),
+            fmt_secs(active.iter().copied().max().unwrap_or(0) as u64)
+        )));
+        let sel = st.get_member_sel().to_string();
+        let member_hist = all.iter().find(|(id, _, _, _)| *id == sel).and_then(|(_, s, _, _)| s.hist.as_ref());
+        st.set_member_heat(model(member_hist.map(|h| heat_cells(&h.on(today), today)).unwrap_or_default()));
+        self.refresh_group_calendar(&all, today);
         let p = self.group_period;
         let refs: Vec<(&str, &prep_core::group::Status)> = all.iter().map(|(i, s, _, _)| (i.as_str(), s)).collect();
-        let order = standings(refs.into_iter(), now, today, p);
+        let order = standings(refs.into_iter(), &ck, p);
         let order: Vec<(String, prep_core::group::Status)> =
             order.into_iter().map(|(i, s)| (i.to_string(), s.clone())).collect();
         let photos: Vec<Option<slint::Image>> = order
@@ -1058,7 +1111,7 @@ impl Ctrl {
             .zip(photos)
             .enumerate()
             .map(|(i, ((id, s), photo))| {
-                let v = value(s, now, today, p);
+                let v = value(s, &ck, p);
                 let on = all.iter().find(|(x, _, _, _)| x == id).is_some_and(|(_, _, o, _)| *o);
                 RankVM {
                     pos: i as i32 + 1,
@@ -1070,7 +1123,7 @@ impl Ctrl {
                     name: ss(if *id == me_id { format!("{} (tu)", s.name) } else { s.name.clone() }),
                     color: slint::Color::from_argb_encoded(s.color),
                     value: ss(fmt_secs(v)),
-                    laps: (live(s, now, today).0 / LAP_SECS) as i32,
+                    laps: (live(s, &ck).0 / LAP_SECS) as i32,
                     status: ss(match (on, s.state) {
                         (false, _) => "non collegato",
                         (true, State::Studying) => "in pista",
@@ -1242,5 +1295,183 @@ impl Ctrl {
                 }
             });
         }
+    }
+}
+
+/// Celle della mappa di calore: 12 settimane fino a quella di `today` (dal lunedì), per
+/// colonne; `hist[i]` = secondi di studio di `i` giorni fa. Intensità per durata assoluta.
+fn heat_cells(hist: &[u32], today: chrono::NaiveDate) -> Vec<crate::HeatVM> {
+    use chrono::Datelike;
+    const DAYS: [&str; 7] = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
+    let monday = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
+    let first = monday - chrono::Duration::weeks(11);
+    (0..84)
+        .map(|k| {
+            let date = first + chrono::Duration::days(k);
+            let i = (today - date).num_days();
+            if i < 0 {
+                return crate::HeatVM { level: -1, label: ss("") };
+            }
+            let secs = hist.get(i as usize).copied().unwrap_or(0) as u64;
+            let level = match secs {
+                0 => 0,
+                1..1800 => 1,
+                1800..5400 => 2,
+                5400..10800 => 3,
+                _ => 4,
+            };
+            let what = if secs == 0 { "niente studio".to_string() } else { prep_core::group::fmt_secs(secs) };
+            crate::HeatVM {
+                level,
+                label: ss(format!(
+                    "{} {}: {what}",
+                    DAYS[date.weekday().num_days_from_monday() as usize],
+                    date.format("%d/%m")
+                )),
+            }
+        })
+        .collect()
+}
+
+impl Ctrl {
+    /// Calendario del gruppo (settimana o mese): studio di tutti per giorno; il giorno toccato
+    /// mostra chi ha studiato, quanto e su cosa.
+    fn refresh_group_calendar(
+        &mut self,
+        all: &[(String, prep_core::group::Status, bool, i64)],
+        today: chrono::NaiveDate,
+    ) {
+        use chrono::{Datelike, Duration};
+        use prep_core::group::{fmt_secs, HIST_DAYS};
+        const MONTHS: [&str; 12] = [
+            "gennaio",
+            "febbraio",
+            "marzo",
+            "aprile",
+            "maggio",
+            "giugno",
+            "luglio",
+            "agosto",
+            "settembre",
+            "ottobre",
+            "novembre",
+            "dicembre",
+        ];
+        const DAYS: [&str; 7] = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"];
+        // per membro: nome e studio per giorno (indice = giorni fa)
+        let rows: Vec<(String, Vec<u32>, Option<&prep_core::group::Hist>)> = all
+            .iter()
+            .map(|(_, s, _, _)| {
+                let h = s.hist.as_ref();
+                (s.name.clone(), h.map(|h| h.on(today)).unwrap_or_else(|| vec![0; HIST_DAYS]), h)
+            })
+            .collect();
+        let day_total = |i: i64| -> u64 {
+            if !(0..HIST_DAYS as i64).contains(&i) {
+                return 0;
+            }
+            rows.iter().map(|(_, v, _)| v[i as usize] as u64).sum()
+        };
+        let monday = |d: chrono::NaiveDate| d - Duration::days(d.weekday().num_days_from_monday() as i64);
+        // intervallo mostrato: settimana o mese (con le settimane complete attorno)
+        let (first, last, title, from, to) = if self.gcal_month {
+            let mut y = today.year();
+            let mut m = today.month() as i32 - self.gcal_off;
+            while m < 1 {
+                m += 12;
+                y -= 1;
+            }
+            let start = chrono::NaiveDate::from_ymd_opt(y, m as u32, 1).unwrap_or(today);
+            let next = if m == 12 {
+                chrono::NaiveDate::from_ymd_opt(y + 1, 1, 1)
+            } else {
+                chrono::NaiveDate::from_ymd_opt(y, m as u32 + 1, 1)
+            }
+            .unwrap_or(today);
+            let end = next - Duration::days(1);
+            let grid_end = monday(end) + Duration::days(6);
+            (monday(start), grid_end, format!("{} {y}", MONTHS[m as usize - 1]), start, end)
+        } else {
+            let start = monday(today) - Duration::weeks(self.gcal_off as i64);
+            let end = start + Duration::days(6);
+            let title = if start.month() == end.month() {
+                format!("{} – {} {}", start.day(), end.day(), MONTHS[end.month0() as usize])
+            } else {
+                format!(
+                    "{} {} – {} {}",
+                    start.day(),
+                    MONTHS[start.month0() as usize],
+                    end.day(),
+                    MONTHS[end.month0() as usize]
+                )
+            };
+            (start, end, title, start, end)
+        };
+        let days: Vec<chrono::NaiveDate> = (0..=(last - first).num_days()).map(|k| first + Duration::days(k)).collect();
+        let max = days.iter().map(|d| day_total((today - *d).num_days())).max().unwrap_or(0).max(1);
+        let cells: Vec<crate::GHeatVM> = days
+            .iter()
+            .map(|d| {
+                let i = (today - *d).num_days();
+                let inside = *d >= from && *d <= to;
+                let known = (0..HIST_DAYS as i64).contains(&i);
+                let secs = day_total(i);
+                crate::GHeatVM {
+                    day: ss(d.day().to_string()),
+                    idx: if inside && known { i as i32 } else { -1 },
+                    level: if !inside || !known {
+                        -1
+                    } else if secs == 0 {
+                        0
+                    } else {
+                        (1 + (secs * 3 / max) as i32).min(4)
+                    },
+                    sel: inside && known && self.gcal_sel == Some(i),
+                    today: i == 0,
+                }
+            })
+            .collect();
+        // dettaglio del giorno toccato
+        let mut lines: Vec<String> = Vec::new();
+        if let Some(i) = self.gcal_sel.filter(|i| (0..HIST_DAYS as i64).contains(i)) {
+            let d = today - Duration::days(i);
+            type Who<'a> = (&'a str, u32, Vec<(String, u32)>);
+            let mut who: Vec<Who> = rows
+                .iter()
+                .filter(|(_, v, _)| v[i as usize] > 0)
+                .map(|(n, v, h)| {
+                    (n.as_str(), v[i as usize], h.map(|h| h.what_on(today, i as usize)).unwrap_or_default())
+                })
+                .collect();
+            who.sort_by_key(|w| std::cmp::Reverse(w.1));
+            lines.push(format!(
+                "{} {} {}: {}",
+                DAYS[d.weekday().num_days_from_monday() as usize],
+                d.day(),
+                MONTHS[d.month0() as usize],
+                if who.is_empty() {
+                    "nessuno ha studiato".to_string()
+                } else {
+                    format!("{} in tutto", fmt_secs(day_total(i)))
+                }
+            ));
+            for (name, secs, what) in who {
+                let on: Vec<String> = what.iter().map(|(k, v)| format!("{k} {}", fmt_secs(*v as u64))).collect();
+                lines.push(if on.is_empty() {
+                    format!("{name} · {}", fmt_secs(secs as u64))
+                } else {
+                    format!("{name} · {} — {}", fmt_secs(secs as u64), on.join(", "))
+                });
+            }
+        }
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_gcal_cells(model(cells));
+        st.set_gcal_title(ss(title));
+        st.set_gcal_month(self.gcal_month);
+        st.set_gcal_lines(model(lines.iter().map(ss).collect::<Vec<_>>()));
+        // si torna indietro finché c'è storia (12 settimane)
+        st.set_gcal_can_prev((today - first).num_days() + 7 < HIST_DAYS as i64);
+        st.set_gcal_can_next(self.gcal_off > 0);
     }
 }

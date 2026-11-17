@@ -246,6 +246,10 @@ pub struct ExamOffer {
 pub struct Profile {
     pub photo: String,
     pub at: i64,
+    /// identificativo dell'utente nei gruppi: i propri dispositivi si allineano allo stesso
+    /// (vedi [`crate::group::pick_user_id`]), così nessuno compare due volte
+    #[serde(default)]
+    pub uid: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -387,6 +391,7 @@ pub struct Peer {
 
 /// Cose successe, per l'interfaccia.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)] // eventi pochi e di passaggio
 pub enum Event {
     /// dispositivo trovato o aggiornato (id)
     Peer(String),
@@ -996,7 +1001,7 @@ mod tests {
     #[test]
     fn profile_only_between_own_devices() {
         let room = Room::derive("u", "p");
-        let foto = Profile { photo: "abc".into(), at: 50 };
+        let foto = Profile { photo: "abc".into(), at: 50, uid: "u1".into() };
         let mut a =
             (Engine::new("A", "Telefono", "android"), Mem { profile: Some(foto.clone()), ..Default::default() });
         let mut b = (Engine::new("B", "Computer", "linux"), Mem::default());
@@ -1006,14 +1011,14 @@ mod tests {
         run(&mut a, &mut b, &room, first, 0);
         assert!(b.0.events.contains(&Event::Profile { from: "A".into(), profile: foto.clone() }));
         // cambio successivo: si ripresenta a chi c'è già
-        a.1.profile = Some(Profile { photo: String::new(), at: 60 });
+        a.1.profile = Some(Profile { photo: String::new(), at: 60, uid: "u1".into() });
         b.0.events.clear();
         let first = a.0.reannounce(&a.1);
         run(&mut a, &mut b, &room, first, 0);
-        assert!(b
-            .0
-            .events
-            .contains(&Event::Profile { from: "A".into(), profile: Profile { photo: String::new(), at: 60 } }));
+        assert!(b.0.events.contains(&Event::Profile {
+            from: "A".into(),
+            profile: Profile { photo: String::new(), at: 60, uid: "u1".into() }
+        }));
         // senza `profile` (condivisione, gruppi) non parte né si accetta
         let mut c = (Engine::new("C", "Altro", "web"), Mem { profile: Some(foto), ..Default::default() });
         let mut d = (Engine::new("D", "Altro", "web"), Mem::default());

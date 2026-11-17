@@ -1,6 +1,6 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
-import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, HeatVM, GHeatVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
 // foto profilo (o iniziale) in un cerchio col bordo del colore della monoposto
@@ -269,6 +269,8 @@ component RaceView inherits Rectangle {
     in property <float> scale: 1;
     in property <float> pad-x: 0.5;
     in property <float> pad-y: 0.65;
+    // larghezza del paddock (frazione della larghezza del circuito): cresce con i membri
+    in property <float> pad-w: 0.2;
     // la strada: un solo colore, dal tema; la mezzeria nel colore dello sfondo
     property <color> road: M3.surface-container-highest;
     property <color> bg: M3.surface;
@@ -367,8 +369,9 @@ component RaceView inherits Rectangle {
         // paddock sotto il circuito, fuori pista: corsia box, muretto e garage; chi ha
         // terminato la sessione o non è collegato aspetta qui nel suo box
         Rectangle {
-            width: min(root.TW * 0.5, max(root.TH * 0.9, root.TW * 0.36));
-            height: root.TH * 0.24;
+            width: root.pad-w * root.TW;
+            height: root.TH * 0.2;
+            animate width { duration: 400ms; easing: ease-in-out; }
             x: root.P + root.pad-x * root.TW - self.width / 2;
             y: root.P + root.pad-y * root.TH - self.height / 2;
             border-radius: min(self.height / 4, 18px);
@@ -625,6 +628,15 @@ component RaceView inherits Rectangle {
                     has-photo: AppState.car-info-has-photo;
                     initial: AppState.car-info-initial;
                     ring: AppState.car-info-color;
+                    TouchArea {
+                        enabled: AppState.car-info-has-photo;
+                        clicked => {
+                            AppState.photo-view-img = AppState.car-info-photo;
+                            AppState.photo-view-title = AppState.car-info-title;
+                            AppState.photo-view-group = false;
+                            AppState.photo-view = true;
+                        }
+                    }
                 }
             }
             VerticalLayout {
@@ -903,6 +915,74 @@ component FocusSheet inherits Rectangle {
     }
 }
 
+// mappa di calore: 12 settimane (colonne) × 7 giorni (righe, dal lunedì); tocco = dettagli
+component Heatmap inherits VerticalLayout {
+    in property <[HeatVM]> cells;
+    property <string> sel;
+    property <length> gap: 3px;
+    spacing: 6px;
+    grid := HorizontalLayout {
+        spacing: root.gap;
+        VerticalLayout {
+            spacing: root.gap;
+            for l in ["L", "M", "M", "G", "V", "S", "D"]: Text {
+                height: (grid.width - 14px - 12 * root.gap) / 12;
+                width: 14px;
+                text: l;
+                font-size: 10px;
+                color: M3.on-surface-variant;
+                vertical-alignment: center;
+            }
+        }
+        for w in 12: VerticalLayout {
+            spacing: root.gap;
+            for d in 7: Rectangle {
+                property <HeatVM> c: root.cells[w * 7 + d];
+                height: self.width;
+                border-radius: 3px;
+                background: c.level < 0 ? transparent : c.level == 0 ? M3.surface-container-highest : M3.primary.with-alpha(0.15 + 0.85 * c.level / 4);
+                border-width: root.sel == c.label && c.level >= 0 ? 2px : 0;
+                border-color: M3.on-surface;
+                TouchArea {
+                    enabled: c.level >= 0;
+                    clicked => {
+                        root.sel = root.sel == c.label ? "" : c.label;
+                    }
+                }
+            }
+        }
+    }
+    HorizontalLayout {
+        spacing: 4px;
+        Text {
+            text: root.sel != "" ? root.sel : "Tocca un giorno per i dettagli";
+            font-size: Type.label;
+            color: M3.on-surface-variant;
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+        }
+        Text {
+            text: "meno";
+            font-size: 10px;
+            color: M3.on-surface-variant;
+            vertical-alignment: center;
+        }
+        for k in 5: Rectangle {
+            width: 10px;
+            height: 10px;
+            y: 3px;
+            border-radius: 2px;
+            background: k == 0 ? M3.surface-container-highest : M3.primary.with-alpha(0.15 + 0.85 * k / 4);
+        }
+        Text {
+            text: "più";
+            font-size: 10px;
+            color: M3.on-surface-variant;
+            vertical-alignment: center;
+        }
+    }
+}
+
 // matitina tonda per modificare (nome, foto)
 component EditBadge inherits Rectangle {
     callback clicked;
@@ -926,7 +1006,6 @@ component EditBadge inherits Rectangle {
 
 export component GroupPage inherits Page {
     property <bool> rename-open: false;
-    property <bool> photo-open: false;
     VerticalLayout {
         TopBar {
             title: "Studio di gruppo";
@@ -950,6 +1029,7 @@ export component GroupPage inherits Page {
             scale: AppState.track-scale;
             pad-x: AppState.pad-x;
             pad-y: AppState.pad-y;
+            pad-w: AppState.pad-w;
             hud: AppState.race-hud;
             flash: AppState.lap-flash;
         }
@@ -1005,7 +1085,10 @@ export component GroupPage inherits Page {
                                 TouchArea {
                                     enabled: AppState.group-has-photo;
                                     clicked => {
-                                        root.photo-open = true;
+                                        AppState.photo-view-img = AppState.group-photo;
+                                        AppState.photo-view-title = AppState.group-name;
+                                        AppState.photo-view-group = true;
+                                        AppState.photo-view = true;
                                     }
                                 }
                             }
@@ -1220,7 +1303,7 @@ export component GroupPage inherits Page {
             if AppState.group-has: HorizontalLayout {
                 spacing: 8px;
                 alignment: start;
-                for p[i] in ["Oggi", "Settimana", "Totale"]: Chip {
+                for p[i] in ["Oggi", "Settimana", "Mese", "Totale"]: Chip {
                     text: p;
                     selected: AppState.group-period == i;
                     clicked => {
@@ -1262,6 +1345,15 @@ export component GroupPage inherits Page {
                                 has-photo: r.has-photo;
                                 initial: r.initial;
                                 ring: r.color;
+                                TouchArea {
+                                    enabled: r.has-photo;
+                                    clicked => {
+                                        AppState.photo-view-img = r.photo;
+                                        AppState.photo-view-title = r.name;
+                                        AppState.photo-view-group = false;
+                                        AppState.photo-view = true;
+                                    }
+                                }
                             }
                         }
                         VerticalLayout {
@@ -1286,6 +1378,15 @@ export component GroupPage inherits Page {
                             vertical-alignment: center;
                         }
                     }
+                    // giorni di studio del membro toccato
+                    if AppState.member-sel == r.id && !r.me && AppState.member-heat.length > 0: VerticalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        padding-top: 4px;
+                        Heatmap {
+                            cells: AppState.member-heat;
+                        }
+                    }
                     // azioni sul membro toccato
                     if AppState.member-sel == r.id && !r.me: HorizontalLayout {
                         padding-left: 12px;
@@ -1308,6 +1409,134 @@ export component GroupPage inherits Page {
                             }
                         }
                     }
+                    }
+                }
+            }
+
+            // calendario del gruppo: settimana o mese, tocco su un giorno = chi ha studiato
+            if AppState.group-has && AppState.group-code != "": Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Calendario del gruppo";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                        }
+                        Chip {
+                            text: "Settimana";
+                            selected: !AppState.gcal-month;
+                            clicked => {
+                                AppState.gcal-mode(false);
+                            }
+                        }
+                        Chip {
+                            text: "Mese";
+                            selected: AppState.gcal-month;
+                            clicked => {
+                                AppState.gcal-mode(true);
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        IconButton {
+                            icon: Icons.chevron-left;
+                            enabled: AppState.gcal-can-prev;
+                            clicked => {
+                                AppState.gcal-shift(-1);
+                            }
+                        }
+                        Text {
+                            text: AppState.gcal-title;
+                            horizontal-stretch: 1;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                        }
+                        IconButton {
+                            icon: Icons.chevron;
+                            enabled: AppState.gcal-can-next;
+                            clicked => {
+                                AppState.gcal-shift(1);
+                            }
+                        }
+                    }
+                    cal := Rectangle {
+                        property <length> gap: 4px;
+                        property <length> cw: (self.width - 6 * self.gap) / 7;
+                        height: 18px + ceil(AppState.gcal-cells.length / 7) * (self.cw + self.gap);
+                        for l[k] in ["L", "M", "M", "G", "V", "S", "D"]: Text {
+                            x: k * (cal.cw + cal.gap);
+                            y: 0;
+                            width: cal.cw;
+                            text: l;
+                            font-size: 11px;
+                            horizontal-alignment: center;
+                            color: M3.on-surface-variant;
+                        }
+                        for c[k] in AppState.gcal-cells: Rectangle {
+                            x: mod(k, 7) * (cal.cw + cal.gap);
+                            y: 18px + floor(k / 7) * (cal.cw + cal.gap);
+                            width: cal.cw;
+                            height: AppState.gcal-month ? cal.cw : cal.cw;
+                            border-radius: 8px;
+                            background: c.level < 0 ? transparent : c.level == 0 ? M3.surface-container-highest : M3.primary.with-alpha(0.15 + 0.85 * c.level / 4);
+                            border-width: c.sel ? 2px : c.today ? 1px : 0;
+                            border-color: c.sel ? M3.on-surface : M3.primary;
+                            Text {
+                                text: c.day;
+                                font-size: 12px;
+                                font-weight: c.today ? 800 : 400;
+                                color: c.level < 0 ? M3.outline-variant : c.level >= 3 ? M3.on-primary : M3.on-surface;
+                            }
+                            TouchArea {
+                                enabled: c.idx >= 0;
+                                clicked => {
+                                    AppState.gcal-select(c.idx);
+                                }
+                            }
+                        }
+                    }
+                    for line[k] in AppState.gcal-lines: Text {
+                        text: line;
+                        wrap: word-wrap;
+                        font-size: k == 0 ? Type.body : Type.label;
+                        font-weight: k == 0 ? 700 : 400;
+                        color: k == 0 ? M3.on-surface : M3.on-surface-variant;
+                    }
+                    if AppState.gcal-lines.length == 0: Text {
+                        text: "Tocca un giorno: chi ha studiato, quanto e su cosa.";
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            // i propri giorni di studio
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "I tuoi giorni di studio";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: AppState.my-heat-total;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                    Heatmap {
+                        cells: AppState.my-heat;
                     }
                 }
             }
@@ -1412,12 +1641,12 @@ export component GroupPage inherits Page {
         height: 100%;
     }
 
-    // foto del gruppo ingrandita
-    if root.photo-open && AppState.group-has-photo: Rectangle {
+    // foto ingrandita (del gruppo o di un membro)
+    if AppState.photo-view: Rectangle {
         background: M3.scrim.with-alpha(0.75);
         TouchArea {
             clicked => {
-                root.photo-open = false;
+                AppState.photo-view = false;
             }
         }
         VerticalLayout {
@@ -1433,25 +1662,25 @@ export component GroupPage inherits Page {
                     Image {
                         width: parent.width;
                         height: parent.height;
-                        source: AppState.group-photo;
+                        source: AppState.photo-view-img;
                         image-fit: cover;
                     }
                 }
             }
             Text {
-                text: AppState.group-name;
+                text: AppState.photo-view-title;
                 horizontal-alignment: center;
                 font-size: Type.title;
                 font-weight: 700;
                 color: white;
             }
-            if AppState.group-admin: HorizontalLayout {
+            if AppState.photo-view-group && AppState.group-admin: HorizontalLayout {
                 alignment: center;
                 spacing: 8px;
                 M3Button {
                     text: "Cambia foto";
                     clicked => {
-                        root.photo-open = false;
+                        AppState.photo-view = false;
                         AppState.pick-photo("group");
                     }
                 }
@@ -1459,7 +1688,7 @@ export component GroupPage inherits Page {
                     text: "Togli foto";
                     kind: 1;
                     clicked => {
-                        root.photo-open = false;
+                        AppState.photo-view = false;
                         AppState.remove-photo("group");
                     }
                 }

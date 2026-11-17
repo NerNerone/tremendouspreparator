@@ -106,6 +106,8 @@ pub fn maybe_run(ui: &AppWindow) {
                     eprintln!("INVITO {}", st.get_group_link());
                 }
                 "gjoin" => st.invoke_group_join(arg.into()),
+                "gcal" => st.invoke_gcal_select(arg.parse().unwrap_or(0)),
+                "gcalmonth" => st.invoke_gcal_mode(arg == "1"),
                 "study" => st.invoke_study_start(),
                 "pit" => st.invoke_study_pause(),
                 "stop" => st.invoke_study_stop(),
