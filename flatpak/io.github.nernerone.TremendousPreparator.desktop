@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Tremendous Preparator
+GenericName=Preparazione agli esami
+Comment=Quiz, simulazioni e flashcard
+Exec=tremendous-preparator
+Icon=io.github.nernerone.TremendousPreparator
+Terminal=false
+Categories=Education;Science;
+Keywords=esami;quiz;flashcard;studio;università;
+StartupWMClass=tremendous-preparator

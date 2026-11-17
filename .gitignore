@@ -1,0 +1,13 @@
+/target
+/.devdata
+*.apk
+*.idsig
+*.jks
+*.keystore
+/tools/node_modules
+/flatpak/tremendous-preparator
+/flatpak/build
+/flatpak/repo
+/flatpak/.flatpak-builder
+__pycache__/
+*.json.gz

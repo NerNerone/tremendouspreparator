@@ -1,0 +1,5 @@
+First public release.
+• Exams from content packs, with info sections defined by the pack
+• Quizzes, mock exams, flashcards, readiness estimate and daily goals
+• Serverless sync between devices, study groups, focus mode
+• Custom theme colour; Android 8.0 or later

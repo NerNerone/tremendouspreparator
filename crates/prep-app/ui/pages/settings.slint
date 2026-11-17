@@ -1,0 +1,529 @@
+import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type, Shape } from "../theme.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { Avatar } from "group.slint";
+
+export component SettingsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Opzioni";
+            subtitle: AppState.app-version;
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            // profilo: il nome con cui ci si presenta agli altri dispositivi e nello studio di gruppo
+            Section {
+                title: "Profilo";
+                summary: "Nome, foto e colore con cui ti vedono gli altri";
+                info: "Il nome utente compare sugli altri tuoi dispositivi quando sincronizzi e su quelli di chi riceve un esame che condividi. Foto profilo (ritagliata a 256 × 256) e colore della monoposto li vedono i membri dei tuoi gruppi di studio. Il colore «A» è l'accento di sistema del telefono.";
+                VerticalLayout {
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Avatar {
+                            width: 64px;
+                            photo: AppState.my-photo;
+                            has-photo: AppState.my-has-photo;
+                            initial: AppState.my-initial;
+                            TouchArea {
+                                clicked => {
+                                    AppState.pick-photo("user");
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            horizontal-stretch: 1;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
+                                M3Button {
+                                    text: AppState.my-has-photo ? "Cambia foto" : "Carica foto";
+                                    kind: 1;
+                                    clicked => {
+                                        AppState.pick-photo("user");
+                                    }
+                                }
+                                if AppState.my-has-photo: M3Button {
+                                    text: "Rimuovi";
+                                    kind: 3;
+                                    clicked => {
+                                        AppState.remove-photo("user");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        name-edit := LineEdit {
+                            horizontal-stretch: 1;
+                            text <=> AppState.s-username;
+                            placeholder-text: "Nome utente";
+                            accepted => {
+                                AppState.save-username(self.text);
+                            }
+                        }
+                        M3Button {
+                            text: "Salva";
+                            kind: 1;
+                            clicked => {
+                                AppState.save-username(name-edit.text);
+                            }
+                        }
+                    }
+                    Text {
+                        text: "Colore della monoposto";
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                    Flickable {
+                        height: 44px;
+                        interactive: true;
+                        content-width: max(self.width, sw.preferred-width);
+                        content-height: 44px;
+                        sw := HorizontalLayout {
+                            x: 0px;
+                            y: 0px;
+                            height: 44px;
+                            spacing: 8px;
+                            alignment: start;
+                            for c in AppState.car-swatches: Rectangle {
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 20px;
+                                background: c.color;
+                                border-width: c.sel ? 3px : 0px;
+                                border-color: M3.on-surface;
+                                if c.auto: Text {
+                                    text: "A";
+                                    color: white;
+                                    font-weight: 800;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        AppState.car-color(c.value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Section {
+                title: "Aspetto";
+                summary: "Colore dell'app";
+                info: "Su Android 12 e successivi il primo colore («A») è quello del sistema (Material You); altrimenti l'app usa il blu. Chiaro o scuro segue l'impostazione del sistema.";
+                Flickable {
+                    height: 44px;
+                    interactive: true;
+                    content-width: max(self.width, theme-row.preferred-width);
+                    content-height: 44px;
+                    theme-row := HorizontalLayout {
+                        x: 0px;
+                        y: 0px;
+                        height: 44px;
+                        spacing: 8px;
+                        alignment: start;
+                        for c in AppState.theme-swatches: Rectangle {
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 20px;
+                            background: c.color;
+                            border-width: c.sel ? 3px : 0px;
+                            border-color: M3.on-surface;
+                            if c.auto: Text {
+                                text: "A";
+                                color: white;
+                                font-weight: 800;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea {
+                                clicked => {
+                                    AppState.theme-color(c.value);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            ListRow {
+                title: "Note legali";
+                subtitle: "Nessuna garanzia; contenuti importati e servizi esterni sono responsabilità di chi li usa";
+                clicked => {
+                    AppState.legal-visible = true;
+                }
+            }
+
+            // sincronizzazione tra dispositivi (telefono, web app, computer)
+            Section {
+                title: "Dispositivi";
+                summary: "Progressi ed esami tra i tuoi dispositivi, cifrati; si trovano tramite relay pubblici di terzi";
+                info: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. L'app non ha server: i dispositivi si trovano attraverso relay pubblici di terze parti (modificabili qui sotto), poi i dati viaggiano cifrati direttamente tra loro quando la rete lo permette, altrimenti attraverso i relay, che di norma li inoltrano senza conservarli (fanno eccezione gli avvisi dei gruppi di studio, cifrati, che scadono dopo 24 ore). Con «Solo collegamento diretto» i dati non passano mai dai relay, che servono solo a trovarsi: su alcune reti il diretto non riesce.";
+                has-icon: true;
+                icon: Icons.sync;
+                active: AppState.p2p-on;
+                VerticalLayout {
+                    spacing: 8px;
+                    if !AppState.p2p-on: LineEdit {
+                        text <=> AppState.p2p-password;
+                        input-type: password;
+                        placeholder-text: "Password della stanza (almeno 8 caratteri)";
+                    }
+                    if !AppState.p2p-on: HorizontalLayout {
+                        spacing: 8px;
+                        Switch {
+                            checked <=> AppState.p2p-auto;
+                        }
+                        Text {
+                            text: "Collegati da solo all'avvio (salva la password qui)";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                        }
+                    }
+                    Text {
+                        text: AppState.p2p-status;
+                        wrap: word-wrap;
+                        color: AppState.p2p-on ? M3.primary : M3.on-surface-variant;
+                    }
+                    for peer in AppState.p2p-peers: Rectangle {
+                        border-radius: 12px;
+                        background: M3.surface-container-high;
+                        VerticalLayout {
+                            padding: 12px;
+                            spacing: 6px;
+                            Text {
+                                text: peer.name;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: peer.info;
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                                wrap: word-wrap;
+                            }
+                            for o in peer.offers: M3Button {
+                                text: o.label;
+                                kind: 1;
+                                small: true;
+                                clicked => {
+                                    AppState.p2p-download(o.peer, o.exam);
+                                }
+                            }
+                        }
+                    }
+                    M3Button {
+                        text: AppState.p2p-on ? "Scollega" : "Collega";
+                        kind: AppState.p2p-on ? 1 : 0;
+                        has-icon: true;
+                        icon: Icons.sync;
+                        clicked => {
+                            if AppState.p2p-on {
+                                AppState.p2p-disconnect();
+                            } else {
+                                AppState.p2p-connect();
+                            }
+                        }
+                    }
+                    if !AppState.p2p-on: HorizontalLayout {
+                        spacing: 8px;
+                        Switch {
+                            checked <=> AppState.p2p-direct-only;
+                        }
+                        Text {
+                            text: "Solo collegamento diretto (i dati non passano dai relay)";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                        }
+                    }
+                    if !AppState.p2p-on: LineEdit {
+                        text <=> AppState.p2p-relays;
+                        placeholder-text: "Relay (wss://…, separati da virgola)";
+                        font-size: Type.label;
+                    }
+                }
+            }
+
+            // Bluetooth: telefoni vicini, anche senza Internet (solo Android)
+            if AppState.bt-available: Section {
+                title: "Vicino, via Bluetooth";
+                summary: "Telefoni Android vicini, anche senza Internet";
+                info: "Due telefoni Android vicini si scambiano progressi, esami e stato del gruppo anche senza Internet. Prima collega i Dispositivi (o apri la condivisione o il gruppo) su entrambi, poi: su uno «Rendimi visibile», sull'altro «Cerca» e scegli il primo.";
+                VerticalLayout {
+                    spacing: 8px;
+                    if AppState.bt-status != "": Text {
+                        text: AppState.bt-status;
+                        color: M3.primary;
+                        wrap: word-wrap;
+                    }
+                    if !AppState.bt-connected: HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Rendimi visibile";
+                            kind: 1;
+                            clicked => {
+                                AppState.bt-listen();
+                            }
+                        }
+                        M3Button {
+                            text: "Cerca";
+                            kind: 1;
+                            clicked => {
+                                AppState.bt-scan();
+                            }
+                        }
+                    }
+                    if !AppState.bt-connected: VerticalLayout {
+                        spacing: 4px;
+                        for d in AppState.bt-devices: ListRow {
+                            title: d.name;
+                            subtitle: d.address;
+                            clicked => {
+                                AppState.bt-connect(d.address);
+                            }
+                        }
+                    }
+                    if AppState.bt-connected: M3Button {
+                        text: "Scollega Bluetooth";
+                        kind: 1;
+                        clicked => {
+                            AppState.bt-close();
+                        }
+                    }
+                }
+            }
+
+            // condivisione di un esame con un'altra persona: codice usa e getta, solo contenuti
+            Section {
+                title: "Condividi con un'altra persona";
+                summary: "Un esame installato, con un codice usa e getta";
+                info: "Passa un esame installato a un'altra persona con un codice usa e getta: viaggiano solo i contenuti (libri, quiz, flashcard), mai i tuoi progressi. Il codice vale finché la condivisione resta aperta. Condividi solo materiale che hai il diritto di condividere (vedi Note legali).";
+                has-icon: true;
+                icon: Icons.book;
+                active: AppState.share-on;
+                VerticalLayout {
+                    spacing: 8px;
+                    // nessuna condivisione aperta: mandare o ricevere
+                    if !AppState.share-on: HorizontalLayout {
+                        spacing: 8px;
+                        Switch {
+                            checked <=> AppState.share-ok;
+                        }
+                        Text {
+                            text: "Ho il diritto di condividere questo materiale con chi lo riceve (vedi Note legali)";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                        }
+                    }
+                    if !AppState.share-on: M3Button {
+                        text: "Condividi «" + AppState.share-exam + "»";
+                        enabled: AppState.share-ok;
+                        has-icon: true;
+                        icon: Icons.book;
+                        clicked => {
+                            AppState.share-start();
+                        }
+                    }
+                    if !AppState.share-on: Text {
+                        text: "Hai ricevuto un codice?";
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    if !AppState.share-on: HorizontalLayout {
+                        spacing: 8px;
+                        share-edit := LineEdit {
+                            horizontal-stretch: 1;
+                            text <=> AppState.share-input;
+                            placeholder-text: "Codice (es. K7QM-4TZP-9WXR)";
+                            accepted => {
+                                AppState.share-join();
+                            }
+                        }
+                        M3Button {
+                            text: "Ricevi";
+                            kind: 1;
+                            clicked => {
+                                AppState.share-join();
+                            }
+                        }
+                    }
+                    // condivisione aperta
+                    if AppState.share-on && AppState.share-sending: Rectangle {
+                        border-radius: 16px;
+                        background: M3.primary-container;
+                        min-height: code-col.preferred-height;
+                        code-col := VerticalLayout {
+                            padding: 16px;
+                            spacing: 4px;
+                            Text {
+                                text: "Codice da comunicare";
+                                font-size: Type.label;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: AppState.share-code;
+                                font-size: 30px;
+                                font-weight: 800;
+                                letter-spacing: 2px;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: "Chi lo inserisce in «Hai ricevuto un codice?» può scaricare «" + AppState.share-exam + "».";
+                                font-size: Type.label;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                    if AppState.share-on: Text {
+                        text: AppState.share-status;
+                        wrap: word-wrap;
+                        color: M3.primary;
+                    }
+                    if AppState.share-on: VerticalLayout {
+                        spacing: 8px;
+                        for peer in AppState.share-peers: Rectangle {
+                            border-radius: 12px;
+                            background: M3.surface-container-high;
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 6px;
+                                Text {
+                                    text: peer.name;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: peer.info;
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                                for o in peer.offers: M3Button {
+                                    text: o.label;
+                                    kind: 1;
+                                    small: true;
+                                    clicked => {
+                                        AppState.share-download(o.peer, o.exam);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if AppState.share-on: M3Button {
+                        text: AppState.share-sending ? "Interrompi la condivisione" : "Chiudi";
+                        kind: 1;
+                        clicked => {
+                            AppState.share-stop();
+                        }
+                    }
+                }
+            }
+
+            Section {
+                title: "Pacchetto contenuti";
+                summary: "Quiz, flashcard e libri da un unico file";
+                info: "Un pacchetto è un file .json.gz con quiz, flashcard e libri di un esame. Importandolo i contenuti si aggiornano senza reinstallare l'app; i tuoi progressi non vengono toccati. Su Android il file si sceglie dal selettore (o si apre con «Apri con»), sul computer va messo nella cartella Download. L'app non contiene contenuti: chi importa un pacchetto ne è responsabile (vedi Note legali).";
+                VerticalLayout {
+                    spacing: 8px;
+                    M3Button {
+                        text: AppState.pack-busy ? "Importazione…" : "Importa pacchetto";
+                        has-icon: true;
+                        icon: Icons.sync;
+                        enabled: !AppState.pack-busy;
+                        clicked => {
+                            AppState.import-pack();
+                        }
+                    }
+                    Text {
+                        text: AppState.pack-status;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            Section {
+                title: "Promemoria";
+                summary: "Notifiche per obiettivi, ripassi e sessioni in pausa";
+                info: "Quattro notifiche al giorno: obiettivi, sessione in pausa, flashcard da ripassare e giorni all'appello, con testi diversi a seconda dell'ora. Con gli obiettivi confermati, su Android resta anche una notifica fissa con l'avanzamento. Orari: mattina, dopo pranzo, pomeriggio, sera (separati da virgola); la prima fascia propone gli obiettivi, l'ultima ricorda quelli non finiti.";
+                VerticalLayout {
+                    spacing: 8px;
+                    Switch {
+                        text: "Promemoria attivi";
+                        checked <=> AppState.s-rem-on;
+                    }
+                    LineEdit {
+                        text <=> AppState.s-rem-time;
+                        placeholder-text: "08:30, 13:45, 17:30, 21:00";
+                        enabled: AppState.s-rem-on;
+                    }
+                    M3Button {
+                        text: "Salva promemoria";
+                        clicked => {
+                            AppState.save-reminder();
+                        }
+                    }
+                }
+            }
+
+            // regole della simulazione (dai dati del pacchetto) e schede definite dal pacchetto
+            if AppState.exam-rules != "": Section {
+                title: "Regole d'esame";
+                summary: AppState.exam-rules;
+            }
+            for x in AppState.exam-sections: Section {
+                title: x.title;
+                summary: x.summary;
+                info: x.body;
+            }
+
+            Section {
+                title: "Come si calcola la barra";
+                summary: "Accuratezza recente × copertura, per argomento";
+                info: "Per ogni argomento: accuratezza recente (ultime 3 risposte; una risposta insicura vale metà) × copertura (domande diverse viste, fino a 6). Unità = media degli argomenti, materia = media pesata per crediti. Una valutazione esterna (file progress/assessment.json, per esempio da una revisione) può fissare un nuovo punto di partenza per argomento: la stima riparte da lì con le nuove risposte.";
+                VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: AppState.content-info;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+        }
+    }
+}

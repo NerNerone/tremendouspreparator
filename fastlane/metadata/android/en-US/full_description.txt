@@ -1,0 +1,21 @@
+<p><i>The user interface is in Italian only.</i></p>
+
+<p>Tremendous Preparator is a study app for preparing a written exam with quizzes, mock exams and flashcards. It ships with no study material: questions, flashcards, books and exam rules are imported from a <b>content pack</b>, a file anyone can build with the tools in the repository. Several exams can be installed side by side.</p>
+
+<p><b>Study</b></p>
+<ul>
+<li>Quizzes by topic, unit or subject, multiple choice or fill-in (also numeric, with units), with explanations and a link to the relevant book section.</li>
+<li>Mock exams with the number of questions, time limit and scoring defined by the pack.</li>
+<li>Flashcards with spaced repetition, and review of wrong or uncertain answers.</li>
+<li>Per-topic readiness estimate and daily goals.</li>
+<li>Book reader with formulas, pause and resume, daily reminders.</li>
+</ul>
+
+<p><b>Across devices and with friends</b></p>
+<ul>
+<li>Progress sync between your own devices with no app server: direct connection (WebRTC) or Bluetooth; public Nostr relays are used to find each other, as a fallback when a direct link fails and for group status. Everything is encrypted with a key derived from user name and password (or the group code).</li>
+<li>Study groups with a leaderboard and a race where every minute of study is one lap.</li>
+<li>Focus mode: for the chosen time other apps bring you back to studying, except the ones you allow. Calls, emergency numbers and alarms are never blocked.</li>
+</ul>
+
+<p>Pick your theme colour (or the system one on Android 12+). No ads, no usage analytics, works offline; the network is used only for the multi-device features.</p>

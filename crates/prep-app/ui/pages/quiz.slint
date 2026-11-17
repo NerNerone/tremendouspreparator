@@ -1,0 +1,486 @@
+import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type, Shape } from "../theme.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+
+component NavCell inherits Rectangle {
+    in property <int> n;
+    in property <bool> answered;
+    in property <bool> unsure;
+    in property <bool> current;
+    callback clicked;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background: root.current ? M3.primary : root.answered ? M3.secondary-container : transparent;
+    border-width: root.unsure ? 2px : 1px;
+    border-color: root.unsure ? M3.error : M3.outline-variant;
+    Text {
+        text: root.n;
+        font-size: Type.label;
+        font-weight: 700;
+        color: root.current ? M3.on-primary : M3.on-surface;
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component QuizPage inherits Page {
+    // dopo la conferma la spiegazione compare in fondo: scorre fino a mostrarla tutta
+    property <bool> answered-now: AppState.q-answered;
+    property <length> scroll-goal;
+    property <bool> scrolling;
+    property <int> settle;
+    changed answered-now => {
+        if (answered-now && AppState.quiz-mode != 1) {
+            root.settle = 0;
+            root.scrolling = true;
+        }
+    }
+    Timer {
+        interval: 16ms;
+        running: root.scrolling;
+        triggered => {
+            // l'obiettivo si ricalcola a ogni passo: la scheda può finire di impaginarsi dopo
+            root.settle += 1;
+            root.scroll-goal = max(0px, min(
+                fbtop.y + 4px,
+                fbend.y + 16px - qsv.visible-height,
+                qsv.content-height - qsv.visible-height));
+            if (root.settle > 60 || (root.settle > 4 && abs(root.scroll-goal + qsv.content-y) < 1px)) {
+                qsv.content-y = -max(root.scroll-goal, -qsv.content-y);
+                root.scrolling = false;
+            } else if (root.scroll-goal > -qsv.content-y) {
+                qsv.content-y += (-root.scroll-goal - qsv.content-y) * 0.22;
+            }
+        }
+    }
+    VerticalLayout {
+        TopBar {
+            title: AppState.quiz-title;
+            subtitle: "Domanda " + (AppState.q-index + 1) + " di " + AppState.q-total + (AppState.quiz-mode == 1 ? " · risposte " + AppState.answered-count : "");
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+            IconButton {
+                icon: Icons.pause;
+                clicked => {
+                    AppState.pause-quiz();
+                }
+            }
+            if AppState.quiz-mode == 1: Rectangle {
+                width: 100px;
+                Pill {
+                    text: AppState.time-left;
+                    bg: AppState.time-warning ? M3.error-container : M3.secondary-container;
+                    fg: AppState.time-warning ? M3.on-error-container : M3.on-secondary-container;
+                }
+            }
+        }
+
+        LinearProgress {
+            height: 4px;
+            border-radius: 0px;
+            value: AppState.q-total > 0 ? (AppState.q-index + 1) / AppState.q-total : 0;
+        }
+
+        Swap {
+            key: "" + AppState.q-index;
+            vertical-stretch: 1;
+        qsv := ScrollView {
+            mouse-drag-pan-enabled: AppState.drag-pan;
+            // il layout stima un'altezza minore del reale con testo a capo (spiegazioni lunghe su
+            // schermi stretti): l'area scorrevole arriva fino all'ultimo elemento effettivo
+            content-height: max(self.visible-height, qend.y + 16px);
+            Rectangle {
+            VerticalLayout {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: self.preferred-height;
+                alignment: start;
+                padding: 16px;
+                spacing: 12px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Pill {
+                        text: AppState.q-is-mcq ? "Risposta multipla" : "Completamento";
+                    }
+
+                    Text {
+                        text: AppState.q-topic;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        overflow: elide;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+
+                    Rectangle {
+                        height: 24px;
+                        border-radius: 12px;
+                        background: AppState.q-slow ? M3.warn-container : M3.surface-container-high;
+                        animate background { duration: 400ms; }
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 10px;
+                            spacing: 4px;
+                            VIcon {
+                                source: Icons.timer;
+                                size: 14px;
+                                tint: AppState.q-slow ? M3.on-warn-container : M3.on-surface-variant;
+                            }
+
+                            Text {
+                                text: AppState.q-elapsed;
+                                font-size: Type.label;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                                color: AppState.q-slow ? M3.on-warn-container : M3.on-surface-variant;
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: AppState.q-text;
+                    font-size: 18px;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+
+                // segnaposto (altezza 0) dove inizia la parte con la spiegazione, per lo scroll automatico
+                fbtop := Rectangle {
+                    height: 0px;
+                }
+
+                if AppState.q-is-mcq: VerticalLayout {
+                    spacing: 10px;
+                    for o[i] in AppState.q-options: OptionTile {
+                        letter: o.letter;
+                        text: o.text;
+                        note: o.note;
+                        state: o.state;
+                        clicked => {
+                            AppState.select-option(i);
+                        }
+                    }
+                }
+
+                if !AppState.q-is-mcq: LineEdit {
+                    text <=> AppState.q-fill;
+                    placeholder-text: "Scrivi la risposta (parola o numero)";
+                    enabled: !AppState.q-answered;
+                    font-size: 18px;
+                    edited(t) => {
+                        AppState.fill-edited(t);
+                    }
+                    accepted => {
+                        if (AppState.quiz-mode == 1) {
+                            AppState.next();
+                        } else if (AppState.q-can-confirm) {
+                            AppState.confirm();
+                        }
+                    }
+                }
+
+                if AppState.q-answered && AppState.quiz-mode != 1: Card {
+                    bg: AppState.q-correct ? M3.success-container : M3.error-container;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Icon {
+                                source: AppState.q-correct ? Icons.check : Icons.close;
+                                tint: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                            }
+
+                            Text {
+                                text: AppState.q-correct ? "Corretto" : "Sbagliato";
+                                font-size: Type.title;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                                color: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                            }
+                        }
+
+                        Text {
+                            text: "Risposta: " + AppState.q-correct-text;
+                            wrap: word-wrap;
+                            font-weight: 600;
+                            color: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                        }
+
+                        if AppState.q-explanation != "": Text {
+                            text: AppState.q-explanation;
+                            wrap: word-wrap;
+                            color: AppState.q-correct ? M3.on-success-container : M3.on-error-container;
+                        }
+                        if AppState.q-ref != "": RefBox {
+                            label: AppState.q-ref;
+                            open => {
+                                AppState.open-ref-quiz();
+                            }
+                        }
+                    }
+                }
+
+                fbend := Rectangle {
+                    height: 0px;
+                }
+
+                if AppState.q-source != "": Text {
+                    text: "Fonte: " + AppState.q-source;
+                    wrap: word-wrap;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    opacity: 0.85;
+                }
+
+                if AppState.quiz-mode == 1: VerticalLayout {
+                    spacing: 6px;
+                    padding-top: 8px;
+                    SectionTitle {
+                        text: "Vai alla domanda";
+                    }
+
+                    for row in AppState.nav-rows: HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+                        for c in row.cells: NavCell {
+                            n: c.n;
+                            answered: c.answered;
+                            unsure: c.unsure;
+                            current: c.current;
+                            clicked => {
+                                AppState.goto(c.n - 1);
+                            }
+                        }
+                    }
+                }
+
+                // fine reale del contenuto: l'altezza stimata dal layout con testo a capo può essere minore
+                qend := Rectangle {
+                    height: 0px;
+                }
+            }
+        }
+        }
+        }
+
+        Rectangle {
+            background: M3.surface-container;
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 8px;
+                Chip {
+                    text: "Insicura";
+                    has-icon: true;
+                    icon: AppState.q-unsure ? Icons.flag : Icons.flag-outline;
+                    accent: M3.error;
+                    selected: AppState.q-unsure;
+                    clicked => {
+                        AppState.toggle-unsure();
+                    }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+
+                if AppState.quiz-mode == 1: IconButton {
+                    icon: Icons.chevron-left;
+                    enabled: AppState.q-index > 0;
+                    clicked => {
+                        AppState.prev();
+                    }
+                }
+                if AppState.quiz-mode == 1 && AppState.q-index + 1 < AppState.q-total: IconButton {
+                    icon: Icons.chevron;
+                    filled: true;
+                    clicked => {
+                        AppState.next();
+                    }
+                }
+                if AppState.quiz-mode == 1: M3Button {
+                    text: "Consegna";
+                    clicked => {
+                        AppState.finish();
+                    }
+                }
+                if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
+                    text: "Salta";
+                    kind: 3;
+                    clicked => {
+                        AppState.skip();
+                    }
+                }
+                if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
+                    text: "Conferma";
+                    enabled: AppState.q-can-confirm;
+                    clicked => {
+                        AppState.confirm();
+                    }
+                }
+                if AppState.quiz-mode != 1 && AppState.q-answered: M3Button {
+                    text: AppState.q-index + 1 < AppState.q-total ? "Avanti" : "Fine";
+                    clicked => {
+                        AppState.next();
+                    }
+                }
+            }
+        }
+    }
+}
+
+component ResultTile inherits Rectangle {
+    in property <ResultItemVM> item;
+    callback toggle-flag;
+    callback open-ref;
+    property <bool> expanded: false;
+    border-radius: 14px;
+    background: M3.surface-container-low;
+    TouchArea {
+        clicked => {
+            root.expanded = !root.expanded;
+        }
+    }
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 10px;
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+                background: root.item.status == 0 ? M3.success : root.item.status == 1 ? M3.error : root.item.status == 2 ? M3.outline : M3.primary;
+                Text {
+                    text: root.item.n;
+                    color: M3.surface;
+                    font-weight: 700;
+                    font-size: Type.label;
+                }
+            }
+
+            Text {
+                text: root.item.text;
+                color: M3.on-surface;
+                wrap: word-wrap;
+                overflow: elide;
+                // chiusa: al massimo tre righe circa, senza lasciare spazio vuoto sotto
+                height: root.expanded ? self.preferred-height : min(self.preferred-height, 60px);
+                horizontal-stretch: 1;
+            }
+
+            IconButton {
+                icon: root.item.unsure ? Icons.flag : Icons.flag-outline;
+                tint: root.item.unsure ? M3.error : M3.on-surface-variant;
+                clicked => {
+                    root.toggle-flag();
+                }
+            }
+        }
+
+        Text {
+            text: (root.item.status == 3 ? "" : "Tua: " + (root.item.given == "" ? "—" : root.item.given) + " · ") + "Corretta: " + root.item.correct-text + (root.item.secs != "" ? " · " + root.item.secs + (root.item.slow ? " (lenta)" : "") : "");
+            color: M3.on-surface-variant;
+            font-size: Type.label;
+            wrap: word-wrap;
+        }
+
+        if root.expanded && root.item.explanation != "": Text {
+            text: root.item.explanation;
+            color: M3.on-surface;
+            font-size: Type.body;
+            wrap: word-wrap;
+        }
+        if root.expanded && root.item.ref-label != "": RefBox {
+            label: root.item.ref-label;
+            open => {
+                root.open-ref();
+            }
+        }
+    }
+}
+
+export component ResultsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: AppState.r-title;
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 10px;
+            Card {
+                bg: AppState.r-is-exam ? (AppState.r-passed ? M3.success-container : M3.error-container) : M3.primary-container;
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 6px;
+                    Text {
+                        text: AppState.r-points;
+                        font-size: Type.display;
+                        font-weight: 800;
+                        horizontal-alignment: center;
+                        color: M3.on-surface;
+                    }
+
+                    if AppState.r-is-exam: Text {
+                        text: AppState.r-passed ? "Prova superata (≥ 18)" : "Sotto la soglia di 18";
+                        horizontal-alignment: center;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: AppState.r-summary;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                        color: M3.on-surface;
+                    }
+                }
+            }
+
+            Text {
+                text: "Tocca una domanda per la spiegazione; la bandierina segna/toglie \"insicura\".";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+
+            for it[i] in AppState.r-items: ResultTile {
+                item: it;
+                toggle-flag => {
+                    AppState.result-toggle-flag(i);
+                }
+                open-ref => {
+                    AppState.open-ref-result(i);
+                }
+            }
+        }
+
+        Rectangle {
+            background: M3.surface-container;
+            HorizontalLayout {
+                padding: 12px;
+                M3Button {
+                    text: "Fatto";
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.results-close();
+                    }
+                }
+            }
+        }
+    }
+}

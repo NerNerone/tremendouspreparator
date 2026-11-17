@@ -1,0 +1,19 @@
+<p>Tremendous Preparator è un'app di studio per prepararsi a un esame scritto con quiz, simulazioni e flashcard. Non contiene materiale di studio: i contenuti (domande, flashcard, libri e regole dell'esame) si importano da un <b>pacchetto contenuti</b>, un file che chiunque può creare con gli strumenti del repository. Si possono installare più esami e passare dall'uno all'altro.</p>
+
+<p><b>Studio</b></p>
+<ul>
+<li>Quiz per argomento, unità o materia, a risposta multipla o a completamento (anche numerico, con unità di misura), con spiegazione e rimando al punto del libro.</li>
+<li>Simulazione d'esame con il numero di domande, il tempo e i punteggi definiti dal pacchetto.</li>
+<li>Flashcard con ripetizione dilazionata e ripasso delle domande sbagliate o incerte.</li>
+<li>Stima della preparazione per argomento e obiettivi del giorno.</li>
+<li>Lettore dei libri con formule, pausa e ripresa delle sessioni, promemoria giornalieri.</li>
+</ul>
+
+<p><b>Tra dispositivi e in gruppo</b></p>
+<ul>
+<li>Sincronizzazione dei progressi tra i propri dispositivi senza un server dell'app: collegamento diretto (WebRTC) o Bluetooth; relay Nostr pubblici servono a trovarsi, come ripiego quando il diretto non riesce e per lo stato dei gruppi. Tutto è cifrato con una chiave ricavata da nome utente e password (o dal codice del gruppo).</li>
+<li>Gruppi di studio con classifica e una gara in cui ogni minuto di studio è un giro di pista.</li>
+<li>Modalità concentrazione: per il tempo scelto le altre app riportano allo studio, tranne quelle permesse. Chiamate, numeri d'emergenza e sveglia non sono mai bloccati.</li>
+</ul>
+
+<p>Colore del tema a scelta (su Android 12 e successivi anche quello di sistema). L'app non ha pubblicità né statistiche d'uso e funziona offline; la rete serve solo per le funzioni tra dispositivi.</p>

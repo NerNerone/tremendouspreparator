@@ -1,0 +1,1301 @@
+import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type, Shape } from "../theme.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+
+// foto profilo (o iniziale) in un cerchio col bordo del colore della monoposto
+export component Avatar inherits Rectangle {
+    in property <image> photo;
+    in property <bool> has-photo;
+    in property <string> initial;
+    in property <color> ring: M3.primary;
+    width: 40px;
+    height: self.width;
+    border-radius: self.width / 2;
+    background: root.ring;
+    Rectangle {
+        x: 2px;
+        y: 2px;
+        width: parent.width - 4px;
+        height: parent.height - 4px;
+        border-radius: self.width / 2;
+        clip: true;
+        background: root.has-photo ? transparent : root.ring.darker(0.25);
+        if root.has-photo: Image {
+            width: parent.width;
+            height: parent.height;
+            source: root.photo;
+            image-fit: cover;
+        }
+        if !root.has-photo: Text {
+            text: root.initial;
+            color: white;
+            font-weight: 800;
+            font-size: parent.height * 0.45;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// meccanico visto dall'alto, rivolto verso +x (verso la macchina): tuta, casco del colore
+// della squadra, braccia che lavorano; in mano l'avvitatore, una gomma o il cartello
+component Crew inherits Rectangle {
+    in property <color> c;
+    in property <color> helmet;
+    in property <float> work;
+    in property <bool> tool: true;
+    in property <bool> tire;
+    in property <bool> sign;
+    width: 16px;
+    height: 16px;
+    // gomma: la porta via e la rimette
+    if root.tire: Rectangle {
+        x: 13px + 6px * (1 - root.work);
+        y: 3.5px;
+        width: 6px;
+        height: 9px;
+        border-radius: 2px;
+        background: root.c.darker(0.7);
+        Rectangle { x: 2px; y: 3px; width: 2px; height: 3px; border-radius: 1px; background: root.helmet; }
+    }
+    // braccia: si allungano a turno (avvita / svita)
+    Rectangle { x: 8px; y: 3px; width: 4px + 4px * root.work; height: 3px; border-radius: 1.5px; background: root.c; }
+    Rectangle { x: 8px; y: 10px; width: 4px + 4px * (1 - root.work); height: 3px; border-radius: 1.5px; background: root.c; }
+    // avvitatore
+    if root.tool && !root.tire: Rectangle {
+        x: 12px + 4px * root.work;
+        y: 5px;
+        width: 4px;
+        height: 6px;
+        border-radius: 1px;
+        background: root.c.darker(0.6);
+    }
+    // cartello: asta e disco nel colore della squadra
+    if root.sign: Rectangle { x: 10px; y: 7px; width: 9px; height: 2px; background: root.c.darker(0.6); }
+    if root.sign: Rectangle {
+        x: 17px;
+        y: 2.5px;
+        width: 11px;
+        height: 11px;
+        border-radius: 5.5px;
+        background: root.helmet;
+        border-width: 1.5px;
+        border-color: root.c.darker(0.6);
+    }
+    // spalle
+    Rectangle { x: 3px; y: 1px; width: 8px; height: 14px; border-radius: 4px; background: root.c; }
+    // casco
+    Rectangle { x: 4px; y: 4.5px; width: 7px; height: 7px; border-radius: 3.5px; background: root.helmet; border-width: 1px; border-color: root.c.darker(0.6); }
+}
+
+// monoposto di Formula 1 vista dall'alto, tutta nel suo colore (muso verso destra)
+component Car inherits Rectangle {
+    in property <CarVM> car;
+    in property <float> phase;
+    in property <color> road;
+    in property <color> bg-line: M3.surface;
+    property <color> c: root.car.offline ? root.road.darker(0.4) : root.car.color;
+    // i meccanici arrivano quando la macchina si ferma al pit stop e lavorano a ritmo
+    property <float> crew: root.car.pit ? 1 : 0;
+    animate crew {
+        duration: 900ms;
+        easing: ease-out;
+    }
+    property <float> w: 0;
+    animate w {
+        duration: 230ms;
+        easing: ease-in-out;
+    }
+    Timer {
+        interval: 260ms;
+        running: root.car.pit;
+        triggered => {
+            root.w = root.w > 0.5 ? 0 : 1;
+        }
+    }
+    property <color> suit: root.road.darker(0.45);
+    width: 36px;
+    height: 20px;
+    // piazzola del box (poco più grande della macchina): fondo, stallo segnato agli angoli,
+    // linea d'arresto, muro del garage con la striscia della squadra
+    if root.crew > 0.01: Rectangle {
+        x: -16px;
+        y: -3px;
+        width: 70px;
+        height: 42px;
+        opacity: root.crew;
+        Rectangle { width: 100%; height: 100%; border-radius: 8px; background: root.road; }
+        Rectangle { x: 13px; y: 1px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 13px; y: 1px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 47px; y: 1px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 52.5px; y: 1px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 13px; y: 24px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 13px; y: 19.5px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 47px; y: 24px; width: 7px; height: 1.5px; background: root.bg-line; }
+        Rectangle { x: 52.5px; y: 19.5px; width: 1.5px; height: 6px; background: root.bg-line; }
+        Rectangle { x: 55px; y: 6px; width: 2px; height: 14px; background: root.bg-line; }
+        Rectangle { x: 3px; y: parent.height - 6px; width: parent.width - 6px; height: 4px; border-radius: 2px; background: root.suit; }
+        Rectangle { x: 8px; y: parent.height - 5px; width: parent.width - 16px; height: 1.5px; background: root.c; }
+    }
+    // scia, solo in pista
+    if root.car.racing: Rectangle {
+        x: -10px - 5px * root.phase;
+        y: 6px;
+        width: 8px + 5px * root.phase;
+        height: 2px;
+        border-radius: 1px;
+        background: root.c;
+        opacity: 0.2 + 0.35 * root.phase;
+    }
+    if root.car.racing: Rectangle {
+        x: -8px - 6px * (1 - root.phase);
+        y: 12px;
+        width: 6px + 6px * (1 - root.phase);
+        height: 2px;
+        border-radius: 1px;
+        background: root.c;
+        opacity: 0.2 + 0.35 * (1 - root.phase);
+    }
+    // alettone posteriore
+    Rectangle { x: 0px; y: 3px; width: 3px; height: 14px; border-radius: 1px; background: root.c; }
+    // ruote posteriori e anteriori
+    Rectangle { x: 4px; y: 0px; width: 7px; height: 5px; border-radius: 1.5px; background: root.c; }
+    Rectangle { x: 4px; y: 15px; width: 7px; height: 5px; border-radius: 1.5px; background: root.c; }
+    Rectangle { x: 23px; y: 1px; width: 6px; height: 4px; border-radius: 1.5px; background: root.c; }
+    Rectangle { x: 23px; y: 15px; width: 6px; height: 4px; border-radius: 1.5px; background: root.c; }
+    // scocca con le pance laterali
+    Rectangle { x: 6px; y: 6px; width: 16px; height: 8px; border-radius: 4px; background: root.c; }
+    // muso affilato e alettone anteriore
+    Rectangle { x: 20px; y: 8.5px; width: 13px; height: 3px; border-radius: 1.5px; background: root.c; }
+    Rectangle { x: 32px; y: 2px; width: 3px; height: 16px; border-radius: 1px; background: root.c; }
+    // abitacolo (halo): nel colore della strada; più grande sulla propria macchina
+    Rectangle {
+        x: root.car.me ? 15px : 16px;
+        y: root.car.me ? 7.5px : 8.5px;
+        width: root.car.me ? 5px : 3px;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: root.road;
+    }
+    // squadra dei box: numero e posti a caso (fissi per ogni sosta), sempre sul lato esterno
+    for m in root.car.crew: Crew {
+        c: root.suit;
+        helmet: root.c;
+        work: m.alt ? 1 - root.w : root.w;
+        tool: m.tool;
+        tire: m.tire;
+        sign: m.sign;
+        x: m.x * 1px;
+        y: m.y * 1px + 24px * (1 - root.crew);
+        transform-rotation: m.rot * 1deg;
+        transform-scale-x: 0.72;
+        transform-scale-y: 0.72;
+        opacity: root.crew;
+        visible: root.crew > 0.01;
+    }
+}
+
+// minimappa: tutto il circuito, le macchine come puntini
+component MiniMap inherits Rectangle {
+    in property <[CarVM]> cars;
+    in property <string> commands;
+    in property <float> aspect: 2.4;
+    in property <color> road;
+    property <length> pad: 8px;
+    property <length> sw: 5px;
+    property <length> tw: root.width - 2 * root.pad;
+    property <length> th: root.tw / root.aspect;
+    height: root.th + 2 * root.pad;
+    mm := Path {
+        x: root.pad - root.sw / 2;
+        y: root.pad - root.sw / 2;
+        width: root.tw + root.sw;
+        height: root.th + root.sw;
+        viewbox-width: 1000;
+        viewbox-height: 1000;
+        fit: ImageFit.fill;
+        commands: root.commands;
+        stroke: root.road;
+        stroke-width: root.sw;
+    }
+    for car in root.cars: Rectangle {
+        // posizione continua: ultimo valore ricevuto più la velocità per il tempo trascorso
+        property <float> f0: car.f;
+        property <duration> t0;
+        init => {
+            self.t0 = animation-tick();
+        }
+        changed f0 => {
+            self.t0 = animation-tick();
+        }
+        property <float> f: car.v > 0 ? self.f0 + car.v * ((animation-tick() - self.t0) / 1s) : self.f0;
+        property <Point> p: mm.point-at(self.f);
+        visible: !car.parked;
+        x: mm.x + self.p.x - self.width / 2;
+        y: mm.y + self.p.y - self.height / 2;
+        width: car.me ? 9px : 7px;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: car.offline ? root.road.darker(0.4) : car.color;
+    }
+}
+
+// la gara: da vicino la telecamera segue la tua macchina; altrimenti tutto il circuito.
+// Le posizioni vengono dal tracciato stesso (frazione di giro), quindi lo zoom non le sposta.
+component RaceView inherits Rectangle {
+    in property <[CarVM]> cars;
+    in property <float> cam-f;
+    in property <bool> overview;
+    in property <string> hud;
+    in property <int> flash;
+    in property <string> commands;
+    in property <float> aspect: 2.4;
+    in property <float> scale: 1;
+    in property <float> pad-x: 0.5;
+    in property <float> pad-y: 0.65;
+    // la strada: un solo colore, dal tema; la mezzeria nel colore dello sfondo
+    property <color> road: M3.surface-container-highest;
+    property <color> bg: M3.surface;
+    // il pulsante inverte la vista automatica (da vicino mentre studi, d'insieme altrimenti)
+    property <bool> flip: false;
+    property <bool> wide: root.overview != root.flip;
+    changed overview => {
+        root.flip = false;
+    }
+    // altezza della pista: grande da vicino (cresce con i membri), oppure tutta nella vista
+    property <length> fit-th: min((root.width - 110px) / root.aspect, (root.height - 40px) / 1.78);
+    property <float> zoom: root.wide ? 0 : 1;
+    animate zoom {
+        duration: 700ms;
+        easing: ease-in-out;
+    }
+    property <length> near-th: 560px * root.scale;
+    property <length> TH: root.fit-th + (root.near-th - root.fit-th) * root.zoom;
+    property <length> TW: root.TH * root.aspect;
+    property <length> P: 260px * root.scale;
+    // carreggiata e corsie
+    property <length> sw: root.TH * 0.13 / sqrt(root.scale);
+    property <length> lane-w: root.sw * 0.33;
+    // distanza dal centro della strada a cui si ferma chi fa il pit stop: metà carreggiata,
+    // il lato della piazzola verso la pista (13 px della monoposto, in scala) e un margine
+    property <length> pit-off: root.sw / 2 + 30px * root.k;
+    // monoposto in scala con la carreggiata: larghe circa 0,3 della strada, così tre stanno
+    // affiancate nelle corsie a qualunque zoom (piazzola e meccanici seguono la stessa scala)
+    property <float> k: 0.3 * root.sw / 20px;
+    property <float> phase: 0;
+    // telecamera: la stessa animazione della propria macchina, così resta al centro
+    in property <float> cam-v;
+    property <float> cf0: root.cam-f;
+    property <duration> ct0;
+    init => {
+        root.ct0 = animation-tick();
+    }
+    changed cf0 => {
+        root.ct0 = animation-tick();
+    }
+    in property <bool> cam-pit;
+    property <float> croll: root.cam-pit ? 0.012 : 0;
+    animate croll {
+        duration: 1400ms;
+        easing: ease-out;
+    }
+    property <float> cf: (root.cam-v > 0 ? root.cf0 + root.cam-v * ((animation-tick() - root.ct0) / 1s) : root.cf0) + root.croll;
+    property <Point> cp: road-path.point-at(root.cf);
+    property <angle> ca: road-path.angle-at(root.cf);
+    // al pit stop la telecamera si sposta sulla piazzola, fuori pista
+    in property <float> cam-side: 1;
+    property <float> cexit: root.cam-pit ? 1 : 0;
+    animate cexit {
+        duration: 1400ms;
+        easing: ease-in-out;
+    }
+    in property <float> cam-stack;
+    property <length> coff: root.cexit * root.cam-side * (root.pit-off + 10px * root.k + root.cam-stack * 50px * root.k);
+    property <length> cam-px: road-path.x + root.cp.x - sin(root.ca) * root.coff;
+    property <length> cam-py: road-path.y + root.cp.y + cos(root.ca) * root.coff;
+    property <length> mid-x: root.P + root.TW / 2;
+    property <length> mid-y: root.P + root.TH * (0.5 + 0.2 * (1 - root.zoom));
+    Timer {
+        interval: 120ms;
+        running: true;
+        triggered => {
+            root.phase = root.phase > 0.5 ? 0 : 1;
+        }
+    }
+    clip: true;
+    world := Rectangle {
+        x: root.width / 2 - (root.mid-x + (root.cam-px - root.mid-x) * root.zoom);
+        y: root.height / 2 + 12px * (1 - root.zoom) - (root.mid-y + (root.cam-py - root.mid-y) * root.zoom);
+        width: root.TW + 2 * root.P;
+        height: root.TH + 2 * root.P;
+        // paddock sotto il circuito, fuori pista: corsia box, muretto e garage; chi ha
+        // terminato la sessione o non è collegato aspetta qui nel suo box
+        Rectangle {
+            width: min(root.TW * 0.5, max(root.TH * 0.9, root.TW * 0.36));
+            height: root.TH * 0.24;
+            x: root.P + root.pad-x * root.TW - self.width / 2;
+            y: root.P + root.pad-y * root.TH - self.height / 2;
+            border-radius: min(self.height / 4, 18px);
+            background: root.road;
+            // corsia box tratteggiata
+            for i in 14: Rectangle {
+                x: parent.width * (i + 0.25) / 14;
+                y: parent.height * 0.12;
+                width: parent.width / 28;
+                height: max(1.5px, root.TH * 0.005);
+                background: root.bg;
+            }
+            // muretto dei box e tetto dei garage
+            Rectangle {
+                x: parent.width * 0.05;
+                y: 0px;
+                width: parent.width * 0.9;
+                height: max(2px, root.TH * 0.01);
+                border-radius: self.height / 2;
+                background: root.road.darker(0.25);
+            }
+            Rectangle {
+                x: parent.width * 0.05;
+                y: parent.height - self.height;
+                width: parent.width * 0.9;
+                height: max(3px, root.TH * 0.025);
+                border-radius: self.height / 2;
+                background: root.road.darker(0.25);
+            }
+        }
+        road-path := Path {
+            x: root.P - root.sw / 2;
+            y: root.P - root.sw / 2;
+            width: root.TW + root.sw;
+            height: root.TH + root.sw;
+            viewbox-width: 1000;
+            viewbox-height: 1000;
+            fit: ImageFit.fill;
+            commands: root.commands;
+            stroke: root.road;
+            stroke-width: root.sw;
+        }
+        // linea di mezzeria tratteggiata
+        for i in 80: Rectangle {
+            property <float> t: (i + 0.25) / 80;
+            property <Point> p: road-path.point-at(self.t);
+            x: road-path.x + self.p.x - self.width / 2;
+            y: road-path.y + self.p.y - self.height / 2;
+            width: root.TW * root.scale * 0.006 + root.TH * 0.02;
+            height: max(1.5px, root.TH * 0.006);
+            background: root.bg;
+            transform-rotation: road-path.angle-at(self.t);
+        }
+        // traguardo a scacchi, di traverso sulla strada
+        Rectangle {
+            property <Point> p: road-path.point-at(0);
+            property <length> sq: root.sw / 8;
+            x: road-path.x + self.p.x - self.width / 2;
+            y: road-path.y + self.p.y - self.height / 2;
+            width: 2 * self.sq;
+            height: root.sw;
+            transform-rotation: road-path.angle-at(0);
+            for i in 16: Rectangle {
+                x: mod(i, 2) * parent.sq;
+                y: floor(i / 2) * parent.sq;
+                width: parent.sq;
+                height: parent.sq;
+                background: mod(i + floor(i / 2), 2) == 0 ? root.bg : root.road.darker(0.35);
+            }
+        }
+        for car in root.cars: Rectangle {
+            // moto continuo: ultimo valore ricevuto più velocità × tempo trascorso (calcolato a
+            // ogni fotogramma, così non ci sono scatti tra un aggiornamento e l'altro)
+            property <float> f0: car.f;
+            property <duration> t0;
+            init => {
+                self.t0 = animation-tick();
+            }
+            changed f0 => {
+                self.t0 = animation-tick();
+            }
+            // uscita di pista: la macchina rallenta in avanti mentre si sposta di lato e sterza
+            // verso la piazzola (e al rientro fa il contrario)
+            property <float> exit: car.pit ? 1 : 0;
+            animate exit {
+                duration: 1400ms;
+                easing: ease-in-out;
+            }
+            property <float> roll: car.pit ? 0.012 : 0;
+            animate roll {
+                duration: 1400ms;
+                easing: ease-out;
+            }
+            property <float> f: (car.v > 0 ? self.f0 + car.v * ((animation-tick() - self.t0) / 1s) : self.f0) + self.roll;
+            // scostamento dal centro della strada: la corsia in gara, la piazzola al pit stop
+            // (calcolata a ogni zoom: niente animazioni che rincorrono)
+            property <length> off: (1 - self.exit) * car.lane * root.lane-w + self.exit * car.side * (root.pit-off + car.stack * 50px * root.k);
+            property <angle> yaw: 24deg * sin(self.exit * 180deg) * (car.pit ? 1 : -1) * car.side;
+            property <Point> p: road-path.point-at(self.f);
+            property <angle> a: road-path.angle-at(self.f);
+            property <length> cx: car.parked ? root.P + car.px * root.TW : road-path.x + self.p.x - sin(self.a) * self.off;
+            property <length> cy: car.parked ? root.P + car.py * root.TH : road-path.y + self.p.y + cos(self.a) * self.off;
+            x: self.cx - self.width / 2;
+            y: self.cy - self.height / 2;
+            width: 48px;
+            height: 48px;
+            // box del garage: due pareti e il fondo, aperto verso la corsia box
+            if car.parked: Rectangle {
+                width: 30px * root.k;
+                height: 46px * root.k;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2 + 2px * root.k;
+                Rectangle { x: 0px; y: 0px; width: max(1.5px, 2px * root.k); height: parent.height; background: root.bg; }
+                Rectangle { x: parent.width - self.width; y: 0px; width: max(1.5px, 2px * root.k); height: parent.height; background: root.bg; }
+                Rectangle { x: 0px; y: parent.height - self.height; width: parent.width; height: max(1.5px, 2px * root.k); background: root.bg; }
+            }
+            Car {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                car: car;
+                phase: root.phase;
+                road: root.road;
+                transform-rotation: car.parked ? -90deg : parent.a + parent.yaw;
+                transform-scale-x: root.k;
+                transform-scale-y: root.k * (car.side < 0 ? -1 : 1);
+            }
+            TouchArea {
+                clicked => {
+                    AppState.car-tap(car.id);
+                }
+            }
+        }
+    }
+    Text {
+        x: 16px;
+        y: 10px;
+        width: root.width - 160px;
+        text: root.hud;
+        color: M3.on-surface-variant;
+        font-weight: 700;
+        font-size: 13px;
+        overflow: elide;
+    }
+    // la minimappa serve solo da vicino
+    if !root.wide: MiniMap {
+        x: root.width - self.width - 12px;
+        y: 10px;
+        width: 120px;
+        cars: root.cars;
+        road: root.road;
+        commands: root.commands;
+        aspect: root.aspect;
+    }
+    // mentre studi: vista d'insieme o telecamera sulla tua macchina
+    if AppState.study-state != 0: Rectangle {
+        x: 12px;
+        y: root.height - self.height - 12px;
+        width: vt.preferred-width + 24px;
+        height: 32px;
+        border-radius: 16px;
+        background: M3.surface-container-high;
+        vt := Text {
+            text: root.wide ? "Segui la tua monoposto" : "Tutto il circuito";
+            color: M3.on-surface;
+            font-size: Type.label;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        TouchArea {
+            clicked => {
+                root.flip = !root.flip;
+            }
+        }
+    }
+    // giro completato: un breve lampo della strada
+    lap := Rectangle {
+        property <int> seen: root.flash;
+        background: root.road;
+        opacity: 0;
+        states [
+            fired when root.flash != self.seen: {
+                opacity: 0.35;
+                in {
+                    animate opacity { duration: 120ms; }
+                }
+            }
+        ]
+    }
+    Timer {
+        interval: 300ms;
+        running: root.flash != lap.seen;
+        triggered => {
+            lap.seen = root.flash;
+        }
+    }
+    // chi è quella macchina: tempo di studio, pit stop, cosa sta studiando
+    if AppState.car-sel != "": Rectangle {
+        x: 12px;
+        y: root.height - self.height - 12px;
+        width: root.width - 24px;
+        height: info.preferred-height;
+        border-radius: 16px;
+        background: M3.surface-container-high;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #0003;
+        TouchArea {
+            clicked => {
+                AppState.car-sel = "";
+            }
+        }
+        info := HorizontalLayout {
+            padding: 12px;
+            spacing: 10px;
+            VerticalLayout {
+                alignment: start;
+                Avatar {
+                    width: 44px;
+                    photo: AppState.car-info-photo;
+                    has-photo: AppState.car-info-has-photo;
+                    initial: AppState.car-info-initial;
+                    ring: AppState.car-info-color;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: AppState.car-info-title;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    overflow: elide;
+                }
+                Text {
+                    text: AppState.car-info-body;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+}
+
+// app da aprire (lanciatore della concentrazione): icona e nome
+component AppChip inherits Rectangle {
+    in property <FocusAppVM> app;
+    callback clicked;
+    height: 40px;
+    width: chip-row.preferred-width;
+    border-radius: 20px;
+    background: M3.secondary-container;
+    chip-row := HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 14px;
+        spacing: 8px;
+        if root.app.has-icon: Image {
+            y: 6px;
+            width: 28px;
+            height: 28px;
+            source: root.app.icon;
+        }
+        Text {
+            text: root.app.label;
+            vertical-alignment: center;
+            color: M3.on-secondary-container;
+            font-weight: 600;
+        }
+    }
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// riga di un permesso necessario alla concentrazione
+component PermRow inherits Rectangle {
+    in property <bool> ok;
+    in property <string> title;
+    in property <string> detail;
+    callback grant;
+    min-height: perm-row.preferred-height;
+    perm-row := HorizontalLayout {
+        spacing: 10px;
+        Rectangle {
+            width: 22px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 11px;
+                    background: root.ok ? M3.primary : transparent;
+                    border-width: root.ok ? 0px : 2px;
+                    border-color: M3.outline;
+                    if root.ok: VIcon {
+                        source: Icons.check;
+                        tint: M3.on-primary;
+                        size: 16px;
+                    }
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.title;
+                font-weight: 700;
+                color: M3.on-surface;
+                wrap: word-wrap;
+            }
+            Text {
+                text: root.detail;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+        }
+        if !root.ok: M3Button {
+            text: "Concedi";
+            kind: 1;
+            clicked => {
+                root.grant();
+            }
+        }
+    }
+}
+
+// impostazione della concentrazione: permessi, durata, app permesse, avvio
+component FocusSheet inherits Rectangle {
+    background: #0007;
+    TouchArea { }
+    Rectangle {
+        y: parent.height * 0.08;
+        height: parent.height * 0.92;
+        border-radius: 24px;
+        background: M3.surface-container-low;
+        VerticalLayout {
+            padding: 16px;
+            padding-bottom: 20px;
+            spacing: 10px;
+            HorizontalLayout {
+                Text {
+                    text: "Concentrazione";
+                    font-size: Type.title;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    VIcon {
+                        source: Icons.close;
+                        tint: M3.on-surface;
+                        size: 24px;
+                        x: 8px;
+                        y: 8px;
+                    }
+                    TouchArea {
+                        clicked => {
+                            AppState.focus-setup(false);
+                        }
+                    }
+                }
+            }
+            Text {
+                text: "Per il tempo scelto il telefono resta su Tremendous e sulle app spuntate qui sotto; dopo, finché non termini la sessione (anche al pit stop). Se apri altro, torni qui con un avviso. Chiamate, numeri d'emergenza e sveglia restano sempre possibili. Il blocco non si annulla prima della scadenza.";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            PermRow {
+                ok: AppState.focus-usage-ok;
+                title: "Accesso all'utilizzo";
+                detail: "Per sapere quale app è aperta (resta sul telefono)";
+                grant => {
+                    AppState.focus-perm("usage");
+                }
+            }
+            PermRow {
+                ok: AppState.focus-overlay-ok;
+                title: "Mostra sopra altre app";
+                detail: "Per l'avviso «Rimani nell'app!» e per riportarti qui";
+                grant => {
+                    AppState.focus-perm("overlay");
+                }
+            }
+            if !AppState.focus-usage-ok || !AppState.focus-overlay-ok: HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: "Interruttore grigio («impostazione limitata»)? Apri Info app › ⋮ › Consenti impostazioni limitate, poi riprova.";
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                M3Button {
+                    text: "Info app";
+                    kind: 2;
+                    clicked => {
+                        AppState.focus-perm("appinfo");
+                    }
+                }
+            }
+            Text {
+                text: "Durata del blocco";
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                for m in [25, 50, 90, 120, 180]: Chip {
+                    text: m < 120 ? m + " min" : (m / 60) + " ore";
+                    selected: AppState.focus-minutes == m;
+                    clicked => {
+                        AppState.focus-set-minutes(m);
+                    }
+                }
+            }
+            Text {
+                text: "App permesse durante lo studio";
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            Flickable {
+                vertical-stretch: 1;
+                interactive: true;
+                content-height: app-list.preferred-height;
+                app-list := VerticalLayout {
+                    y: 0px;
+                    width: parent.width;
+                    spacing: 2px;
+                    for a in AppState.focus-apps: Rectangle {
+                        height: 48px;
+                        border-radius: 12px;
+                        background: a.allowed ? M3.secondary-container : transparent;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 12px;
+                            spacing: 12px;
+                            Rectangle {
+                                width: 32px;
+                                if a.has-icon: Image {
+                                    y: 8px;
+                                    width: 32px;
+                                    height: 32px;
+                                    source: a.icon;
+                                }
+                            }
+                            Text {
+                                text: a.label;
+                                vertical-alignment: center;
+                                color: M3.on-surface;
+                                horizontal-stretch: 1;
+                                overflow: elide;
+                            }
+                            Rectangle {
+                                width: 22px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Rectangle {
+                                        width: 22px;
+                                        height: 22px;
+                                        border-radius: 6px;
+                                        border-width: a.allowed ? 0px : 2px;
+                                        border-color: M3.outline;
+                                        background: a.allowed ? M3.primary : transparent;
+                                        if a.allowed: VIcon {
+                                            source: Icons.check;
+                                            tint: M3.on-primary;
+                                            size: 16px;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        TouchArea {
+                            clicked => {
+                                AppState.focus-toggle(a.pkg);
+                            }
+                        }
+                    }
+                }
+            }
+            M3Button {
+                text: AppState.focus-confirm ? AppState.focus-confirm-text : "Avvia concentrazione e sessione";
+                enabled: AppState.focus-usage-ok && AppState.focus-overlay-ok;
+                clicked => {
+                    AppState.focus-start();
+                }
+            }
+        }
+    }
+}
+
+export component GroupPage inherits Page {
+    property <bool> rename-open: false;
+    VerticalLayout {
+        TopBar {
+            title: "Studio di gruppo";
+            subtitle: AppState.group-has ? AppState.group-name : "Studia insieme ad altri, ognuno dal suo dispositivo";
+        }
+
+        // la gara: striscia a tutta larghezza che separa la pista dal resto
+        RaceView {
+            height: min(300px, parent.height * 0.4);
+            cars: AppState.cars;
+            cam-f: AppState.cam-f;
+            cam-side: AppState.cam-side;
+            cam-stack: AppState.cam-stack;
+            cam-pit: AppState.study-state == 2;
+            cam-v: AppState.study-state == 1 ? AppState.lap-speed : 0;
+            overview: AppState.race-overview;
+            commands: AppState.track-cmd;
+            aspect: AppState.track-aspect;
+            scale: AppState.track-scale;
+            pad-x: AppState.pad-x;
+            pad-y: AppState.pad-y;
+            hud: AppState.race-hud;
+            flash: AppState.lap-flash;
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+
+            // più gruppi: si sceglie quello attivo
+            if AppState.groups.length > 1: Flickable {
+                height: 40px;
+                interactive: true;
+                content-width: max(self.width, gstrip.preferred-width);
+                content-height: 40px;
+                gstrip := HorizontalLayout {
+                    x: 0px;
+                    y: 0px;
+                    height: 40px;
+                    spacing: 8px;
+                    alignment: start;
+                    for g in AppState.groups: Chip {
+                        text: g.name;
+                        selected: g.active;
+                        clicked => {
+                            AppState.group-select(g.id);
+                        }
+                    }
+                }
+            }
+
+            // intestazione del gruppo: foto, nome, codice, amministratore
+            if AppState.group-has && AppState.group-code != "": Card {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Avatar {
+                            width: 56px;
+                            photo: AppState.group-photo;
+                            has-photo: AppState.group-has-photo;
+                            initial: AppState.group-initial;
+                            ring: M3.primary;
+                            TouchArea {
+                                enabled: AppState.group-admin;
+                                clicked => {
+                                    AppState.pick-photo("group");
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: AppState.group-name;
+                                font-size: Type.title;
+                                font-weight: 800;
+                                color: M3.on-surface;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: "Codice " + AppState.group-code;
+                                font-weight: 700;
+                                color: M3.primary;
+                            }
+                            Text {
+                                text: AppState.group-admin-name == "" ? "Nessun amministratore noto" : "Amministratore: " + AppState.group-admin-name;
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                            }
+                        }
+                    }
+                    Text {
+                        text: AppState.group-info;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                    Hint {
+                        short: "Come funziona la gara";
+                        full: "Ogni giro = 1 minuto di studio. Al pit stop (pausa) esci di pista; con «Termina» vai al paddock fino alla prossima sessione. Tocca una monoposto o un membro per i dettagli.";
+                    }
+                    if rename-open: HorizontalLayout {
+                        spacing: 8px;
+                        rename-edit := LineEdit {
+                            horizontal-stretch: 1;
+                            text: AppState.group-name;
+                            placeholder-text: "Nuovo nome del gruppo";
+                            accepted => {
+                                AppState.group-rename(self.text);
+                                rename-open = false;
+                            }
+                        }
+                        M3Button {
+                            text: "Salva";
+                            kind: 1;
+                            clicked => {
+                                AppState.group-rename(rename-edit.text);
+                                rename-open = false;
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Avvisa tutti";
+                            kind: 1;
+                            small: true;
+                            clicked => {
+                                AppState.group-ping("");
+                            }
+                        }
+                        if AppState.group-can-rename && !rename-open: M3Button {
+                            text: "Rinomina";
+                            kind: 2;
+                            small: true;
+                            clicked => {
+                                rename-open = true;
+                            }
+                        }
+                        if AppState.group-admin: M3Button {
+                            text: "Foto";
+                            kind: 2;
+                            small: true;
+                            clicked => {
+                                AppState.pick-photo("group");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // cronometro personale
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: AppState.study-state == 1 ? "Stai studiando" : AppState.study-state == 2 ? "Pit stop" : "Pronto a partire";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: AppState.study-today;
+                        color: M3.on-surface-variant;
+                    }
+                    LinearProgress {
+                        value: AppState.study-lap;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        if AppState.study-state != 1: M3Button {
+                            horizontal-stretch: 1;
+                            text: AppState.study-state == 2 ? "Riparti" : "Inizia a studiare";
+                            has-icon: true;
+                            icon: Icons.play;
+                            clicked => {
+                                AppState.study-start();
+                            }
+                        }
+                        if AppState.study-state == 1: M3Button {
+                            horizontal-stretch: 1;
+                            text: "Pit stop (pausa)";
+                            kind: 1;
+                            has-icon: true;
+                            icon: Icons.pause;
+                            clicked => {
+                                AppState.study-pause();
+                            }
+                        }
+                        if AppState.study-state != 0: M3Button {
+                            text: "Termina";
+                            kind: 3;
+                            clicked => {
+                                AppState.study-stop();
+                            }
+                        }
+                    }
+                    // concentrazione (Android): impostazione, poi stato e lanciatore delle app permesse
+                    if AppState.focus-available && !AppState.focus-active: HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Concentrazione: il telefono resta su Tremendous e sulle app che scegli, per il tempo che decidi";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                        }
+                        M3Button {
+                            text: "Imposta";
+                            kind: 2;
+                            clicked => {
+                                AppState.focus-setup(true);
+                            }
+                        }
+                    }
+                    if AppState.focus-active: VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: AppState.focus-status;
+                            wrap: word-wrap;
+                            font-size: Type.label;
+                            font-weight: 700;
+                            color: M3.primary;
+                        }
+                        Flickable {
+                            height: 44px;
+                            interactive: true;
+                            content-width: max(self.width, launch-row.preferred-width);
+                            content-height: 44px;
+                            launch-row := HorizontalLayout {
+                                x: 0px;
+                                y: 0px;
+                                height: 44px;
+                                spacing: 8px;
+                                alignment: start;
+                                for a in AppState.focus-launcher: AppChip {
+                                    app: a;
+                                    clicked => {
+                                        AppState.focus-launch(a.pkg);
+                                    }
+                                }
+                                Chip {
+                                    text: "Telefono";
+                                    clicked => {
+                                        AppState.focus-dial();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // classifica
+            if AppState.group-has: Text {
+                text: "Classifica";
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            if AppState.group-has: HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                for p[i] in ["Oggi", "Settimana", "Totale"]: Chip {
+                    text: p;
+                    selected: AppState.group-period == i;
+                    clicked => {
+                        AppState.group-period = i;
+                        AppState.group-set-period(i);
+                    }
+                }
+            }
+            if AppState.group-has: VerticalLayout {
+                spacing: 6px;
+                for r in AppState.ranking: Rectangle {
+                    border-radius: 12px;
+                    background: r.me ? M3.secondary-container : M3.surface-container-low;
+                    min-height: 52px;
+                    TouchArea {
+                        clicked => {
+                            AppState.member-sel = AppState.member-sel == r.id ? "" : r.id;
+                        }
+                    }
+                    VerticalLayout {
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        min-height: 52px;
+                        spacing: 10px;
+                        Text {
+                            text: r.pos + "°";
+                            font-weight: 800;
+                            font-size: Type.title;
+                            color: r.pos == 1 ? #c79100 : M3.on-surface-variant;
+                            vertical-alignment: center;
+                            min-width: 30px;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Avatar {
+                                width: 36px;
+                                photo: r.photo;
+                                has-photo: r.has-photo;
+                                initial: r.initial;
+                                ring: r.color;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: r.name;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: r.status + " · " + r.laps + " giri" + (r.admin ? " · amministratore" : "");
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                            }
+                        }
+                        Text {
+                            text: r.value;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            vertical-alignment: center;
+                        }
+                    }
+                    // azioni sul membro toccato
+                    if AppState.member-sel == r.id && !r.me: HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        padding-bottom: 10px;
+                        spacing: 8px;
+                        alignment: end;
+                        M3Button {
+                            text: "Avvisa";
+                            kind: 1;
+                            clicked => {
+                                AppState.group-ping(r.id);
+                            }
+                        }
+                        if AppState.group-admin && !r.admin: M3Button {
+                            text: "Rimuovi";
+                            kind: 3;
+                            clicked => {
+                                AppState.group-kick(r.id);
+                            }
+                        }
+                    }
+                    }
+                }
+            }
+
+            // invito
+            if AppState.group-has && AppState.group-code != "": Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: "Invita con il codice";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Hint {
+                        short: "Manda il codice a chi vuoi invitare.";
+                        full: "Manda il codice a chi vuoi invitare: lo scrive in «Entra con un codice» (nell'app o nella web app). Il gruppo è privato: lo vede solo chi ha il codice.";
+                    }
+                    LineEdit {
+                        text: AppState.group-code;
+                        read-only: true;
+                        font-size: 20px;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Condividi codice";
+                            has-icon: true;
+                            icon: Icons.add;
+                            clicked => {
+                                AppState.group-invite();
+                            }
+                        }
+                        M3Button {
+                            text: "Esci dal gruppo";
+                            kind: 3;
+                            clicked => {
+                                AppState.group-leave(AppState.group-id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // crea o entra in un gruppo
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: AppState.group-has ? "Un altro gruppo" : "Crea un gruppo";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        new-name := LineEdit {
+                            horizontal-stretch: 1;
+                            text <=> AppState.group-new-name;
+                            placeholder-text: "Nome del gruppo (es. Anatomia 2026)";
+                        }
+                        M3Button {
+                            text: "Crea";
+                            kind: 1;
+                            clicked => {
+                                AppState.group-create(new-name.text);
+                                AppState.group-new-name = "";
+                            }
+                        }
+                    }
+                    Text {
+                        text: "Entra con un codice";
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        join := LineEdit {
+                            horizontal-stretch: 1;
+                            text <=> AppState.group-join-text;
+                            placeholder-text: "Codice del gruppo (es. K7QM-4TZP-9WXR-2HDA)";
+                            accepted => {
+                                AppState.group-join(self.text);
+                            }
+                        }
+                        M3Button {
+                            text: "Entra";
+                            kind: 1;
+                            clicked => {
+                                AppState.group-join(join.text);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if AppState.focus-open: FocusSheet {
+        width: 100%;
+        height: 100%;
+    }
+}

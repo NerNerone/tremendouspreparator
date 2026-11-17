@@ -1,0 +1,288 @@
+import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type, Shape } from "../theme.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+
+export component GoalsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Obiettivi";
+            subtitle: "Argomenti di oggi: proposti in base ai progressi, o scelti da te";
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 14px;
+            if AppState.goals.length > 0: Card {
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    VIcon {
+                        source: Icons.check;
+                        tint: M3.primary;
+                        size: 20px;
+                    }
+
+                    Text {
+                        text: AppState.goals-confirmed ? "Obiettivi di oggi" : "Proposta per oggi";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                        horizontal-stretch: 1;
+                    }
+                }
+
+                Text {
+                    text: AppState.goals-confirmed ? AppState.goals-status : AppState.goals-note;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                for g[i] in AppState.goals: Rectangle {
+                    border-radius: 12px;
+                    background: g.selected || AppState.goals-confirmed ? M3.secondary-container : M3.surface-container-high;
+                    animate background { duration: 180ms; }
+                    TouchArea {
+                        clicked => {
+                            AppState.goals-open = AppState.goals-open == "g:" + g.topic ? "" : "g:" + g.topic;
+                        }
+                    }
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            if !AppState.goals-confirmed: Switch {
+                                checked: g.selected;
+                                toggled => {
+                                    AppState.goals-toggle(i);
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                Text {
+                                    text: g.name;
+                                    font-weight: 600;
+                                    color: M3.on-secondary-container;
+                                    wrap: word-wrap;
+                                }
+
+                                Text {
+                                    text: g.info;
+                                    font-size: Type.label;
+                                    color: M3.on-secondary-container.with-alpha(0.8);
+                                    wrap: word-wrap;
+                                }
+                            }
+
+                            if AppState.goals-confirmed: IconButton {
+                                icon: Icons.remove;
+                                tint: M3.on-secondary-container;
+                                clicked => {
+                                    AppState.goals-remove(i);
+                                }
+                            }
+                        }
+
+                        if AppState.goals-open == "g:" + g.topic: HorizontalLayout {
+                            spacing: 6px;
+                            alignment: end;
+                            M3Button {
+                                text: "Studia";
+                                kind: 3;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.book;
+                                clicked => {
+                                    AppState.goals-study(g.topic);
+                                }
+                            }
+
+                            if AppState.goals-confirmed: M3Button {
+                                text: g.done >= g.target ? "Fatto" : "Allenati";
+                                kind: g.done >= g.target ? 3 : 1;
+                                small: true;
+                                has-icon: true;
+                                icon: g.done >= g.target ? Icons.check : Icons.play;
+                                clicked => {
+                                    AppState.goals-train(g.topic);
+                                }
+                            }
+                        }
+
+                        if AppState.goals-confirmed: LinearProgress {
+                            value: g.target > 0 ? min(1, g.done / g.target) : 0;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    if AppState.goals-confirmed: M3Button {
+                        text: "Nuova proposta";
+                        kind: 3;
+                        clicked => {
+                            AppState.goals-edit();
+                        }
+                    }
+                    if !AppState.goals-confirmed: M3Button {
+                        text: "Conferma obiettivi";
+                        has-icon: true;
+                        icon: Icons.check;
+                        clicked => {
+                            AppState.goals-confirm();
+                        }
+                    }
+                }
+            }
+            }
+
+
+            if AppState.review-goals.length > 0: Card {
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    VIcon {
+                        source: Icons.sync;
+                        tint: M3.on-tertiary-container;
+                        size: 20px;
+                    }
+
+                    Text {
+                        text: "Obiettivi di ripasso";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                        horizontal-stretch: 1;
+                    }
+                }
+
+                Hint {
+                    short: "Argomenti non toccati da qualche giorno: un breve ripasso li fissa.";
+                    full: "Argomenti che non tocchi da qualche giorno: un breve ripasso con domande già viste e nuove li fissa nella memoria.";
+                }
+
+                for r in AppState.review-goals: Rectangle {
+                    border-radius: 12px;
+                    background: M3.tertiary-container;
+                    TouchArea {
+                        clicked => {
+                            AppState.goals-open = AppState.goals-open == "r:" + r.topic ? "" : "r:" + r.topic;
+                        }
+                    }
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 6px;
+                        Text {
+                            text: r.name;
+                            font-weight: 600;
+                            color: M3.on-tertiary-container;
+                            wrap: word-wrap;
+                        }
+
+                        Text {
+                            text: r.info;
+                            font-size: Type.label;
+                            color: M3.on-tertiary-container.with-alpha(0.8);
+                            wrap: word-wrap;
+                        }
+
+                        if AppState.goals-open == "r:" + r.topic: HorizontalLayout {
+                            spacing: 6px;
+                            alignment: end;
+                            M3Button {
+                                text: "Studia";
+                                kind: 3;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.book;
+                                clicked => {
+                                    AppState.goals-study(r.topic);
+                                }
+                            }
+
+                            M3Button {
+                                text: "Ripassa";
+                                kind: 1;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.sync;
+                                clicked => {
+                                    AppState.goals-review(r.topic);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            }
+
+            SectionTitle {
+            text: "Aggiungi un argomento";
+            }
+
+            HorizontalLayout {
+            spacing: 8px;
+            for s in AppState.subjects: Chip {
+                text: s.short;
+                selected: AppState.goal-subject == s.id;
+                clicked => {
+                    AppState.goals-pick-subject(s.id);
+                }
+            }
+            }
+
+            for t in AppState.goal-topics: Rectangle {
+            min-height: max(56px, gt-row.preferred-height);
+            border-radius: Shape.lg;
+            background: t.selected ? M3.secondary-container : M3.surface-container-low;
+            animate background { duration: 200ms; }
+            gt-row := HorizontalLayout {
+                padding: 10px;
+                padding-left: 14px;
+                spacing: 8px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: t.name;
+                        wrap: word-wrap;
+                        color: M3.on-surface;
+                    }
+
+                    Text {
+                        text: t.info;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+
+                IconButton {
+                    icon: t.selected ? Icons.check : Icons.add;
+                    filled: !t.selected;
+                    tint: t.selected ? M3.primary : M3.on-secondary-container;
+                    clicked => {
+                        AppState.goals-add(t.topic);
+                    }
+                }
+            }
+            }
+        }
+    }
+}

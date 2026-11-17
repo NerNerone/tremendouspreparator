@@ -1,0 +1,5 @@
+Prima versione pubblica.
+• Esami da pacchetti contenuti, con schede informative definite dal pacchetto
+• Quiz, simulazioni, flashcard, stima della preparazione e obiettivi del giorno
+• Sincronizzazione tra dispositivi senza server, gruppi di studio, modalità concentrazione
+• Colore del tema a scelta; Android 8.0 o successivo

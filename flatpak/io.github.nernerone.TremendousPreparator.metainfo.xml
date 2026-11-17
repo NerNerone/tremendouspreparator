@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.nernerone.TremendousPreparator</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Tremendous Preparator</name>
+  <summary>Preparazione agli esami con quiz, simulazioni e flashcard</summary>
+  <description>
+    <p>App di studio: quiz per argomento, simulazioni d'esame, flashcard con ripasso distanziato
+    e libri, da pacchetti di contenuti importati. Progressi sincronizzati tra i propri dispositivi
+    senza server e studio di gruppo.</p>
+  </description>
+  <launchable type="desktop-id">io.github.nernerone.TremendousPreparator.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.2.0" date="2026-11-17"/>
+    <release version="0.1" date="2026-11-10"/>
+  </releases>
+</component>

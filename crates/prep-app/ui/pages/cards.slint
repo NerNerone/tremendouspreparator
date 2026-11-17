@@ -1,0 +1,195 @@
+import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type, Shape } from "../theme.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+
+export component CardsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Flashcard";
+            subtitle: AppState.c-done ? "Sessione completata" : (AppState.c-index + 1) + " di " + AppState.c-total + " · " + AppState.c-topic;
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        if AppState.c-done: VerticalLayout {
+            vertical-stretch: 1;
+            padding: 24px;
+            spacing: 16px;
+            alignment: center;
+            Text {
+                text: AppState.c-summary;
+                font-size: Type.title-large;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+                color: M3.on-surface;
+            }
+
+            M3Button {
+                text: "Chiudi";
+                clicked => {
+                    AppState.back();
+                }
+            }
+        }
+
+        if !AppState.c-done: cv := VerticalLayout {
+            vertical-stretch: 1;
+            padding: 16px;
+            spacing: 12px;
+            property <float> flip: AppState.c-flipped ? 1 : 0;
+            animate flip {
+                duration: 420ms;
+                easing: ease-in-out;
+            }
+            property <bool> show-back: self.flip > 0.5;
+            LinearProgress {
+                value: AppState.c-total > 0 ? AppState.c-index / AppState.c-total : 0;
+                height: 4px;
+            }
+
+            Swap {
+                key: "" + AppState.c-index;
+                vertical-stretch: 1;
+            Card {
+                width: parent.width;
+                height: parent.height;
+                bg: cv.show-back ? M3.surface-container-high : M3.surface-container-low;
+                transform-scale-x: max(0.02, abs(1 - 2 * cv.flip)) * 100%;
+                clickable: true;
+                clicked => {
+                    AppState.card-flip();
+                }
+                Scroller {
+                    pad: 24px;
+                    gap: 16px;
+                    align: center;
+                    Text {
+                        text: AppState.c-front;
+                        font-size: 20px;
+                        font-weight: 600;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                        color: M3.on-surface;
+                    }
+
+                    if cv.show-back: Rectangle {
+                        height: 1px;
+                        background: M3.outline-variant;
+                    }
+                    if cv.show-back: Text {
+                        text: AppState.c-back;
+                        font-size: 17px;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                        color: M3.on-surface;
+                    }
+                    if cv.show-back && AppState.c-ref != "": RefBox {
+                        label: AppState.c-ref;
+                        open => {
+                            AppState.open-ref-card();
+                        }
+                    }
+                    if cv.show-back && AppState.c-note-shown != "": Rectangle {
+                        border-radius: 10px;
+                        background: M3.secondary-container;
+                        HorizontalLayout {
+                            padding: 10px;
+                            Text {
+                                text: "La tua spiegazione: " + AppState.c-note-shown;
+                                wrap: word-wrap;
+                                font-size: Type.body;
+                                color: M3.on-secondary-container;
+                            }
+                        }
+                    }
+                    if !cv.show-back: Text {
+                        text: "Tocca per vedere la risposta";
+                        font-size: Type.label;
+                        horizontal-alignment: center;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+
+            }
+
+            if !cv.show-back: TextEdit {
+                text <=> AppState.c-note;
+                placeholder-text: "Prima di girare: spiegala a parole tue (facoltativo, resta nel tuo storico)";
+                wrap: word-wrap;
+                min-height: 72px;
+                max-height: 120px;
+            }
+
+            HorizontalLayout {
+                alignment: center;
+                Chip {
+                    text: "Insicura";
+                    has-icon: true;
+                    icon: AppState.c-unsure ? Icons.flag : Icons.flag-outline;
+                    accent: M3.error;
+                    selected: AppState.c-unsure;
+                    clicked => {
+                        AppState.card-toggle-unsure();
+                    }
+                }
+            }
+
+            if !AppState.c-flipped: M3Button {
+                text: "Mostra risposta";
+                clicked => {
+                    AppState.card-flip();
+                }
+            }
+            if AppState.c-flipped: HorizontalLayout {
+                spacing: 6px;
+                M3Button {
+                    text: "Ancora";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 4;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(0);
+                    }
+                }
+
+                M3Button {
+                    text: "Difficile";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 1;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(1);
+                    }
+                }
+
+                M3Button {
+                    text: "Bene";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 1;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(2);
+                    }
+                }
+
+                M3Button {
+                    text: "Facile";
+                    compact: true;
+                    min-width: 0px;
+                    kind: 0;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.card-grade(3);
+                    }
+                }
+            }
+        }
+    }
+}
