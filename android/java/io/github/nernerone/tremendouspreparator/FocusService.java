@@ -29,9 +29,9 @@ import android.telecom.TelecomManager;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.text.SimpleDateFormat;
@@ -59,7 +59,7 @@ public class FocusService extends Service {
 
     static final String WARNING_TITLE = "Rimani nell'app!";
     static final String WARNING_TEXT =
-        "Se devi usare un app adibita allo studio includila alla lista prima dell'avvio della sessione o stoppa la sessione";
+        "Se devi usare un'app adibita allo studio includila alla lista prima dell'avvio della sessione o stoppa la sessione";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private String foreground = "";
@@ -352,87 +352,167 @@ public class FocusService extends Service {
         overlay = null;
     }
 
-    private Button chip(String text, View.OnClickListener l) {
+    private Button chip(String text, boolean primary, View.OnClickListener l) {
         Button b = new Button(this);
         b.setText(text);
         b.setAllCaps(false);
-        b.setTextColor(Color.WHITE);
+        b.setSingleLine(true);
+        b.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        b.setTextColor(primary ? 0xFF202124 : Color.WHITE);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0x33FFFFFF);
-        bg.setCornerRadius(dp(18));
+        bg.setColor(primary ? 0xFFE8EAED : 0x33FFFFFF);
+        bg.setCornerRadius(dp(20));
         b.setBackground(bg);
-        b.setPadding(dp(14), 0, dp(14), 0);
-        b.setMinHeight(dp(36));
-        b.setMinimumHeight(dp(36));
+        b.setPadding(dp(16), 0, dp(16), 0);
+        b.setMinHeight(dp(40));
+        b.setMinimumHeight(dp(40));
+        b.setMinWidth(0);
+        b.setMinimumWidth(0);
         b.setOnClickListener(l);
         return b;
+    }
+
+    /** Disposizione a capo: i figli riempiono una riga e poi passano alla successiva. */
+    private static final class Flow extends ViewGroup {
+        private final int gap;
+
+        Flow(Context c, int gap) {
+            super(c);
+            this.gap = gap;
+        }
+
+        @Override
+        protected void onMeasure(int ws, int hs) {
+            int max = MeasureSpec.getSize(ws);
+            int x = 0, y = 0, rowH = 0, used = 0;
+            for (int i = 0; i < getChildCount(); i++) {
+                View c = getChildAt(i);
+                c.measure(MeasureSpec.makeMeasureSpec(max, MeasureSpec.AT_MOST),
+                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+                int w = c.getMeasuredWidth();
+                if (x > 0 && x + w > max) {
+                    x = 0;
+                    y += rowH + gap;
+                    rowH = 0;
+                }
+                x += w + gap;
+                used = Math.max(used, x - gap);
+                rowH = Math.max(rowH, c.getMeasuredHeight());
+            }
+            setMeasuredDimension(MeasureSpec.getMode(ws) == MeasureSpec.EXACTLY ? max : used, y + rowH);
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            int max = r - l;
+            int x = 0, y = 0, rowH = 0;
+            for (int i = 0; i < getChildCount(); i++) {
+                View c = getChildAt(i);
+                int w = c.getMeasuredWidth(), h = c.getMeasuredHeight();
+                if (x > 0 && x + w > max) {
+                    x = 0;
+                    y += rowH + gap;
+                    rowH = 0;
+                }
+                c.layout(x, y, x + w, y + h);
+                x += w + gap;
+                rowH = Math.max(rowH, h);
+            }
+        }
+    }
+
+    /** Area che scorre in verticale solo oltre un'altezza massima. */
+    private static final class Capped extends android.widget.ScrollView {
+        private final int max;
+
+        Capped(Context c, int max) {
+            super(c);
+            this.max = max;
+        }
+
+        @Override
+        protected void onMeasure(int ws, int hs) {
+            super.onMeasure(ws, MeasureSpec.makeMeasureSpec(max, MeasureSpec.AT_MOST));
+        }
+    }
+
+    private int navBarHeight() {
+        int id = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        return id > 0 ? getResources().getDimensionPixelSize(id) : 0;
     }
 
     private void showOverlay(Set<String> allowed) {
         if (!hasOverlay(this)) return;
         hideOverlay();
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        // larghezza dello schermo meno i margini, al massimo 560 dp (tablet, orizzontale)
+        int width = Math.min(dm.widthPixels - dp(24), dp(560));
+
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(18), dp(14), dp(18), dp(14));
+        box.setPadding(dp(20), dp(16), dp(20), dp(16));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF0202124);
-        bg.setCornerRadius(dp(20));
+        bg.setColor(0xFF202124);
+        bg.setCornerRadius(dp(24));
         box.setBackground(bg);
+        box.setElevation(dp(8));
 
         TextView title = new TextView(this);
         title.setText(WARNING_TITLE);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         box.addView(title);
 
         TextView text = new TextView(this);
-        text.setText("(" + WARNING_TEXT + ")");
+        text.setText(WARNING_TEXT);
         text.setTextColor(0xDDFFFFFF);
         text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        text.setPadding(0, dp(4), 0, dp(10));
+        text.setPadding(0, dp(6), 0, dp(14));
         box.addView(text);
 
-        // app permesse, Telefono, chiudi
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
+        // app permesse e Telefono: vanno a capo; con molte app l'area scorre
+        Flow flow = new Flow(this, dp(8));
         PackageManager pm = getPackageManager();
+        java.util.List<String[]> apps = new java.util.ArrayList<>();
         for (String pkg : allowed) {
-            String label = pkg;
             try {
-                label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
+                apps.add(new String[] {pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString(), pkg});
             } catch (Exception e) {
-                continue;
+                // app disinstallata
             }
-            Button b = chip(label, v -> {
-                launch(this, pkg);
-                hideOverlay();
-            });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-            lp.setMarginEnd(dp(8));
-            row.addView(b, lp);
         }
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-        lp.setMarginEnd(dp(8));
-        row.addView(chip("Telefono", v -> {
+        apps.sort((a, b) -> a[0].compareToIgnoreCase(b[0]));
+        for (String[] a : apps) {
+            flow.addView(chip(a[0], false, v -> {
+                launch(this, a[1]);
+                hideOverlay();
+            }));
+        }
+        flow.addView(chip("Telefono", false, v -> {
             dial(this);
             hideOverlay();
-        }), lp);
-        row.addView(chip("Ok", v -> hideOverlay()), new LinearLayout.LayoutParams(-2, -2));
-        HorizontalScrollView scroll = new HorizontalScrollView(this);
-        scroll.setHorizontalScrollBarEnabled(false);
-        scroll.addView(row);
-        box.addView(scroll);
+        }));
+        Capped scroll = new Capped(this, (int) (dm.heightPixels * 0.4f));
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.addView(flow, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout.LayoutParams okp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        okp.gravity = Gravity.END;
+        okp.topMargin = dp(14);
+        box.addView(chip("Ok", true, v -> hideOverlay()), okp);
 
         WindowManager.LayoutParams wp = new WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            width, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT);
-        wp.gravity = Gravity.BOTTOM;
+        wp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
         wp.x = 0;
-        wp.y = dp(24);
-        wp.horizontalMargin = 0.03f;
+        // sopra la barra di navigazione (pulsanti o gesti)
+        wp.y = dp(16) + navBarHeight();
         try {
             getSystemService(WindowManager.class).addView(box, wp);
             overlay = box;

@@ -861,6 +861,7 @@ impl Ctrl {
                 v: if racing { 1.0 / LAP_SECS as f32 } else { 0.0 },
                 side: side as f32,
                 stack: 0.0,
+                run: 0.0,
                 color: slint::Color::from_argb_encoded(s.color),
                 label: ss(initial),
                 me,
@@ -891,12 +892,14 @@ impl Ctrl {
                 for (c, (side, level)) in cars.iter_mut().filter(|c| c.pit).zip(places) {
                     c.side = *side as f32;
                     c.stack = *level as f32;
+                    c.run = prep_core::group::pit_run(ci, all.len(), *level) as f32;
                 }
             }
         }
         if let Some(me) = cars.iter().find(|c| c.me) {
             st.set_cam_side(me.side);
             st.set_cam_stack(me.stack);
+            st.set_cam_run(me.run);
         }
         // scheda della macchina toccata
         match all.iter().find(|(id, _, _, _)| *id == self.car_sel) {

@@ -96,12 +96,27 @@ component Car inherits Rectangle {
     in property <color> road;
     in property <color> bg-line: M3.surface;
     property <color> c: root.car.offline ? root.road.darker(0.4) : root.car.color;
-    // i meccanici arrivano quando la macchina si ferma al pit stop e lavorano a ritmo
-    property <float> crew: root.car.pit ? 1 : 0;
-    animate crew {
-        duration: 900ms;
-        easing: ease-out;
-    }
+    // la piazzola e i meccanici compaiono quando la macchina è ferma sulla piazzola e
+    // spariscono in fretta quando riparte
+    in property <bool> arrived;
+    property <float> crew: 0;
+    states [
+        stopped when root.arrived: {
+            crew: 1;
+            in {
+                animate crew {
+                    duration: 900ms;
+                    easing: ease-out;
+                }
+            }
+            out {
+                animate crew {
+                    duration: 250ms;
+                    easing: ease-in;
+                }
+            }
+        }
+    ]
     property <float> w: 0;
     animate w {
         duration: 230ms;
@@ -290,28 +305,47 @@ component RaceView inherits Rectangle {
     property <duration> ct0;
     init => {
         root.ct0 = animation-tick();
+        root.ctp = animation-tick() - 3600s;
+        root.cl-side = root.cam-side;
+        root.cl-stack = root.cam-stack;
+        root.cl-run = root.cam-run;
     }
     changed cf0 => {
         root.ct0 = animation-tick();
     }
     in property <bool> cam-pit;
-    property <float> croll: root.cam-pit ? 0.012 : 0;
-    animate croll {
-        duration: 1400ms;
-        easing: ease-out;
+    // velocità di gara (giri al secondo): l'uscita di pista dura quanto basta a frenare da lì
+    in property <float> lap-v: 1 / 60;
+    in property <float> cam-run;
+    // al pit stop la telecamera segue la stessa traiettoria della propria macchina (vedi sotto)
+    property <float> cl-side: 1;
+    property <float> cl-stack: 0;
+    property <float> cl-run: 0;
+    property <duration> ctp;
+    function cam-latch() {
+        if (root.cam-pit) {
+            root.cl-side = root.cam-side;
+            root.cl-stack = root.cam-stack;
+            root.cl-run = root.cam-run;
+        }
     }
-    property <float> cf: (root.cam-v > 0 ? root.cf0 + root.cam-v * ((animation-tick() - root.ct0) / 1s) : root.cf0) + root.croll;
+    changed cam-pit => {
+        root.ctp = animation-tick();
+        root.cam-latch();
+    }
+    changed cam-run => { root.cam-latch(); }
+    changed cam-side => { root.cam-latch(); }
+    changed cam-stack => { root.cam-latch(); }
+    property <duration> cT: max(0.5s, 2 * root.cl-run / max(0.001, root.lap-v) * 1s);
+    property <float> clin: clamp((animation-tick() - root.ctp) / root.cT, 0, 1);
+    property <float> cq: root.cam-pit ? 1 - (1 - root.clin) * (1 - root.clin) : (1 - root.clin) * (1 - root.clin);
+    property <float> cf: (root.cam-v > 0 ? root.cf0 + root.cam-v * ((animation-tick() - root.ct0) / 1s) : root.cf0) + root.cl-run * root.cq;
     property <Point> cp: road-path.point-at(root.cf);
     property <angle> ca: road-path.angle-at(root.cf);
     // al pit stop la telecamera si sposta sulla piazzola, fuori pista
     in property <float> cam-side: 1;
-    property <float> cexit: root.cam-pit ? 1 : 0;
-    animate cexit {
-        duration: 1400ms;
-        easing: ease-in-out;
-    }
     in property <float> cam-stack;
-    property <length> coff: root.cexit * root.cam-side * (root.pit-off + 10px * root.k + root.cam-stack * 50px * root.k);
+    property <length> coff: root.cq * root.cq * (3 - 2 * root.cq) * root.cl-side * (root.pit-off + 10px * root.k + root.cl-stack * 50px * root.k);
     property <length> cam-px: road-path.x + root.cp.x - sin(root.ca) * root.coff;
     property <length> cam-py: road-path.y + root.cp.y + cos(root.ca) * root.coff;
     property <length> mid-x: root.P + root.TW / 2;
@@ -411,27 +445,57 @@ component RaceView inherits Rectangle {
             property <duration> t0;
             init => {
                 self.t0 = animation-tick();
+                // già ferma (o già in gara) all'apertura: niente manovra da rifare
+                self.tp = animation-tick() - 3600s;
+                self.latch();
             }
             changed f0 => {
                 self.t0 = animation-tick();
             }
-            // uscita di pista: la macchina rallenta in avanti mentre si sposta di lato e sterza
-            // verso la piazzola (e al rientro fa il contrario)
-            property <float> exit: car.pit ? 1 : 0;
-            animate exit {
-                duration: 1400ms;
-                easing: ease-in-out;
+            // Uscita di pista: la macchina continua dritta e scarta con una curva a S (tangente
+            // alla corsia alla partenza e alla piazzola all'arrivo) lungo `run` giri, frenando
+            // dalla velocità di gara fino a fermarsi; al rientro accelera da ferma e si
+            // reimmette nella sua corsia alla velocità della gara. Lato, fila e tratto restano
+            // quelli della sosta anche mentre riparte.
+            property <float> l-side: 1;
+            property <float> l-stack: 0;
+            property <float> l-run: 0;
+            function latch() {
+                if (car.pit) {
+                    self.l-side = car.side;
+                    self.l-stack = car.stack;
+                    self.l-run = car.run;
+                }
             }
-            property <float> roll: car.pit ? 0.012 : 0;
-            animate roll {
-                duration: 1400ms;
-                easing: ease-out;
+            property <bool> in-pit: car.pit;
+            property <float> s-side: car.side;
+            property <float> s-stack: car.stack;
+            property <float> s-run: car.run;
+            property <duration> tp;
+            changed in-pit => {
+                self.tp = animation-tick();
+                self.latch();
             }
-            property <float> f: (car.v > 0 ? self.f0 + car.v * ((animation-tick() - self.t0) / 1s) : self.f0) + self.roll;
-            // scostamento dal centro della strada: la corsia in gara, la piazzola al pit stop
-            // (calcolata a ogni zoom: niente animazioni che rincorrono)
-            property <length> off: (1 - self.exit) * car.lane * root.lane-w + self.exit * car.side * (root.pit-off + car.stack * 50px * root.k);
-            property <angle> yaw: 24deg * sin(self.exit * 180deg) * (car.pit ? 1 : -1) * car.side;
+            changed s-side => { self.latch(); }
+            changed s-stack => { self.latch(); }
+            changed s-run => { self.latch(); }
+            // durata: frenare (o accelerare) in modo uniforme su `run` alla velocità di gara
+            property <duration> T: max(0.5s, 2 * self.l-run / max(0.001, root.lap-v) * 1s);
+            property <float> lin: clamp((animation-tick() - self.tp) / self.T, 0, 1);
+            // avanzamento verso la piazzola (0 = corsia, 1 = piazzola) e sua derivata nel tempo
+            property <float> q: car.pit ? 1 - (1 - self.lin) * (1 - self.lin) : (1 - self.lin) * (1 - self.lin);
+            property <float> dq: (car.pit ? 2 : -2) * (1 - self.lin) * (self.lin < 1 ? 1 : 0);
+            property <float> f: (car.v > 0 ? self.f0 + car.v * ((animation-tick() - self.t0) / 1s) : self.f0) + self.l-run * self.q;
+            // scostamento dal centro della strada: dalla corsia alla piazzola con uno smoothstep
+            // (calcolato a ogni zoom: niente animazioni che rincorrono)
+            property <length> lane-off: car.lane * root.lane-w;
+            property <length> pad-off: self.l-side * (root.pit-off + self.l-stack * 50px * root.k);
+            property <length> off: self.lane-off + (self.pad-off - self.lane-off) * self.q * self.q * (3 - 2 * self.q);
+            // muso nella direzione del moto: avanzamento (gara + manovra) e spostamento laterale
+            // nello stesso istante; il tratto `run` in px è lungo (170 + 90 × fila) px della monoposto
+            property <length> run-len: (170 + 90 * self.l-stack) * 1px * root.k;
+            property <float> v-run: self.l-run > 0 ? car.v / self.l-run * self.T / 1s : 0;
+            property <angle> yaw: atan2((self.pad-off - self.lane-off) / 1px * 6 * self.q * (1 - self.q) * self.dq, (self.v-run + self.dq) * self.run-len / 1px);
             property <Point> p: road-path.point-at(self.f);
             property <angle> a: road-path.angle-at(self.f);
             property <length> cx: car.parked ? root.P + car.px * root.TW : road-path.x + self.p.x - sin(self.a) * self.off;
@@ -454,11 +518,12 @@ component RaceView inherits Rectangle {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
                 car: car;
+                arrived: car.pit && parent.lin >= 1;
                 phase: root.phase;
                 road: root.road;
                 transform-rotation: car.parked ? -90deg : parent.a + parent.yaw;
                 transform-scale-x: root.k;
-                transform-scale-y: root.k * (car.side < 0 ? -1 : 1);
+                transform-scale-y: root.k * (parent.l-side < 0 ? -1 : 1);
             }
             TouchArea {
                 clicked => {
@@ -849,6 +914,8 @@ export component GroupPage inherits Page {
             cam-f: AppState.cam-f;
             cam-side: AppState.cam-side;
             cam-stack: AppState.cam-stack;
+            cam-run: AppState.cam-run;
+            lap-v: AppState.lap-speed;
             cam-pit: AppState.study-state == 2;
             cam-v: AppState.study-state == 1 ? AppState.lap-speed : 0;
             overview: AppState.race-overview;

@@ -922,9 +922,22 @@ pub fn circuit_length(i: usize) -> f64 {
 pub const PIT_OFF_PX: f64 = 30.0;
 /// Distanza tra due piazzole in fila (px della monoposto; `pages.slint`, `car.stack`).
 pub const PIT_ROW_PX: f64 = 50.0;
+/// Tratto percorso lungo la pista per uscire fino alla piazzola (px della monoposto, lunga
+/// 36): la macchina continua dritta e scarta dolcemente; più lungo per le file lontane, così
+/// la sterzata resta morbida. Le stesse costanti sono in `ui/pages/group.slint` (`run-px`).
+pub const PIT_RUN_PX: f64 = 170.0;
+pub const PIT_RUN_ROW_PX: f64 = 90.0;
 
-/// Dove si ferma ciascuna macchina al pit stop (`stops` = frazioni di giro): lato (+1 = a
-/// destra della marcia, -1 = a sinistra) e fila (0 = la più vicina alla pista). Ogni
+/// Frazione di giro percorsa per uscire di pista fino alla piazzola della fila `level`.
+pub fn pit_run(circuit: usize, members: usize, level: u32) -> f64 {
+    let sw = 0.13 / circuit_scale(members).sqrt();
+    let px = 0.3 * sw / 20.0;
+    (PIT_RUN_PX + level as f64 * PIT_RUN_ROW_PX) * px / circuit_length(circuit)
+}
+
+/// Dove si ferma ciascuna macchina al pit stop (`stops` = frazioni di giro in cui ha lasciato
+/// la corsia; la piazzola è più avanti di [`pit_run`]): lato (+1 = a destra della marcia, -1 =
+/// a sinistra) e fila (0 = la più vicina alla pista). Ogni
 /// piazzola, con le misure del disegno, deve stare fuori dalla strada e non sovrapporsi alle
 /// altre (anche quando due vanno in pausa nello stesso punto): si prova l'esterno, poi
 /// l'interno, poi file sempre più lontane.
@@ -939,6 +952,7 @@ pub fn pit_places(circuit: usize, members: usize, stops: &[f64]) -> Vec<(f64, u3
     // verso l'esterno v (centro della macchina in 0, 0)
     let (u0, u1, v0, v1) = (-34.0, 36.0, -13.0, 29.0);
     let fits = |f: f64, side: f64, level: u32| -> bool {
+        let f = f + pit_run(circuit, members, level);
         let j = (f.rem_euclid(1.0) * m as f64) as usize % m;
         let (p, q) = (pts[j], pts[(j + 1) % m]);
         let (dx, dy) = (q.0 - p.0, q.1 - p.1);
@@ -962,6 +976,7 @@ pub fn pit_places(circuit: usize, members: usize, stops: &[f64]) -> Vec<(f64, u3
     for &f in stops {
         let free = |side: f64, level: u32, placed: &[(f64, f64, u32)]| {
             placed.iter().all(|(g, s, l)| {
+                // stessa fila: stessa distanza percorsa per uscire, conta il punto di partenza
                 let d = (f - g).rem_euclid(1.0);
                 *s != side || *l != level || d.min(1.0 - d) * length >= pad_len
             })
