@@ -553,6 +553,33 @@ export component HomePage inherits Page {
                         }
                     }
                 }
+                Rectangle {
+                    min-height: 52px;
+                    border-radius: 12px;
+                    background: guide-ta.pressed ? M3.surface-container-high : transparent;
+                    guide-ta := TouchArea {
+                        clicked => {
+                            AppState.exam-menu = false;
+                            AppState.open-guide();
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 10px;
+                        VIcon {
+                            source: Icons.book;
+                            tint: M3.primary;
+                            size: 22px;
+                        }
+                        Text {
+                            text: "Crea un pacchetto: guida e prompt per LLM";
+                            color: M3.primary;
+                            vertical-alignment: center;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
                 Hint {
                     short: "Ogni esame ha contenuti e progressi suoi.";
                     full: "Ogni esame ha contenuti e progressi suoi. Un pacchetto va all'esame indicato nel suo syllabus: se è nuovo viene aggiunto qui.";
