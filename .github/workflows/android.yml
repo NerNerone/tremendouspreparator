@@ -80,8 +80,12 @@ jobs:
           if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             export KEYSTORE="$RUNNER_TEMP/release.jks"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            # una release vera si firma solo con la chiave del progetto (docs/RILASCI.md › Firma)
+            echo "::error::secret ANDROID_KEYSTORE_B64/ANDROID_KEYSTORE_PASSWORD mancanti: niente release senza la chiave"
+            exit 1
           else
-            # senza chiave stabile: chiave usa e getta, l'APK si installa ma non aggiorna le build precedenti
+            # anteprima senza chiave: chiave usa e getta, l'APK si installa ma non aggiorna le build precedenti
             echo "::warning::secret ANDROID_KEYSTORE_B64/ANDROID_KEYSTORE_PASSWORD mancanti: firma con chiave temporanea"
             KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
             keytool -genkeypair -keystore "$RUNNER_TEMP/release.jks" -storepass "$KEYSTORE_PASSWORD" \
@@ -93,6 +97,11 @@ jobs:
           echo "::add-mask::$KEYSTORE_PASSWORD"
           export KEYSTORE_PASSWORD
           SPLIT=1 tools/build_apk.sh TremendousPreparator.apk
+          # impronta del certificato: per verificare che un APK sia autentico
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          FP="$("$BT/apksigner" verify --print-certs TremendousPreparator.apk | sed -n 's/.*SHA-256 digest: //p' | head -1)"
+          echo "Certificato SHA-256: $FP"
+          echo "CERT_SHA256=$FP" >> "$GITHUB_ENV"
 
       # copia di comodo: il file vero è nella release; se il servizio artifact di GitHub
       # non risponde non deve bloccare la pubblicazione
@@ -113,9 +122,11 @@ jobs:
             gh release delete anteprima --cleanup-tag --yes 2>/dev/null || true
             gh release create anteprima TremendousPreparator*.apk --target "$GITHUB_SHA" --prerelease \
               --title "Anteprima $VERSION+$APP_BUILD" \
-              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata. APK Android: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri, per telefoni a 64 o 32 bit. Flatpak x86_64. ${SIGNING_NOTE:-}"
+              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata. APK Android: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri, per telefoni a 64 o 32 bit. Flatpak x86_64. ${SIGNING_NOTE:-} Certificato SHA-256: ${CERT_SHA256}"
           else
-            NOTES="fastlane/metadata/android/it-IT/changelogs/$(python3 tools/version_code.py).txt"
+            NOTES="$RUNNER_TEMP/note.md"
+            cp "fastlane/metadata/android/it-IT/changelogs/$(python3 tools/version_code.py).txt" "$NOTES"
+            printf '\n\nAPK: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri.\nCertificato SHA-256: %s\n' "$CERT_SHA256" >> "$NOTES"
             gh release create "$TAG" TremendousPreparator*.apk --verify-tag --latest \
               --title "Tremendous Preparator $VERSION" --notes-file "$NOTES"
           fi

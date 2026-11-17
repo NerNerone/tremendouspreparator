@@ -31,9 +31,29 @@ Il workflow [android.yml](../.github/workflows/android.yml) costruisce gli APK (
 architettura, con `SPLIT=1 tools/build_apk.sh`) e il Flatpak e crea la release
 `v0.2.0` con le note italiane. A ogni push su `main` aggiorna invece la pre-release `anteprima`.
 
-L'APK è firmato con la chiave nei secret `ANDROID_KEYSTORE_B64` (keystore in base64) e
-`ANDROID_KEYSTORE_PASSWORD` (stessa password per keystore e chiave); senza, con una chiave temporanea
-(installabile, ma non aggiorna le build precedenti).
+## Firma
+
+Una sola chiave firma tutti gli APK distribuiti da noi (release, anteprime e la build privata). Android
+installa un aggiornamento solo se è firmato con la stessa chiave dell'app installata: la chiave **non
+si cambia** e **non si perde** (senza, nessun aggiornamento è più possibile: bisogna disinstallare).
+
+- Si crea una volta, sul proprio computer (serve `keytool`, del JDK):
+
+  ```bash
+  keytool -genkeypair -v -storetype PKCS12 -keystore tremendous-release.p12 -alias tremendous -keyalg RSA -keysize 4096 -validity 18250 -dname "CN=Tremendous Preparator"
+  ```
+
+  La password richiesta vale per archivio e chiave (gli script si aspettano la stessa).
+- Va nei secret di ogni repository che costruisce APK (Settings › Secrets and variables › Actions):
+  `ANDROID_KEYSTORE_B64` = il file in base64 (`base64 -w0 tremendous-release.p12`) e
+  `ANDROID_KEYSTORE_PASSWORD` = la password. Mai nel repository.
+- Copie di riserva: il file `.p12` e la password in un gestore di password e su un supporto offline.
+- Impronta SHA-256 del certificato: la CI la stampa e la scrive nelle note di ogni release
+  (`apksigner verify --print-certs`); serve a verificare che un APK sia autentico.
+- Una release con tag senza chiave fallisce; un'anteprima senza chiave usa una chiave temporanea
+  (si installa, ma non aggiorna le build precedenti).
+- Se la chiave fosse compromessa: lo schema di firma v3 permette di passare a una chiave nuova
+  firmata dalla vecchia (Android 9+); su Android 8 servirebbe reinstallare.
 
 ## F-Droid (bozza, non inviata)
 
@@ -59,11 +79,11 @@ modificabile dalle Opzioni, quindi non è «Tethered Network Services». I serve
 Cloudflare) sono servizi proprietari ma non indispensabili (il collegamento ripiega sui relay): da
 segnalare ai revisori; se lo chiedessero, si rendono configurabili o si sostituiscono con server liberi.
 
-Firma: F-Droid firma con la propria chiave, quindi l'APK di F-Droid e quello delle release GitHub non si
-aggiornano a vicenda. Una firma unica richiede build riproducibili (`Binaries:` e
-`AllowedAPKSigningKeys:`): le build da tag non contengono più dati della CI, ma servono ancora
-toolchain fissate (Rust, NDK) e una verifica con `fdroid build`. Per il primo invio va bene la firma di
-F-Droid.
+Firma (scelta: firma di F-Droid): F-Droid firma con la propria chiave, quindi l'APK di F-Droid e quelli
+delle release GitHub sono due canali separati che non si aggiornano a vicenda (per passare dall'uno
+all'altro si disinstalla). Passare in seguito a una firma unica richiederebbe build riproducibili
+(`Binaries:` e `AllowedAPKSigningKeys:`, toolchain fissate e verifica con `fdroid build`) e farebbe
+reinstallare gli utenti F-Droid.
 
 Ricetta per [fdroiddata](https://gitlab.com/fdroid/fdroiddata), `metadata/io.github.nernerone.tremendouspreparator.yml`
 (mai eseguita: da provare con `fdroid lint` e `fdroid build` nel container di fdroidserver prima di aprire la merge
