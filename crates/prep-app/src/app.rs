@@ -38,6 +38,7 @@ mod goals;
 mod group;
 mod quiz;
 mod quiz_setup;
+mod report;
 
 const LEGAL_VERSION: u32 = 3;
 const LEGAL_TEXT: &str = "Tremendous Preparator è un programma libero (licenza GPL-3.0 o successive), fornito «così com'è», \
@@ -760,23 +761,14 @@ impl Ctrl {
             return;
         }
         if crate::crash::pending(&self.store.base).is_some() {
-            self.open_dialog(
-                Dialog::Crash,
-                "L'app si è chiusa per un errore",
-                "Puoi segnalarlo: si apre nel browser una segnalazione già compilata (versione dell'app, sistema e punto dell'errore, nessun dato di studio), che leggi prima di inviarla.",
-                "Segnala",
-            );
+            self.open_dialog(Dialog::Crash, "L'app si è chiusa per un errore", report::CRASH_TEXT, "Segnala");
             self.ui().global::<AppState>().set_dialog_alt(ss("Non segnalare"));
         }
     }
 
     fn crash_report(&mut self) {
         if let Some((_, report)) = crate::crash::pending(&self.store.base) {
-            if crate::open_url(&crate::crash::issue_url(&report)) {
-                crate::crash::clear(&self.store.base);
-            } else {
-                self.toast("Non riesco ad aprire il browser");
-            }
+            self.crash_send(report);
         }
     }
 }

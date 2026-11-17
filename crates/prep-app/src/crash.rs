@@ -74,7 +74,12 @@ pub fn summary(report: &str) -> String {
 
 /// Indirizzo della pagina «nuova issue» del repository del progetto, già compilata.
 pub fn issue_url(report: &str) -> String {
-    let repo = env!("CARGO_PKG_REPOSITORY").trim_end_matches('/');
+    issue_url_for(env!("CARGO_PKG_REPOSITORY"), report)
+}
+
+/// Come [`issue_url`], per il repository all'indirizzo `repo`.
+pub fn issue_url_for(repo: &str, report: &str) -> String {
+    let repo = repo.trim_end_matches('/');
     let mut details: String = report.chars().take(MAX_BODY).collect();
     if details.len() < report.len() {
         details.push_str("\n…");
