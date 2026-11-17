@@ -730,6 +730,11 @@ impl Ctrl {
                 self.set_page(P_SETTINGS);
                 true
             }
+            // dentro una sezione delle Opzioni: si torna al menu
+            P_SETTINGS if st.get_settings_sec() >= 0 => {
+                st.set_settings_sec(-1);
+                true
+            }
             P_HOME => false,
             _ => {
                 self.go_tab(0);

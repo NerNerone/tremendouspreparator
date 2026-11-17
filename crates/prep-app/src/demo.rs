@@ -55,6 +55,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 }
                 "scroll" => st.set_home_scroll(-(arg.parse::<f32>().unwrap_or(0.0))),
                 "settings" => st.invoke_open_settings(),
+                "settingssec" => st.set_settings_sec(arg.parse().unwrap_or(-1)),
                 "periodic" => st.invoke_open_periodic(),
                 "pt" => st.invoke_pt_select(arg.parse().unwrap_or(1)),
                 "ptfilter" => st.set_pt_filter(arg.parse().unwrap_or(-1)),

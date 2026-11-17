@@ -120,6 +120,7 @@ export component HomePage inherits Page {
                         text: "Ricevi";
                         kind: 2;
                         clicked => {
+                            AppState.settings-sec = 3;
                             AppState.open-settings();
                         }
                     }
@@ -433,6 +434,7 @@ export component HomePage inherits Page {
                 icon: Icons.tune;
                 tint: M3.on-surface;
                 clicked => {
+                    AppState.settings-sec = -1;
                     AppState.open-settings();
                 }
             }

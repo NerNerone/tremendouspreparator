@@ -5,10 +5,20 @@ import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, Ri
 import { Avatar } from "group.slint";
 
 export component SettingsPage inherits Page {
+    // voci del menu (l'indice è il numero della sezione, vedi `settings-sec`)
+    property <[{id: int, title: string, sub: string}]> menu: [
+        { id: 0, title: "Profilo", sub: "Nome, foto e colore con cui ti vedono gli altri" },
+        { id: 1, title: "Aspetto", sub: "Colore dell'app" },
+        { id: 2, title: "Dispositivi", sub: "Progressi ed esami tra i tuoi dispositivi" },
+        { id: 3, title: "Condividi con un'altra persona", sub: "Manda o ricevi un esame con un codice" },
+        { id: 4, title: "Pacchetto contenuti", sub: "Importa, gestisci ed esporta quiz, flashcard e libri" },
+        { id: 5, title: "Promemoria", sub: "Notifiche per ripassare" },
+        { id: 6, title: "Esame e barra", sub: "Regole della prova e come si calcola la preparazione" },
+    ];
     VerticalLayout {
         TopBar {
-            title: "Opzioni";
-            subtitle: AppState.app-version;
+            title: AppState.settings-sec < 0 ? "Opzioni" : root.menu[AppState.settings-sec].title;
+            subtitle: AppState.settings-sec < 0 ? AppState.app-version : "Opzioni";
             can-back: true;
             back => {
                 AppState.back();
@@ -21,8 +31,26 @@ export component SettingsPage inherits Page {
             pad: 16px;
             pad-top: 4px;
             gap: 12px;
+            // menu: una voce per sezione, ognuna si apre a parte
+            if AppState.settings-sec < 0: VerticalLayout {
+                spacing: 4px;
+                for m in root.menu: ListRow {
+                    title: m.title;
+                    subtitle: m.sub;
+                    clicked => {
+                        AppState.settings-sec = m.id;
+                    }
+                }
+                ListRow {
+                    title: "Note legali";
+                    subtitle: "Nessuna garanzia; contenuti importati e servizi esterni sono responsabilità di chi li usa";
+                    clicked => {
+                        AppState.legal-visible = true;
+                    }
+                }
+            }
             // profilo: il nome con cui ci si presenta agli altri dispositivi e nello studio di gruppo
-            Section {
+            if AppState.settings-sec == 0: Section {
                 title: "Profilo";
                 summary: "Nome, foto e colore con cui ti vedono gli altri";
                 info: "Il nome utente compare sugli altri tuoi dispositivi quando sincronizzi e su quelli di chi riceve un esame che condividi. Foto profilo (ritagliata a 256 × 256) e colore della monoposto li vedono i membri dei tuoi gruppi di studio. Il colore «A» è l'accento di sistema del telefono.";
@@ -124,7 +152,7 @@ export component SettingsPage inherits Page {
                 }
             }
 
-            Section {
+            if AppState.settings-sec == 1: Section {
                 title: "Aspetto";
                 summary: "Colore dell'app";
                 info: "Su Android 12 e successivi il primo colore («A») è quello del sistema (Material You); altrimenti l'app usa il blu. Chiaro o scuro segue l'impostazione del sistema.";
@@ -163,16 +191,8 @@ export component SettingsPage inherits Page {
                 }
             }
 
-            ListRow {
-                title: "Note legali";
-                subtitle: "Nessuna garanzia; contenuti importati e servizi esterni sono responsabilità di chi li usa";
-                clicked => {
-                    AppState.legal-visible = true;
-                }
-            }
-
             // sincronizzazione tra dispositivi (telefono, web app, computer)
-            Section {
+            if AppState.settings-sec == 2: Section {
                 title: "Dispositivi";
                 summary: "Progressi ed esami tra i tuoi dispositivi, cifrati; si trovano tramite relay pubblici di terzi";
                 info: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. L'app non ha server: i dispositivi si trovano attraverso relay pubblici di terze parti (modificabili qui sotto), poi i dati viaggiano cifrati direttamente tra loro quando la rete lo permette, altrimenti attraverso i relay, che di norma li inoltrano senza conservarli (fanno eccezione gli avvisi dei gruppi di studio, cifrati, che scadono dopo 24 ore). Con «Solo collegamento diretto» i dati non passano mai dai relay, che servono solo a trovarsi: su alcune reti il diretto non riesce.";
@@ -269,7 +289,7 @@ export component SettingsPage inherits Page {
             }
 
             // Bluetooth: telefoni vicini, anche senza Internet (solo Android)
-            if AppState.bt-available: Section {
+            if AppState.settings-sec == 2 && AppState.bt-available: Section {
                 title: "Vicino, via Bluetooth";
                 summary: "Telefoni Android vicini, anche senza Internet";
                 info: "Due telefoni Android vicini si scambiano progressi, esami e stato del gruppo anche senza Internet. Prima collega i Dispositivi (o apri la condivisione o il gruppo) su entrambi, poi: su uno «Rendimi visibile», sull'altro «Cerca» e scegli il primo.";
@@ -318,7 +338,7 @@ export component SettingsPage inherits Page {
             }
 
             // condivisione di un esame con un'altra persona: codice usa e getta, solo contenuti
-            Section {
+            if AppState.settings-sec == 3: Section {
                 title: "Condividi con un'altra persona";
                 summary: "Un esame installato, con un codice usa e getta";
                 info: "Passa un esame installato a un'altra persona con un codice usa e getta: viaggiano solo i contenuti (libri, quiz, flashcard), mai i tuoi progressi. Il codice vale finché la condivisione resta aperta. Condividi solo materiale che hai il diritto di condividere (vedi Note legali).";
@@ -451,7 +471,7 @@ export component SettingsPage inherits Page {
                 }
             }
 
-            Section {
+            if AppState.settings-sec == 4: Section {
                 title: "Pacchetto contenuti";
                 summary: "Quiz, flashcard e libri da un unico file";
                 info: "Un pacchetto è un file .json.gz con quiz, flashcard e libri di un esame. Importandolo i contenuti si aggiornano senza reinstallare l'app; i tuoi progressi non vengono toccati. «Importa pacchetto» sostituisce i contenuti dell'esame; «Gestisci contenuti» aggiunge o toglie singoli file (quiz, flashcard, capitoli) ed esporta il pacchetto. Su Android il file si sceglie dal selettore (o si apre con «Apri con»), sul computer dalla finestra dei file. L'app non contiene contenuti: chi importa un pacchetto ne è responsabile (vedi Note legali).";
@@ -489,7 +509,7 @@ export component SettingsPage inherits Page {
                 }
             }
 
-            Section {
+            if AppState.settings-sec == 5: Section {
                 title: "Promemoria";
                 summary: "Notifiche per obiettivi, ripassi e sessioni in pausa";
                 info: "Quattro notifiche al giorno: obiettivi, sessione in pausa, flashcard da ripassare e giorni all'appello, con testi diversi a seconda dell'ora. Con gli obiettivi confermati, su Android resta anche una notifica fissa con l'avanzamento. Orari: mattina, dopo pranzo, pomeriggio, sera (separati da virgola); la prima fascia propone gli obiettivi, l'ultima ricorda quelli non finiti.";
@@ -514,17 +534,17 @@ export component SettingsPage inherits Page {
             }
 
             // regole della simulazione (dai dati del pacchetto) e schede definite dal pacchetto
-            if AppState.exam-rules != "": Section {
+            if AppState.settings-sec == 6 && AppState.exam-rules != "": Section {
                 title: "Regole d'esame";
                 summary: AppState.exam-rules;
             }
-            for x in AppState.exam-sections: Section {
+            for x in AppState.settings-sec == 6 ? AppState.exam-sections : []: Section {
                 title: x.title;
                 summary: x.summary;
                 info: x.body;
             }
 
-            Section {
+            if AppState.settings-sec == 6: Section {
                 title: "Come si calcola la barra";
                 summary: "Accuratezza recente × copertura, per argomento";
                 info: "Per ogni argomento: accuratezza recente (ultime 3 risposte; una risposta insicura vale metà) × copertura (domande diverse viste, fino a 6). Unità = media degli argomenti, materia = media pesata per crediti. Una valutazione esterna (file progress/assessment.json, per esempio da una revisione) può fissare un nuovo punto di partenza per argomento: la stima riparte da lì con le nuove risposte.";

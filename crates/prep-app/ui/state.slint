@@ -689,6 +689,8 @@ export global AppState {
     callback goals-remove(int);
     callback goals-pick-subject(string);
     callback open-settings();
+    // sezione delle Opzioni aperta (-1 = menu)
+    in-out property <int> settings-sec: -1;
     // tavola periodica e nomenclatura
     in property <[ElementVM]> pt-elements;
     in property <ElementDetailVM> pt-detail;
