@@ -418,19 +418,7 @@ impl Ctrl {
                     }
                 }
             }
-            GroupMsg::PhotoGet { hash } => {
-                // la manda chi ce l'ha, direttamente a chi la chiede (al massimo una volta ogni
-                // 3 s per foto e richiedente)
-                let key = format!("{hash}>{from}");
-                if self.photo_sent.get(&key).is_some_and(|t| now - t < 3) {
-                    return;
-                }
-                if let Some(bytes) = crate::photo::load(&self.store.base, &hash) {
-                    self.photo_sent.insert(key, now);
-                    let h = hash.clone();
-                    self.with_engine(Sess::Group, move |e, _| vec![e.group_photo(Some(&from), &h, bytes)]);
-                }
-            }
+            GroupMsg::PhotoGet { hash } => self.photo_send(Sess::Group, from, hash),
             GroupMsg::Photo { hash, data } => {
                 use base64::Engine as _;
                 let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(data.as_bytes()) else { return };
@@ -463,6 +451,68 @@ impl Ctrl {
                 crate::notify_now(&format!("Studio di gruppo · {gname}\n{text}{when}"));
                 self.toast(format!("{text}{when}"));
             }
+        }
+    }
+
+    /// Manda una foto a chi la chiede, direttamente (al massimo una volta ogni 3 s per foto e
+    /// richiedente).
+    pub(super) fn photo_send(&mut self, k: Sess, from: String, hash: String) {
+        let now = Self::now_secs();
+        let key = format!("{hash}>{from}");
+        if self.photo_sent.get(&key).is_some_and(|t| now - t < 3) {
+            return;
+        }
+        if let Some(bytes) = crate::photo::load(&self.store.base, &hash) {
+            self.photo_sent.insert(key, now);
+            self.with_engine(k, move |e, _| vec![e.group_photo(Some(&from), &hash, bytes)]);
+        }
+    }
+
+    /// Profilo di un altro proprio dispositivo: se la sua foto è più recente diventa anche
+    /// la nostra (o si toglie, se lì è stata tolta); se manca il file lo si chiede a lui.
+    pub(super) fn profile_in(&mut self, from: String, p: p2p::Profile) {
+        let mut s = self.store.settings();
+        let mine = if s.photo_at == 0 && !s.photo.is_empty() { 1 } else { s.photo_at };
+        if p.at < mine || (p.at == mine && p.photo <= s.photo) {
+            // a parità di istante vince l'hash maggiore, così tutti arrivano alla stessa foto
+            if p.photo == s.photo && !p.photo.is_empty() {
+                self.ask_own_photo(&from, &p.photo);
+            }
+            return;
+        }
+        s.photo = p.photo.clone();
+        s.photo_at = p.at;
+        let _ = self.store.save_settings(&s);
+        if !p.photo.is_empty() {
+            self.ask_own_photo(&from, &p.photo);
+        }
+        self.group_send();
+        self.refresh_profile_photo();
+        self.refresh_group();
+    }
+
+    /// Chiede la foto `hash` al proprio dispositivo `from`, se manca (al massimo ogni 15 s).
+    fn ask_own_photo(&mut self, from: &str, hash: &str) {
+        if crate::photo::load(&self.store.base, hash).is_some() {
+            return;
+        }
+        let now = Self::now_secs();
+        let key = format!("own:{hash}");
+        if self.photo_asked.get(&key).is_some_and(|t| now - t < 15) {
+            return;
+        }
+        self.photo_asked.insert(key, now);
+        let (to, msg) = (from.to_string(), prep_core::group::GroupMsg::PhotoGet { hash: hash.to_string() });
+        self.with_engine(Sess::Sync, move |e, _| vec![e.group_msg_to(Some(&to), msg)]);
+    }
+
+    /// Foto profilo cambiata qui: la si annuncia agli altri propri dispositivi.
+    fn profile_changed(&mut self) {
+        let mut s = self.store.settings();
+        s.photo_at = Self::now_secs().max(s.photo_at + 1);
+        let _ = self.store.save_settings(&s);
+        if self.p2p.as_ref().is_some_and(|p| p.started) {
+            self.with_engine(Sess::Sync, |e, c| e.reannounce(c));
         }
     }
 
@@ -616,15 +666,45 @@ impl Ctrl {
         }
     }
 
-    /// Foto scelta: ritagliata, ridotta, salvata e annunciata al gruppo.
+    /// Immagine scelta: si apre il ritaglio (quadrato, spostabile e ingrandibile).
     pub(super) fn photo_imported(&mut self, kind: &str, bytes: &[u8]) {
-        let jpeg = match crate::photo::prepare(bytes) {
-            Ok(j) => j,
+        let img = match crate::photo::decode(bytes) {
+            Ok(i) => i,
             Err(e) => {
                 self.toast(e);
                 return;
             }
         };
+        let rgba = img.to_rgba8();
+        let (w, h) = (rgba.width(), rgba.height());
+        let buf = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(rgba.as_raw(), w, h);
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_crop_img(slint::Image::from_rgba8(buf));
+        st.set_crop_w(w as f32);
+        st.set_crop_h(h as f32);
+        st.set_crop_title(ss(if kind == "group" { "Foto del gruppo" } else { "Foto profilo" }));
+        st.set_crop_visible(true);
+        self.crop = Some((kind.to_string(), img));
+    }
+
+    /// «Usa foto»: il quadrato scelto (in pixel dell'immagine) diventa la foto.
+    pub(super) fn crop_done(&mut self, x: f32, y: f32, side: f32) {
+        self.ui().global::<AppState>().set_crop_visible(false);
+        let Some((kind, img)) = self.crop.take() else { return };
+        match crate::photo::crop_encode(&img, x, y, side) {
+            Ok(jpeg) => self.photo_save(&kind, jpeg),
+            Err(e) => self.toast(e),
+        }
+    }
+
+    pub(super) fn crop_cancel(&mut self) {
+        self.ui().global::<AppState>().set_crop_visible(false);
+        self.crop = None;
+    }
+
+    /// Foto pronta: salvata e annunciata al gruppo e ai propri dispositivi.
+    fn photo_save(&mut self, kind: &str, jpeg: Vec<u8>) {
         let hash = match crate::photo::save(&self.store.base, &jpeg) {
             Ok(h) => h,
             Err(e) => {
@@ -649,6 +729,7 @@ impl Ctrl {
             let mut s = self.store.settings();
             s.photo = hash.clone();
             let _ = self.store.save_settings(&s);
+            self.profile_changed();
             self.group_send();
             self.toast("Foto profilo aggiornata");
         }
@@ -675,6 +756,7 @@ impl Ctrl {
             let mut s = self.store.settings();
             s.photo.clear();
             let _ = self.store.save_settings(&s);
+            self.profile_changed();
             self.group_send();
         }
         self.refresh_profile_photo();

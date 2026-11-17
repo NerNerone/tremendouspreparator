@@ -148,11 +148,12 @@ impl Ctrl {
         let derived = prep_core::group::user_id(&s.username, &password, &device);
         self.adopt_user_id(derived);
         let room = p2p::Room::derive(&s.username, &password);
-        let engine = p2p::Engine::new(
+        let mut engine = p2p::Engine::new(
             &device,
             &format!("{} · {}", s.username.trim(), Self::device_label()),
             Self::device_label(),
         );
+        engine.profile = true;
         self.open_session(Sess::Sync, room, engine, String::new(), String::new());
     }
 
@@ -409,7 +410,14 @@ impl Ctrl {
         for ev in events {
             match ev {
                 p2p::Event::Peer(_) => {}
+                p2p::Event::Profile { from, profile } => self.profile_in(from, profile),
                 p2p::Event::Group { from, status } => self.group_status_in(from, status),
+                // tra i propri dispositivi passano solo le richieste di foto
+                p2p::Event::GroupMsg { from, msg } if k != Sess::Group => {
+                    if let prep_core::group::GroupMsg::PhotoGet { hash } = msg {
+                        self.photo_send(k, from, hash);
+                    }
+                }
                 p2p::Event::GroupMsg { from, msg } => self.group_msg_in(from, msg),
                 p2p::Event::GroupPhoto { from, hash, bytes } => self.group_photo_in(from, hash, bytes),
                 p2p::Event::Joined(peer) => {

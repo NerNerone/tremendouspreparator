@@ -1,0 +1,168 @@
+import { M3, Type } from "theme.slint";
+import { AppState } from "state.slint";
+import { M3Button } from "components.slint";
+
+// Ritaglio della foto: un quadrato (visto come cerchio, come nell'app) che si sposta col dito
+// e si ingrandisce col cursore o con la rotellina.
+export component CropDialog inherits Rectangle {
+    property <float> enter: 0;
+    init => {
+        enter = 1;
+    }
+    animate enter {
+        duration: 300ms;
+        easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+    }
+    background: M3.scrim.with-alpha(0.6 * self.enter);
+    TouchArea { }
+
+    // ingrandimento (1 = il lato corto riempie il riquadro) e centro del ritaglio (0..1)
+    property <float> zoom: 1;
+    property <float> cx: 0.5;
+    property <float> cy: 0.5;
+    property <length> side: min(root.width - 64px, root.height - 260px, 340px);
+    property <length> unit: root.side / min(AppState.crop-w, AppState.crop-h) * root.zoom;
+    property <length> dw: AppState.crop-w * root.unit;
+    property <length> dh: AppState.crop-h * root.unit;
+    // centro riportato dentro i bordi (il riquadro resta sempre pieno)
+    property <float> ecx: max(root.side / 2 / root.dw, min(1 - root.side / 2 / root.dw, root.cx));
+    property <float> ecy: max(root.side / 2 / root.dh, min(1 - root.side / 2 / root.dh, root.cy));
+    property <float> start-x;
+    property <float> start-y;
+
+    Rectangle {
+        opacity: parent.enter;
+        transform-scale-x: 85% + 15% * parent.enter;
+        transform-scale-y: 85% + 15% * parent.enter;
+        width: root.side + 32px;
+        height: lay.preferred-height;
+        background: M3.surface-container-high;
+        border-radius: 28px;
+        lay := VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+            Text {
+                text: AppState.crop-title;
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            Text {
+                text: "Trascina per spostare, ingrandisci col cursore.";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            view := Rectangle {
+                width: root.side;
+                height: root.side;
+                clip: true;
+                background: black;
+                Image {
+                    source: AppState.crop-img;
+                    image-fit: fill;
+                    width: root.dw;
+                    height: root.dh;
+                    x: root.side / 2 - root.ecx * root.dw;
+                    y: root.side / 2 - root.ecy * root.dh;
+                }
+                // fuori dal cerchio l'immagine è scurita
+                Path {
+                    width: root.side;
+                    height: root.side;
+                    viewbox-width: 100;
+                    viewbox-height: 100;
+                    fill-rule: evenodd;
+                    fill: #00000080;
+                    commands: "M 0 0 L 100 0 L 100 100 L 0 100 Z M 50 0 A 50 50 0 1 0 50 100 A 50 50 0 1 0 50 0 Z";
+                }
+                Rectangle {
+                    width: root.side;
+                    height: root.side;
+                    border-radius: root.side / 2;
+                    border-width: 2px;
+                    border-color: white;
+                }
+                ta := TouchArea {
+                    mouse-cursor: self.pressed ? grabbing : grab;
+                    pointer-event(e) => {
+                        if e.kind == PointerEventKind.down {
+                            root.start-x = root.ecx;
+                            root.start-y = root.ecy;
+                        }
+                    }
+                    moved => {
+                        root.cx = root.start-x - (self.mouse-x - self.pressed-x) / root.dw;
+                        root.cy = root.start-y - (self.mouse-y - self.pressed-y) / root.dh;
+                    }
+                    scroll-event(e) => {
+                        root.cx = root.ecx;
+                        root.cy = root.ecy;
+                        root.zoom = max(1, min(4, root.zoom * (e.delta-y > 0 ? 1.1 : 1 / 1.1)));
+                        accept
+                    }
+                }
+            }
+            // cursore dell'ingrandimento (1..4), nel colore dell'app
+            zs := Rectangle {
+                height: 36px;
+                property <float> f: (root.zoom - 1) / 3;
+                Rectangle {
+                    y: (parent.height - 4px) / 2;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: M3.surface-container-highest;
+                }
+                Rectangle {
+                    x: 0;
+                    y: (parent.height - 4px) / 2;
+                    width: parent.f * parent.width;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: M3.primary;
+                }
+                Rectangle {
+                    x: parent.f * (parent.width - self.width);
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: M3.primary;
+                }
+                TouchArea {
+                    function set(px: length) {
+                        root.cx = root.ecx;
+                        root.cy = root.ecy;
+                        root.zoom = 1 + 3 * max(0, min(1, (px - 10px) / (zs.width - 20px)));
+                    }
+                    pointer-event(e) => {
+                        if e.kind == PointerEventKind.down {
+                            self.set(self.mouse-x);
+                        }
+                    }
+                    moved => {
+                        self.set(self.mouse-x);
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+                M3Button {
+                    text: "Annulla";
+                    kind: 2;
+                    clicked => {
+                        AppState.crop-cancel();
+                    }
+                }
+                M3Button {
+                    text: "Usa foto";
+                    clicked => {
+                        // quadrato in pixel dell'immagine
+                        let s = min(AppState.crop-w, AppState.crop-h) / root.zoom;
+                        AppState.crop-done(root.ecx * AppState.crop-w - s / 2, root.ecy * AppState.crop-h - s / 2, s);
+                    }
+                }
+            }
+        }
+    }
+}

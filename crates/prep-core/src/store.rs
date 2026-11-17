@@ -57,6 +57,9 @@ pub struct Settings {
     /// foto profilo (hash del file in `photos/`), vuoto = nessuna
     #[serde(default)]
     pub photo: String,
+    /// quando la foto profilo è stata cambiata (0 = mai): tra i propri dispositivi vince la più recente
+    #[serde(default)]
+    pub photo_at: i64,
     /// identificativo dell'utente nei gruppi di studio (fissato la prima volta, vedi
     /// `group::user_id`); cambia solo passando da quello del dispositivo a quello ricavato
     /// dalla password di sincronizzazione, e gli id precedenti restano in `prev_ids`
@@ -104,6 +107,7 @@ impl Default for Settings {
             car_color: 0,
             theme_color: 0,
             photo: String::new(),
+            photo_at: 0,
             user_id: String::new(),
             prev_ids: vec![],
             focus_allowed: vec![],

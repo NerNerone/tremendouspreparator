@@ -240,6 +240,14 @@ pub struct ExamOffer {
     pub shareable: bool,
 }
 
+/// Profilo che i propri dispositivi tengono uguale: la foto (hash, vuoto = nessuna) e quando
+/// è stata cambiata; vince la più recente.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct Profile {
+    pub photo: String,
+    pub at: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "t", rename_all = "snake_case")]
 pub enum Msg {
@@ -249,6 +257,9 @@ pub enum Msg {
         platform: String,
         exams: Vec<ExamOffer>,
         reply: bool,
+        /// profilo condiviso tra i propri dispositivi (solo nella stanza di sincronizzazione)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        profile: Option<Profile>,
     },
     /// file di progressi posseduti per un esame: (percorso, sha256)
     Inv {
@@ -360,6 +371,10 @@ pub trait Host {
     fn pack(&mut self, exam: &str) -> Result<Vec<u8>, String>;
     /// importa un pacchetto ricevuto; restituisce il nome dell'esame
     fn import_pack(&mut self, bytes: &[u8]) -> Result<String, String>;
+    /// profilo da tenere uguale sui propri dispositivi (vedi [`Engine::profile`])
+    fn profile(&self) -> Option<Profile> {
+        None
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -398,6 +413,11 @@ pub enum Event {
         from: String,
         hash: String,
         bytes: Vec<u8>,
+    },
+    /// profilo annunciato da un altro proprio dispositivo
+    Profile {
+        from: String,
+        profile: Profile,
     },
     /// file di progressi ricevuti per un esame
     Files {
@@ -439,6 +459,8 @@ pub struct Engine {
     /// scambio dei progressi: sì tra i propri dispositivi, no quando si condivide un
     /// esame con un'altra persona
     pub progress: bool,
+    /// scambio del profilo (foto): solo tra i propri dispositivi
+    pub profile: bool,
     pub peers: BTreeMap<String, Peer>,
     pub events: Vec<Event>,
     last_hello: i64,
@@ -460,6 +482,7 @@ impl Engine {
             platform: platform.to_string(),
             only: None,
             progress: true,
+            profile: false,
             peers: BTreeMap::new(),
             events: vec![],
             last_hello: i64::MIN / 2,
@@ -490,7 +513,17 @@ impl Engine {
 
     fn hello(&self, host: &dyn Host, to: Option<&str>, reply: bool) -> Out {
         let exams = host.offers().into_iter().filter(|e| self.allowed(&e.id)).collect();
-        Out::new(to, Msg::Hello { name: self.name.clone(), platform: self.platform.clone(), exams, reply })
+        let profile = if self.profile { host.profile() } else { None };
+        Out::new(to, Msg::Hello { name: self.name.clone(), platform: self.platform.clone(), exams, reply, profile })
+    }
+
+    /// Il profilo locale è cambiato: ci si ripresenta a tutti (come risposta, così nessuno
+    /// risponde a sua volta).
+    pub fn reannounce(&mut self, host: &dyn Host) -> Vec<Out> {
+        if self.peers.is_empty() {
+            return vec![];
+        }
+        vec![self.hello(host, None, true)]
     }
 
     fn inventories(&self, host: &dyn Host, to: Option<&str>, theirs: Option<&[ExamOffer]>) -> Vec<Out> {
@@ -594,8 +627,11 @@ impl Engine {
             p.last_seen = now;
         }
         match env.msg {
-            Msg::Hello { name, platform, exams, reply } => {
+            Msg::Hello { name, platform, exams, reply, profile } => {
                 let known = self.peers.contains_key(&from);
+                if let Some(profile) = profile.filter(|_| self.profile) {
+                    self.events.push(Event::Profile { from: from.clone(), profile });
+                }
                 self.peers.insert(from.clone(), Peer { name, platform, exams: exams.clone(), last_seen: now });
                 self.events.push(Event::Peer(from.clone()));
                 if !known || !reply {
@@ -803,6 +839,7 @@ mod tests {
         files: BTreeMap<(String, String), Vec<u8>>,
         pack: Vec<u8>,
         imported: Vec<Vec<u8>>,
+        profile: Option<Profile>,
     }
 
     impl Host for Mem {
@@ -831,6 +868,9 @@ mod tests {
         fn import_pack(&mut self, bytes: &[u8]) -> Result<String, String> {
             self.imported.push(bytes.to_vec());
             Ok("Esame".into())
+        }
+        fn profile(&self) -> Option<Profile> {
+            self.profile.clone()
         }
     }
 
@@ -951,6 +991,36 @@ mod tests {
         assert_eq!(bb.1.imported.len(), 1);
         assert_eq!(bb.1.imported[0], aa.1.pack);
         assert!(bb.0.events.iter().any(|e| matches!(e, Event::PackDone { result: Ok(_), .. })));
+    }
+
+    #[test]
+    fn profile_only_between_own_devices() {
+        let room = Room::derive("u", "p");
+        let foto = Profile { photo: "abc".into(), at: 50 };
+        let mut a =
+            (Engine::new("A", "Telefono", "android"), Mem { profile: Some(foto.clone()), ..Default::default() });
+        let mut b = (Engine::new("B", "Computer", "linux"), Mem::default());
+        a.0.profile = true;
+        b.0.profile = true;
+        let first = a.0.start(&a.1, 1000);
+        run(&mut a, &mut b, &room, first, 0);
+        assert!(b.0.events.contains(&Event::Profile { from: "A".into(), profile: foto.clone() }));
+        // cambio successivo: si ripresenta a chi c'è già
+        a.1.profile = Some(Profile { photo: String::new(), at: 60 });
+        b.0.events.clear();
+        let first = a.0.reannounce(&a.1);
+        run(&mut a, &mut b, &room, first, 0);
+        assert!(b
+            .0
+            .events
+            .contains(&Event::Profile { from: "A".into(), profile: Profile { photo: String::new(), at: 60 } }));
+        // senza `profile` (condivisione, gruppi) non parte né si accetta
+        let mut c = (Engine::new("C", "Altro", "web"), Mem { profile: Some(foto), ..Default::default() });
+        let mut d = (Engine::new("D", "Altro", "web"), Mem::default());
+        d.0.profile = true;
+        let first = c.0.start(&c.1, 1000);
+        run(&mut c, &mut d, &room, first, 0);
+        assert!(!d.0.events.iter().any(|e| matches!(e, Event::Profile { .. })));
     }
 
     #[test]

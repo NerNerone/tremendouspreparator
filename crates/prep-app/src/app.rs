@@ -329,6 +329,8 @@ pub struct Ctrl {
     pit_cache: Option<(PitKey, Vec<(f64, u32)>)>,
     /// foto già decodificate per l'interfaccia (hash → immagine)
     photos: BTreeMap<String, slint::Image>,
+    /// immagine in ritaglio: (profilo «user» o «group», immagine)
+    crop: Option<(String, image::DynamicImage)>,
     /// foto chieste agli altri / mandate da poco (hash → istante), per non ripetere
     photo_asked: BTreeMap<String, i64>,
     photo_sent: BTreeMap<String, i64>,
@@ -542,11 +544,23 @@ impl p2p::Host for Ctrl {
         let _ = self.exams.save(&self.store.base);
         Ok(name)
     }
+    fn profile(&self) -> Option<p2p::Profile> {
+        let s = self.store.settings();
+        // una foto messa prima che si sincronizzasse vale come la più vecchia possibile
+        let at = if s.photo_at == 0 && !s.photo.is_empty() { 1 } else { s.photo_at };
+        Some(p2p::Profile { photo: s.photo, at })
+    }
 }
 
 /// Evento di un collegamento diretto consegnato sul thread dell'interfaccia (vedi `direct`).
 pub(crate) fn on_direct_event(sess: usize, peer: String, ev: crate::direct::DirectEvent) {
     with_ctrl(|c| c.direct_event(Sess::from_index(sess), peer, ev));
+}
+
+/// Modalità dimostrativa: un'immagine scelta come foto profilo (apre il ritaglio).
+#[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
+pub(crate) fn demo_photo(kind: &str, bytes: &[u8]) {
+    with_ctrl(|c| c.photo_imported(kind, bytes));
 }
 
 /// Evento del collegamento Bluetooth (Android, vedi `BtLink.java`).
@@ -658,6 +672,10 @@ impl Ctrl {
         let st = ui.global::<AppState>();
         if self.dialog.is_some() {
             self.close_dialog();
+            return true;
+        }
+        if self.crop.is_some() {
+            self.crop_cancel();
             return true;
         }
         match st.get_page() {
@@ -899,6 +917,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         crews: BTreeMap::new(),
         pit_cache: None,
         photos: BTreeMap::new(),
+        crop: None,
         photo_asked: BTreeMap::new(),
         photo_sent: BTreeMap::new(),
         ping_sent: BTreeMap::new(),
@@ -1191,6 +1210,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_import_pack(|| with_ctrl(|c| c.pick_pack()));
     st.on_open_contents(|| with_ctrl(|c| c.open_contents()));
     st.on_open_guide(|| with_ctrl(|c| c.open_guide()));
+    st.on_crop_done(|x, y, s| with_ctrl(|c| c.crop_done(x, y, s)));
+    st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));
     st.set_guide_llm(ss(books::guide_for_llm()));
     st.on_rd_copied(|| with_ctrl(|c| c.toast("Copiato: incollalo dove ti serve")));
     st.on_rd_share(|t| {

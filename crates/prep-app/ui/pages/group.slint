@@ -903,8 +903,30 @@ component FocusSheet inherits Rectangle {
     }
 }
 
+// matitina tonda per modificare (nome, foto)
+component EditBadge inherits Rectangle {
+    callback clicked;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    background: ta.pressed ? M3.secondary-container.darker(0.1) : M3.secondary-container;
+    border-width: 2px;
+    border-color: M3.surface-container-low;
+    VIcon {
+        source: Icons.edit;
+        tint: M3.on-secondary-container;
+        size: 15px;
+    }
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component GroupPage inherits Page {
     property <bool> rename-open: false;
+    property <bool> photo-open: false;
     VerticalLayout {
         TopBar {
             title: "Studio di gruppo";
@@ -968,14 +990,28 @@ export component GroupPage inherits Page {
                     spacing: 10px;
                     HorizontalLayout {
                         spacing: 12px;
-                        Avatar {
-                            width: 56px;
-                            photo: AppState.group-photo;
-                            has-photo: AppState.group-has-photo;
-                            initial: AppState.group-initial;
-                            ring: M3.primary;
-                            TouchArea {
-                                enabled: AppState.group-admin;
+                        Rectangle {
+                            width: 60px;
+                            height: 60px;
+                            Avatar {
+                                x: 0;
+                                y: 0;
+                                width: 56px;
+                                photo: AppState.group-photo;
+                                has-photo: AppState.group-has-photo;
+                                initial: AppState.group-initial;
+                                ring: M3.primary;
+                                // tocco: la foto ingrandita
+                                TouchArea {
+                                    enabled: AppState.group-has-photo;
+                                    clicked => {
+                                        root.photo-open = true;
+                                    }
+                                }
+                            }
+                            if AppState.group-admin: EditBadge {
+                                x: parent.width - self.width + 4px;
+                                y: parent.height - self.height + 4px;
                                 clicked => {
                                     AppState.pick-photo("group");
                                 }
@@ -985,12 +1021,28 @@ export component GroupPage inherits Page {
                             alignment: center;
                             spacing: 2px;
                             horizontal-stretch: 1;
-                            Text {
-                                text: AppState.group-name;
-                                font-size: Type.title;
-                                font-weight: 800;
-                                color: M3.on-surface;
-                                overflow: elide;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: AppState.group-name;
+                                    font-size: Type.title;
+                                    font-weight: 800;
+                                    color: M3.on-surface;
+                                    overflow: elide;
+                                    vertical-alignment: center;
+                                    horizontal-stretch: 0;
+                                }
+                                if AppState.group-can-rename && !rename-open: VerticalLayout {
+                                    alignment: center;
+                                    EditBadge {
+                                        clicked => {
+                                            rename-open = true;
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    horizontal-stretch: 1;
+                                }
                             }
                             Text {
                                 text: "Codice " + AppState.group-code;
@@ -1033,6 +1085,12 @@ export component GroupPage inherits Page {
                                 rename-open = false;
                             }
                         }
+                        IconButton {
+                            icon: Icons.close;
+                            clicked => {
+                                rename-open = false;
+                            }
+                        }
                     }
                     HorizontalLayout {
                         spacing: 8px;
@@ -1042,22 +1100,6 @@ export component GroupPage inherits Page {
                             small: true;
                             clicked => {
                                 AppState.group-ping("");
-                            }
-                        }
-                        if AppState.group-can-rename && !rename-open: M3Button {
-                            text: "Rinomina";
-                            kind: 2;
-                            small: true;
-                            clicked => {
-                                rename-open = true;
-                            }
-                        }
-                        if AppState.group-admin: M3Button {
-                            text: "Foto";
-                            kind: 2;
-                            small: true;
-                            clicked => {
-                                AppState.pick-photo("group");
                             }
                         }
                     }
@@ -1368,5 +1410,60 @@ export component GroupPage inherits Page {
     if AppState.focus-open: FocusSheet {
         width: 100%;
         height: 100%;
+    }
+
+    // foto del gruppo ingrandita
+    if root.photo-open && AppState.group-has-photo: Rectangle {
+        background: M3.scrim.with-alpha(0.75);
+        TouchArea {
+            clicked => {
+                root.photo-open = false;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 16px;
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: min(root.width - 48px, root.height - 200px, 360px);
+                    height: self.width;
+                    border-radius: 24px;
+                    clip: true;
+                    Image {
+                        width: parent.width;
+                        height: parent.height;
+                        source: AppState.group-photo;
+                        image-fit: cover;
+                    }
+                }
+            }
+            Text {
+                text: AppState.group-name;
+                horizontal-alignment: center;
+                font-size: Type.title;
+                font-weight: 700;
+                color: white;
+            }
+            if AppState.group-admin: HorizontalLayout {
+                alignment: center;
+                spacing: 8px;
+                M3Button {
+                    text: "Cambia foto";
+                    clicked => {
+                        root.photo-open = false;
+                        AppState.pick-photo("group");
+                    }
+                }
+                M3Button {
+                    text: "Togli foto";
+                    kind: 1;
+                    clicked => {
+                        root.photo-open = false;
+                        AppState.remove-photo("group");
+                    }
+                }
+            }
+        }
     }
 }

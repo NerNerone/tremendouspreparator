@@ -624,6 +624,14 @@ export global AppState {
     callback reader-next();
     callback reader-goto(int);
     callback open-guide();
+    // ritaglio della foto profilo o del gruppo
+    in-out property <bool> crop-visible;
+    in property <image> crop-img;
+    in property <float> crop-w;
+    in property <float> crop-h;
+    in property <string> crop-title;
+    callback crop-done(float, float, float);
+    callback crop-cancel();
     in property <string> guide-llm;
     in property <bool> rd-llm-card;
     callback rd-copied();

@@ -24,9 +24,21 @@ fn dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     image::ImageReader::new(Cursor::new(bytes)).with_guessed_format().ok()?.into_dimensions().ok()
 }
 
+/// Lato massimo dell'immagine tenuta in memoria per il ritaglio.
+const EDIT_SIDE: u32 = 1600;
+
 /// Da un'immagine qualsiasi (JPEG, PNG) alla foto da salvare: raddrizzata secondo l'EXIF,
 /// ritaglio centrale quadrato, 256×256, JPEG con la qualità più alta che sta in un messaggio.
+#[cfg(test)]
 pub fn prepare(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let img = decode(bytes)?;
+    let s = img.width().min(img.height());
+    crop_encode(&img, ((img.width() - s) / 2) as f32, ((img.height() - s) / 2) as f32, s as f32)
+}
+
+/// Immagine scelta dall'utente, raddrizzata secondo l'EXIF e ridotta (lato al massimo
+/// [`EDIT_SIDE`]) per il ritaglio.
+pub fn decode(bytes: &[u8]) -> Result<image::DynamicImage, String> {
     let (w, h) = dimensions(bytes).ok_or("immagine non leggibile")?;
     if w > MAX_PICK_SIDE || h > MAX_PICK_SIDE {
         return Err(format!("immagine troppo grande ({w} × {h})"));
@@ -39,9 +51,23 @@ pub fn prepare(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let orientation = dec.orientation().unwrap_or(image::metadata::Orientation::NoTransforms);
     let mut img = image::DynamicImage::from_decoder(dec).map_err(|e| format!("immagine non leggibile: {e}"))?;
     img.apply_orientation(orientation);
+    if img.width().max(img.height()) > EDIT_SIDE {
+        img = img.resize(EDIT_SIDE, EDIT_SIDE, image::imageops::FilterType::Triangle);
+    }
+    Ok(img)
+}
+
+/// Il quadrato scelto (`x`, `y`, lato, in pixel dell'immagine; riportato dentro i bordi),
+/// ridotto a 256×256 e codificato in JPEG con la qualità più alta che sta in un messaggio.
+pub fn crop_encode(img: &image::DynamicImage, x: f32, y: f32, side: f32) -> Result<Vec<u8>, String> {
     let (w, h) = (img.width(), img.height());
-    let s = w.min(h);
-    let sq = img.crop_imm((w - s) / 2, (h - s) / 2, s, s);
+    if w == 0 || h == 0 {
+        return Err("immagine vuota".into());
+    }
+    let s = (side.round() as u32).clamp(1, w.min(h));
+    let x = (x.round().max(0.0) as u32).min(w - s);
+    let y = (y.round().max(0.0) as u32).min(h - s);
+    let sq = img.crop_imm(x, y, s, s);
     let small = sq.resize_exact(SIDE, SIDE, image::imageops::FilterType::Lanczos3).to_rgb8();
     for q in [88u8, 80, 72, 64, 55, 45, 35] {
         let mut out = Vec::new();
@@ -119,6 +145,26 @@ mod tests {
         assert_eq!((back.width(), back.height()), (256, 256));
         assert!(super::valid_received(&jpg));
         assert!(super::to_image(&jpg).is_some());
+    }
+
+    #[test]
+    fn crops_the_chosen_square() {
+        // metà sinistra rossa, metà destra blu: il quadrato a destra è tutto blu
+        let mut img = image::RgbImage::new(400, 200);
+        for (x, _, p) in img.enumerate_pixels_mut() {
+            *p = if x < 200 { image::Rgb([255, 0, 0]) } else { image::Rgb([0, 0, 255]) };
+        }
+        let img = image::DynamicImage::ImageRgb8(img);
+        let jpg = super::crop_encode(&img, 200.0, 0.0, 200.0).unwrap();
+        let back = image::load_from_memory(&jpg).unwrap().to_rgb8();
+        assert_eq!((back.width(), back.height()), (256, 256));
+        let p = back.get_pixel(128, 128);
+        assert!(p[2] > 200 && p[0] < 60, "{p:?}");
+        // valori fuori dai bordi: riportati dentro, nessun errore
+        assert!(super::crop_encode(&img, 390.0, -50.0, 900.0).is_ok());
+        // immagini grandi ridotte per il ritaglio
+        let big = super::decode(&png(3000, 2000)).unwrap();
+        assert_eq!((big.width(), big.height()), (1600, 1067));
     }
 
     #[test]

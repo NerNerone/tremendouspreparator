@@ -64,6 +64,12 @@ pub fn maybe_run(ui: &AppWindow) {
                 // contentsexport, contentsrm:percorso nel mirror
                 "contents" => st.invoke_open_contents(),
                 "guide" => st.invoke_open_guide(),
+                "photofile" | "gphotofile" => {
+                    if let Ok(b) = std::fs::read(arg) {
+                        crate::app::demo_photo(if op == "gphotofile" { "group" } else { "user" }, &b);
+                    }
+                }
+                "cropok" => st.invoke_crop_done(-1.0, -1.0, 1e9),
                 "rdgoto" => st.invoke_reader_goto(arg.parse().unwrap_or(0)),
                 "rdtoc" => st.set_rd_toc_visible(arg == "1"),
                 "contentsexport" => st.invoke_contents_export(),
