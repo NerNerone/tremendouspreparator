@@ -29,7 +29,7 @@ git push origin main v0.2.0
 
 Il workflow [android.yml](../.github/workflows/android.yml) costruisce gli APK (universale e uno per
 architettura, con `SPLIT=1 tools/build_apk.sh`) e il Flatpak e crea la release
-`v0.2.0` con le note italiane. A ogni push su `main` aggiorna invece la pre-release `anteprima`.
+`v0.2.0` con le note italiane. A ogni push su `main` aggiorna invece la pre-release `beta`, firmata con la stessa chiave.
 
 ## Firma
 
@@ -50,8 +50,8 @@ si cambia** e **non si perde** (senza, nessun aggiornamento è più possibile: b
 - Copie di riserva: il file `.p12` e la password in un gestore di password e su un supporto offline.
 - Impronta SHA-256 del certificato: la CI la stampa e la scrive nelle note di ogni release
   (`apksigner verify --print-certs`); serve a verificare che un APK sia autentico.
-- Una release con tag senza chiave fallisce; un'anteprima senza chiave usa una chiave temporanea
-  (si installa, ma non aggiorna le build precedenti).
+- Senza la chiave nei secret la build fallisce (release e beta): ogni APK distribuito aggiorna
+  quello installato.
 - Se la chiave fosse compromessa: lo schema di firma v3 permette di passare a una chiave nuova
   firmata dalla vecchia (Android 9+); su Android 8 servirebbe reinstallare.
 

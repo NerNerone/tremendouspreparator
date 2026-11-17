@@ -1,7 +1,7 @@
 name: APK Android e Flatpak
 
 # Costruisce l'APK (universale: arm64-v8a e armeabi-v7a) e il Flatpak (x86_64).
-# - push su main: release «anteprima» (pre-release, sostituita a ogni build);
+# - push su main: release «beta» (pre-release, sostituita a ogni build, stessa firma delle release);
 # - tag vX.Y.Z (uguale alla versione in Cargo.toml): release stabile.
 # La versione e il versionCode vengono da Cargo.toml (vedi docs/RILASCI.md).
 on:
@@ -62,8 +62,8 @@ jobs:
             [ -f "$CL" ] || { echo "::error::manca $CL (note di versione)"; exit 1; }
             echo "tag=v$V" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=anteprima" >> "$GITHUB_OUTPUT"
-            # solo le anteprime portano numero di build e commit nella versione
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+            # solo le beta portano numero di build e commit nella versione
             echo "APP_BUILD=${{ github.run_number }}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
@@ -80,19 +80,11 @@ jobs:
           if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             export KEYSTORE="$RUNNER_TEMP/release.jks"
-          elif [ "$GITHUB_REF_TYPE" = tag ]; then
-            # una release vera si firma solo con la chiave del progetto (docs/RILASCI.md › Firma)
-            echo "::error::secret ANDROID_KEYSTORE_B64/ANDROID_KEYSTORE_PASSWORD mancanti: niente release senza la chiave"
-            exit 1
           else
-            # anteprima senza chiave: chiave usa e getta, l'APK si installa ma non aggiorna le build precedenti
-            echo "::warning::secret ANDROID_KEYSTORE_B64/ANDROID_KEYSTORE_PASSWORD mancanti: firma con chiave temporanea"
-            KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
-            keytool -genkeypair -keystore "$RUNNER_TEMP/release.jks" -storepass "$KEYSTORE_PASSWORD" \
-              -keypass "$KEYSTORE_PASSWORD" -alias temp -keyalg RSA -keysize 2048 -validity 365 \
-              -dname "CN=Tremendous Preparator (temporanea)"
-            export KEYSTORE="$RUNNER_TEMP/release.jks"
-            echo "SIGNING_NOTE=Firmato con una chiave temporanea: per aggiornare va disinstallata la versione precedente." >> "$GITHUB_ENV"
+            # release e beta si firmano solo con la chiave del progetto (docs/RILASCI.md › Firma):
+            # così ogni versione aggiorna quella installata
+            echo "::error::secret ANDROID_KEYSTORE_B64/ANDROID_KEYSTORE_PASSWORD mancanti: niente APK senza la chiave"
+            exit 1
           fi
           echo "::add-mask::$KEYSTORE_PASSWORD"
           export KEYSTORE_PASSWORD
@@ -118,11 +110,11 @@ jobs:
           TAG: ${{ steps.ver.outputs.tag }}
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          if [ "$TAG" = anteprima ]; then
-            gh release delete anteprima --cleanup-tag --yes 2>/dev/null || true
-            gh release create anteprima TremendousPreparator*.apk --target "$GITHUB_SHA" --prerelease \
-              --title "Anteprima $VERSION+$APP_BUILD" \
-              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata. APK Android: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri, per telefoni a 64 o 32 bit. Flatpak x86_64. ${SIGNING_NOTE:-} Certificato SHA-256: ${CERT_SHA256}"
+          if [ "$TAG" = beta ]; then
+            gh release delete beta --cleanup-tag --yes 2>/dev/null || true
+            gh release create beta TremendousPreparator*.apk --target "$GITHUB_SHA" --prerelease \
+              --title "Beta $VERSION+$APP_BUILD" \
+              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata: firmata con la stessa chiave delle release, si installa sopra la versione precedente. APK Android: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri, per telefoni a 64 o 32 bit. Flatpak x86_64. Certificato SHA-256: ${CERT_SHA256}"
           else
             NOTES="$RUNNER_TEMP/note.md"
             cp "fastlane/metadata/android/it-IT/changelogs/$(python3 tools/version_code.py).txt" "$NOTES"
@@ -161,7 +153,7 @@ jobs:
 
       - name: Compila il binario desktop
         run: |
-          if [ "${{ needs.apk.outputs.tag }}" = anteprima ]; then export APP_BUILD="${{ github.run_number }}-${GITHUB_SHA::7}"; fi
+          if [ "${{ needs.apk.outputs.tag }}" = beta ]; then export APP_BUILD="${{ github.run_number }}-${GITHUB_SHA::7}"; fi
           cargo build --release -p tremendouspreparator --bin prepapp-desktop
           cp target/release/prepapp-desktop flatpak/tremendous-preparator
           ldd flatpak/tremendous-preparator

@@ -42,7 +42,7 @@ solo un piccolo [esempio](examples/esempio).
 | Linux x86_64 | Flatpak nelle stesse release: `flatpak install --user TremendousPreparator-x86_64.flatpak` |
 | Browser / iPhone | <https://nernerone.github.io/tremendouspreparator/> (su iPhone: Safari › Condividi › Aggiungi alla schermata Home) |
 
-La release `anteprima` è costruita automaticamente dall'ultimo commit; quelle `vX.Y.Z` sono le versioni
+La pre-release `beta` è costruita automaticamente dall'ultimo commit, con la stessa firma delle release; quelle `vX.Y.Z` sono le versioni
 stabili ([procedura](docs/RILASCI.md)).
 
 ## Contenuti

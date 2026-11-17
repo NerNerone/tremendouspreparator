@@ -1,13 +1,24 @@
-# Elimina le release vX.Y.Z (e i loro tag) con versione minore di quella indicata.
-# Solo a mano (Actions › Pulizia release › Run workflow); non tocca anteprima e contenuti.
+# Elimina release e tag vecchi. Solo a mano (Actions › Pulizia release › Run workflow).
+# - below: versioni vX.Y.Z minori di questa («ultima» = tutte tranne la più recente; vuoto = nessuna)
+# - contenuti: pacchetti contenuti-N tranne il più recente (contenuti-ultimo resta)
+# - extra: altri tag da eliminare, separati da spazi (es. «anteprima»)
 name: Pulizia release
 
 on:
   workflow_dispatch:
     inputs:
       below:
-        description: "Elimina le versioni minori di (es. 0.2.0)"
-        required: true
+        description: "Elimina le versioni minori di (es. 0.2.0, «ultima» = tieni solo la più recente)"
+        required: false
+        default: ""
+      contenuti:
+        description: "Elimina i pacchetti contenuti-N vecchi (resta il più recente)"
+        type: boolean
+        default: false
+      extra:
+        description: "Altri tag da eliminare (separati da spazi)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -21,16 +32,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           BELOW: ${{ inputs.below }}
+          CONTENUTI: ${{ inputs.contenuti }}
+          EXTRA: ${{ inputs.extra }}
         run: |
           set -euo pipefail
-          [[ "$BELOW" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "versione non valida: $BELOW"; exit 1; }
-          older() { [ "$1" != "$BELOW" ] && [ "$(printf '%s\n%s\n' "$1" "$BELOW" | sort -V | head -1)" = "$1" ]; }
-          { gh release list -R "$REPO" -L 1000 --json tagName -q '.[].tagName'; gh api "repos/$REPO/tags" --paginate -q '.[].name'; } \
-            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -uV | while read -r t; do
-            older "${t#v}" || continue
-            if gh release view "$t" -R "$REPO" >/dev/null 2>&1; then
-              echo "release $t"; gh release delete "$t" -R "$REPO" --cleanup-tag -y
-            elif gh api "repos/$REPO/git/refs/tags/$t" >/dev/null 2>&1; then
-              echo "tag $t"; gh api -X DELETE "repos/$REPO/git/refs/tags/$t"
+          all="$( { gh release list -R "$REPO" -L 1000 --json tagName -q '.[].tagName'; gh api "repos/$REPO/tags" --paginate -q '.[].name'; } | sort -u )"
+          del() {
+            if gh release view "$1" -R "$REPO" >/dev/null 2>&1; then
+              echo "release $1"; gh release delete "$1" -R "$REPO" --cleanup-tag -y
+            elif gh api "repos/$REPO/git/refs/tags/$1" >/dev/null 2>&1; then
+              echo "tag $1"; gh api -X DELETE "repos/$REPO/git/refs/tags/$1"
             fi
-          done
+          }
+          versions="$(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$all" | sort -V || true)"
+          if [ "$BELOW" = ultima ]; then
+            BELOW="$(tail -1 <<<"$versions" | sed 's/^v//')"
+          fi
+          if [ -n "$BELOW" ]; then
+            [[ "$BELOW" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "versione non valida: $BELOW"; exit 1; }
+            for t in $versions; do
+              v="${t#v}"
+              if [ "$v" != "$BELOW" ] && [ "$(printf '%s\n%s\n' "$v" "$BELOW" | sort -V | head -1)" = "$v" ]; then del "$t"; fi
+            done
+          fi
+          if [ "$CONTENUTI" = true ]; then
+            packs="$(grep -E '^contenuti-[0-9]+$' <<<"$all" | sort -t- -k2 -n || true)"
+            last="$(tail -1 <<<"$packs")"
+            for t in $packs; do [ "$t" = "$last" ] || del "$t"; done
+          fi
+          for t in $EXTRA; do del "$t"; done
