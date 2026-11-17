@@ -84,6 +84,10 @@ Dispositivi*, con nome utente e password), si condivide un esame o si entra in u
 | Server STUN (`stun.l.google.com`, `stun.cloudflare.com`) | scoprire l'indirizzo pubblico per il collegamento diretto | l'indirizzo IP |
 | Altri dispositivi (WebRTC, Bluetooth) | scambio diretto di progressi, esami e foto | i dati, cifrati |
 
+Se l'app si chiude per un errore, il rapporto (versione, sistema, punto dell'errore) resta sul dispositivo
+in `crash/`; al riavvio l'app propone di segnalarlo aprendo nel browser una issue già compilata, che si
+legge prima di inviarla. Senza conferma non parte nulla.
+
 I messaggi sono cifrati (XChaCha20-Poly1305) con una chiave ricavata con PBKDF2 da nome utente e
 password, o dal codice del gruppo: chi li conosce entra, quindi conviene una password lunga. I relay
 inoltrano i messaggi senza conservarli, tranne gli avvisi dei gruppi (cifrati, scadenza 24 ore).

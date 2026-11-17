@@ -56,6 +56,7 @@ public class MainActivity extends NativeActivity {
 
     @Override
     protected void onCreate(Bundle state) {
+        CrashLog.install(this);
         super.onCreate(state);
         if (android.os.Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -167,6 +168,17 @@ public class MainActivity extends NativeActivity {
     }
 
     /** Condivisione di sistema di un testo (invito al gruppo), chiamata da Rust via JNI. */
+    /** Apre un indirizzo nel browser (segnalazione di un errore). */
+    public void openUrl(String url) {
+        runOnUiThread(() -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Exception e) {
+                // nessun browser
+            }
+        });
+    }
+
     public void shareText(String text) {
         runOnUiThread(() -> {
             Intent i = new Intent(Intent.ACTION_SEND);

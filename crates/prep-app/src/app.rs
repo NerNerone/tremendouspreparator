@@ -255,6 +255,8 @@ struct Reader {
 enum Dialog {
     QuitQuiz,
     SubmitExam,
+    /// rapporto di un errore della sessione precedente, da segnalare
+    Crash,
 }
 
 pub struct Ctrl {
@@ -735,6 +737,7 @@ impl Ctrl {
                 }
             }
             Some(Dialog::SubmitExam) => self.finish_quiz(),
+            Some(Dialog::Crash) => self.crash_report(),
             None => {}
         }
     }
@@ -742,8 +745,38 @@ impl Ctrl {
     fn dialog_alt(&mut self) {
         let d = self.dialog.take();
         self.ui().global::<AppState>().set_dialog_visible(false);
-        if let Some(Dialog::QuitQuiz) = d {
-            self.pause_quiz();
+        match d {
+            Some(Dialog::QuitQuiz) => self.pause_quiz(),
+            Some(Dialog::Crash) => crate::crash::clear(&self.store.base),
+            _ => {}
+        }
+    }
+
+    // ---------- segnalazione degli errori ----------
+
+    /// All'avvio: se la sessione precedente si è chiusa per un errore, propone di segnalarlo.
+    fn crash_check(&mut self) {
+        if self.dialog.is_some() || self.ui().global::<AppState>().get_legal_visible() {
+            return;
+        }
+        if crate::crash::pending(&self.store.base).is_some() {
+            self.open_dialog(
+                Dialog::Crash,
+                "L'app si è chiusa per un errore",
+                "Puoi segnalarlo: si apre nel browser una segnalazione già compilata (versione dell'app, sistema e punto dell'errore, nessun dato di studio), che leggi prima di inviarla.",
+                "Segnala",
+            );
+            self.ui().global::<AppState>().set_dialog_alt(ss("Non segnalare"));
+        }
+    }
+
+    fn crash_report(&mut self) {
+        if let Some((_, report)) = crate::crash::pending(&self.store.base) {
+            if crate::open_url(&crate::crash::issue_url(&report)) {
+                crate::crash::clear(&self.store.base);
+            } else {
+                self.toast("Non riesco ad aprire il browser");
+            }
         }
     }
 }
@@ -826,6 +859,7 @@ fn device_name() -> String {
 }
 
 pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
+    crate::crash::install(&data_dir);
     let ui = AppWindow::new()?;
     #[cfg(target_arch = "wasm32")]
     crate::web::fit_window(&ui);
@@ -1247,6 +1281,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     // promemoria desktop: avvio automatico + processo in background
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     crate::desktop_reminder::sync_autostart(ctrl.borrow().store.settings().reminder_enabled);
+
+    // errore nella sessione precedente: proposta di segnalazione, a interfaccia pronta
+    slint::Timer::single_shot(Duration::from_millis(1200), || with_ctrl(|c| c.crash_check()));
 
     crate::demo::maybe_run(&ui);
     let r = ui.run();

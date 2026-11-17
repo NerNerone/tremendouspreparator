@@ -171,6 +171,13 @@ public class FocusService extends Service {
     }
 
     @Override
+    public void onCreate() {
+        super.onCreate();
+        // processo a parte: serve il suo gestore degli errori
+        CrashLog.install(this);
+    }
+
+    @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.hasExtra("until")) {
             java.util.ArrayList<String> allowed = intent.getStringArrayListExtra("allowed");

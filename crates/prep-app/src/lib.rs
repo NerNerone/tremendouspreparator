@@ -8,6 +8,7 @@ pub mod bundled {
 slint::include_modules!();
 
 mod app;
+mod crash;
 mod demo;
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 pub mod desktop_reminder;
@@ -176,6 +177,16 @@ pub(crate) fn system_tones() -> Option<Vec<u32>> {
     }
     #[cfg(not(target_os = "android"))]
     None
+}
+
+/// Apre un indirizzo nel browser di sistema.
+pub(crate) fn open_url(url: &str) -> bool {
+    #[cfg(target_os = "android")]
+    return android_call("openUrl", Some(url)).is_ok();
+    #[cfg(target_arch = "wasm32")]
+    return web::open_url(url);
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+    return std::process::Command::new("xdg-open").arg(url).spawn().is_ok();
 }
 
 /// Apre la condivisione di sistema con un testo (Android, browser); `false` se non c'è.

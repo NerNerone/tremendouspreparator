@@ -24,6 +24,8 @@ extern "C" {
     fn on_resize(cb: &Closure<dyn FnMut(f64, f64)>);
     #[wasm_bindgen(js_name = shareText)]
     fn share_text_js(text: &str) -> bool;
+    #[wasm_bindgen(js_name = openUrl)]
+    fn open_url_js(url: &str) -> bool;
     #[wasm_bindgen(js_name = takeHash)]
     fn take_hash() -> String;
     #[wasm_bindgen(js_name = pickImage)]
@@ -52,6 +54,11 @@ pub fn pick_photo(import_dir: PathBuf, kind: &'static str) {
 /// Condivisione del browser (o copia negli appunti); `false` se non disponibile.
 pub fn share_text(text: &str) -> bool {
     share_text_js(text)
+}
+
+/// Apre un indirizzo in una nuova scheda.
+pub fn open_url(url: &str) -> bool {
+    open_url_js(url)
 }
 
 /// Invito arrivato nell'indirizzo della pagina (`#g=…`), una volta sola.

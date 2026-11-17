@@ -105,6 +105,10 @@ export function onResize(cb) {
 }
 
 // Condivisione di un testo (inviti al gruppo): menu del sistema se c'è, altrimenti appunti.
+export function openUrl(url) {
+  return window.open(url, "_blank", "noopener") !== null;
+}
+
 export function shareText(text) {
   if (navigator.share) {
     navigator.share({ text }).catch(() => {});

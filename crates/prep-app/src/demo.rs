@@ -60,6 +60,8 @@ pub fn maybe_run(ui: &AppWindow) {
                 "ptfilter" => st.set_pt_filter(arg.parse().unwrap_or(-1)),
                 "link" => st.invoke_open_subject_link(arg.parse().unwrap_or(0)),
                 "wait" => {}
+                // prova della segnalazione degli errori
+                "panic" => panic!("errore di prova dalla modalità dimostrativa"),
                 "qz" => {
                     // qz:tipo,id — come un tocco nella scheda Quiz (subject/unit/source/kind/open/n)
                     let (k, id) = arg.split_once(',').unwrap_or((arg, ""));
