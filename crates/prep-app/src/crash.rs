@@ -64,7 +64,7 @@ pub fn summary(report: &str) -> String {
         Some(loc) => {
             let loc = loc.trim_end_matches(':');
             let file = loc.rsplit('/').next().unwrap_or(loc);
-            let file = file.rsplitn(2, ':').nth(1).unwrap_or(file);
+            let file = file.rsplit_once(':').map(|x| x.0).unwrap_or(file);
             format!("{} ({file})", lines.next().unwrap_or("panic").trim())
         }
         None => first.to_string(),
