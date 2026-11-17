@@ -345,7 +345,8 @@ component RaceView inherits Rectangle {
     // al pit stop la telecamera si sposta sulla piazzola, fuori pista
     in property <float> cam-side: 1;
     in property <float> cam-stack;
-    property <length> coff: root.cq * root.cq * (3 - 2 * root.cq) * root.cl-side * (root.pit-off + 10px * root.k + root.cl-stack * 50px * root.k);
+    property <float> cpp: root.cam-pit ? root.cq : 1 - root.clin * root.clin;
+    property <length> coff: root.cpp * root.cpp * (3 - 2 * root.cpp) * root.cl-side * (root.pit-off + 10px * root.k + root.cl-stack * 50px * root.k);
     property <length> cam-px: road-path.x + root.cp.x - sin(root.ca) * root.coff;
     property <length> cam-py: road-path.y + root.cp.y + cos(root.ca) * root.coff;
     property <length> mid-x: root.P + root.TW / 2;
@@ -482,20 +483,23 @@ component RaceView inherits Rectangle {
             // durata: frenare (o accelerare) in modo uniforme su `run` alla velocità di gara
             property <duration> T: max(0.5s, 2 * self.l-run / max(0.001, root.lap-v) * 1s);
             property <float> lin: clamp((animation-tick() - self.tp) / self.T, 0, 1);
-            // avanzamento verso la piazzola (0 = corsia, 1 = piazzola) e sua derivata nel tempo
+            // q: quota della manovra aggiunta alla posizione in gara (in uscita la macchina è
+            // ferma, al rientro la posizione in gara riparte e la quota si esaurisce);
+            // sp: punto della curva a S raggiunto (0 = corsia, 1 = piazzola), cioè la strada
+            // davvero percorsa dalla piazzola o verso di essa
             property <float> q: car.pit ? 1 - (1 - self.lin) * (1 - self.lin) : (1 - self.lin) * (1 - self.lin);
-            property <float> dq: (car.pit ? 2 : -2) * (1 - self.lin) * (self.lin < 1 ? 1 : 0);
+            property <float> sp: car.pit ? self.q : 1 - self.lin * self.lin;
             property <float> f: (car.v > 0 ? self.f0 + car.v * ((animation-tick() - self.t0) / 1s) : self.f0) + self.l-run * self.q;
             // scostamento dal centro della strada: dalla corsia alla piazzola con uno smoothstep
             // (calcolato a ogni zoom: niente animazioni che rincorrono)
             property <length> lane-off: car.lane * root.lane-w;
             property <length> pad-off: self.l-side * (root.pit-off + self.l-stack * 50px * root.k);
-            property <length> off: self.lane-off + (self.pad-off - self.lane-off) * self.q * self.q * (3 - 2 * self.q);
-            // muso nella direzione del moto: avanzamento (gara + manovra) e spostamento laterale
-            // nello stesso istante; il tratto `run` in px è lungo (170 + 90 × fila) px della monoposto
+            property <length> off: self.lane-off + (self.pad-off - self.lane-off) * self.sp * self.sp * (3 - 2 * self.sp);
+            // muso tangente alla curva: pendenza = spostamento laterale / strada percorsa (il
+            // tratto è lungo (170 + 90 × fila) px della monoposto); al rientro la curva si
+            // percorre al contrario
             property <length> run-len: (170 + 90 * self.l-stack) * 1px * root.k;
-            property <float> v-run: self.l-run > 0 ? car.v / self.l-run * self.T / 1s : 0;
-            property <angle> yaw: atan2((self.pad-off - self.lane-off) / 1px * 6 * self.q * (1 - self.q) * self.dq, (self.v-run + self.dq) * self.run-len / 1px);
+            property <angle> yaw: atan((car.pit ? 1 : -1) * (self.pad-off - self.lane-off) / max(1px, self.run-len) * 6 * self.sp * (1 - self.sp));
             property <Point> p: road-path.point-at(self.f);
             property <angle> a: road-path.angle-at(self.f);
             property <length> cx: car.parked ? root.P + car.px * root.TW : road-path.x + self.p.x - sin(self.a) * self.off;
