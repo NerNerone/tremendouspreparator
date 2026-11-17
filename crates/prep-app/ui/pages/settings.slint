@@ -454,7 +454,7 @@ export component SettingsPage inherits Page {
             Section {
                 title: "Pacchetto contenuti";
                 summary: "Quiz, flashcard e libri da un unico file";
-                info: "Un pacchetto è un file .json.gz con quiz, flashcard e libri di un esame. Importandolo i contenuti si aggiornano senza reinstallare l'app; i tuoi progressi non vengono toccati. Su Android il file si sceglie dal selettore (o si apre con «Apri con»), sul computer va messo nella cartella Download. L'app non contiene contenuti: chi importa un pacchetto ne è responsabile (vedi Note legali).";
+                info: "Un pacchetto è un file .json.gz con quiz, flashcard e libri di un esame. Importandolo i contenuti si aggiornano senza reinstallare l'app; i tuoi progressi non vengono toccati. «Importa pacchetto» sostituisce i contenuti dell'esame; «Gestisci contenuti» aggiunge o toglie singoli file (quiz, flashcard, capitoli) ed esporta il pacchetto. Su Android il file si sceglie dal selettore (o si apre con «Apri con»), sul computer dalla finestra dei file. L'app non contiene contenuti: chi importa un pacchetto ne è responsabile (vedi Note legali).";
                 VerticalLayout {
                     spacing: 8px;
                     M3Button {
@@ -464,6 +464,13 @@ export component SettingsPage inherits Page {
                         enabled: !AppState.pack-busy;
                         clicked => {
                             AppState.import-pack();
+                        }
+                    }
+                    M3Button {
+                        text: "Gestisci contenuti";
+                        kind: 1;
+                        clicked => {
+                            AppState.open-contents();
                         }
                     }
                     Text {

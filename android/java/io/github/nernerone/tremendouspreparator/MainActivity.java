@@ -26,6 +26,10 @@ public class MainActivity extends NativeActivity {
     private static final int PICK_PACK = 4242;
     private static final int PICK_PHOTO_USER = 4243;
     private static final int PICK_PHOTO_GROUP = 4244;
+    private static final int PICK_FILE = 4245;
+    private static final int SAVE_FILE = 4246;
+    /** file da salvare dove sceglie l'utente (selettore «Salva») */
+    private String pendingSave;
     private BtLink bt;
 
     private BtLink bt() {
@@ -105,6 +109,38 @@ public class MainActivity extends NativeActivity {
         });
     }
 
+    /** Selettore di un file qualsiasi per la pagina «Contenuti» (quiz, flashcard, libri, pacchetti). */
+    public void pickContentFile() {
+        runOnUiThread(() -> {
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            try {
+                startActivityForResult(i, PICK_FILE);
+            } catch (Exception e) {
+                // nessun selettore disponibile
+            }
+        });
+    }
+
+    /** Salva un file dell'app dove sceglie l'utente; argomento «percorso\nnome proposto». */
+    public void saveFile(String arg) {
+        String[] parts = arg.split("\n", 2);
+        if (parts.length < 2) return;
+        runOnUiThread(() -> {
+            pendingSave = parts[0];
+            Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("application/gzip");
+            i.putExtra(Intent.EXTRA_TITLE, parts[1]);
+            try {
+                startActivityForResult(i, SAVE_FILE);
+            } catch (Exception e) {
+                pendingSave = null;
+            }
+        });
+    }
+
     /** Apre il selettore di immagini: foto profilo ("user") o del gruppo ("group"). */
     public void pickPhoto(String kind) {
         runOnUiThread(() -> {
@@ -135,6 +171,11 @@ public class MainActivity extends NativeActivity {
             receive(data.getData(), "user", ".photo");
         } else if (requestCode == PICK_PHOTO_GROUP) {
             receive(data.getData(), "group", ".photo");
+        } else if (requestCode == PICK_FILE) {
+            receive(data.getData(), "file-" + System.currentTimeMillis() + "--" + displayName(data.getData()), "");
+        } else if (requestCode == SAVE_FILE && pendingSave != null) {
+            copyOut(pendingSave, data.getData());
+            pendingSave = null;
         }
     }
 
@@ -374,12 +415,42 @@ public class MainActivity extends NativeActivity {
         receive(uri, "pack", ".json.gz");
     }
 
+    /** Nome del file scelto (per riconoscerne il tipo), ridotto a caratteri sicuri. */
+    private String displayName(Uri uri) {
+        String name = "file";
+        try (android.database.Cursor c = getContentResolver().query(uri,
+                new String[] {android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst() && !c.isNull(0)) name = c.getString(0);
+        } catch (Exception e) {
+            // nome non disponibile
+        }
+        return name.replaceAll("[^\\p{L}\\p{N}._ -]", "_");
+    }
+
+    /** Copia un file dell'app nel documento scelto dall'utente. */
+    private void copyOut(String path, Uri uri) {
+        new Thread(() -> {
+            try (InputStream in = new java.io.FileInputStream(path);
+                 OutputStream out = getContentResolver().openOutputStream(uri)) {
+                if (out == null) return;
+                byte[] buf = new byte[1 << 16];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                runOnUiThread(() -> android.widget.Toast.makeText(this, "Pacchetto salvato", android.widget.Toast.LENGTH_SHORT).show());
+            } catch (Exception e) {
+                runOnUiThread(() -> android.widget.Toast.makeText(this, "Salvataggio non riuscito", android.widget.Toast.LENGTH_SHORT).show());
+            }
+            new File(path).delete();
+        }).start();
+    }
+
     private void receive(Uri uri, String prefix, String ext) {
         final File dir = new File(getFilesDir(), "import");
         new Thread(() -> {
             dir.mkdirs();
-            File tmp = new File(dir, prefix + ".tmp");
-            File dst = new File(dir, prefix + "-" + System.currentTimeMillis() + ext);
+            // i file scelti in «Contenuti» hanno già nome e ora nel prefisso
+            File dst = new File(dir, prefix.startsWith("file-") ? prefix : prefix + "-" + System.currentTimeMillis() + ext);
+            File tmp = new File(dir, dst.getName() + ".tmp");
             try (InputStream in = getContentResolver().openInputStream(uri);
                  OutputStream out = new FileOutputStream(tmp)) {
                 if (in == null) return;

@@ -153,23 +153,37 @@ pub fn exam_of(bytes: &[u8]) -> Result<(String, String), String> {
     Ok((crate::exams::exam_id(&syl), syl.title))
 }
 
-/// Importa il pacchetto nel mirror locale. I progressi non vengono toccati.
+/// Importa il pacchetto nel mirror locale sostituendo i contenuti: i file che il pacchetto
+/// non ha più vengono tolti. I progressi non vengono toccati.
 pub fn import(store: &Store, bytes: &[u8]) -> Result<PackInfo, String> {
+    import_with(store, bytes, true)
+}
+
+/// Come [`import`], ma aggiunge e aggiorna soltanto: i file già presenti che il pacchetto non
+/// contiene restano (per aggiungere materiale a un esame senza rigenerarne il pacchetto).
+pub fn import_merge(store: &Store, bytes: &[u8]) -> Result<PackInfo, String> {
+    import_with(store, bytes, false)
+}
+
+fn import_with(store: &Store, bytes: &[u8], replace: bool) -> Result<PackInfo, String> {
     let pack = parse(bytes)?;
     let mut info = check(&pack)?;
     let mut idx = store.index();
-    // via i contenuti che il pacchetto non ha più (come farebbe la sincronizzazione)
-    let stale: Vec<String> = idx.files.keys().filter(|p| in_pack(p) && !pack.files.contains_key(*p)).cloned().collect();
-    for p in stale {
-        store.remove_mirror(&p);
-        idx.files.remove(&p);
-    }
-    let mut on_disk = Vec::new();
-    let mirror = store.root.join("mirror");
-    walk(&mirror.join("content"), &mirror, &mut on_disk);
-    walk(&mirror.join("books"), &mirror, &mut on_disk);
-    for p in on_disk.iter().filter(|p| !pack.files.contains_key(*p)) {
-        store.remove_mirror(p);
+    if replace {
+        // via i contenuti che il pacchetto non ha più (come farebbe la sincronizzazione)
+        let stale: Vec<String> =
+            idx.files.keys().filter(|p| in_pack(p) && !pack.files.contains_key(*p)).cloned().collect();
+        for p in stale {
+            store.remove_mirror(&p);
+            idx.files.remove(&p);
+        }
+        let mut on_disk = Vec::new();
+        let mirror = store.root.join("mirror");
+        walk(&mirror.join("content"), &mirror, &mut on_disk);
+        walk(&mirror.join("books"), &mirror, &mut on_disk);
+        for p in on_disk.iter().filter(|p| !pack.files.contains_key(*p)) {
+            store.remove_mirror(p);
+        }
     }
     for (p, t) in &pack.files {
         let bytes = t.as_bytes();

@@ -31,6 +31,7 @@ use web_time::Instant;
 /// Versione delle note legali: aumentandola l'app le richiede di nuovo.
 mod books;
 mod cards;
+mod contents;
 mod devices;
 mod exams;
 mod focus;
@@ -86,6 +87,7 @@ const P_READER: i32 = 9;
 const P_GOALS: i32 = 11;
 const P_PERIODIC: i32 = 12;
 const P_GROUP: i32 = 13;
+const P_CONTENTS: i32 = 14;
 
 fn tab_page(tab: i32) -> i32 {
     match tab {
@@ -252,12 +254,14 @@ struct Reader {
     return_page: i32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Dialog {
     QuitQuiz,
     SubmitExam,
     /// rapporto di un errore della sessione precedente, da segnalare
     Crash,
+    /// togliere un file dai contenuti dell'esame
+    RemoveContent(String),
 }
 
 pub struct Ctrl {
@@ -697,6 +701,10 @@ impl Ctrl {
                 }
                 true
             }
+            P_CONTENTS => {
+                self.set_page(P_SETTINGS);
+                true
+            }
             P_HOME => false,
             _ => {
                 self.go_tab(0);
@@ -739,6 +747,7 @@ impl Ctrl {
             }
             Some(Dialog::SubmitExam) => self.finish_quiz(),
             Some(Dialog::Crash) => self.crash_report(),
+            Some(Dialog::RemoveContent(p)) => self.contents_remove(&p),
             None => {}
         }
     }
@@ -816,22 +825,7 @@ fn short_date(iso: &str) -> String {
 /// Pacchetto più recente nella cartella Download (desktop).
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 fn newest_pack_download() -> Option<PathBuf> {
-    let home = PathBuf::from(std::env::var_os("HOME")?);
-    let mut dirs: Vec<PathBuf> = Vec::new();
-    if let Some(d) = std::env::var_os("XDG_DOWNLOAD_DIR") {
-        dirs.push(d.into());
-    }
-    // ~/.config/user-dirs.dirs: XDG_DOWNLOAD_DIR="$HOME/Scaricati"
-    if let Ok(t) = std::fs::read_to_string(home.join(".config/user-dirs.dirs")) {
-        for l in t.lines() {
-            if let Some(v) = l.strip_prefix("XDG_DOWNLOAD_DIR=") {
-                let v = v.trim().trim_matches('"').replace("$HOME", &home.to_string_lossy());
-                dirs.push(v.into());
-            }
-        }
-    }
-    dirs.push(home.join("Downloads"));
-    dirs.push(home.join("Scaricati"));
+    let dirs = crate::desktop_files::downloads_dirs();
     dirs.iter()
         .filter_map(|d| std::fs::read_dir(d).ok())
         .flat_map(|rd| rd.flatten().map(|e| e.path()))
@@ -1195,6 +1189,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         })
     });
     st.on_import_pack(|| with_ctrl(|c| c.pick_pack()));
+    st.on_open_contents(|| with_ctrl(|c| c.open_contents()));
+    st.on_contents_add(|| with_ctrl(|c| c.contents_add()));
+    st.on_contents_remove(|p| with_ctrl(|c| c.contents_remove_ask(&p)));
+    st.on_contents_export(|| with_ctrl(|c| c.contents_export()));
     st.on_select_exam(|id| with_ctrl(|c| c.open_exam(&id)));
     st.on_remove_exam(|id| with_ctrl(|c| c.remove_exam(&id)));
     st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));

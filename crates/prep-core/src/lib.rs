@@ -3,6 +3,7 @@
 
 pub mod answer;
 pub mod content;
+pub mod contents;
 pub mod exams;
 pub mod group;
 pub mod latex;

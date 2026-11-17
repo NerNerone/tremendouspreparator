@@ -71,6 +71,32 @@ export function pickFile() {
   });
 }
 
+// Selettore di un file qualsiasi per la pagina «Contenuti»: [nome, byte] o null.
+export function pickNamedFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,.gz,.md,.markdown,.txt,.svg";
+    input.onchange = async () => {
+      const f = input.files && input.files[0];
+      resolve(f ? [f.name, new Uint8Array(await f.arrayBuffer())] : null);
+    };
+    input.click();
+  });
+}
+
+// Scarica un file generato dall'app (pacchetto esportato).
+export function downloadFile(name, bytes) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/gzip" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 // Selettore di immagini (foto profilo o del gruppo).
 export function pickImage() {
   return new Promise((resolve) => {

@@ -121,6 +121,17 @@ export struct QzOptVM {
 }
 
 // esame installato (selettore in Home)
+// file dei contenuti dell'esame (pagina «Contenuti»)
+export struct ContentFileVM {
+    path: string,
+    // tipo: Esame, Quiz, Flashcard, Catalogo dei libri, Capitolo, Figura
+    kind: string,
+    name: string,
+    info: string,
+    // primo file del suo tipo: sopra va l'intestazione del gruppo
+    head: bool,
+}
+
 export struct ExamVM {
     id: string,
     name: string,
@@ -322,6 +333,8 @@ export global AppState {
     in property <[string]> ai-priorities;
     // pacchetto contenuti (quiz, flashcard, libri in un file)
     in property <string> pack-status;
+    in property <[ContentFileVM]> content-files;
+    in property <string> contents-status;
     in property <bool> pack-busy;
     in property <bool> on-android;
     in property <string> content-info;
@@ -612,6 +625,10 @@ export global AppState {
     callback reader-goto(int);
 
     callback import-pack();
+    callback open-contents();
+    callback contents-add();
+    callback contents-remove(string);
+    callback contents-export();
     callback save-reminder();
     callback goals-toggle(int);
     callback goals-confirm();

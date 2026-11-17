@@ -8,7 +8,7 @@ import "../fonts/DejaVuSans-Bold.ttf";
 import { M3, Icons, Type } from "theme.slint";
 import { AppState } from "state.slint";
 import { NavItem, M3Button, Scroller } from "components.slint";
-import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, GoalsPage, PeriodicPage, GroupPage } from "pages.slint";
+import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, GoalsPage, PeriodicPage, GroupPage, ContentsPage } from "pages.slint";
 
 export { AppState, M3 }
 
@@ -57,6 +57,7 @@ export component AppWindow inherits Window {
                 if AppState.page == 11: GoalsPage { }
                 if AppState.page == 12: PeriodicPage { }
                 if AppState.page == 13: GroupPage { }
+                if AppState.page == 14: ContentsPage { }
             }
 
             // barra di navigazione flessibile (Material 3 Expressive)

@@ -60,6 +60,20 @@ pub fn maybe_run(ui: &AppWindow) {
                 "ptfilter" => st.set_pt_filter(arg.parse().unwrap_or(-1)),
                 "link" => st.invoke_open_subject_link(arg.parse().unwrap_or(0)),
                 "wait" => {}
+                // pagina «Contenuti»: contents (apre), addfile:percorso (come se fosse scelto),
+                // contentsexport, contentsrm:percorso nel mirror
+                "contents" => st.invoke_open_contents(),
+                "contentsexport" => st.invoke_contents_export(),
+                "contentsrm" => st.invoke_contents_remove(arg.into()),
+                "addfile" => {
+                    if let (Ok(bytes), Some(dir)) = (std::fs::read(arg), std::env::var_os("PREP_DATA")) {
+                        let name =
+                            std::path::Path::new(arg).file_name().unwrap_or_default().to_string_lossy().to_string();
+                        let dst = std::path::Path::new(&dir).join("import").join(format!("file-1--{name}"));
+                        let _ = std::fs::create_dir_all(dst.parent().unwrap_or(std::path::Path::new(".")));
+                        let _ = std::fs::write(dst, bytes);
+                    }
+                }
                 // prova della segnalazione degli errori
                 "panic" => panic!("errore di prova dalla modalità dimostrativa"),
                 "qz" => {

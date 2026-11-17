@@ -1119,6 +1119,14 @@ impl Ctrl {
             self.go_tab(4);
             return;
         }
+        // file singoli scelti in «Contenuti» (`file-<ora>--<nome>`)
+        if let Some(f) = files.iter().find(|p| {
+            p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("file-"))
+                && p.extension().is_none_or(|x| x != "tmp")
+        }) {
+            self.contents_import(f.clone());
+            return;
+        }
         let next = files.into_iter().find(|p| !vfs::is_dir(p) && p.extension().is_none_or(|x| x != "tmp"));
         if let Some(p) = next {
             self.import_pack_file(p, true);
@@ -1132,10 +1140,25 @@ impl Ctrl {
         }
         #[cfg(target_arch = "wasm32")]
         crate::web::pick_pack_file(self.store.base.join("import"));
+        // sul computer: finestra di scelta file; se non c'è, l'ultimo pacchetto in Download
         #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-        match newest_pack_download() {
-            Some(p) => self.import_pack_file(p, false),
-            None => self.toast("Nessun pacchetto (.json.gz) nella cartella Download: mettilo lì e riprova"),
+        {
+            let import = self.store.base.join("import");
+            spawn_background(move || {
+                let picked = crate::desktop_files::pick_file().or_else(newest_pack_download);
+                let msg = match picked.and_then(|p| std::fs::read(p).ok()) {
+                    Some(bytes) => {
+                        let _ = vfs::create_dir_all(&import);
+                        let dst = import.join(format!("pack-{}.json.gz", chrono::Utc::now().timestamp_millis()));
+                        let _ = vfs::write(&dst, &bytes);
+                        None
+                    }
+                    None => Some("Nessun pacchetto scelto (o nella cartella Download)"),
+                };
+                if let Some(m) = msg {
+                    let _ = slint::invoke_from_event_loop(move || with_ctrl(|c| c.toast(m)));
+                }
+            });
         }
     }
 }

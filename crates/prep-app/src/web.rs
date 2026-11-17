@@ -24,6 +24,10 @@ extern "C" {
     fn on_resize(cb: &Closure<dyn FnMut(f64, f64)>);
     #[wasm_bindgen(js_name = shareText)]
     fn share_text_js(text: &str) -> bool;
+    #[wasm_bindgen(js_name = pickNamedFile)]
+    async fn pick_named_file_js() -> JsValue;
+    #[wasm_bindgen(js_name = downloadFile)]
+    fn download_file_js(name: &str, bytes: &[u8]);
     #[wasm_bindgen(js_name = openUrl)]
     fn open_url_js(url: &str) -> bool;
     #[wasm_bindgen(js_name = takeHash)]
@@ -54,6 +58,26 @@ pub fn pick_photo(import_dir: PathBuf, kind: &'static str) {
 /// Condivisione del browser (o copia negli appunti); `false` se non disponibile.
 pub fn share_text(text: &str) -> bool {
     share_text_js(text)
+}
+
+/// Fa scegliere un file per la pagina «Contenuti» e lo mette in `import/file-…--<nome>`.
+pub fn pick_named_file(import_dir: PathBuf) {
+    wasm_bindgen_futures::spawn_local(async move {
+        let v = pick_named_file_js().await;
+        if v.is_null() || v.is_undefined() {
+            return;
+        }
+        let arr = js_sys::Array::from(&v);
+        let name = arr.get(0).as_string().unwrap_or_else(|| "file".into());
+        let bytes = js_sys::Uint8Array::new(&arr.get(1)).to_vec();
+        let stamp = js_sys::Date::now() as u64;
+        let _ = vfs::write(&import_dir.join(format!("file-{stamp}--{name}")), &bytes);
+    });
+}
+
+/// Scarica un file generato dall'app.
+pub fn download_file(name: &str, bytes: &[u8]) {
+    download_file_js(name, bytes);
 }
 
 /// Apre un indirizzo in una nuova scheda.

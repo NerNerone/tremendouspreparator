@@ -1,0 +1,109 @@
+import { M3, Icons, Type } from "../theme.slint";
+import { AppState, ContentFileVM } from "../state.slint";
+import { Page, IconButton, M3Button, Hint, TopBar, Scroller, VIcon } from "../components.slint";
+
+component FileRow inherits Rectangle {
+    in property <ContentFileVM> f;
+    min-height: row.preferred-height;
+    row := HorizontalLayout {
+        padding-left: 12px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.f.name;
+                font-size: Type.body;
+                color: M3.on-surface;
+                wrap: word-wrap;
+            }
+            Text {
+                text: root.f.info + (root.f.info != "" ? " · " : "") + root.f.path;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: Icons.close;
+                tint: M3.on-surface-variant;
+                clicked => {
+                    AppState.contents-remove(root.f.path);
+                }
+            }
+        }
+    }
+}
+
+// contenuti dell'esame file per file: aggiungere, togliere, esportare
+export component ContentsPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Contenuti";
+            subtitle: AppState.exam-name;
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 10px;
+            Hint {
+                short: "Aggiungi o sostituisci un singolo file senza rigenerare il pacchetto.";
+                full: "Puoi aggiungere file di quiz o flashcard (.json), la definizione dell'esame (syllabus.json), il catalogo dei libri (books.json), capitoli in Markdown (.md, vanno nel libro «Materiale importato» della materia scelta in Studio), figure .svg, oppure un pacchetto intero dello stesso esame (si unisce senza togliere niente). Un file con lo stesso nome di uno esistente lo sostituisce. I tuoi progressi non vengono toccati. «Esporta pacchetto» salva tutto in un unico file da condividere.";
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                M3Button {
+                    text: "Aggiungi file";
+                    has-icon: true;
+                    icon: Icons.add;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.contents-add();
+                    }
+                }
+                M3Button {
+                    text: "Esporta pacchetto";
+                    kind: 1;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.contents-export();
+                    }
+                }
+            }
+            if AppState.contents-status != "": Text {
+                text: AppState.contents-status;
+                wrap: word-wrap;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+            }
+            for f in AppState.content-files: VerticalLayout {
+                spacing: 4px;
+                if f.head: Text {
+                    text: f.kind;
+                    font-size: Type.title;
+                    font-weight: 700;
+                    color: M3.on-surface;
+                }
+                FileRow {
+                    f: f;
+                }
+            }
+            if AppState.content-files.length == 0: Text {
+                text: "Nessun contenuto: importa un pacchetto o aggiungi i file uno alla volta.";
+                wrap: word-wrap;
+                color: M3.on-surface-variant;
+            }
+        }
+    }
+}

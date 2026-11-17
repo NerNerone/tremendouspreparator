@@ -11,6 +11,8 @@ mod app;
 mod crash;
 mod demo;
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+mod desktop_files;
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 pub mod desktop_reminder;
 mod direct;
 mod net;
@@ -72,6 +74,19 @@ pub(crate) fn android_pick_pack() -> Result<(), String> {
     let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr() as jni::sys::jobject) };
     env.call_method(&activity, "pickContentPack", "()V", &[]).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Selettore di un file qualsiasi (pagina «Contenuti»): Java lo copia in files/import/ come
+/// `file-<ora>--<nome originale>`.
+#[cfg(target_os = "android")]
+pub(crate) fn android_pick_file() -> Result<(), String> {
+    android_call("pickContentFile", None)
+}
+
+/// Fa scegliere dove salvare il file `path` (selettore «Salva» di sistema) e lo copia lì.
+#[cfg(target_os = "android")]
+pub(crate) fn android_save_file(path: &std::path::Path, name: &str) -> Result<(), String> {
+    android_call("saveFile", Some(&format!("{}\n{name}", path.display())))
 }
 
 /// Chiama un metodo `void` di MainActivity, con un argomento stringa facoltativo.
