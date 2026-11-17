@@ -3,10 +3,10 @@
     <clipPath id="c"><rect x="12" y="12" width="84" height="84" rx="24" ry="24"/></clipPath>
   </defs>
   <g clip-path="url(#c)">
-    <rect x="0" y="0" width="108" height="108" fill="#4F378B"/>
-    <circle cx="54" cy="54" r="46" fill="#6750A4"/>
-    <circle cx="54" cy="54" r="32" fill="#7965AF"/>
-    <path fill="#F6EDFF" d="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74Z"/>
-    <path fill="#EADDFF" d="M54,42C62,36.5 70.5,35.5 78,38L78,70C70.5,67.5 62,68.5 54,74Z"/>
+    <rect x="0" y="0" width="108" height="108" fill="#0B57D0"/>
+    <circle cx="54" cy="54" r="46" fill="#1A73E8"/>
+    <circle cx="54" cy="54" r="32" fill="#4C8DF6"/>
+    <path fill="#F8FAFF" d="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74Z"/>
+    <path fill="#D3E3FD" d="M54,42C62,36.5 70.5,35.5 78,38L78,70C70.5,67.5 62,68.5 54,74Z"/>
   </g>
 </svg>

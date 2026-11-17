@@ -3,8 +3,8 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFF6EDFF"
+    <path android:fillColor="#FFF8FAFF"
         android:pathData="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74Z" />
-    <path android:fillColor="#FFEADDFF"
+    <path android:fillColor="#FFD3E3FD"
         android:pathData="M54,42C62,36.5 70.5,35.5 78,38L78,70C70.5,67.5 62,68.5 54,74Z" />
 </vector>
