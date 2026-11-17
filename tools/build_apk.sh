@@ -3,6 +3,9 @@
 #
 #   tools/build_apk.sh [uscita.apk]
 #
+# Con SPLIT=1 scrive anche un APK per architettura accanto all'universale
+# (uscita-arm64-v8a.apk, uscita-armeabi-v7a.apk): stesso versionCode, più leggeri.
+#
 # Richiede: Rust con i target aarch64-linux-android e armv7-linux-androideabi, cargo-apk 0.10, JDK 17, Android SDK
 # (ANDROID_HOME, build-tools e platforms/android-35) e NDK (ANDROID_NDK_ROOT).
 #
@@ -44,19 +47,37 @@ python3 "$ROOT/android/patch_manifest.py" "$B/AndroidManifest.xml" "$W/AndroidMa
 javac --release 17 -cp "$JAR" -d "$W/classes" $(find "$ROOT/android/java" -name '*.java')
 "$BT/d8" --release --min-api "$MIN_API" --lib "$JAR" --output "$W/dex" $(find "$W/classes" -name '*.class')
 "$BT/aapt" package -f -F "$W/app.unaligned.apk" -M "$W/AndroidManifest.xml" -S "$ROOT/android/res" -I "$JAR"
-cp -r "$B/lib" "$W/apk/"
 cp "$W/dex/classes.dex" "$W/apk/"
-(cd "$W/apk" && "$BT/aapt" add "$W/app.unaligned.apk" classes.dex $(find lib -type f | sort))
-"$BT/zipalign" -f -p 4 "$W/app.unaligned.apk" "$W/app.aligned.apk"
-
+cp -r "$B/lib" "$W/apk/"
 mkdir -p "$(dirname "$OUT")"
-if [ -n "${KEYSTORE:-}" ] && [ -n "${KEYSTORE_PASSWORD:-}" ]; then
-  "$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
-    --out "$OUT" "$W/app.aligned.apk"
-  "$BT/apksigner" verify "$OUT"
-  echo "APK firmato: $OUT"
-else
-  cp "$W/app.aligned.apk" "$OUT"
-  echo "APK non firmato: $OUT"
+
+# make <uscita> <architetture…>: base (manifest e risorse) + classes.dex + librerie scelte
+make_apk() {
+  local out="$1"; shift
+  local libs=()
+  for abi in "$@"; do
+    [ -d "$W/apk/lib/$abi" ] || { echo "manca la libreria per $abi"; exit 1; }
+    libs+=($(cd "$W/apk" && find "lib/$abi" -type f | sort))
+  done
+  cp "$W/app.unaligned.apk" "$W/one.apk"
+  (cd "$W/apk" && "$BT/aapt" add "$W/one.apk" classes.dex "${libs[@]}" >/dev/null)
+  "$BT/zipalign" -f -p 4 "$W/one.apk" "$W/one.aligned.apk"
+  if [ -n "${KEYSTORE:-}" ] && [ -n "${KEYSTORE_PASSWORD:-}" ]; then
+    "$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+      --out "$out" "$W/one.aligned.apk"
+    "$BT/apksigner" verify "$out"
+    echo "APK firmato: $out"
+  else
+    cp "$W/one.aligned.apk" "$out"
+    echo "APK non firmato: $out"
+  fi
+  "$BT/aapt" dump badging "$out" | grep -E "^(package|sdkVersion|native-code)"
+}
+
+ABIS=($(ls "$W/apk/lib"))
+make_apk "$OUT" "${ABIS[@]}"
+if [ "${SPLIT:-0}" = 1 ] && [ "${#ABIS[@]}" -gt 1 ]; then
+  for abi in "${ABIS[@]}"; do
+    make_apk "${OUT%.apk}-$abi.apk" "$abi"
+  done
 fi
-"$BT/aapt" dump badging "$OUT" | grep -E "^(package|sdkVersion|native-code)"

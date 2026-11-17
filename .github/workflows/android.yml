@@ -92,7 +92,7 @@ jobs:
           fi
           echo "::add-mask::$KEYSTORE_PASSWORD"
           export KEYSTORE_PASSWORD
-          tools/build_apk.sh TremendousPreparator.apk
+          SPLIT=1 tools/build_apk.sh TremendousPreparator.apk
 
       # copia di comodo: il file vero è nella release; se il servizio artifact di GitHub
       # non risponde non deve bloccare la pubblicazione
@@ -101,7 +101,7 @@ jobs:
         timeout-minutes: 4
         with:
           name: TremendousPreparator-apk
-          path: TremendousPreparator.apk
+          path: TremendousPreparator*.apk
 
       - name: Pubblica release
         env:
@@ -111,12 +111,12 @@ jobs:
         run: |
           if [ "$TAG" = anteprima ]; then
             gh release delete anteprima --cleanup-tag --yes 2>/dev/null || true
-            gh release create anteprima TremendousPreparator.apk --target "$GITHUB_SHA" --prerelease \
+            gh release create anteprima TremendousPreparator*.apk --target "$GITHUB_SHA" --prerelease \
               --title "Anteprima $VERSION+$APP_BUILD" \
-              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata. APK Android (ARM 64 e 32 bit) e Flatpak x86_64. ${SIGNING_NOTE:-}"
+              --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata. APK Android: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri, per telefoni a 64 o 32 bit. Flatpak x86_64. ${SIGNING_NOTE:-}"
           else
             NOTES="fastlane/metadata/android/it-IT/changelogs/$(python3 tools/version_code.py).txt"
-            gh release create "$TAG" TremendousPreparator.apk --verify-tag --latest \
+            gh release create "$TAG" TremendousPreparator*.apk --verify-tag --latest \
               --title "Tremendous Preparator $VERSION" --notes-file "$NOTES"
           fi
 

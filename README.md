@@ -38,7 +38,7 @@ solo un piccolo [esempio](examples/esempio).
 
 | Piattaforma | Dove |
 | --- | --- |
-| Android 8.0+ (ARM a 64 e 32 bit) | APK nelle [release](../../releases) |
+| Android 8.0+ (ARM a 64 e 32 bit) | APK nelle [release](../../releases): `TremendousPreparator.apk` è universale (se non sai quale scegliere, prendi questo); `-arm64-v8a.apk` (quasi tutti i telefoni recenti) e `-armeabi-v7a.apk` (telefoni a 32 bit) sono più leggeri |
 | Linux x86_64 | Flatpak nelle stesse release: `flatpak install --user TremendousPreparator-x86_64.flatpak` |
 | Browser / iPhone | <https://nernerone.github.io/tremendouspreparator/> (su iPhone: Safari › Condividi › Aggiungi alla schermata Home) |
 

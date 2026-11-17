@@ -27,7 +27,8 @@ git tag v0.2.0
 git push origin main v0.2.0
 ```
 
-Il workflow [android.yml](../.github/workflows/android.yml) costruisce APK e Flatpak e crea la release
+Il workflow [android.yml](../.github/workflows/android.yml) costruisce gli APK (universale e uno per
+architettura, con `SPLIT=1 tools/build_apk.sh`) e il Flatpak e crea la release
 `v0.2.0` con le note italiane. A ogni push su `main` aggiorna invece la pre-release `anteprima`.
 
 L'APK è firmato con la chiave nei secret `ANDROID_KEYSTORE_B64` (keystore in base64) e
