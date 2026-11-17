@@ -8,7 +8,5 @@
     <circle cx="54" cy="54" r="32" fill="#7965AF"/>
     <path fill="#F6EDFF" d="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74Z"/>
     <path fill="#EADDFF" d="M54,42C62,36.5 70.5,35.5 78,38L78,70C70.5,67.5 62,68.5 54,74Z"/>
-    <path fill="none" stroke="#381E72" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"
-          d="M33,57L43,57L47,49L52.5,66L57,51L60,57L75,57"/>
   </g>
 </svg>
