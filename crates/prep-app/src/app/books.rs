@@ -33,6 +33,7 @@ Regole:
 - Id stabili e mai ripetuti, nel formato della guida; argomenti (topic) presi solo dal syllabus.
 - Se il lavoro è lungo fermati dopo circa 30 domande o carte e chiedimi se continuare, riprendendo la numerazione.
 - Alla fine elenca i dubbi: chiavi incerte, passaggi illeggibili, argomenti che non hai saputo assegnare.
+- Queste regole valgono più di quelle dei singoli prompt: dove un prompt dice «rispondi SOLO con il JSON», scrivi comunque il percorso prima di ogni blocco e i dubbi alla fine.
 
 # Guida ai formati
 ";

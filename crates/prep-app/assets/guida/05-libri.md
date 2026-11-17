@@ -20,9 +20,35 @@ Se aggiungi un capitolo `.md` da solo dalla pagina *Contenuti*, l'app lo mette n
 
 ## 5.2 Scrivere un capitolo
 
-- Titoli con la numerazione del libro: `# 2 Cinematica`, `## 2.3 Moto uniformemente accelerato`, `### …`. Il lettore divide il capitolo in sezioni ai titoli.
-- Segnaposto di pagina del libro originale: `<!-- p. 24 -->` (li inserisce la conversione dai PDF; servono a `page` nei rimandi).
-- Elenchi `-` e `1.`, citazioni `>`, tabelle Markdown, codice tra tre apici inversi.
-- Riquadri: `> [!NOTE] Titolo`, `> [!TIP]`, `> [!WARNING]`.
-- Formule: `$v = \frac{s}{t}$` nel testo, `$$ … $$` su righe proprie per quelle grandi (LaTeX). L'app le mostra come testo con simboli, apici e pedici.
-- Figure: `![Figura 2.1: grafico s-t](books/fisica/dispense/fig/2-1.svg)`, con percorso completo. Solo SVG; se manca l'immagine resta la didascalia.
+Un capitolo d'esempio con tutto quello che il lettore riconosce:
+
+```
+<!-- p. 24 -->
+# 2 Cinematica
+
+## 2.3 Moto uniformemente accelerato
+
+Testo normale, con **grassetto** e *corsivo*. Una formula nel testo: $v = v_0 + a t$.
+
+$$
+s = v_0 t + \frac{1}{2} a t^2
+$$
+
+- un elenco puntato
+1. un elenco numerato
+
+| Grandezza | Unità |
+| --- | --- |
+| velocità | m/s |
+
+> [!NOTE] Da ricordare
+> L'accelerazione è costante.
+
+![Figura 2.1: grafico s-t](books/fisica/dispense/fig/2-1.svg)
+```
+
+- Titoli con la numerazione del libro (`#` capitolo, `##` sezione, `###` sottosezione): il lettore divide il capitolo in sezioni ai titoli.
+- Il segnaposto di pagina riporta la pagina del libro originale: lo inserisce la conversione dai PDF e serve a `page` nei rimandi.
+- Riquadri: `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`, con un titolo facoltativo dopo.
+- Formule in LaTeX, tra un dollaro nel testo e tra due dollari su righe proprie per quelle grandi: l'app le mostra con simboli, apici e pedici.
+- Figure: percorso completo del file, solo SVG; se manca l'immagine resta la didascalia.

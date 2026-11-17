@@ -4,7 +4,13 @@ Il materiale di partenza diventa testo Markdown, che poi ripulisci (a mano o con
 
 ## 6.1 PDF con testo selezionabile
 
-La maggior parte di dispense e slide esportate ha già il testo. Al computer: `python3 tools/pdf2md.py libro.pdf bozza.md --offset N` (nel repository del progetto); `--offset` allinea le pagine del PDF ai numeri stampati e inserisce i segnaposto `<!-- p. N -->`.
+La maggior parte di dispense e slide esportate ha già il testo. Al computer, nel repository del progetto:
+
+```
+python3 tools/pdf2md.py libro.pdf bozza.md --offset N
+```
+
+`--offset` allinea le pagine del PDF ai numeri stampati; lo script inserisce i segnaposto di pagina (`<!-- p. N -->`, vedi 5.2).
 
 ## 6.2 Scansioni e foto
 
