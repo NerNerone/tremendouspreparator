@@ -1,7 +1,7 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, LlmCopy } from "../components.slint";
 
 component BlockView inherits VerticalLayout {
     in property <BlockVM> b;
@@ -58,14 +58,41 @@ component BlockView inherits VerticalLayout {
         if root.b.kind == 5: Rectangle {
             background: M3.surface-container-high;
             border-radius: 8px;
-            HorizontalLayout {
+            VerticalLayout {
                 padding: 10px;
-                Text {
+                spacing: 6px;
+                code := TextInput {
                     text: root.b.text;
+                    read-only: true;
+                    single-line: false;
                     wrap: word-wrap;
                     font-family: "monospace";
                     font-size: 13px;
                     color: M3.on-surface;
+                    selection-background-color: M3.primary-container;
+                    selection-foreground-color: M3.on-primary-container;
+                }
+                // i blocchi lunghi (prompt, esempi) si copiano o si condividono interi
+                if root.b.text.character-count > 80: HorizontalLayout {
+                    alignment: end;
+                    spacing: 4px;
+                    M3Button {
+                        text: "Copia";
+                        kind: 2;
+                        clicked => {
+                            code.select-all();
+                            code.copy();
+                            code.clear-selection();
+                            AppState.rd-copied();
+                        }
+                    }
+                    M3Button {
+                        text: "Condividi";
+                        kind: 2;
+                        clicked => {
+                            AppState.rd-share(root.b.text);
+                        }
+                    }
                 }
             }
         }
@@ -203,6 +230,19 @@ export component ReaderPage inherits Page {
                 padding: 18px;
                 padding-top: 4px;
                 spacing: 0px;
+                if AppState.rd-llm-card: VerticalLayout {
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+                    LlmCopy {
+                        text: AppState.guide-llm;
+                        copied => {
+                            AppState.rd-copied();
+                        }
+                        share => {
+                            AppState.rd-share(AppState.guide-llm);
+                        }
+                    }
+                }
                 for b in AppState.rd-blocks: BlockView {
                     b: b;
                     avail-width: rsv.visible-width - 36px;

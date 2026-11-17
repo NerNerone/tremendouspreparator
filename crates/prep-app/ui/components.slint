@@ -987,3 +987,65 @@ export component Scroller inherits ScrollView {
         }
     }
 }
+
+// riquadro «guida per un LLM»: copia o condivide un testo lungo senza mostrarlo
+export component LlmCopy inherits Rectangle {
+    in property <string> text;
+    in property <string> title: "Tutta la guida per un LLM";
+    in property <string> body: "Un solo testo con istruzioni, formati e prompt: incollalo in una chat con un LLM, scrivi il compito e allega il tuo materiale.";
+    callback copied;
+    callback share;
+    background: M3.tertiary-container;
+    border-radius: 12px;
+    min-height: lay.preferred-height;
+    // testo nascosto: serve solo a copiare
+    buf := TextInput {
+        x: 0px;
+        y: 0px;
+        width: 0px;
+        height: 0px;
+        text: root.text;
+        read-only: true;
+        single-line: false;
+        enabled: false;
+        opacity: 0;
+    }
+    lay := VerticalLayout {
+        padding: 14px;
+        spacing: 6px;
+        Text {
+            text: root.title;
+            font-weight: 700;
+            font-size: Type.body;
+            color: M3.on-tertiary-container;
+            wrap: word-wrap;
+        }
+        Text {
+            text: root.body;
+            font-size: Type.label;
+            color: M3.on-tertiary-container;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            alignment: end;
+            spacing: 4px;
+            M3Button {
+                text: "Copia";
+                kind: 2;
+                clicked => {
+                    buf.select-all();
+                    buf.copy();
+                    buf.clear-selection();
+                    root.copied();
+                }
+            }
+            M3Button {
+                text: "Condividi";
+                kind: 2;
+                clicked => {
+                    root.share();
+                }
+            }
+        }
+    }
+}

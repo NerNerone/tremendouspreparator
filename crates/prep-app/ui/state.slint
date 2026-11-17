@@ -623,6 +623,11 @@ export global AppState {
     callback reader-prev();
     callback reader-next();
     callback reader-goto(int);
+    callback open-guide();
+    in property <string> guide-llm;
+    in property <bool> rd-llm-card;
+    callback rd-copied();
+    callback rd-share(string);
 
     callback import-pack();
     callback open-contents();

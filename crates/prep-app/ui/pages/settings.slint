@@ -473,6 +473,13 @@ export component SettingsPage inherits Page {
                             AppState.open-contents();
                         }
                     }
+                    M3Button {
+                        text: "Guida: creare un pacchetto";
+                        kind: 2;
+                        clicked => {
+                            AppState.open-guide();
+                        }
+                    }
                     Text {
                         text: AppState.pack-status;
                         wrap: word-wrap;

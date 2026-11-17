@@ -1190,6 +1190,16 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     });
     st.on_import_pack(|| with_ctrl(|c| c.pick_pack()));
     st.on_open_contents(|| with_ctrl(|c| c.open_contents()));
+    st.on_open_guide(|| with_ctrl(|c| c.open_guide()));
+    st.set_guide_llm(ss(books::guide_for_llm()));
+    st.on_rd_copied(|| with_ctrl(|c| c.toast("Copiato: incollalo dove ti serve")));
+    st.on_rd_share(|t| {
+        with_ctrl(|c| {
+            if !crate::share_text(&t) {
+                c.toast("Condivisione non disponibile qui: usa «Copia»");
+            }
+        })
+    });
     st.on_contents_add(|| with_ctrl(|c| c.contents_add()));
     st.on_contents_remove(|p| with_ctrl(|c| c.contents_remove_ask(&p)));
     st.on_contents_export(|| with_ctrl(|c| c.contents_export()));

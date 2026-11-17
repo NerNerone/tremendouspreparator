@@ -2,6 +2,52 @@
 
 use super::*;
 
+/// Capitoli della guida ai contenuti (Markdown incluso nell'app).
+const GUIDE: &[(&str, &str)] = &[
+    ("guida/01-panoramica.md", include_str!("../../assets/guida/01-panoramica.md")),
+    ("guida/02-esame.md", include_str!("../../assets/guida/02-esame.md")),
+    ("guida/03-quiz.md", include_str!("../../assets/guida/03-quiz.md")),
+    ("guida/04-flashcard.md", include_str!("../../assets/guida/04-flashcard.md")),
+    ("guida/05-libri.md", include_str!("../../assets/guida/05-libri.md")),
+    ("guida/06-dai-pdf.md", include_str!("../../assets/guida/06-dai-pdf.md")),
+    ("guida/07-importare.md", include_str!("../../assets/guida/07-importare.md")),
+    ("guida/08-prompt.md", include_str!("../../assets/guida/08-prompt.md")),
+    ("guida/09-tutto-a-un-llm.md", include_str!("../../assets/guida/09-tutto-a-un-llm.md")),
+];
+
+const GUIDE_TITLE: &str = "Guida ai contenuti";
+
+/// Istruzioni in testa alla guida quando la si copia per un LLM.
+const LLM_HEAD: &str = "# Istruzioni per te (LLM)
+
+Sei un assistente che prepara contenuti di studio per l'app Tremendous Preparator: quiz, flashcard e libri di un esame, in file JSON e Markdown che l'app importa. Qui sotto trovi la guida completa ai formati: seguila alla lettera.
+
+IL MIO COMPITO PER TE: [scrivi qui cosa vuoi, per esempio: crea content/syllabus.json dal programma allegato; scrivi 30 domande con note su ogni risposta dal capitolo allegato; crea le flashcard; rivedi il file di domande allegato; ripulisci il capitolo convertito da PDF; ricrea la figura allegata in SVG]
+
+MATERIALE ALLEGATO: [elenca i file che alleghi o incolli dopo questa guida; allega anche il tuo syllabus.json se esiste già]
+
+Regole:
+- Usa come fonte solo il materiale allegato. Se manca qualcosa che serve (argomenti, dati, pagine illeggibili), chiedimelo invece di inventare.
+- Se il compito corrisponde a uno dei prompt del capitolo 8, applica anche le sue regole (i segnaposto tra parentesi quadre li ricavi dal mio compito e dal materiale).
+- Rispondi con un file per blocco di codice; subito prima di ogni blocco scrivi il percorso del file (es. content/questions/fis-cinematica.json). JSON valido, UTF-8, senza commenti.
+- Id stabili e mai ripetuti, nel formato della guida; argomenti (topic) presi solo dal syllabus.
+- Se il lavoro è lungo fermati dopo circa 30 domande o carte e chiedimi se continuare, riprendendo la numerazione.
+- Alla fine elenca i dubbi: chiavi incerte, passaggi illeggibili, argomenti che non hai saputo assegnare.
+
+# Guida ai formati
+";
+
+/// Tutta la guida in un solo testo da incollare in una chat con un LLM.
+pub(super) fn guide_for_llm() -> String {
+    let mut out = String::from(LLM_HEAD);
+    for (_, text) in GUIDE.iter().filter(|(f, _)| !f.contains("09-")) {
+        out.push('\n');
+        out.push_str(text.trim());
+        out.push('\n');
+    }
+    out
+}
+
 impl Ctrl {
     // ---------- libri ----------
 
@@ -45,6 +91,34 @@ impl Ctrl {
         }
         let return_page = self.ui().global::<AppState>().get_page();
         Some(Reader { title: book.title.clone(), entries, pos: 0, return_page })
+    }
+
+    /// «Guida ai contenuti»: capitoli inclusi nell'app, letti nel lettore dei libri.
+    pub(super) fn open_guide(&mut self) {
+        let mut entries = Vec::new();
+        for (file, text) in GUIDE {
+            let blocks = Rc::new(markdown::parse(text));
+            let chapter = blocks
+                .iter()
+                .find_map(|b| match b {
+                    Block::Heading { text, .. } => Some(text.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            for sec in markdown::sections(&blocks) {
+                entries.push(ReaderEntry {
+                    chapter: chapter.clone(),
+                    blocks: blocks.clone(),
+                    section: sec,
+                    file: file.to_string(),
+                });
+            }
+        }
+        let return_page = self.ui().global::<AppState>().get_page();
+        self.reader = Some(Reader { title: GUIDE_TITLE.into(), entries, pos: 0, return_page });
+        self.ui().global::<AppState>().set_rd_toc_visible(true);
+        self.render_reader();
+        self.set_page(P_READER);
     }
 
     pub(super) fn open_ref(&mut self, r: Option<BookRef>) {
@@ -109,6 +183,8 @@ impl Ctrl {
         st.set_rd_book(ss(&r.title));
         st.set_rd_title(ss(title));
         st.set_rd_page_label(ss(e.section.page.map(|p| format!("p. {p}")).unwrap_or_default()));
+        // guida: il riquadro «copia tutto per un LLM» all'inizio e nel capitolo che lo spiega
+        st.set_rd_llm_card(r.title == GUIDE_TITLE && (r.pos == 0 || e.file.contains("09-")));
         let mut blocks: Vec<BlockVM> = Vec::new();
         for b in &e.blocks[e.section.start..e.section.end] {
             if let Block::Table(rows) = b {

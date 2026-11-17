@@ -63,6 +63,9 @@ pub fn maybe_run(ui: &AppWindow) {
                 // pagina «Contenuti»: contents (apre), addfile:percorso (come se fosse scelto),
                 // contentsexport, contentsrm:percorso nel mirror
                 "contents" => st.invoke_open_contents(),
+                "guide" => st.invoke_open_guide(),
+                "rdgoto" => st.invoke_reader_goto(arg.parse().unwrap_or(0)),
+                "rdtoc" => st.set_rd_toc_visible(arg == "1"),
                 "contentsexport" => st.invoke_contents_export(),
                 "contentsrm" => st.invoke_contents_remove(arg.into()),
                 "addfile" => {

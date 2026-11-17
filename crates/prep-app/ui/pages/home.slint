@@ -124,6 +124,13 @@ export component HomePage inherits Page {
                         }
                     }
                 }
+                M3Button {
+                    text: "Come si crea un pacchetto";
+                    kind: 2;
+                    clicked => {
+                        AppState.open-guide();
+                    }
+                }
             }
         }
         HorizontalLayout {
