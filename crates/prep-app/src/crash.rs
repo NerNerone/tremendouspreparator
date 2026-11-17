@@ -73,6 +73,7 @@ pub fn summary(report: &str) -> String {
 }
 
 /// Indirizzo della pagina «nuova issue» del repository del progetto, già compilata.
+#[allow(dead_code)] // non usata dalle build che inviano la segnalazione altrove
 pub fn issue_url(report: &str) -> String {
     issue_url_for(env!("CARGO_PKG_REPOSITORY"), report)
 }
