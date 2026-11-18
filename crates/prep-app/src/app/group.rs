@@ -279,6 +279,7 @@ impl Ctrl {
         // stato di un altro proprio dispositivo: una sola sessione di studio alla volta
         if !status.uid.is_empty() && status.uid == self.user_id() && from != self.device_id() {
             self.twin = Some((from.clone(), status.state, status.since, now));
+            self.own_devs.insert(from.clone(), (status.clone(), now));
             self.twin_resolve(now);
         }
         if sess == Sess::Sync {
@@ -998,13 +999,25 @@ impl Ctrl {
                     }
                 }
             }
-            // altri propri dispositivi noti solo dalla sincronizzazione: il loro registro
-            for (d, l) in &self.study_log.others {
-                if !seen.contains(d) {
-                    let log: prep_core::group::StudyLog = l.clone().into();
-                    let idle = prep_core::score::Score { mult: 1.0, fx: 0, level: 0.0 };
-                    let s = prep_core::group::my_status("", 0, State::Idle, &log, None, &ck, false, idle);
-                    devs.push((s, false));
+            // altri propri dispositivi non visti nel gruppo: il loro ultimo stato (contato in
+            // diretta, arriva ogni 10 s dalla sincronizzazione) o, se tace da un pezzo, il registro
+            let mut others: Vec<&String> = self.study_log.others.keys().chain(self.own_devs.keys()).collect();
+            others.sort();
+            others.dedup();
+            for d in others {
+                if seen.contains(d) {
+                    continue;
+                }
+                match self.own_devs.get(d) {
+                    Some((s, at)) if now - at < 120 => devs.push(prep_core::group::frozen(s, *at, &ck)),
+                    _ => {
+                        if let Some(l) = self.study_log.others.get(d) {
+                            let log: prep_core::group::StudyLog = l.clone().into();
+                            let idle = prep_core::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+                            let s = prep_core::group::my_status("", 0, State::Idle, &log, None, &ck, false, idle);
+                            devs.push((s, false));
+                        }
+                    }
                 }
             }
             let (mut c, _) = prep_core::group::combine(&devs, &ck);

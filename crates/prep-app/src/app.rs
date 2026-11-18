@@ -372,6 +372,9 @@ pub struct Ctrl {
     /// ultimo stato ricevuto da un altro proprio dispositivo: (dispositivo, stato, inizio
     /// della sua sessione, quando è arrivato)
     twin: Option<(String, prep_core::group::State, i64, i64)>,
+    /// ultimo stato di ciascun altro proprio dispositivo (e quando è arrivato): il suo studio
+    /// si conta in diretta anche senza essere nello stesso gruppo
+    own_devs: BTreeMap<String, (prep_core::group::Status, i64)>,
     /// gruppi già annunciati agli altri propri dispositivi (per riannunciarli se cambiano)
     groups_sig: String,
     /// risultati aperti dal registro delle simulazioni (si torna lì)
@@ -1048,6 +1051,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         groups_sig: String::new(),
         session_start: 0,
         twin: None,
+        own_devs: BTreeMap::new(),
         heat_back: [0; 3],
         heat_member: String::new(),
         run: Default::default(),
