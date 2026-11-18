@@ -15,6 +15,8 @@ mod desktop_files;
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 pub mod desktop_reminder;
 mod direct;
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+mod flatpak;
 mod net;
 #[cfg(not(target_arch = "wasm32"))]
 mod ocr;

@@ -1,7 +1,9 @@
-//! Aggiornamenti dell'app dalle release del progetto su GitHub, solo negli APK pubblicati lì
-//! (la CI compila con `TP_UPDATES=github`; le build di F-Droid ne restano senza). Una beta
-//! controlla la release «beta» (numero di build più alto), una versione stabile l'ultima release.
-#![cfg_attr(not(target_os = "android"), allow(dead_code))]
+//! Aggiornamenti dell'app dalle release del progetto su GitHub, solo negli APK e nel Flatpak
+//! pubblicati lì (la CI compila con `TP_UPDATES=github`; le build di F-Droid ne restano senza).
+//! Una beta controlla la release «beta» (numero di build più alto), una versione stabile l'ultima
+//! release. Su Android l'APK va all'installatore di sistema; nel Flatpak il bundle si installa
+//! con `flatpak` sull'host (vedi `crate::flatpak`).
+#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
 
 use super::*;
 
@@ -13,7 +15,15 @@ static CHECKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::n
 
 /// Aggiornamenti attivi in questa build.
 pub(super) fn enabled() -> bool {
-    cfg!(target_os = "android") && BUILD.eq_ignore_ascii_case("github")
+    BUILD.eq_ignore_ascii_case("github") && (cfg!(target_os = "android") || flatpak())
+}
+
+/// Versione Flatpak (computer Linux).
+fn flatpak() -> bool {
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+    return crate::flatpak::inside();
+    #[cfg(any(target_os = "android", target_arch = "wasm32"))]
+    false
 }
 
 /// Numero di build di una versione beta: «0.2.0+123-abc1234» → 123.
@@ -29,13 +39,13 @@ pub(super) fn version_code(v: &str) -> Option<u32> {
 }
 
 /// Versione più nuova di quella installata (`mine`) nella release `r` (JSON di GitHub), con
-/// l'indirizzo dell'APK adatto all'architettura `arch`.
-pub(super) fn newer(r: &serde_json::Value, mine: &str, arch: &str) -> Option<(String, String)> {
+/// l'indirizzo del pacchetto adatto: l'APK per l'architettura `arch`, o il bundle Flatpak.
+pub(super) fn newer(r: &serde_json::Value, mine: &str, arch: &str, flatpak: bool) -> Option<(String, String)> {
     let assets = r["assets"].as_array()?;
-    let url_of = |want: &str| {
+    let url_of = |ext: &str, want: &str| {
         assets.iter().find_map(|a| {
             let n = a["name"].as_str()?;
-            (n.ends_with(".apk") && n.contains(want)).then(|| a["browser_download_url"].as_str().map(str::to_string))?
+            (n.ends_with(ext) && n.contains(want)).then(|| a["browser_download_url"].as_str().map(str::to_string))?
         })
     };
     let abi = match arch {
@@ -43,7 +53,12 @@ pub(super) fn newer(r: &serde_json::Value, mine: &str, arch: &str) -> Option<(St
         "arm" => "armeabi-v7a",
         _ => "",
     };
-    let url = (if abi.is_empty() { None } else { url_of(abi) }).or_else(|| url_of("TremendousPreparator.apk"))?;
+    let url = if flatpak {
+        url_of(".flatpak", arch)?
+    } else {
+        (if abi.is_empty() { None } else { url_of(".apk", abi) })
+            .or_else(|| url_of(".apk", "TremendousPreparator.apk"))?
+    };
     let base = |v: &str| v.split('+').next().unwrap_or(v).to_string();
     match build_number(mine) {
         // beta: titolo «Beta 0.2.0+123-abc1234»
@@ -59,7 +74,7 @@ pub(super) fn newer(r: &serde_json::Value, mine: &str, arch: &str) -> Option<(St
     }
 }
 
-#[cfg(target_os = "android")]
+#[cfg(not(target_arch = "wasm32"))]
 fn get(url: &str) -> Result<ureq::http::Response<ureq::Body>, String> {
     ureq::get(url)
         .header("User-Agent", "TremendousPreparator")
@@ -68,7 +83,7 @@ fn get(url: &str) -> Result<ureq::http::Response<ureq::Body>, String> {
         .map_err(|e| e.to_string())
 }
 
-#[cfg(target_os = "android")]
+#[cfg(not(target_arch = "wasm32"))]
 fn latest() -> Result<Option<(String, String)>, String> {
     let mine = crate::app::APP_VERSION;
     let url = if build_number(mine).is_some() {
@@ -79,17 +94,16 @@ fn latest() -> Result<Option<(String, String)>, String> {
     let mut resp = get(&url)?;
     let body = resp.body_mut().read_to_string().map_err(|e| e.to_string())?;
     let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
-    Ok(newer(&v, mine, std::env::consts::ARCH))
+    Ok(newer(&v, mine, std::env::consts::ARCH, flatpak()))
 }
 
 impl Ctrl {
     /// All'avvio, una volta: c'è una versione più nuova? (la si propone, non si installa da sola)
-    #[allow(clippy::needless_return)] // fuori da Android il corpo si ferma qui
     pub(super) fn updates_check(&mut self) {
         if !enabled() || CHECKED.swap(true, std::sync::atomic::Ordering::SeqCst) {
             return;
         }
-        #[cfg(target_os = "android")]
+        #[cfg(not(target_arch = "wasm32"))]
         spawn_background(move || {
             if let Ok(Some((v, url))) = latest() {
                 let _ = slint::invoke_from_event_loop(move || {
@@ -101,9 +115,11 @@ impl Ctrl {
                 });
             }
         });
+        #[cfg(target_arch = "wasm32")]
+        let _ = self;
     }
 
-    /// «Aggiorna»: scarica l'APK e lo passa all'installatore di sistema.
+    /// «Aggiorna»: scarica l'APK (o il bundle Flatpak) e lo installa.
     pub(super) fn updates_install(&mut self) {
         if self.quiz.is_some() || self.study_state != prep_core::group::State::Idle {
             self.toast("Prima termina il quiz o la sessione di studio: l'aggiornamento riavvia l'app");
@@ -114,8 +130,12 @@ impl Ctrl {
             return;
         }
         self.ui().global::<AppState>().set_update_busy(true);
-        let dest = self.store.base.join("updates").join("aggiornamento.apk");
-        #[cfg(target_os = "android")]
+        let dest = self.store.base.join("updates").join(if flatpak() {
+            "TremendousPreparator-x86_64.flatpak"
+        } else {
+            "aggiornamento.apk"
+        });
+        #[cfg(not(target_arch = "wasm32"))]
         spawn_background(move || {
             let r = get(&url)
                 .and_then(|mut resp| {
@@ -128,14 +148,29 @@ impl Ctrl {
             let _ = slint::invoke_from_event_loop(move || {
                 with_ctrl(|c| {
                     c.ui().global::<AppState>().set_update_busy(false);
-                    if let Err(e) = r.and_then(|p| crate::install_apk(&p)) {
+                    if let Err(e) = r.and_then(|p| install(&p)) {
                         c.toast(format!("Aggiornamento non riuscito: {e}"));
                     }
                 })
             });
         });
-        #[cfg(not(target_os = "android"))]
+        #[cfg(target_arch = "wasm32")]
         let _ = (url, dest);
+    }
+}
+
+/// Installa il pacchetto scaricato: APK (Android) o bundle Flatpak (computer).
+#[cfg(not(target_arch = "wasm32"))]
+fn install(p: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    return crate::install_apk(p);
+    #[cfg(not(target_os = "android"))]
+    match crate::flatpak::install_and_restart(p)? {
+        true => Ok(()),
+        false => {
+            Err("installazione diretta non permessa: conferma l'aggiornamento nel gestore di software che si è aperto"
+                .into())
+        }
     }
 }
 
@@ -154,13 +189,22 @@ mod tests {
                 {"name": "TremendousPreparator-armeabi-v7a.apk", "browser_download_url": "u/v7"}
             ]
         });
-        assert_eq!(newer(&rel, "0.2.0+120-fff0000", "aarch64"), Some(("0.2.0+130-abc1234".into(), "u/arm64".into())));
-        assert_eq!(newer(&rel, "0.2.0+120-fff0000", "arm").unwrap().1, "u/v7");
-        assert_eq!(newer(&rel, "0.2.0+120-fff0000", "x86_64").unwrap().1, "u/uni");
-        assert_eq!(newer(&rel, "0.2.0+130-abc1234", "aarch64"), None);
+        assert_eq!(
+            newer(&rel, "0.2.0+120-fff0000", "aarch64", false),
+            Some(("0.2.0+130-abc1234".into(), "u/arm64".into()))
+        );
+        assert_eq!(newer(&rel, "0.2.0+120-fff0000", "arm", false).unwrap().1, "u/v7");
+        assert_eq!(newer(&rel, "0.2.0+120-fff0000", "x86_64", false).unwrap().1, "u/uni");
+        assert_eq!(newer(&rel, "0.2.0+130-abc1234", "aarch64", false), None);
         let stable = serde_json::json!({"tag_name": "v0.3.0", "assets": [{"name": "TremendousPreparator.apk", "browser_download_url": "s"}]});
-        assert_eq!(newer(&stable, "0.2.0", "aarch64"), Some(("0.3.0".into(), "s".into())));
-        assert_eq!(newer(&stable, "0.3.0", "aarch64"), None);
+        assert_eq!(newer(&stable, "0.2.0", "aarch64", false), Some(("0.3.0".into(), "s".into())));
+        assert_eq!(newer(&stable, "0.3.0", "aarch64", false), None);
         assert_eq!(build_number("0.2.0"), None);
+        // Flatpak: il bundle x86_64, solo se c'è nella release
+        let fp = serde_json::json!({"tag_name": "v0.3.0", "assets": [
+            {"name": "TremendousPreparator.apk", "browser_download_url": "s"},
+            {"name": "TremendousPreparator-x86_64.flatpak", "browser_download_url": "f"}]});
+        assert_eq!(newer(&fp, "0.2.0", "x86_64", true), Some(("0.3.0".into(), "f".into())));
+        assert_eq!(newer(&stable, "0.2.0", "x86_64", true), None);
     }
 }

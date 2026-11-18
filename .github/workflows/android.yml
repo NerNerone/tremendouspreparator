@@ -154,6 +154,9 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       - name: Compila il binario desktop
+        env:
+          # Flatpak distribuito qui: si aggiorna da solo dalle release (beta o stabili)
+          TP_UPDATES: github
         run: |
           if [ "${{ needs.apk.outputs.tag }}" = beta ]; then export APP_BUILD="${{ github.run_number }}-${GITHUB_SHA::7}"; fi
           cargo build --release -p tremendouspreparator --bin prepapp-desktop

@@ -15,6 +15,8 @@ finish-args:
   # promemoria giornaliero: notifiche e avvio automatico all'accesso
   - --talk-name=org.freedesktop.Notifications
   - --filesystem=xdg-config/autostart:create
+  # aggiornamenti dalle release: installa il nuovo bundle con flatpak sull'host
+  - --talk-name=org.freedesktop.Flatpak
   # importazione del pacchetto contenuti (.json.gz) da Download
   - --filesystem=xdg-download:ro
 modules:
