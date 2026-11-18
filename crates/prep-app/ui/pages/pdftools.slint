@@ -144,13 +144,26 @@ export component PdfToolsPage inherits Page {
                         font-weight: 700;
                         color: M3.on-surface;
                     }
-                    HorizontalLayout {
-                        spacing: 6px;
-                        for mb in [5, 10, 20, 50, 100]: Chip {
-                            text: mb + " MB";
-                            selected: AppState.pdf-max-mb == mb;
-                            clicked => {
-                                AppState.pdf-max-mb = mb;
+                    // fila che scorre col dito su schermi stretti, senza uscire dalla scheda
+                    Flickable {
+                        height: 40px;
+                        interactive: true;
+                        content-width: max(self.width, mb-strip.preferred-width);
+                        content-height: 40px;
+                        mb-strip := HorizontalLayout {
+                            x: 0px;
+                            y: 0px;
+                            height: 40px;
+                            spacing: 6px;
+                            alignment: start;
+                            padding-top: 2px;
+                            padding-bottom: 2px;
+                            for mb in [5, 10, 20, 50, 100]: Chip {
+                                text: mb + " MB";
+                                selected: AppState.pdf-max-mb == mb;
+                                clicked => {
+                                    AppState.pdf-max-mb = mb;
+                                }
                             }
                         }
                     }

@@ -307,6 +307,7 @@ public class MainActivity extends NativeActivity {
             android.content.SharedPreferences p = FocusService.prefs(this);
             org.json.JSONObject j = new org.json.JSONObject();
             j.put("usage", FocusService.hasUsageAccess(this));
+            j.put("restricted", FocusService.restrictedSettings(this));
             j.put("overlay", FocusService.hasOverlay(this));
             j.put("until", p.getLong("until", 0));
             j.put("armed", p.getBoolean("armed", false));

@@ -530,6 +530,8 @@ export global AppState {
     in-out property <bool> focus-open;
     in property <bool> focus-usage-ok;
     in property <bool> focus-overlay-ok;
+    // Android 13+: «impostazioni con limitazioni» attive (app installata da un file APK)
+    in property <bool> focus-restricted;
     in property <bool> focus-active;
     in property <string> focus-status;
     in property <int> focus-minutes: 50;

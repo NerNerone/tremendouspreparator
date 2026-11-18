@@ -27,6 +27,7 @@ impl Ctrl {
         };
         let usage = j["usage"].as_bool().unwrap_or(false);
         let overlay = j["overlay"].as_bool().unwrap_or(false);
+        let restricted = j["restricted"].as_bool().unwrap_or(false);
         let active = j["active"].as_bool().unwrap_or(false);
         let until = j["until"].as_i64().unwrap_or(0);
         let now_ms = Utc::now().timestamp_millis();
@@ -81,6 +82,7 @@ impl Ctrl {
         let ui = self.ui();
         let st = ui.global::<AppState>();
         st.set_focus_usage_ok(usage);
+        st.set_focus_restricted(restricted && !usage);
         st.set_focus_overlay_ok(overlay);
         st.set_focus_active(active);
         self.focus_on = active;

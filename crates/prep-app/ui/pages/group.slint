@@ -928,10 +928,38 @@ component FocusSheet inherits Rectangle {
                     AppState.focus-perm("overlay");
                 }
             }
-            if !AppState.focus-usage-ok || !AppState.focus-overlay-ok: HorizontalLayout {
+            // Android blocca l'accesso all'utilizzo per le app installate da un file: i passaggi
+            if AppState.focus-restricted: Rectangle {
+                background: M3.secondary-container;
+                border-radius: 16px;
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    Text {
+                        text: "Prima sblocca le impostazioni con limitazioni";
+                        font-weight: 700;
+                        color: M3.on-secondary-container;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "Android blocca l'accesso all'utilizzo per le app installate da un file APK invece che da uno store (vedrai «All'app è stato negato l'accesso»). Si sblocca una volta sola:\n1. Tocca «Info app» qui sotto.\n2. In alto a destra ⋮ › «Consenti impostazioni con limitazioni» (su alcuni telefoni «impostazioni limitate») e conferma.\n3. Torna qui e tocca «Concedi» su Accesso all'utilizzo: l'interruttore ora si attiva.";
+                        font-size: Type.label;
+                        color: M3.on-secondary-container;
+                        wrap: word-wrap;
+                    }
+                    M3Button {
+                        text: "Info app";
+                        kind: 0;
+                        clicked => {
+                            AppState.focus-perm("appinfo");
+                        }
+                    }
+                }
+            }
+            if !AppState.focus-restricted && (!AppState.focus-usage-ok || !AppState.focus-overlay-ok): HorizontalLayout {
                 spacing: 8px;
                 Text {
-                    text: "Interruttore grigio («impostazione limitata»)? Apri Info app › ⋮ › Consenti impostazioni limitate, poi riprova.";
+                    text: "Interruttore grigio o «accesso negato»? Apri Info app › ⋮ › «Consenti impostazioni con limitazioni», poi riprova.";
                     font-size: Type.label;
                     color: M3.on-surface-variant;
                     wrap: word-wrap;
@@ -951,14 +979,26 @@ component FocusSheet inherits Rectangle {
                 font-weight: 700;
                 color: M3.on-surface;
             }
-            HorizontalLayout {
-                spacing: 6px;
-                alignment: start;
-                for m in [25, 50, 90, 120, 180]: Chip {
-                    text: m < 120 ? m + " min" : (m / 60) + " ore";
-                    selected: AppState.focus-minutes == m;
-                    clicked => {
-                        AppState.focus-set-minutes(m);
+            // scorre col dito su schermi stretti
+            Flickable {
+                height: 40px;
+                interactive: true;
+                content-width: max(self.width, min-strip.preferred-width);
+                content-height: 40px;
+                min-strip := HorizontalLayout {
+                    x: 0px;
+                    y: 0px;
+                    height: 40px;
+                    spacing: 6px;
+                    alignment: start;
+                    padding-top: 2px;
+                    padding-bottom: 2px;
+                    for m in [25, 50, 90, 120, 180]: Chip {
+                        text: m < 120 ? m + " min" : (m / 60) + " ore";
+                        selected: AppState.focus-minutes == m;
+                        clicked => {
+                            AppState.focus-set-minutes(m);
+                        }
                     }
                 }
             }

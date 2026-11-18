@@ -111,6 +111,23 @@ public class FocusService extends Service {
         ensure(c);
     }
 
+    /**
+     * Android 13+: «impostazioni con limitazioni». Per le app installate da un file APK (non da
+     * uno store) l'accesso all'utilizzo resta grigio finché non si sblocca da Info app › ⋮.
+     */
+    static boolean restrictedSettings(Context c) {
+        if (android.os.Build.VERSION.SDK_INT < 33) return false;
+        AppOpsManager ops = c.getSystemService(AppOpsManager.class);
+        if (ops == null) return false;
+        try {
+            int mode = ops.unsafeCheckOpNoThrow("android:access_restricted_settings", Process.myUid(), c.getPackageName());
+            return mode != AppOpsManager.MODE_ALLOWED;
+        } catch (RuntimeException e) {
+            // telefono senza questa voce: nessuna limitazione da segnalare
+            return false;
+        }
+    }
+
     static boolean hasUsageAccess(Context c) {
         AppOpsManager ops = c.getSystemService(AppOpsManager.class);
         if (ops == null) return false;
