@@ -515,6 +515,20 @@ impl Ctrl {
         self.group_send_info_as(false);
     }
 
+    /// Impostazioni del gruppo da conservare sui relay (24 ore): arrivano anche a chi ora è
+    /// offline, compreso chi è stato rimosso.
+    fn group_send_info_stored(&mut self) {
+        let Some(g) = self.groups.active() else { return };
+        let msg = prep_core::group::GroupMsg::Info {
+            admin: g.admin.clone(),
+            name: g.name.clone(),
+            photo: g.photo.clone(),
+            removed: g.removed.clone(),
+            at: g.info_at,
+        };
+        self.with_engine(Sess::Group, move |e, _| vec![e.group_msg(msg, true)]);
+    }
+
     /// `relay` = anche chi non è amministratore ripete le ultime impostazioni ricevute (a un
     /// dispositivo appena arrivato, che altrimenti aspetterebbe l'amministratore).
     pub(super) fn group_send_info_as(&mut self, relay: bool) {
@@ -547,10 +561,22 @@ impl Ctrl {
                 let Some(g) = self.groups.active_mut() else { return };
                 let gname = g.name.clone();
                 let code = g.code.clone();
+                // chi è appena stato tolto (con il nome che aveva), per dirlo a schermo
+                let gone: Vec<String> = removed
+                    .iter()
+                    .filter(|r| **r != me && !g.removed.contains(r))
+                    .filter_map(|r| g.members.get(r).map(|m| m.status.name.clone()))
+                    .collect();
                 match g.apply_info(&me, &admin, &name, &photo, &removed, at) {
                     InfoResult::Ignored => {}
                     InfoResult::Applied => {
                         let _ = self.groups.save(&self.store.base);
+                        for n in gone {
+                            self.toast(format!("«{n}» è stato tolto dal gruppo dall'amministratore"));
+                        }
+                        // lo si ripete agli altri: arriva anche se l'amministratore non c'è più
+                        self.group_send_info_as(true);
+                        self.refresh_group();
                     }
                     InfoResult::Removed => {
                         self.groups.leave(&code);
@@ -831,8 +857,9 @@ impl Ctrl {
         }
         let _ = self.groups.save(&self.store.base);
         self.group_send_info();
+        self.group_send_info_stored();
         self.ui().global::<AppState>().set_member_sel(ss(""));
-        self.toast("Membro rimosso dal gruppo");
+        self.toast("Membro rimosso dal gruppo: lo sapranno tutti, anche chi ora è offline");
         self.refresh_group();
     }
 
