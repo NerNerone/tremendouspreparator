@@ -217,8 +217,14 @@ impl Ctrl {
             let wire = eng.wire(&o);
             if o.stored {
                 // avvisi del gruppo: conservati dai relay per chi non è collegato ora
+                // le schede di sé: ne resta solo l'ultima per dispositivo (evento sostituibile)
+                let kind = if matches!(&o.msg, p2p::Msg::GroupMsg(prep_core::group::GroupMsg::Cards { .. })) {
+                    p2p::KIND_CARD
+                } else {
+                    p2p::KIND_STORED
+                };
                 let content = p.room.seal(&wire);
-                p.queue.push_back(p.signer.event_kind(p2p::KIND_STORED, &p.room.tag, &content, now));
+                p.queue.push_back(p.signer.event_kind(kind, &p.room.tag, &content, now));
                 continue;
             }
             // presenza, appuntamenti e impostazioni del gruppo passano sempre dai relay (così non
@@ -427,6 +433,7 @@ impl Ctrl {
                         self.hist_sent = 0;
                         self.group_send();
                         self.group_send_info_as(true);
+                        self.group_send_cards();
                         // nel gruppo, collegamenti diretti con al massimo GROUP_DIRECT membri
                         // (oltre bastano i relay)
                         if self.sess(k).is_some_and(|p| p.direct.len() >= GROUP_DIRECT) {

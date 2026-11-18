@@ -345,6 +345,10 @@ pub struct Ctrl {
     group_last_send: i64,
     /// ultima volta che si è mandata la mappa di calore al gruppo
     hist_sent: i64,
+    /// schede degli altri ripetute al gruppo; propria scheda lasciata sui relay (quando e con
+    /// quale stato)
+    cards_sent: i64,
+    card_stored: (i64, prep_core::group::State),
     /// calendario del gruppo: per mese (o settimana), quanti mesi/settimane indietro, giorno
     /// toccato (giorni fa)
     gcal_month: bool,
@@ -1044,6 +1048,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         group_timer: Timer::default(),
         group_last_send: 0,
         hist_sent: 0,
+        cards_sent: 0,
+        card_stored: (0, prep_core::group::State::Idle),
         gcal_month: false,
         gcal_off: 0,
         gcal_sel: None,

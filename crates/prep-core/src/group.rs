@@ -414,6 +414,40 @@ pub enum GroupMsg {
     Photo { hash: String, data: String },
     /// avviso: «vieni a studiare» a un membro (`to`) o a tutti (`to` vuoto)
     Ping { id: String, from: String, name: String, to: String, at: i64, pit: bool },
+    /// schede dei membri (stato, tempi, punti, foto, mappa di calore), ripetute da chi le
+    /// conosce o conservate sui relay: arrivano anche quando l'interessato è offline
+    Cards { cards: Vec<Card> },
+}
+
+/// Ultimo stato noto di un dispositivo di un membro, con quando si è fatto sentire.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Card {
+    pub dev: String,
+    pub seen: i64,
+    pub status: Status,
+}
+
+/// Schede ripetute da altri: al massimo questi dispositivi, sentiti negli ultimi giorni.
+const CARDS_MAX: usize = 60;
+const CARDS_DAYS: i64 = 90;
+
+/// Divide le schede in gruppi che stanno in un messaggio (`max` byte di JSON ciascuno).
+pub fn card_chunks(cards: Vec<Card>, max: usize) -> Vec<Vec<Card>> {
+    let mut out: Vec<Vec<Card>> = Vec::new();
+    let mut size = 0;
+    for c in cards {
+        let n = serde_json::to_string(&c).map(|j| j.len()).unwrap_or(0);
+        if n > max {
+            continue;
+        }
+        if out.is_empty() || size + n > max {
+            out.push(Vec::new());
+            size = 2;
+        }
+        size += n + 1;
+        out.last_mut().expect("gruppo").push(c);
+    }
+    out
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -488,6 +522,54 @@ impl Group {
             }
         }
         self.members.entry(uid).or_default().update(dev, status, now);
+    }
+
+    /// Schede da ripetere agli altri: i dispositivi dei membri che ora non sono collegati (chi
+    /// è collegato manda da sé il proprio stato), dal più recente, tranne `skip`.
+    pub fn cards(&self, now: i64, skip: &str) -> Vec<Card> {
+        let mut v: Vec<Card> = self
+            .members
+            .iter()
+            .filter(|(uid, _)| !self.removed.contains(uid))
+            .flat_map(|(_, m)| m.devices.iter())
+            .filter(|(dev, d)| {
+                dev.as_str() != skip && now - d.last_seen >= ONLINE_SECS && now - d.last_seen < CARDS_DAYS * 86400
+            })
+            .map(|(dev, d)| Card { dev: dev.clone(), seen: d.last_seen, status: d.status.clone() })
+            .collect();
+        v.sort_by_key(|c| std::cmp::Reverse(c.seen));
+        v.truncate(CARDS_MAX);
+        v
+    }
+
+    /// Applica una scheda ripetuta da un altro (o conservata sui relay): vale solo se più
+    /// recente di quanto già si sa di quel dispositivo, e non lo fa mai sembrare collegato
+    /// (conta fino a quando si è fatto sentire). `true` se ha cambiato qualcosa.
+    pub fn card_in(&mut self, card: Card, now: i64) -> bool {
+        let Card { dev, seen, mut status } = card;
+        let uid = if status.uid.is_empty() { dev.clone() } else { status.uid.clone() };
+        if dev.is_empty() || uid.is_empty() || self.removed.contains(&uid) {
+            return false;
+        }
+        let seen = seen.min(now - ONLINE_SECS);
+        let m = self.members.entry(uid).or_default();
+        let old = m.devices.get(&dev);
+        if old.is_some_and(|d| status.at <= d.status.at) {
+            return false;
+        }
+        if status.hist.is_none() {
+            status.hist = old.and_then(|d| d.status.hist.clone());
+        }
+        if status.prof.is_none() {
+            status.prof = old.and_then(|d| d.status.prof.clone());
+        }
+        let last_seen = old.map_or(seen, |d| d.last_seen.max(seen));
+        if status.at >= m.status.at || m.devices.is_empty() {
+            m.status = status.clone();
+        }
+        m.last_seen = m.last_seen.max(last_seen);
+        m.devices.insert(dev, DevStatus { status, last_seen });
+        true
     }
 
     /// Sposta un utente sotto un nuovo identificativo: voce del membro, amministratore e
@@ -1535,6 +1617,45 @@ mod tests {
     }
 
     const ONE: crate::score::Score = crate::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+
+    #[test]
+    fn cards_reach_who_was_offline() {
+        let now = 1_000_000;
+        let st = |uid: &str, at: i64, total: u64| Status {
+            name: uid.to_uppercase(),
+            uid: uid.into(),
+            at,
+            total,
+            state: State::Studying,
+            ..Default::default()
+        };
+        // A ha visto B (ora offline) e C (collegato adesso)
+        let mut a = Group { code: "X".into(), ..Default::default() };
+        a.status_in("b1", st("b", now - 600, 3000), now - 600);
+        a.status_in("c1", st("c", now - 5, 100), now - 5);
+        let cards = a.cards(now, "a1");
+        assert_eq!(cards.len(), 1, "solo chi non è collegato");
+        assert_eq!(cards[0].dev, "b1");
+        // D arriva dopo e non ha mai incontrato B: la scheda lo porta in classifica, non collegato
+        let mut d = Group { code: "X".into(), ..Default::default() };
+        assert!(d.card_in(cards[0].clone(), now));
+        let m = &d.members["b"];
+        assert_eq!(m.status.total, 3000);
+        assert!(now - m.devices["b1"].last_seen >= ONLINE_SECS);
+        // la stessa scheda (o una più vecchia) non cambia niente; lo stato vero vince
+        assert!(!d.card_in(cards[0].clone(), now));
+        d.status_in("b1", st("b", now, 3600), now);
+        assert!(!d.card_in(cards[0].clone(), now + 1));
+        assert_eq!(d.members["b"].status.total, 3600);
+        // i rimossi non tornano
+        let mut e = Group { code: "X".into(), removed: vec!["b".into()], ..Default::default() };
+        assert!(!e.card_in(cards[0].clone(), now));
+        // le schede stanno in messaggi piccoli
+        let many: Vec<Card> = (0..50).map(|i| Card { dev: format!("d{i}"), ..cards[0].clone() }).collect();
+        let chunks = card_chunks(many, 4000);
+        assert!(chunks.len() > 1 && chunks.iter().all(|c| serde_json::to_string(c).unwrap().len() <= 4000));
+        assert_eq!(chunks.iter().map(Vec::len).sum::<usize>(), 50);
+    }
 
     /// Orologio di prova nel fuso di Roma d'inverno (UTC+1).
     fn clock(y: i32, mo: u32, d: u32, h: u32, mi: u32, sec: u32) -> Clock {

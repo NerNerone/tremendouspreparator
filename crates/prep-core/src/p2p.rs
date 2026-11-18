@@ -28,6 +28,9 @@ pub const KIND: u32 = 23847;
 /// dopo [`STORED_TTL`] secondi): così arrivano anche a chi apre l'app più tardi.
 pub const KIND_STORED: u32 = 1847;
 pub const STORED_TTL: i64 = 24 * 3600;
+/// Tipo «sostituibile» (NIP-33) per la scheda di ciascun dispositivo nel gruppo: i relay ne
+/// tengono solo l'ultima per firma (con la stessa scadenza di [`STORED_TTL`]).
+pub const KIND_CARD: u32 = 31847;
 /// Dimensione dei pezzi di file e pacchetti (il contenuto dell'evento resta sotto ~45 kB).
 pub const CHUNK: usize = 32 * 1024;
 /// Pezzi di pacchetto chiesti alla volta.
@@ -150,8 +153,11 @@ impl Signer {
     /// Come [`Signer::event`], con il tipo dato; quelli conservati ([`KIND_STORED`]) portano la
     /// scadenza (NIP-40), dopo la quale i relay li cancellano.
     pub fn event_kind(&self, kind: u32, tag: &str, content: &str, created_at: i64) -> String {
+        let exp = (created_at + STORED_TTL).to_string();
         let tags = if kind == KIND_STORED {
-            serde_json::json!([["t", tag], ["expiration", (created_at + STORED_TTL).to_string()]])
+            serde_json::json!([["t", tag], ["expiration", exp]])
+        } else if kind == KIND_CARD {
+            serde_json::json!([["t", tag], ["d", tag], ["expiration", exp]])
         } else {
             serde_json::json!([["t", tag]])
         };
@@ -172,12 +178,12 @@ impl Signer {
 pub fn subscribe(sub_id: &str, tag: &str, since: i64) -> String {
     serde_json::to_string(&serde_json::json!(["REQ", sub_id,
         {"kinds": [KIND], "#t": [tag], "since": since},
-        {"kinds": [KIND_STORED], "#t": [tag], "since": since - STORED_TTL}]))
+        {"kinds": [KIND_STORED, KIND_CARD], "#t": [tag], "since": since - STORED_TTL}]))
     .expect("json")
 }
 
 fn our_kind(k: u64) -> bool {
-    k == KIND as u64 || k == KIND_STORED as u64
+    k == KIND as u64 || k == KIND_STORED as u64 || k == KIND_CARD as u64
 }
 
 /// Evento ricevuto da un relay: (id, contenuto). Gli altri frame (EOSE, OK, NOTICE) → `None`.

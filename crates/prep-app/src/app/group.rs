@@ -2,6 +2,9 @@
 
 use super::*;
 
+/// Dimensione massima (JSON) di un messaggio di schede: sta comodo in un evento dei relay.
+const CARDS_BYTES: usize = 20_000;
+
 impl Ctrl {
     // ---------- studio di gruppo ----------
 
@@ -293,8 +296,10 @@ impl Ctrl {
             let _ = self.groups.save(&self.store.base);
         }
         if fresh {
-            // l'amministratore manda le impostazioni del gruppo; tutti il proprio stato
+            // l'amministratore manda le impostazioni del gruppo; tutti il proprio stato e le
+            // schede di chi ora non c'è
             self.group_send_info_as(true);
+            self.group_send_cards();
             if now - self.group_last_send >= 3 {
                 self.group_send();
             }
@@ -334,6 +339,8 @@ impl Ctrl {
         let device = self.device_id();
         let engine = p2p::Engine::new(&device, &self.display_name(), Self::device_label()).share_only(vec![]);
         self.open_session(Sess::Group, room, engine, String::new(), String::new());
+        self.cards_sent = 0;
+        self.card_stored.0 = 0;
         self.refresh_group();
     }
 
@@ -482,6 +489,7 @@ impl Ctrl {
         if self.group.is_some() && now - self.info_sent >= 30 {
             self.group_send_info();
         }
+        self.group_store_card(now);
         self.refresh_group();
         self.refresh_focus();
     }
@@ -549,6 +557,46 @@ impl Ctrl {
         self.with_engine(Sess::Group, move |e, _| vec![e.group_msg(msg, false)]);
     }
 
+    /// Ripete al gruppo le schede di chi ora non è collegato (tempi, punti, stato, foto,
+    /// mappa di calore): così le ha anche chi non l'ha mai incontrato. Al massimo ogni 20 s.
+    pub(super) fn group_send_cards(&mut self) {
+        let now = Self::now_secs();
+        if self.group.is_none() || now - self.cards_sent < 20 {
+            return;
+        }
+        let me = self.device_id();
+        let Some(g) = self.groups.active() else { return };
+        let cards = g.cards(now, &me);
+        if cards.is_empty() {
+            return;
+        }
+        self.cards_sent = now;
+        let msgs: Vec<_> = prep_core::group::card_chunks(cards, CARDS_BYTES)
+            .into_iter()
+            .map(|cards| prep_core::group::GroupMsg::Cards { cards })
+            .collect();
+        self.with_engine(Sess::Group, move |e, _| msgs.into_iter().map(|m| e.group_msg(m, false)).collect());
+    }
+
+    /// Lascia sui relay la propria scheda (una sola per dispositivo, la più recente, che scade
+    /// dopo 24 ore): chi apre l'app quando questo dispositivo è spento la trova lo stesso.
+    /// Ogni 10 minuti, o un minuto dopo essere entrati o usciti dalla pista.
+    fn group_store_card(&mut self, now: i64) {
+        if !self.group.as_ref().is_some_and(|p| p.started) {
+            return;
+        }
+        let (at, state) = self.card_stored;
+        let due = now - at >= 600 || (state != self.study_state && now - at >= 60);
+        if !due {
+            return;
+        }
+        self.card_stored = (now, self.study_state);
+        let status = self.my_group_status(now, true);
+        let card = prep_core::group::Card { dev: self.device_id(), seen: now, status };
+        let msg = prep_core::group::GroupMsg::Cards { cards: vec![card] };
+        self.with_engine(Sess::Group, move |e, _| vec![e.group_msg(msg, true)]);
+    }
+
     pub(super) fn group_msg_in(&mut self, from: String, msg: prep_core::group::GroupMsg) {
         use prep_core::group::{GroupMsg, InfoResult};
         let now = Self::now_secs();
@@ -584,6 +632,25 @@ impl Ctrl {
                         self.group_connect();
                         self.toast(format!("L'amministratore ti ha tolto dal gruppo «{gname}»"));
                     }
+                }
+            }
+            GroupMsg::Cards { cards } => {
+                let me = self.device_id();
+                let Some(g) = self.groups.active_mut() else { return };
+                let mut changed = false;
+                for c in cards.into_iter().filter(|c| c.dev != me) {
+                    let photo = c.status.photo.clone();
+                    if g.card_in(c, now) {
+                        changed = true;
+                        // la foto si chiede a chi ha mandato la scheda (se manca)
+                        if !photo.is_empty() {
+                            self.photo_src.entry(photo).or_insert_with(|| from.clone());
+                        }
+                    }
+                }
+                if changed {
+                    let _ = self.groups.save(&self.store.base);
+                    self.refresh_group();
                 }
             }
             GroupMsg::PhotoGet { hash } => self.photo_send(Sess::Group, from, hash),
@@ -762,9 +829,10 @@ impl Ctrl {
             None => {
                 let now = Self::now_secs();
                 if self.group.is_some() && self.photo_asked.get(hash).is_none_or(|t| now - t >= 15) {
-                    self.photo_asked.insert(hash.to_string(), now);
-                    // a chi l'ha annunciata (collegamento diretto se c'è), altrimenti a tutti
-                    let to = self.photo_src.get(hash).cloned();
+                    // a chi l'ha annunciata (collegamento diretto se c'è), altrimenti a tutti;
+                    // dalla seconda volta a tutti (chi l'aveva annunciata può essere offline)
+                    let again = self.photo_asked.insert(hash.to_string(), now).is_some();
+                    let to = if again { None } else { self.photo_src.get(hash).cloned() };
                     let msg = prep_core::group::GroupMsg::PhotoGet { hash: hash.to_string() };
                     self.with_engine(Sess::Group, move |e, _| vec![e.group_msg_to(to.as_deref(), msg)]);
                 }

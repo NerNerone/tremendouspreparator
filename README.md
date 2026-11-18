@@ -103,7 +103,10 @@ legge prima di inviarla. Senza conferma non parte nulla.
 
 I messaggi sono cifrati (XChaCha20-Poly1305) con una chiave ricavata con PBKDF2 da nome utente e
 password, o dal codice del gruppo: chi li conosce entra, quindi conviene una password lunga. I relay
-inoltrano i messaggi senza conservarli, tranne gli avvisi dei gruppi (cifrati, scadenza 24 ore).
+inoltrano i messaggi senza conservarli, tranne gli avvisi dei gruppi e l'ultima scheda di ciascun
+dispositivo (tempi, punti, stato: un solo evento sostituibile per dispositivo), cifrati e con scadenza
+24 ore. Chi è collegato ripete anche le schede dei membri che ora non ci sono, così la classifica è
+completa anche per chi non li ha mai incontrati; le foto si chiedono a chiunque le abbia.
 Protocollo in [`p2p.rs`](crates/prep-core/src/p2p.rs) e [`group.rs`](crates/prep-core/src/group.rs),
 collegamenti in [`net.rs`](crates/prep-app/src/net.rs) e [`direct.rs`](crates/prep-app/src/direct.rs).
 
