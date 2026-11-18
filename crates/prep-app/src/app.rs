@@ -367,6 +367,13 @@ pub struct Ctrl {
     heat_back: [i32; 3],
     /// membro di cui si mostra la mappa (cambiandolo si torna al mese corrente)
     heat_member: String,
+    /// inizio della sessione di studio in corso (0 = nessuna)
+    session_start: i64,
+    /// ultimo stato ricevuto da un altro proprio dispositivo: (dispositivo, stato, inizio
+    /// della sua sessione, quando è arrivato)
+    twin: Option<(String, prep_core::group::State, i64, i64)>,
+    /// gruppi già annunciati agli altri propri dispositivi (per riannunciarli se cambiano)
+    groups_sig: String,
     /// risultati aperti dal registro delle simulazioni (si torna lì)
     results_from_log: bool,
     /// tratto di studio in corso e suoi effetti (punteggio, vedi prep_core::score)
@@ -575,7 +582,13 @@ impl p2p::Host for Ctrl {
         let s = self.store.settings();
         // una foto messa prima che si sincronizzasse vale come la più vecchia possibile
         let at = if s.photo_at == 0 && !s.photo.is_empty() { 1 } else { s.photo_at };
-        Some(p2p::Profile { photo: s.photo, at, uid: s.user_id })
+        Some(p2p::Profile {
+            photo: s.photo,
+            at,
+            uid: s.user_id,
+            groups: self.groups.refs(),
+            left: self.groups.left.clone(),
+        })
     }
 }
 
@@ -1031,6 +1044,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         pdf_return: P_HOME,
         ocr_stop: Default::default(),
         results_from_log: false,
+        groups_sig: String::new(),
+        session_start: 0,
+        twin: None,
         heat_back: [0; 3],
         heat_member: String::new(),
         run: Default::default(),

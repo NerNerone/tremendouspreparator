@@ -532,6 +532,8 @@ export global AppState {
     in property <bool> focus-overlay-ok;
     // Android 13+: «impostazioni con limitazioni» attive (app installata da un file APK)
     in property <bool> focus-restricted;
+    // sessione di studio aperta su un altro proprio dispositivo (qui non se ne apre un'altra)
+    in property <bool> study-elsewhere;
     in property <bool> focus-active;
     in property <string> focus-status;
     in property <int> focus-minutes: 50;

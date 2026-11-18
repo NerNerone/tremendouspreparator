@@ -250,6 +250,13 @@ pub struct Profile {
     /// (vedi [`crate::group::pick_user_id`]), così nessuno compare due volte
     #[serde(default)]
     pub uid: String,
+    /// gruppi di studio, uguali su tutti i propri dispositivi (vedi
+    /// [`crate::group::Groups::merge_own`])
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub groups: Vec<crate::group::GroupRef>,
+    /// gruppi lasciati (codice → quando)
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub left: std::collections::BTreeMap<String, i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1002,7 +1009,7 @@ mod tests {
     #[test]
     fn profile_only_between_own_devices() {
         let room = Room::derive("u", "p");
-        let foto = Profile { photo: "abc".into(), at: 50, uid: "u1".into() };
+        let foto = Profile { photo: "abc".into(), at: 50, uid: "u1".into(), ..Default::default() };
         let mut a =
             (Engine::new("A", "Telefono", "android"), Mem { profile: Some(foto.clone()), ..Default::default() });
         let mut b = (Engine::new("B", "Computer", "linux"), Mem::default());
@@ -1012,13 +1019,13 @@ mod tests {
         run(&mut a, &mut b, &room, first, 0);
         assert!(b.0.events.contains(&Event::Profile { from: "A".into(), profile: foto.clone() }));
         // cambio successivo: si ripresenta a chi c'è già
-        a.1.profile = Some(Profile { photo: String::new(), at: 60, uid: "u1".into() });
+        a.1.profile = Some(Profile { photo: String::new(), at: 60, uid: "u1".into(), ..Default::default() });
         b.0.events.clear();
         let first = a.0.reannounce(&a.1);
         run(&mut a, &mut b, &room, first, 0);
         assert!(b.0.events.contains(&Event::Profile {
             from: "A".into(),
-            profile: Profile { photo: String::new(), at: 60, uid: "u1".into() }
+            profile: Profile { photo: String::new(), at: 60, uid: "u1".into(), ..Default::default() }
         }));
         // senza `profile` (condivisione, gruppi) non parte né si accetta
         let mut c = (Engine::new("C", "Altro", "web"), Mem { profile: Some(foto), ..Default::default() });

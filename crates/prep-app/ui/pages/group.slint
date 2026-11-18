@@ -1519,7 +1519,7 @@ export component GroupPage inherits Page {
                     padding: 16px;
                     spacing: 10px;
                     Text {
-                        text: AppState.study-state == 1 ? "Stai studiando" : AppState.study-state == 2 ? "Pit stop" : "Pronto a partire";
+                        text: AppState.study-elsewhere ? "Stai studiando su un altro dispositivo" : AppState.study-state == 1 ? "Stai studiando" : AppState.study-state == 2 ? "Pit stop" : "Pronto a partire";
                         font-size: Type.title;
                         font-weight: 700;
                         color: M3.on-surface;
@@ -1535,7 +1535,8 @@ export component GroupPage inherits Page {
                         spacing: 8px;
                         if AppState.study-state != 1: M3Button {
                             horizontal-stretch: 1;
-                            text: AppState.study-state == 2 ? "Riparti" : "Inizia a studiare";
+                            enabled: !AppState.study-elsewhere;
+                            text: AppState.study-elsewhere ? "Sessione aperta altrove" : AppState.study-state == 2 ? "Riparti" : "Inizia a studiare";
                             has-icon: true;
                             icon: Icons.play;
                             clicked => {

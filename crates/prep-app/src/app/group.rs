@@ -109,6 +109,7 @@ impl Ctrl {
         s.doing = self.doing();
         s.uid = self.user_id();
         s.dev = self.device_id();
+        s.since = if self.study_state == prep_core::group::State::Idle { 0 } else { self.session_start };
         let set = self.store.settings();
         s.photo = set.photo;
         s.prev = set.prev_ids;
@@ -242,11 +243,23 @@ impl Ctrl {
     }
 
     pub(super) fn group_send(&mut self) {
-        if self.group.as_ref().is_none_or(|p| !p.started) {
+        let in_group = self.group.as_ref().is_some_and(|p| p.started);
+        let synced = self.p2p.as_ref().is_some_and(|p| p.started);
+        if !in_group && !synced {
             return;
         }
         let now = Self::now_secs();
         self.group_last_send = now;
+        // ai propri altri dispositivi basta lo stato (una sola sessione di studio alla volta)
+        if synced {
+            let mut light = self.my_group_status(now, false);
+            light.hist = None;
+            light.prof = None;
+            self.with_engine(Sess::Sync, move |e, _| vec![e.group_status(light)]);
+        }
+        if !in_group {
+            return;
+        }
         // la mappa di calore viaggia al più una volta al minuto
         let hist = now - self.hist_sent >= 60;
         if hist {
@@ -256,11 +269,19 @@ impl Ctrl {
         self.with_engine(Sess::Group, move |e, _| vec![e.group_status(status)]);
     }
 
-    pub(super) fn group_status_in(&mut self, from: String, status: prep_core::group::Status) {
+    pub(super) fn group_status_in(&mut self, sess: Sess, from: String, status: prep_core::group::Status) {
         let now = Self::now_secs();
         let mut fresh = false;
         if !status.photo.is_empty() {
             self.photo_src.insert(status.photo.clone(), from.clone());
+        }
+        // stato di un altro proprio dispositivo: una sola sessione di studio alla volta
+        if !status.uid.is_empty() && status.uid == self.user_id() && from != self.device_id() {
+            self.twin = Some((from.clone(), status.state, status.since, now));
+            self.twin_resolve(now);
+        }
+        if sess == Sess::Sync {
+            return;
         }
         if let Some(g) = self.groups.active_mut() {
             let uid = if status.uid.is_empty() { from.clone() } else { status.uid.clone() };
@@ -277,6 +298,27 @@ impl Ctrl {
             }
         }
         self.refresh_group();
+    }
+
+    /// Un altro proprio dispositivo ha una sessione di studio aperta (notizia recente)?
+    pub(super) fn twin_active(&self, now: i64) -> bool {
+        self.twin.as_ref().is_some_and(|(_, st, _, at)| *st != prep_core::group::State::Idle && now - at < 35)
+    }
+
+    /// Due propri dispositivi in sessione insieme: resta la sessione iniziata prima (a parità,
+    /// quella del dispositivo con l'id minore); questo, se è il secondo, si ferma.
+    fn twin_resolve(&mut self, now: i64) {
+        use prep_core::group::State;
+        if self.study_state == State::Idle || !self.twin_active(now) {
+            return;
+        }
+        let Some((dev, _, since, _)) = self.twin.clone() else { return };
+        let mine = self.session_start;
+        let i_yield = since > 0 && (mine > since || (mine == since && self.device_id() > dev));
+        if i_yield {
+            self.study_set(State::Idle);
+            self.toast("La sessione di studio è già aperta su un altro tuo dispositivo: continua lì");
+        }
     }
 
     /// Collega la stanza del gruppo attivo (o chiude se non ce n'è).
@@ -361,6 +403,12 @@ impl Ctrl {
     pub(super) fn study_set(&mut self, state: prep_core::group::State) {
         use prep_core::group::State;
         let now = Self::now_secs();
+        // una sola sessione per account: se è aperta su un altro proprio dispositivo, si
+        // continua lì
+        if self.study_state == State::Idle && state != State::Idle && self.twin_active(now) {
+            self.toast("Hai già una sessione di studio aperta su un altro tuo dispositivo: continua lì o terminala");
+            return;
+        }
         self.study_flush(now);
         let mut pit_len = None;
         if let Some(t) = self.pit_since.take() {
@@ -377,6 +425,10 @@ impl Ctrl {
         // nuova sessione: l'attività riparte da zero (finché non si apre qualcosa, vale l'esame)
         if self.study_state == State::Idle && state == State::Studying {
             self.last_doing.clear();
+            self.session_start = now;
+        }
+        if state == State::Idle {
+            self.session_start = 0;
         }
         // tratto di studio e suoi effetti (vedi prep_core::score)
         match (self.study_state, state) {
@@ -406,11 +458,21 @@ impl Ctrl {
     /// Ogni secondo: cronometro, stato al gruppo ogni 10 s, circuito e classifica.
     pub(super) fn group_tick(&mut self) {
         let now = Self::now_secs();
+        // gruppi cambiati qui (creati, lasciati, rinominati, nuova foto): lo si dice subito agli
+        // altri propri dispositivi
+        let sig = serde_json::to_string(&(self.groups.refs(), &self.groups.left)).unwrap_or_default();
+        if sig != self.groups_sig {
+            let first = self.groups_sig.is_empty();
+            self.groups_sig = sig;
+            if !first && self.p2p.as_ref().is_some_and(|p| p.started) {
+                self.with_engine(Sess::Sync, |e, c| e.reannounce(c));
+            }
+        }
         self.study_notify(now);
         if self.study_since.is_some_and(|t| now - t >= 60) {
             self.study_flush(now);
         }
-        if self.group.is_some() && now - self.group_last_send >= 10 {
+        if (self.group.is_some() || self.p2p.is_some()) && now - self.group_last_send >= 10 {
             self.group_send();
         }
         if self.group.is_some() && now - self.info_sent >= 30 {
@@ -548,6 +610,20 @@ impl Ctrl {
     /// la nostra (o si toglie, se lì è stata tolta); se manca il file lo si chiede a lui.
     pub(super) fn profile_in(&mut self, from: String, p: p2p::Profile) {
         self.unify_user_id(&p.uid);
+        // gruppi: uguali su tutti i propri dispositivi, con nome e foto più recenti
+        let before = self.groups.active.clone();
+        if self.groups.merge_own(&p.groups, &p.left) {
+            let _ = self.groups.save(&self.store.base);
+            let photos: Vec<String> =
+                self.groups.groups.iter().map(|g| g.photo.clone()).filter(|h| !h.is_empty()).collect();
+            for h in photos {
+                self.ask_own_photo(&from, &h);
+            }
+            if self.groups.active != before || self.group.is_none() {
+                self.group_connect();
+            }
+            self.refresh_group();
+        }
         let mut s = self.store.settings();
         let mine = if s.photo_at == 0 && !s.photo.is_empty() { 1 } else { s.photo_at };
         if p.at < mine || (p.at == mine && p.photo <= s.photo) {
@@ -934,6 +1010,7 @@ impl Ctrl {
             st.set_lap_flash(st.get_lap_flash() + 1);
         }
         self.my_laps = laps;
+        st.set_study_elsewhere(self.study_state == State::Idle && self.twin_active(now));
         st.set_study_state(match self.study_state {
             State::Idle => 0,
             State::Studying => 1,
@@ -1743,6 +1820,9 @@ struct SavedSession {
     /// tratto di studio con i suoi effetti (punteggio)
     #[serde(default)]
     run: prep_core::score::Run,
+    /// inizio della sessione (per tenerne aperta una sola tra i propri dispositivi)
+    #[serde(default)]
+    session: i64,
 }
 
 impl Ctrl {
@@ -1761,6 +1841,7 @@ impl Ctrl {
             since: self.study_since.or(self.pit_since).unwrap_or(now),
             started: now,
             run: self.run.clone(),
+            session: self.session_start,
         };
         if s.state == 0 {
             let _ = vfs::remove_file(&self.session_path());
@@ -1796,6 +1877,7 @@ impl Ctrl {
             self.study_since = Some(since);
         }
         self.run = saved.run.clone();
+        self.session_start = if saved.session > 0 { saved.session } else { since };
         if session != 2 && self.run.since.is_none() {
             self.run.since = Some(since);
         }

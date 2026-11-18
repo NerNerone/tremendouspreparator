@@ -89,6 +89,10 @@ pub struct Status {
     /// secondi di studio del mese di `day` (dal primo del mese alle 00:00)
     #[serde(default)]
     pub month: u64,
+    /// inizio della sessione di studio in corso (secondi Unix), 0 se non ce n'è: tra i propri
+    /// dispositivi ne resta aperta una sola, la prima iniziata
+    #[serde(default)]
+    pub since: i64,
     /// studio degli ultimi giorni, per la mappa di calore (mandato ogni tanto, non sempre)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hist: Option<Hist>,
@@ -547,6 +551,26 @@ pub struct Groups {
     pub active: String,
     #[serde(default)]
     pub groups: Vec<Group>,
+    /// gruppi lasciati (codice → quando), perché l'uscita valga anche sugli altri propri
+    /// dispositivi e un gruppo lasciato non ritorni con la sincronizzazione
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub left: BTreeMap<String, i64>,
+}
+
+/// Un gruppo come lo si passa ai propri altri dispositivi (senza membri né stati: quelli
+/// arrivano entrando nella stanza del gruppo).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct GroupRef {
+    pub code: String,
+    pub name: String,
+    #[serde(default)]
+    pub admin: String,
+    #[serde(default)]
+    pub photo: String,
+    #[serde(default)]
+    pub info_at: i64,
+    #[serde(default)]
+    pub joined_at: i64,
 }
 
 impl Groups {
@@ -591,10 +615,79 @@ impl Groups {
     }
 
     pub fn leave(&mut self, code: &str) {
+        self.leave_at(code, chrono::Utc::now().timestamp());
+    }
+
+    /// Esce dal gruppo e ricorda quando (vedi [`Groups::left`]).
+    pub fn leave_at(&mut self, code: &str, now: i64) {
         self.groups.retain(|g| g.code != code);
+        self.left.insert(code.to_string(), now.max(1));
         if self.active == code {
             self.active = self.groups.first().map(|g| g.code.clone()).unwrap_or_default();
         }
+    }
+
+    /// I propri gruppi da passare agli altri propri dispositivi.
+    pub fn refs(&self) -> Vec<GroupRef> {
+        self.groups
+            .iter()
+            .map(|g| GroupRef {
+                code: g.code.clone(),
+                name: g.name.clone(),
+                admin: g.admin.clone(),
+                photo: g.photo.clone(),
+                info_at: g.info_at,
+                joined_at: g.joined_at,
+            })
+            .collect()
+    }
+
+    /// Unisce i gruppi di un altro proprio dispositivo: aggiunge quelli che mancano (salvo
+    /// quelli lasciati dopo esserci entrati), toglie quelli lasciati là dopo esserci entrati
+    /// qui e, a parità di gruppo, tiene nome, foto e amministratore più recenti. `true` se
+    /// qualcosa è cambiato.
+    pub fn merge_own(&mut self, refs: &[GroupRef], left: &BTreeMap<String, i64>) -> bool {
+        let before = (self.refs(), self.left.clone(), self.active.clone());
+        for (code, &at) in left {
+            let mine = self.left.entry(code.clone()).or_insert(0);
+            *mine = (*mine).max(at);
+            if self.groups.iter().any(|g| &g.code == code && g.joined_at <= at) {
+                self.groups.retain(|g| &g.code != code);
+            }
+        }
+        for r in refs {
+            if self.left.get(&r.code).is_some_and(|&at| at >= r.joined_at) {
+                continue;
+            }
+            match self.groups.iter_mut().find(|g| g.code == r.code) {
+                None => self.groups.push(Group {
+                    code: r.code.clone(),
+                    name: r.name.clone(),
+                    admin: r.admin.clone(),
+                    photo: r.photo.clone(),
+                    info_at: r.info_at,
+                    joined_at: r.joined_at.max(1),
+                    ..Default::default()
+                }),
+                Some(g) => {
+                    if r.info_at > g.info_at {
+                        g.name = r.name.clone();
+                        g.photo = r.photo.clone();
+                        g.info_at = r.info_at;
+                        if !r.admin.is_empty() {
+                            g.admin = r.admin.clone();
+                        }
+                    }
+                    if g.admin.is_empty() && !r.admin.is_empty() {
+                        g.admin = r.admin.clone();
+                    }
+                }
+            }
+        }
+        if !self.groups.iter().any(|g| g.code == self.active) {
+            self.active = self.groups.first().map(|g| g.code.clone()).unwrap_or_default();
+        }
+        (self.refs(), self.left.clone(), self.active.clone()) != before
     }
 }
 
@@ -1634,5 +1727,38 @@ mod tests {
         // un gruppo salvato da una versione precedente (senza joined_at) è «legacy»
         let old: Group = serde_json::from_str(r#"{"code":"X","name":"Vecchio"}"#).unwrap();
         assert!(old.legacy() && old.can_admin("chiunque"));
+    }
+
+    #[test]
+    fn groups_follow_between_own_devices() {
+        let mut phone = Groups::default();
+        phone.join("AAAA-BBBB-CCCC-DDDD", "Larping University", 100);
+        phone.groups[0].admin = "u1".into();
+        phone.groups[0].photo = "p1".into();
+        phone.groups[0].info_at = 100;
+        let mut pc = Groups::default();
+        // il computer riceve il gruppo che aveva solo il telefono
+        assert!(pc.merge_own(&phone.refs(), &phone.left));
+        assert_eq!(pc.groups.len(), 1);
+        assert_eq!(pc.active, "AAAA-BBBB-CCCC-DDDD");
+        assert_eq!(pc.groups[0].photo, "p1");
+        // di nuovo: niente da cambiare
+        assert!(!pc.merge_own(&phone.refs(), &phone.left));
+        // foto e nome più recenti vincono
+        pc.groups[0].photo = "p2".into();
+        pc.groups[0].name = "LU".into();
+        pc.groups[0].info_at = 200;
+        assert!(phone.merge_own(&pc.refs(), &pc.left));
+        assert_eq!((phone.groups[0].photo.as_str(), phone.groups[0].name.as_str()), ("p2", "LU"));
+        // uscito dal telefono: esce anche dal computer, e non ritorna
+        phone.leave_at("AAAA-BBBB-CCCC-DDDD", 300);
+        assert!(pc.merge_own(&phone.refs(), &phone.left));
+        assert!(pc.groups.is_empty());
+        assert!(!phone.merge_own(&pc.refs(), &pc.left));
+        assert!(phone.groups.is_empty());
+        // rientrato dopo l'uscita: vale il nuovo ingresso
+        phone.join("AAAA-BBBB-CCCC-DDDD", "LU", 400);
+        assert!(pc.merge_own(&phone.refs(), &phone.left));
+        assert_eq!(pc.groups.len(), 1);
     }
 }

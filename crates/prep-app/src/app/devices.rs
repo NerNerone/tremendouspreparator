@@ -411,7 +411,7 @@ impl Ctrl {
             match ev {
                 p2p::Event::Peer(_) => {}
                 p2p::Event::Profile { from, profile } => self.profile_in(from, profile),
-                p2p::Event::Group { from, status } => self.group_status_in(from, status),
+                p2p::Event::Group { from, status } => self.group_status_in(k, from, status),
                 // tra i propri dispositivi passano solo le richieste di foto
                 p2p::Event::GroupMsg { from, msg } if k != Sess::Group => {
                     if let prep_core::group::GroupMsg::PhotoGet { hash } = msg {
