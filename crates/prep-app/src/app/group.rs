@@ -103,6 +103,7 @@ impl Ctrl {
             self.study_since,
             &prep_core::group::Clock::local(now),
             hist,
+            self.score_now(now),
         );
         s.pit_since = self.pit_since.unwrap_or(0);
         s.doing = self.doing();
@@ -231,7 +232,9 @@ impl Ctrl {
             let start = t.clamp(now - 6 * 3600, now);
             if now > start {
                 let what = self.doing();
+                let score = self.score_now(now);
                 self.study_log.add_span(start, now, &what, &Local);
+                self.study_log.add_points(start, now, score.mult, &Local);
                 let _ = self.study_log.save(&self.store.base);
             }
             self.study_since = if self.study_state == prep_core::group::State::Studying { Some(now) } else { None };
@@ -375,17 +378,16 @@ impl Ctrl {
         if self.study_state == State::Idle && state == State::Studying {
             self.last_doing.clear();
         }
-        // tratto di studio senza pause lunghe: riparte dopo «Termina» o una pausa oltre 30 minuti
-        let pit_was = self.study_state == State::Pause;
-        match state {
-            State::Studying => {
-                let long_pit = pit_was && pit_len.is_some_and(|s| s > 30 * 60);
-                if self.run_start.is_none() || !pit_was && self.study_state == State::Idle || long_pit {
-                    self.run_start = Some(now);
-                }
+        // tratto di studio e suoi effetti (vedi prep_core::score)
+        match (self.study_state, state) {
+            (State::Idle, State::Studying) => self.run.start(now),
+            (State::Pause, State::Studying) => {
+                let pit_start = now - pit_len.unwrap_or(0) as i64;
+                self.run.resume(pit_start, now);
             }
-            State::Pause => {}
-            State::Idle => self.run_start = None,
+            (State::Studying, State::Pause) => self.run.pause(now),
+            (_, State::Idle) => self.run = Default::default(),
+            _ => {}
         }
         self.study_state = state;
         self.study_since = (state == State::Studying).then_some(now);
@@ -882,7 +884,8 @@ impl Ctrl {
     }
 
     pub(super) fn refresh_group(&mut self) {
-        use prep_core::group::{fmt_secs, live, standings, value, Period, State, LAP_SECS};
+        use prep_core::group::{fmt_secs, live, standings, Period, State};
+        use prep_core::score::LAP_PTS;
         let now = Self::now_secs();
         let ck = prep_core::group::Clock::local(now);
         let today = ck.today;
@@ -914,7 +917,8 @@ impl Ctrl {
         let ui = self.ui();
         let st = ui.global::<AppState>();
         let (t, _, _, _) = live(&mine, &ck);
-        let laps = t / LAP_SECS;
+        let my_pts = prep_core::group::live_pts(&mine, &ck);
+        let laps = (my_pts[0] / LAP_PTS) as u64;
         if laps > self.my_laps && self.study_state == State::Studying && self.my_laps > 0 {
             if laps.is_multiple_of(10) {
                 self.toast(format!("{laps} giri: {} di studio oggi!", fmt_secs(t)));
@@ -927,8 +931,13 @@ impl Ctrl {
             State::Studying => 1,
             State::Pause => 2,
         });
-        st.set_study_today(ss(format!("Oggi {} · {} giri", fmt_secs(t), laps)));
-        st.set_study_lap(((t % LAP_SECS) as f32) / LAP_SECS as f32);
+        let sc = self.score_now(now);
+        st.set_study_today(ss(if self.study_state == State::Studying {
+            format!("Oggi {} · {} punti · ×{:.1}", fmt_secs(t), fmt_pts(my_pts[0]), sc.mult)
+        } else {
+            format!("Oggi {} · {} punti", fmt_secs(t), fmt_pts(my_pts[0]))
+        }));
+        st.set_study_lap((my_pts[0] % LAP_PTS / LAP_PTS) as f32);
         st.set_groups(model(
             self.groups
                 .groups
@@ -963,6 +972,9 @@ impl Ctrl {
         all.sort_by(|a, b| a.0.cmp(&b.0));
         all.push((me_id.clone(), mine.clone(), true, now));
         let on_track = all.iter().filter(|(_, s, on, _)| *on && s.state == State::Studying).count();
+        // scia di gruppo: gli altri in pista adesso
+        self.racing_others =
+            all.iter().filter(|(id, s, on, _)| *id != me_id && *on && s.state == State::Studying).count();
         // circuito del gruppo: cambia (e cresce) con il numero dei membri
         let ci = prep_core::group::circuit_for(&g.code, all.len());
         let circuit = prep_core::group::circuit(ci);
@@ -1041,12 +1053,14 @@ impl Ctrl {
                 empty_crew.clone()
             };
             // posizione con le frazioni di secondo: in pista avanza in modo continuo
-            let secs = live(s, &ck).0 as f64 + if racing { frac } else { 0.0 };
+            // posizione = punti di oggi (un giro ogni LAP_PTS), velocità = moltiplicatore
+            let m = if s.mult > 0.0 { s.mult as f64 } else { 1.0 };
+            let secs = prep_core::group::live_pts(s, &ck)[0] + if racing { frac * m } else { 0.0 };
             cars.push(CarVM {
                 id: ss(id),
                 crew,
-                f: (secs / LAP_SECS as f64) as f32,
-                v: if racing { 1.0 / LAP_SECS as f32 } else { 0.0 },
+                f: (secs / LAP_PTS) as f32,
+                v: if racing { (m / LAP_PTS) as f32 } else { 0.0 },
                 side: side as f32,
                 stack: 0.0,
                 run: 0.0,
@@ -1060,9 +1074,9 @@ impl Ctrl {
                 lane: lane as f32,
                 px,
                 py,
-                fx: 0,
-                mult: 1.0,
-                level: 0.0,
+                fx: if racing { s.fx as i32 } else { 0 },
+                mult: if racing { m as f32 } else { 1.0 },
+                level: s.level,
             });
         }
         // modalità dimostrativa degli effetti: altre monoposto attorno alla propria
@@ -1071,9 +1085,10 @@ impl Ctrl {
         }
         // telecamera sulla propria macchina mentre si studia; altrimenti tutto il circuito
         st.set_race_overview(self.study_state != State::Studying);
-        let my_secs = live(&mine, &ck).0 as f64 + if self.study_state == State::Studying { frac } else { 0.0 };
-        st.set_cam_f((my_secs / LAP_SECS as f64) as f32);
-        st.set_lap_speed(1.0 / LAP_SECS as f32);
+        let my_m = if self.study_state == State::Studying { sc.mult } else { 1.0 };
+        let my_secs = my_pts[0] + if self.study_state == State::Studying { frac * my_m } else { 0.0 };
+        st.set_cam_f((my_secs / LAP_PTS) as f32);
+        st.set_lap_speed((my_m / LAP_PTS) as f32);
         // piazzole dei pit stop: fuori dalla strada e senza sovrapporsi, anche quando più
         // macchine vanno in pausa nello stesso punto (calcolo ricordato finché le soste non
         // cambiano)
@@ -1128,7 +1143,9 @@ impl Ctrl {
                             .map(|d| d.with_timezone(&Local).format("%d/%m alle %H:%M").to_string())
                             .unwrap_or_else(|| "—".into())
                     ),
-                    (true, State::Studying) => format!("In pista · giro {}", t_day / LAP_SECS + 1),
+                    (true, State::Studying) => {
+                        format!("In pista · giro {}", (prep_core::group::live_pts(s, &ck)[0] / LAP_PTS) as u64 + 1)
+                    }
                     (true, State::Pause) if s.pit_since > 0 => {
                         format!("Pit stop da {}", short((now - s.pit_since).max(0) as u64))
                     }
@@ -1224,7 +1241,8 @@ impl Ctrl {
             .zip(photos)
             .enumerate()
             .map(|(i, ((id, s), photo))| {
-                let v = value(s, &ck, p);
+                let v = prep_core::group::points(s, &ck, p);
+                let secs = prep_core::group::value(s, &ck, p);
                 let on = all.iter().find(|(x, _, _, _)| x == id).is_some_and(|(_, _, o, _)| *o);
                 RankVM {
                     pos: i as i32 + 1,
@@ -1235,8 +1253,9 @@ impl Ctrl {
                     admin: *id == group_admin,
                     name: ss(if *id == me_id { format!("{} (tu)", s.name) } else { s.name.clone() }),
                     color: slint::Color::from_argb_encoded(s.color),
-                    value: ss(fmt_secs(v)),
-                    laps: (live(s, &ck).0 / LAP_SECS) as i32,
+                    value: ss(format!("{} pt", fmt_pts(v))),
+                    laps: (prep_core::group::live_pts(s, &ck)[0] / LAP_PTS) as i32,
+                    time: ss(fmt_secs(secs)),
                     status: ss(match (on, s.state) {
                         (false, _) => "non collegato",
                         (true, State::Studying) => "in pista",
@@ -1640,6 +1659,9 @@ struct SavedSession {
     since: i64,
     /// quando è iniziata la sessione
     started: i64,
+    /// tratto di studio con i suoi effetti (punteggio)
+    #[serde(default)]
+    run: prep_core::score::Run,
 }
 
 impl Ctrl {
@@ -1657,6 +1679,7 @@ impl Ctrl {
             },
             since: self.study_since.or(self.pit_since).unwrap_or(now),
             started: now,
+            run: self.run.clone(),
         };
         if s.state == 0 {
             let _ = vfs::remove_file(&self.session_path());
@@ -1691,7 +1714,10 @@ impl Ctrl {
             self.study_state = State::Studying;
             self.study_since = Some(since);
         }
-        self.run_start = Some(saved.started.min(since).max(since - 6 * 3600));
+        self.run = saved.run.clone();
+        if session != 2 && self.run.since.is_none() {
+            self.run.since = Some(since);
+        }
         crate::focus::session(session as i32);
         self.toast("Concentrazione ancora attiva: la sessione di studio continua");
         true
@@ -1833,9 +1859,15 @@ impl Ctrl {
             .and_then(|j| j["until"].as_i64())
             .unwrap_or(0);
         let (title, since, progress, max, segment) = if self.study_state == State::Studying {
-            let start = self.run_start.unwrap_or(now);
-            let mins = (now - start).max(0) / 60;
-            (format!("In pista · oggi {}", fmt_secs(today)), start, mins.min(200), 200, 25)
+            let streak = self.run.streak(now);
+            let sc = self.score_now(now);
+            (
+                format!("In pista ×{:.1} · oggi {}", sc.mult, fmt_secs(today)),
+                now - streak,
+                (streak / 60).min(200),
+                200,
+                25,
+            )
         } else {
             let start = self.pit_since.unwrap_or(now);
             let mins = (now - start).max(0) / 60;
@@ -1853,5 +1885,32 @@ impl Ctrl {
             "focus_until": focus_until,
         });
         crate::study_notify(&json.to_string());
+    }
+}
+
+/// Punti con il separatore delle migliaia («12.480»).
+pub(super) fn fmt_pts(p: f64) -> String {
+    let n = p.max(0.0).round() as u64;
+    let s = n.to_string();
+    let mut out = String::new();
+    for (i, ch) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
+            out.push('.');
+        }
+        out.push(ch);
+    }
+    out
+}
+
+impl Ctrl {
+    /// Moltiplicatore dei punti adesso (vedi prep_core::score).
+    pub(super) fn score_now(&self, now: i64) -> prep_core::score::Score {
+        use prep_core::group::State;
+        if self.study_state != State::Studying {
+            return prep_core::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+        }
+        let today = self.study_log.day(Local::now().date_naive())
+            + self.study_since.map(|t| (now - t).max(0) as u64).unwrap_or(0);
+        self.run.score(now, self.focus_on, self.racing_others, today)
     }
 }

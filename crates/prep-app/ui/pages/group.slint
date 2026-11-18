@@ -1288,8 +1288,8 @@ export component GroupPage inherits Page {
                         wrap: word-wrap;
                     }
                     Hint {
-                        short: "Come funziona la gara";
-                        full: "Ogni giro = 1 minuto di studio. Al pit stop (pausa) esci di pista; con «Termina» vai al paddock fino alla prossima sessione. Tocca una monoposto o un membro per i dettagli.";
+                        short: "Come si fanno i punti";
+                        full: "La classifica è per punti: ogni secondo di studio vale punti × il moltiplicatore (al massimo ×5), che è anche la velocità della monoposto (un giro = 60 punti). Ritmo: +0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3 (fiamma). Pit stop fino a 10 minuti dopo almeno 25 di studio: gomme nuove ×1,2 per 25 minuti (scintille); pausa tra 10 e 30 minuti: il ritmo si dimezza; oltre 30 minuti o «Termina»: riparte da ×1. Più di 2 pause in 30 minuti: ×0,8 per 15 minuti (fumo). Concentrazione attiva: ×1,5 (scia blu). Altri in pista con te: +0,1 ciascuno, fino a ×1,4 (vento). Oltre 10 ore al giorno resta ×1. Tocca una monoposto o un membro per i dettagli.";
                     }
                     if rename-open: HorizontalLayout {
                         spacing: 8px;
@@ -1532,7 +1532,7 @@ export component GroupPage inherits Page {
                                 overflow: elide;
                             }
                             Text {
-                                text: r.status + " · " + r.laps + " giri" + (r.admin ? " · amministratore" : "");
+                                text: r.status + " · " + r.time + (r.admin ? " · amministratore" : "");
                                 font-size: Type.label;
                                 color: M3.on-surface-variant;
                             }

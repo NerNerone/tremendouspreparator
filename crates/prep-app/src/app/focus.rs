@@ -83,6 +83,7 @@ impl Ctrl {
         st.set_focus_usage_ok(usage);
         st.set_focus_overlay_ok(overlay);
         st.set_focus_active(active);
+        self.focus_on = active;
         st.set_focus_status(ss(status));
         // conto alla rovescia del blocco a tempo
         let left = if active && until > now_ms { (until - now_ms + 999) / 1000 } else { 0 };

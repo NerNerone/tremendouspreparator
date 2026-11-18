@@ -95,6 +95,17 @@ pub struct Status {
     /// profilo: numeri dell'esame attivo (mandato con la mappa di calore)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prof: Option<Prof>,
+    /// punti (vedi [`crate::score`]) di oggi, settimana, mese e in tutto, all'istante `at`
+    #[serde(default)]
+    pub pts: [f64; 4],
+    /// moltiplicatore in corso (0 nelle versioni senza punteggio = ×1) ed effetti visibili
+    #[serde(default)]
+    pub mult: f32,
+    #[serde(default)]
+    pub fx: u8,
+    /// intensità del ritmo (0..1)
+    #[serde(default)]
+    pub level: f32,
 }
 
 /// Numeri del profilo per l'esame su cui si studia; a zero le funzioni non usate (che il
@@ -259,6 +270,7 @@ pub fn frozen(s: &Status, last_seen: i64, c: &Clock) -> (Status, bool) {
     let mut f = s.clone();
     let to = last_seen.max(f.at);
     let (t, w, m, tot) = advance(s, to, c);
+    f.pts = advance_pts(s, to, c);
     f.today = t;
     f.week = w;
     f.month = m;
@@ -278,6 +290,8 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
     let Some(latest) = devs.iter().max_by_key(|(s, _)| s.at) else { return (Status::default(), false) };
     let mut out = latest.0.clone();
     let (mut t, mut w, mut m, mut tot) = (0, 0, 0, 0);
+    let mut pts = [0.0f64; 4];
+    let (mut mult, mut fx, mut level) = (0.0f32, 0u8, 0.0f32);
     let mut hist = vec![0u32; HIST_DAYS];
     let mut what: Vec<BTreeMap<String, u64>> = vec![BTreeMap::new(); WHAT_DAYS];
     let mut any_hist = false;
@@ -287,6 +301,15 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
     let mut doing = String::new();
     for (s, on) in devs {
         let (a, b, mm, d) = live(s, c);
+        for (x, y) in pts.iter_mut().zip(live_pts(s, c)) {
+            *x += y;
+        }
+        // moltiplicatore ed effetti: quelli del dispositivo che sta studiando
+        if *on && s.state == State::Studying && s.mult >= mult {
+            mult = s.mult;
+            fx = s.fx;
+            level = s.level;
+        }
         t += a;
         w += b;
         m += mm;
@@ -319,6 +342,12 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
     out.week = w;
     out.month = m;
     out.total = tot;
+    out.pts = pts;
+    // i punti qui sopra sono già quelli giusti: ×1 se nessuno studia (0 vorrebbe dire «versione
+    // senza punteggio» e li si ricalcolerebbe dai secondi)
+    out.mult = if mult > 0.0 { mult } else { 1.0 };
+    out.fx = fx;
+    out.level = level;
     out.day = today.format("%Y-%m-%d").to_string();
     out.at = now;
     out.hist = any_hist.then(|| Hist { day: out.day.clone(), secs: hist, what: what.iter().map(top).collect() });
@@ -655,6 +684,9 @@ pub struct StudyLog {
     /// su cosa si è studiato, per giorno: attività → secondi (solo le ultime settimane)
     #[serde(default)]
     pub what: BTreeMap<String, BTreeMap<String, u64>>,
+    /// punti per giorno (vedi [`crate::score`])
+    #[serde(default)]
+    pub pts: BTreeMap<String, f64>,
 }
 
 fn monday(d: NaiveDate) -> NaiveDate {
@@ -663,7 +695,17 @@ fn monday(d: NaiveDate) -> NaiveDate {
 
 impl StudyLog {
     pub fn load(base: &Path) -> StudyLog {
-        vfs::read_to_string(&base.join(LOG_FILE)).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+        let mut log: StudyLog = vfs::read_to_string(&base.join(LOG_FILE))
+            .ok()
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or_default();
+        // giorni registrati prima del punteggio: un punto al secondo
+        let missing: Vec<(String, u64)> =
+            log.days.iter().filter(|(d, _)| !log.pts.contains_key(*d)).map(|(d, s)| (d.clone(), *s)).collect();
+        for (d, s) in missing {
+            log.pts.insert(d, s as f64);
+        }
+        log
     }
 
     pub fn save(&self, base: &Path) -> std::io::Result<()> {
@@ -709,6 +751,28 @@ impl StudyLog {
         }
     }
 
+    /// Punti del tratto `start..end` con moltiplicatore `mult`, divisi alle mezzanotti.
+    pub fn add_points<Tz: TimeZone>(&mut self, start: i64, end: i64, mult: f64, tz: &Tz) {
+        let mut cur = start;
+        while cur < end {
+            let day = Clock::new(cur, tz).today;
+            let next = midnight(tz, day + Duration::days(1));
+            let stop = if next > cur { end.min(next) } else { end };
+            *self.pts.entry(day.format("%Y-%m-%d").to_string()).or_default() += (stop - cur) as f64 * mult;
+            cur = stop;
+        }
+    }
+
+    /// Punti di oggi, della settimana, del mese e in tutto (al giorno `day`).
+    pub fn points(&self, day: NaiveDate) -> [f64; 4] {
+        let get = |d: NaiveDate| self.pts.get(&d.format("%Y-%m-%d").to_string()).copied().unwrap_or(0.0);
+        let m = monday(day);
+        let week = (0..7).map(|i| m + Duration::days(i)).filter(|d| *d <= day).map(get).sum();
+        let first = day.with_day(1).unwrap_or(day).format("%Y-%m-%d").to_string();
+        let month = self.pts.range(first..=day.format("%Y-%m-%d").to_string()).map(|(_, v)| v).sum();
+        [get(day), week, month, self.pts.values().sum()]
+    }
+
     /// Su cosa si è studiato il giorno `day` (le attività più lunghe).
     pub fn what(&self, day: NaiveDate) -> Vec<(String, u32)> {
         self.what.get(&day.format("%Y-%m-%d").to_string()).map(top).unwrap_or_default()
@@ -741,6 +805,7 @@ impl StudyLog {
 
 /// Lo stato da mandare: i numeri del registro più il tratto in corso (iniziato a `since`),
 /// diviso esattamente tra oggi, settimana e mese. Con `hist` anche la mappa di calore.
+#[allow(clippy::too_many_arguments)]
 pub fn my_status(
     name: &str,
     color: u32,
@@ -749,10 +814,19 @@ pub fn my_status(
     since: Option<i64>,
     c: &Clock,
     hist: bool,
+    score: crate::score::Score,
 ) -> Status {
     let (now, today) = (c.now, c.today);
     let start = since.map(|t| t.clamp(now - MAX_RUN, now)).unwrap_or(now);
     let t = log.day(today) + part(start, now, c.day0);
+    let base = log.points(today);
+    let m = if state == State::Studying { score.mult } else { 1.0 };
+    let pts = [
+        base[0] + part(start, now, c.day0) as f64 * m,
+        base[1] + part(start, now, c.week0) as f64 * m,
+        base[2] + part(start, now, c.month0) as f64 * m,
+        base[3] + (now - start) as f64 * m,
+    ];
     Status {
         name: name.to_string(),
         color,
@@ -764,6 +838,10 @@ pub fn my_status(
         day: today.format("%Y-%m-%d").to_string(),
         at: now,
         pits: log.pits(today),
+        pts,
+        mult: if state == State::Studying { score.mult as f32 } else { 1.0 },
+        fx: if state == State::Studying { score.fx } else { 0 },
+        level: score.level,
         hist: hist.then(|| {
             let mut h = log.hist(today);
             h[0] = t.min(u32::MAX as u64) as u32;
@@ -802,6 +880,40 @@ fn advance(s: &Status, to: i64, c: &Clock) -> (u64, u64, u64, u64) {
     )
 }
 
+/// Moltiplicatore di uno stato (le versioni senza punteggio contano ×1).
+fn mult_of(s: &Status) -> f64 {
+    if s.mult > 0.0 {
+        s.mult as f64
+    } else {
+        1.0
+    }
+}
+
+/// Punti di uno stato portati all'istante `to` (oggi, settimana, mese, totale), con gli stessi
+/// confini esatti di [`advance`]: il tratto in corso vale il moltiplicatore per i secondi.
+fn advance_pts(s: &Status, to: i64, c: &Clock) -> [f64; 4] {
+    let extra = if s.state == State::Studying { (to - s.at).clamp(0, MAX_RUN) } else { 0 };
+    let start = to - extra;
+    let m = mult_of(s);
+    // versioni senza punteggio: un punto al secondo
+    let base = if s.mult == 0.0 { [s.today as f64, s.week as f64, s.month as f64, s.total as f64] } else { s.pts };
+    let day = NaiveDate::parse_from_str(&s.day, "%Y-%m-%d").ok();
+    let bt = if day == Some(c.today) { base[0] } else { 0.0 };
+    let bw = if day.map(monday) == Some(monday(c.today)) { base[1] } else { 0.0 };
+    let bm = if day.is_some_and(|d| same_month(d, c.today)) { base[2] } else { 0.0 };
+    [
+        bt + part(start, to, c.day0) as f64 * m,
+        bw + part(start, to, c.week0) as f64 * m,
+        bm + part(start, to, c.month0) as f64 * m,
+        base[3] + extra as f64 * m,
+    ]
+}
+
+/// Punti di uno stato adesso: (oggi, settimana, mese, totale).
+pub fn live_pts(s: &Status, c: &Clock) -> [f64; 4] {
+    advance_pts(s, c.now, c)
+}
+
 /// Numeri di uno stato adesso: (oggi, settimana, mese, totale) in secondi.
 pub fn live(s: &Status, c: &Clock) -> (u64, u64, u64, u64) {
     advance(s, c.now, c)
@@ -817,6 +929,16 @@ pub fn value(s: &Status, c: &Clock, p: Period) -> u64 {
     }
 }
 
+/// Punti nel periodo `p` (la classifica è per punti).
+pub fn points(s: &Status, c: &Clock, p: Period) -> f64 {
+    live_pts(s, c)[match p {
+        Period::Today => 0,
+        Period::Week => 1,
+        Period::Month => 2,
+        Period::Total => 3,
+    }]
+}
+
 /// Ordine della classifica: (id, stato) dal primo all'ultimo (al secondo).
 pub fn standings<'a>(
     members: impl Iterator<Item = (&'a str, &'a Status)>,
@@ -824,7 +946,12 @@ pub fn standings<'a>(
     p: Period,
 ) -> Vec<(&'a str, &'a Status)> {
     let mut v: Vec<(&str, &Status)> = members.collect();
-    v.sort_by(|a, b| value(b.1, c, p).cmp(&value(a.1, c, p)).then(a.1.name.cmp(&b.1.name)));
+    v.sort_by(|a, b| {
+        points(b.1, c, p)
+            .total_cmp(&points(a.1, c, p))
+            .then(value(b.1, c, p).cmp(&value(a.1, c, p)))
+            .then(a.1.name.cmp(&b.1.name))
+    });
     v
 }
 
@@ -1256,6 +1383,8 @@ mod tests {
         assert_eq!(room(&code).tag, room(&code.to_lowercase()).tag);
     }
 
+    const ONE: crate::score::Score = crate::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+
     /// Orologio di prova nel fuso di Roma d'inverno (UTC+1).
     fn clock(y: i32, mo: u32, d: u32, h: u32, mi: u32, sec: u32) -> Clock {
         let tz = chrono::FixedOffset::east_opt(3600).unwrap();
@@ -1275,7 +1404,7 @@ mod tests {
         assert_eq!(log.week(today), 2400);
         assert_eq!(log.month(today), 2500);
         assert_eq!(log.total(), 2500);
-        let me = my_status("Io", 1, State::Studying, &log, Some(c.now - 60), &c, true);
+        let me = my_status("Io", 1, State::Studying, &log, Some(c.now - 60), &c, true, ONE);
         assert_eq!((me.today, me.week, me.month), (1860, 2460, 2560));
         assert_eq!(me.hist.as_ref().unwrap().secs[..2], [1860, 600]);
         // chi studia continua a contare, al secondo
@@ -1331,7 +1460,7 @@ mod tests {
         assert_eq!(log.month(c.today), 3600);
         assert_eq!(log.week(c.today), 3600);
         // chi manda lo stato fa lo stesso conto
-        let me = my_status("Io", 1, State::Studying, &StudyLog::default(), Some(start.now), &c, false);
+        let me = my_status("Io", 1, State::Studying, &StudyLog::default(), Some(start.now), &c, false, ONE);
         assert_eq!((me.today, me.week, me.month, me.total), (3600, 3600, 3600, 7200));
         // un dispositivo sparito ieri sera non porta niente a oggi
         let (f, on) = frozen(&s, start.now + 1800, &c);
@@ -1342,6 +1471,14 @@ mod tests {
         assert_eq!(h.on(c.today)[..3], [0, 7, 8]);
         assert_eq!(h.what_on(c.today, 1), vec![("Flashcard".to_string(), 7)]);
         assert!(h.what_on(c.today, 0).is_empty());
+        // punti: il moltiplicatore vale per il tratto in corso, con gli stessi confini
+        let mut p = s.clone();
+        p.pts = [100.0, 1000.0, 5000.0, 9000.0];
+        p.mult = 2.0;
+        assert_eq!(live_pts(&p, &c), [7200.0, 7200.0, 7200.0, 9000.0 + 14400.0]);
+        let mut log = StudyLog::default();
+        log.add_points(start.now, c.now, 2.0, &tz);
+        assert_eq!(log.points(c.today), [7200.0, 7200.0, 7200.0, 14400.0]);
         // identificativi dello stesso utente: tutti scelgono lo stesso
         assert_eq!(pick_user_id("u123456789abcdef", "0011223344556677"), "u123456789abcdef");
         assert_eq!(pick_user_id("0011223344556677", "u123456789abcdef"), "u123456789abcdef");

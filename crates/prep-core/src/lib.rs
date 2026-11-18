@@ -16,6 +16,7 @@ pub mod pdf;
 pub mod plan;
 pub mod progress;
 pub mod reminder;
+pub mod score;
 pub mod select;
 pub mod session;
 pub mod srs;

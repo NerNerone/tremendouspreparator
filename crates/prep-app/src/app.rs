@@ -376,8 +376,11 @@ pub struct Ctrl {
     /// strumento PDF in attesa del file scelto
     pdf_pick: Option<pdftools::PdfTool>,
     pdf_return: i32,
-    /// inizio del tratto di studio senza pause lunghe (per il ritmo e la notifica)
-    run_start: Option<i64>,
+    /// tratto di studio in corso e suoi effetti (punteggio, vedi prep_core::score)
+    run: prep_core::score::Run,
+    /// concentrazione attiva (×1,5) e altri membri in pista (scia di gruppo)
+    focus_on: bool,
+    racing_others: usize,
     /// ultima notifica della sessione: (istante, stato)
     study_notified: (i64, i32),
     /// APK della versione più nuova trovata (vedi `updates`)
@@ -1025,7 +1028,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         profile_sel: None,
         pdf_pick: None,
         pdf_return: P_HOME,
-        run_start: None,
+        run: Default::default(),
+        focus_on: false,
+        racing_others: 0,
         study_notified: (0, -1),
         update_url: String::new(),
         group_leave_armed: None,
