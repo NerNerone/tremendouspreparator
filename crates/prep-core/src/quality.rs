@@ -155,8 +155,10 @@ pub fn check(c: &Content, read: &dyn Fn(&str) -> Option<String>) -> Report {
                     r.tips.push(format!("{} › {}: nessuna domanda", u.name, t.name));
                 } else if n < COVER {
                     r.tips.push(format!(
-                        "{} › {}: solo {n} domande (ne servono {COVER} perché la barra arrivi in fondo)",
-                        u.name, t.name
+                        "{} › {}: solo {n} {} (ne servono {COVER} perché la barra arrivi in fondo)",
+                        u.name,
+                        t.name,
+                        if n == 1 { "domanda" } else { "domande" }
                     ));
                 }
             }
@@ -172,10 +174,11 @@ mod tests {
     #[test]
     fn finds_problems_and_gaps() {
         let syl = r#"{"schema":1,"title":"T","exam":{"questions":3,"mcq":1,"fill":1,"options":5,"minutes":10,"correct":1,"wrong":0,"omitted":0,"pass":1},
-            "subjects":[{"id":"fis","name":"Fisica","units":[{"id":"fis-u1","n":1,"name":"U1","cfu":1,"topics":[{"id":"fis-u1-t1","name":"Moto"},{"id":"fis-u1-t2","name":"Forze"}]}]}]}"#;
+            "subjects":[{"id":"fis","name":"Fisica","units":[{"id":"fis-u1","n":1,"name":"U1","cfu":1,"topics":[{"id":"fis-u1-t1","name":"Moto"},{"id":"fis-u1-t2","name":"Forze"},{"id":"fis-u1-t3","name":"Onde"}]}]}]}"#;
         let q = r#"{"schema":1,"questions":[
             {"id":"a","topic":"fis-u1-t1","type":"mcq","text":"Quanto fa due più due?","options":["4","4","5","6"],"answer":0,"explanation":""},
-            {"id":"b","topic":"fis-u1-t1","type":"fill","text":"Unità della forza: ____","answers":["N"],"explanation":"newton","difficulty":7}]}"#;
+            {"id":"b","topic":"fis-u1-t1","type":"fill","text":"Unità della forza: ____","answers":["N"],"explanation":"newton","difficulty":7},
+            {"id":"c","topic":"fis-u1-t3","type":"fill","text":"Unità della frequenza: ____","answers":["Hz"],"explanation":"hertz"}]}"#;
         let k = r#"{"schema":1,"cards":[{"id":"c1","topic":"fis-u1-t2","front":"F","back":"f"}]}"#;
         let books = r#"{"schema":1,"books":[{"id":"lib","subject":"fis","title":"Libro","chapters":[{"file":"books/x/1.md","title":"1 Moto","topics":[]}]}]}"#;
         let md = "# 1 Moto\n![Figura 1](books/x/fig/1.svg)\n![Figura 2]()\n";
@@ -196,6 +199,7 @@ mod tests {
         assert!(r.warnings.iter().any(|w| w.contains("senza file SVG")));
         assert!(r.tips.iter().any(|t| t.contains("manca la figura «Figura 1»")));
         assert!(r.tips.iter().any(|t| t.contains("Moto: solo 2 domande")));
+        assert!(r.tips.iter().any(|t| t.contains("Onde: solo 1 domanda (")), "{all}");
         assert!(r.tips.iter().any(|t| t.contains("Forze: nessuna domanda")));
         assert!(r.summary().contains("avvisi"));
         let empty = check(&Content::default(), &|_| None);
