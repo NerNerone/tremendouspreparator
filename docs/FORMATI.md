@@ -18,6 +18,8 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
   Se manca viene ricavato dal titolo, quindi cambiare il titolo creerebbe un esame diverso:
   meglio indicarlo sempre.
 - `title`: nome mostrato nel selettore.
+- `exam` (facoltativo): regole della simulazione d'esame, per materia. Senza (o con `questions` 0)
+  l'app non propone simulazioni, solo allenamento.
 - `sections` (facoltativo): schede informative dell'esame mostrate nelle Opzioni, ciascuna con
   `title`, `summary` (una riga, sempre visibile) e `body` (testo completo, dietro il pulsante «i»):
   `"sections": [ { "title": "Regole d'esame", "summary": "Tre prove lo stesso giorno", "body": "…" } ]`.
