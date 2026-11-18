@@ -1402,7 +1402,7 @@ impl Ctrl {
         // calendario: «Tu», gli altri membri (in ordine di nome), «Gruppo»
         let mut people: Vec<(String, String)> =
             all.iter().filter(|(id, _, _, _)| *id != me_id).map(|(id, s, _, _)| (id.clone(), s.name.clone())).collect();
-        people.sort_by(|a, b| a.1.to_lowercase().cmp(&b.1.to_lowercase()));
+        people.sort_by_key(|p| p.1.to_lowercase());
         let mut labels = vec![ss("Tu")];
         let mut ids = vec![ss("")];
         for (id, name) in &people {
