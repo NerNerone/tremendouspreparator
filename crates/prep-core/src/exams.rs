@@ -132,6 +132,8 @@ pub fn prepare(base: &Path, bundled: Option<&Syllabus>) -> Registry {
             let _ = r.save(base);
             return r;
         }
+        // elenco salvato e vuoto: gli esami sono stati eliminati, non si rimette nulla
+        return r;
     }
     let legacy = read_syllabus(&base.join("mirror/content/syllabus.json"));
     let Some(syl) = legacy.as_ref().or(bundled) else { return Registry::default() };
@@ -222,6 +224,11 @@ mod tests {
         assert_eq!(r3.active, "altro");
         r3.remove("altro");
         assert_eq!(r3.active, "esame-prova");
+        // tutti gli esami eliminati: all'avvio dopo non ricompare quello incluso nell'app
+        r3.remove("esame-prova");
+        r3.save(&base).unwrap();
+        let r4 = prepare(&base, Some(&syl("incluso", "Incluso")));
+        assert!(r4.exams.is_empty());
         let _ = std::fs::remove_dir_all(&base);
     }
 }

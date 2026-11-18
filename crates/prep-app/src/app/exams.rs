@@ -147,14 +147,6 @@ impl Ctrl {
         let was_active = self.exams.active == id;
         self.exams.remove(id);
         prep_core::exams::remove_files(&base, id);
-        if self.exams.exams.is_empty() {
-            // senza esami resta, se c'è, quello incluso nell'app (non si rilegge l'elenco dal
-            // file: conterrebbe ancora l'esame appena tolto, che ricomparirebbe)
-            let bundled = Content::from_files(crate::bundled::BUNDLED.iter().copied());
-            if let Some(syl) = bundled.syllabus.as_ref() {
-                self.exams.upsert(&prep_core::exams::exam_id(syl), &syl.title);
-            }
-        }
         let _ = self.exams.save(&base);
         if was_active || self.exams.get(&self.exams.active).is_none() {
             let next = self.exams.active.clone();
