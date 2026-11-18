@@ -6,6 +6,7 @@
 //!   cargo run -p prep-core --bin prep -- report            report progressi (markdown)
 //!   cargo run -p prep-core --bin prep -- report --json     stesso report in JSON
 //!   cargo run -p prep-core --bin prep -- pack --out=F.json.gz [--label=L]
+//!   cargo run -p prep-core --bin prep -- text FILE        testo di PDF/Word/PowerPoint/… in Markdown
 //!                                                         pacchetto contenuti (quiz, flashcard, libri)
 
 use prep_core::content::Content;
@@ -86,6 +87,26 @@ fn main() {
     let json = args.iter().any(|a| a == "--json");
     let root =
         args.iter().skip(1).find(|a| !a.starts_with("--")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+    // testo di un documento (PDF, Word, PowerPoint, OpenDocument, EPUB, HTML) in Markdown
+    if cmd == "text" {
+        let bytes = fs::read(&root).unwrap_or_else(|e| {
+            eprintln!("ERRORE: {}: {e}", root.display());
+            std::process::exit(1)
+        });
+        let r = if bytes.starts_with(b"%PDF") {
+            prep_core::pdf::to_markdown(&bytes, &[], 0).map(|(md, _)| md)
+        } else {
+            prep_core::docs::to_markdown(&bytes, &[]).map(|d| d.md)
+        };
+        match r {
+            Ok(md) => print!("{md}"),
+            Err(e) => {
+                eprintln!("ERRORE: {e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let content = load_content(&root);
     let opt = |k: &str| args.iter().find_map(|a| a.strip_prefix(&format!("--{k}=")).map(|s| s.to_string()));
     match cmd {

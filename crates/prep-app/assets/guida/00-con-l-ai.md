@@ -16,7 +16,7 @@ Lavora un capitolo, una lezione o una presentazione alla volta: un'AI dà risult
 
 Non dare all'AI il PDF intero: **prima trasformalo in testo, poi fallo correggere**. Il testo costa meno, l'AI lo legge meglio, non ha limiti di MB e tu puoi controllarlo.
 
-1. **PDF con testo selezionabile** (dispense, slide esportate, libri digitali): Strumenti PDF › «Estrai il testo grezzo dal PDF». Ottieni un file `.md` con i segnaposto di pagina: è testo grezzo, da revisionare al passo 3.
+1. **PDF con testo selezionabile, Word, PowerPoint, OpenDocument, EPUB** (dispense, slide, libri digitali): Strumenti PDF › «Estrai il testo». Ottieni un file `.md` con i segnaposto di pagina; da Word e PowerPoint titoli, elenchi e tabelle sono già in Markdown, dal PDF è testo grezzo. In ogni caso da revisionare al passo 3.
 2. **Scansioni e foto**: passa le pagine dall'OCR (riconoscimento del testo): Strumenti PDF › «Testo con l'OCR», nell'app per Android e per computer (vedi 6.2). L'OCR sbaglia lettere, accenti ed esponenti: lo correggerà l'AI al passo 3.
 3. **PDF direttamente all'AI solo quando l'OCR fallirebbe di sicuro**: pagine scritte a mano, formule lunghe o complesse, schemi e grafici da ricostruire, tabelle fitte. Se il file supera il limite di MB della tua AI, dividilo con Strumenti PDF › «Dividi il PDF in più parti» e dai le parti una alla volta (o insieme, se l'AI accetta più file).
 

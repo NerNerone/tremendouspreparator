@@ -26,6 +26,8 @@ k256 = { version = "0.13", default-features = false, features = ["schnorr", "ari
 getrandom = "0.2"
 # strumenti PDF: dividere in parti e estrarre il testo
 lopdf = { version = "0.47", default-features = false }
+# «Estrai il testo» anche da Word, PowerPoint, OpenDocument ed EPUB (XML dentro archivi ZIP)
+roxmltree = "0.21"
 
 # nel browser il caso e l'ora vengono da JavaScript
 [target.'cfg(target_arch = "wasm32")'.dependencies]

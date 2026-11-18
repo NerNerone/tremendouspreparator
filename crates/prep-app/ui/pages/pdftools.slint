@@ -8,7 +8,7 @@ export component PdfToolsPage inherits Page {
     VerticalLayout {
         TopBar {
             title: "Strumenti per l'AI";
-            subtitle: "PDF e foto da trasformare in testo, o da dividere";
+            subtitle: "Documenti e foto da trasformare in testo, PDF da dividere";
             can-back: true;
             back => {
                 AppState.back();
@@ -36,7 +36,7 @@ export component PdfToolsPage inherits Page {
                         placeholder-text: "Tutte (oppure es. 25-30, 40, 45-)";
                     }
                     Text {
-                        text: "Vuoto = tutto il PDF. Con le pagine scelte (es. un capitolo: 25-30) si divide o si estrae solo quella parte, sempre sotto il limite per parte.";
+                        text: "Vuoto = tutto il documento. Con le pagine scelte (es. un capitolo: 25-30; nelle presentazioni le slide) si estrae o si divide solo quella parte, sempre sotto il limite per parte.";
                         wrap: word-wrap;
                         font-size: Type.label;
                         color: M3.on-surface-variant;
@@ -61,19 +61,19 @@ export component PdfToolsPage inherits Page {
                     padding: 16px;
                     spacing: 10px;
                     Text {
-                        text: "1 · Estrai il testo grezzo dal PDF";
+                        text: "1 · Estrai il testo (PDF, Word, PowerPoint…)";
                         font-size: Type.title;
                         font-weight: 700;
                         color: M3.on-surface;
                     }
                     Text {
-                        text: "Il consigliato. Salva il testo di ogni pagina in un file Markdown, con i segnaposto di pagina. È testo GREZZO: a capo spezzati, titoli non riconosciuti, formule e tabelle rovinate, intestazioni ripetute. Prima di usarlo va revisionato: dallo a un'AI con il prompt 8.5 della guida (revisione grammaticale, semantica e logica), non il PDF: costa meno, sbaglia meno e non ha limiti di MB. Le pagine scansionate (senza testo) vengono segnalate: per quelle usa l'OCR qui sotto.";
+                        text: "Il consigliato. Salva il testo in un file Markdown con i segnaposto di pagina (nelle presentazioni, una sezione per slide). Legge PDF, Word (.docx), PowerPoint (.pptx), OpenDocument (.odt, .odp), EPUB, HTML e testo. Da Word, PowerPoint e simili titoli, elenchi e tabelle escono già in Markdown; dal PDF è testo GREZZO (a capo spezzati, titoli non riconosciuti, formule e tabelle rovinate). In entrambi i casi va revisionato: dallo a un'AI con il prompt 8.5 della guida, non il file originale: costa meno, sbaglia meno e non ha limiti di MB. Le pagine scansionate dei PDF vengono segnalate: per quelle usa l'OCR qui sotto.";
                         wrap: word-wrap;
                         font-size: Type.label;
                         color: M3.on-surface-variant;
                     }
                     M3Button {
-                        text: "Estrai il testo grezzo dal PDF";
+                        text: "Estrai il testo";
                         has-icon: true;
                         icon: Icons.book;
                         enabled: !AppState.pdf-busy;

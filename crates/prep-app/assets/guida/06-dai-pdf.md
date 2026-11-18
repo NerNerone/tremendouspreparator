@@ -4,7 +4,7 @@ Il materiale di partenza diventa testo Markdown, che poi ripulisci (a mano o con
 
 ## 6.1 PDF con testo selezionabile
 
-La maggior parte di dispense e slide esportate ha già il testo. Nell'app: **Strumenti PDF › «Estrai il testo grezzo dal PDF»** (dalla prima pagina della guida o da *Contenuti*) crea un file `.md` con il testo di ogni pagina e i segnaposto di pagina, e segnala le pagine senza testo (scansioni). Al computer, nel repository del progetto:
+La maggior parte di dispense e slide esportate ha già il testo. Nell'app: **Strumenti PDF › «Estrai il testo»** (dalla prima pagina della guida o da *Contenuti*) crea un file `.md` con il testo di ogni pagina e i segnaposto di pagina, e segnala le pagine senza testo (scansioni). Lo stesso pulsante legge anche Word (`.docx`), PowerPoint (`.pptx`), OpenDocument (`.odt`, `.odp`), EPUB, HTML e testo: da questi titoli, elenchi e tabelle escono già in Markdown (una sezione `##` per slide, con le note del relatore); le figure vanno descritte a parte (prompt 8.6). Al computer, nel repository del progetto (`prep -- text file.docx` fa lo stesso per gli altri formati):
 
 ```
 python3 tools/pdf2md.py libro.pdf bozza.md --offset N

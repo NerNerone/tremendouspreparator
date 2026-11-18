@@ -130,6 +130,10 @@ impl Ctrl {
     }
 
     fn pdf_text(&mut self, name: &str, bytes: &[u8]) -> Result<String, String> {
+        // non PDF: Word, PowerPoint, OpenDocument, EPUB, HTML, testo (vedi prep_core::docs)
+        if !bytes.starts_with(b"%PDF") {
+            return self.doc_text(name, bytes);
+        }
         let sel = self.pdf_pages(bytes)?;
         let (md, empty) = prep_core::pdf::to_markdown(bytes, &sel, 0)?;
         let total = sel.len() as u32;
@@ -264,6 +268,29 @@ impl Ctrl {
     #[cfg(target_arch = "wasm32")]
     fn ocr_start(&mut self, _name: String, _bytes: Vec<u8>) {
         self.toast("L'OCR c'è nell'app per Android e per computer");
+    }
+
+    /// Testo di un documento non PDF: qui la struttura c'è nel file, quindi titoli, elenchi e
+    /// tabelle escono già in Markdown.
+    fn doc_text(&mut self, name: &str, bytes: &[u8]) -> Result<String, String> {
+        let spec = self.ui().global::<AppState>().get_pdf_pages().to_string();
+        let sel = if spec.trim().is_empty() { Vec::new() } else { prep_core::pdf::parse_pages(&spec, 100_000)? };
+        let d = prep_core::docs::to_markdown(bytes, &sel)?;
+        if d.md.trim().is_empty() {
+            return Err("nessun testo trovato nel documento".into());
+        }
+        let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(name).to_string();
+        let where_ = self.save_outputs(&[(format!("{stem}.md"), d.md.into_bytes())], "text/markdown")?;
+        let what = match (d.kind, d.pages) {
+            ("PowerPoint" | "Impress (ODP)", n) if n > 0 => format!("{} slide", n),
+            (_, n) if n > 1 => format!("{n} pagine"),
+            _ => String::new(),
+        };
+        Ok(format!(
+            "Testo di «{name}» ({}{}) in «{stem}.md»{where_} Titoli, elenchi e tabelle sono già in Markdown; le figure no. Prima di usarlo fallo rivedere da un'AI con il prompt 8.5 della guida.",
+            d.kind,
+            if what.is_empty() { String::new() } else { format!(", {what}") }
+        ))
     }
 
     /// Pagine scelte nel campo «Pagine» (vuoto = tutte).

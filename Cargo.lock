@@ -4660,6 +4660,7 @@ dependencies = [
  "lopdf",
  "pbkdf2",
  "regex-lite",
+ "roxmltree",
  "serde",
  "serde_json",
  "sha1_smol",
