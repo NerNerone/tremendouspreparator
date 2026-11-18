@@ -32,6 +32,8 @@ jobs:
     outputs:
       tag: ${{ steps.ver.outputs.tag }}
     steps:
+      # niente avviso di git sul nome del ramo predefinito durante il checkout
+      - run: git config --global init.defaultBranch main
       - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v6
@@ -131,6 +133,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
+      # niente avviso di git sul nome del ramo predefinito durante il checkout
+      - run: git config --global init.defaultBranch main
       - uses: actions/checkout@v7
 
       - name: Rust stable

@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # niente avviso di git sul nome del ramo predefinito durante il checkout
+      - run: git config --global init.defaultBranch main
       - uses: actions/checkout@v7
 
       - name: Rust stable

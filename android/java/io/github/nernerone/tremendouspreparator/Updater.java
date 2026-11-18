@@ -62,6 +62,15 @@ final class Updater {
         }
     }
 
+    /** La schermata di conferma allegata all'esito (API tipizzata da Android 13). */
+    @SuppressWarnings("deprecation")
+    private static Intent confirmIntent(Intent i) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            return i.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class);
+        }
+        return i.getParcelableExtra(Intent.EXTRA_INTENT);
+    }
+
     /** Esito della sessione: se serve la conferma dell'utente si apre la schermata di sistema. */
     private static synchronized void listen(Context c) {
         if (registered) return;
@@ -71,7 +80,7 @@ final class Updater {
             public void onReceive(Context ctx, Intent i) {
                 int status = i.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
                 if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                    Intent confirm = i.getParcelableExtra(Intent.EXTRA_INTENT);
+                    Intent confirm = confirmIntent(i);
                     if (confirm != null) {
                         confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         ctx.startActivity(confirm);

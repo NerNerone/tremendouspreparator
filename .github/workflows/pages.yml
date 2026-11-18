@@ -27,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      # niente avviso di git sul nome del ramo predefinito durante il checkout
+      - run: git config --global init.defaultBranch main
       - uses: actions/checkout@v7
 
       - name: Rust stable + target WebAssembly
@@ -47,6 +49,8 @@ jobs:
       - name: Compila
         run: |
           export APP_BUILD="web-${GITHUB_SHA::7}"
+          # strip=true toglierebbe anche la sezione target_features che serve a wasm-bindgen
+          export CARGO_PROFILE_RELEASE_STRIP=debuginfo
           cargo build --release -p tremendouspreparator --lib --target wasm32-unknown-unknown
 
       - name: Prepara il sito
@@ -59,9 +63,16 @@ jobs:
           sed -i "s/tremendouspreparator-v1/tremendouspreparator-${GITHUB_SHA::7}/" site/sw.js
           ls -la site
 
-      - uses: actions/upload-pages-artifact@v3
+      # come actions/upload-pages-artifact, ma con upload-artifact recente (Node 24)
+      - name: Archivio per Pages
+        run: tar --dereference --hard-dereference --directory site -cvf "$RUNNER_TEMP/artifact.tar" .
+
+      - uses: actions/upload-artifact@v7
         with:
-          path: site
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     needs: build

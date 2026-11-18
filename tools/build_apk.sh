@@ -21,7 +21,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$(realpath -m "${1:-$ROOT/target/release/apk/TremendousPreparator.apk}")"
 : "${ANDROID_HOME:?ANDROID_HOME non impostata}"
 : "${ANDROID_NDK_ROOT:?ANDROID_NDK_ROOT non impostata}"
-export ANDROID_SDK_ROOT="$ANDROID_HOME"
+# ANDROID_SDK_ROOT è deprecata (cargo-apk lo segnala): basta ANDROID_HOME
+unset ANDROID_SDK_ROOT
 
 BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
 JAR="$ANDROID_HOME/platforms/android-35/android.jar"
