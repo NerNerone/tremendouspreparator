@@ -48,6 +48,16 @@ export component SettingsPage inherits Page {
                         AppState.legal-visible = true;
                     }
                 }
+                // nuova versione dell'app disponibile
+                if AppState.update-version != "": M3Button {
+                    text: AppState.update-busy ? "Scarico l'aggiornamento…" : "Aggiorna alla versione " + AppState.update-version;
+                    has-icon: true;
+                    icon: Icons.sync;
+                    enabled: !AppState.update-busy;
+                    clicked => {
+                        AppState.update-install();
+                    }
+                }
             }
             // profilo: il nome con cui ci si presenta agli altri dispositivi e nello studio di gruppo
             if AppState.settings-sec == 0: Section {

@@ -51,8 +51,8 @@ import java.util.Set;
 public class FocusService extends Service {
     static final String PREFS = "focus";
     private static final String SVC_PREFS = "focus_svc";
-    private static final String CHANNEL = "concentrazione";
-    private static final int NOTIFICATION_ID = 4320;
+    /** Stessa notifica della sessione di studio (vedi StudyNotify). */
+    private static final int NOTIFICATION_ID = StudyNotify.ID;
     private static final long POLL_MS = 300;
     /** Durata dell'avviso sovrapposto. */
     private static final long WARNING_MS = 9000;
@@ -218,22 +218,20 @@ public class FocusService extends Service {
     }
 
     private Notification notification() {
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) {
-            nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Concentrazione", NotificationManager.IMPORTANCE_LOW));
-        }
+        StudyNotify.channel(this);
         long until = svc().getLong("until", 0);
         String text = until > System.currentTimeMillis()
             ? "Solo Tremendous e le app scelte fino alle " + new SimpleDateFormat("HH:mm", Locale.ITALY).format(new Date(until))
             : "Solo Tremendous e le app scelte finché non termini la sessione";
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
         PendingIntent pi = PendingIntent.getActivity(this, 1, open, PendingIntent.FLAG_IMMUTABLE);
-        int icon = getResources().getIdentifier("ic_notify", "drawable", getPackageName());
-        return new Notification.Builder(this, CHANNEL)
-            .setSmallIcon(icon != 0 ? icon : getApplicationInfo().icon)
+        // il contenuto (cronometro, avanzamento) lo aggiorna poi l'app con StudyNotify
+        return new Notification.Builder(this, StudyNotify.CHANNEL)
+            .setSmallIcon(StudyNotify.smallIcon(this))
             .setContentTitle("Concentrazione attiva")
             .setContentText(text)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(pi)
             .build();
     }

@@ -359,8 +359,10 @@ impl Ctrl {
         use prep_core::group::State;
         let now = Self::now_secs();
         self.study_flush(now);
+        let mut pit_len = None;
         if let Some(t) = self.pit_since.take() {
             let secs = (now - t).clamp(0, 12 * 3600) as u64;
+            pit_len = Some(secs);
             if secs > 0 {
                 self.study_log.add_pit(Local::now().date_naive(), secs);
                 let _ = self.study_log.save(&self.store.base);
@@ -373,9 +375,22 @@ impl Ctrl {
         if self.study_state == State::Idle && state == State::Studying {
             self.last_doing.clear();
         }
+        // tratto di studio senza pause lunghe: riparte dopo «Termina» o una pausa oltre 30 minuti
+        let pit_was = self.study_state == State::Pause;
+        match state {
+            State::Studying => {
+                let long_pit = pit_was && pit_len.is_some_and(|s| s > 30 * 60);
+                if self.run_start.is_none() || !pit_was && self.study_state == State::Idle || long_pit {
+                    self.run_start = Some(now);
+                }
+            }
+            State::Pause => {}
+            State::Idle => self.run_start = None,
+        }
         self.study_state = state;
         self.study_since = (state == State::Studying).then_some(now);
         self.save_study_session(now);
+        self.study_notified = (0, -1);
         // concentrazione: il servizio Android sa se si studia (solo «Termina» libera il telefono)
         crate::focus::session(match state {
             State::Idle => 0,
@@ -389,6 +404,7 @@ impl Ctrl {
     /// Ogni secondo: cronometro, stato al gruppo ogni 10 s, circuito e classifica.
     pub(super) fn group_tick(&mut self) {
         let now = Self::now_secs();
+        self.study_notify(now);
         if self.study_since.is_some_and(|t| now - t >= 60) {
             self.study_flush(now);
         }
@@ -1675,6 +1691,7 @@ impl Ctrl {
             self.study_state = State::Studying;
             self.study_since = Some(since);
         }
+        self.run_start = Some(saved.started.min(since).max(since - 6 * 3600));
         crate::focus::session(session as i32);
         self.toast("Concentrazione ancora attiva: la sessione di studio continua");
         true
@@ -1782,5 +1799,59 @@ impl Ctrl {
         st.set_profile_heat(model(hist.map(|h| heat_cells(&h, ck.today)).unwrap_or_default()));
         st.set_profile_racing(on && s.state == State::Studying);
         st.set_profile_open(true);
+    }
+}
+
+impl Ctrl {
+    /// Notifica fissa della sessione di studio (Android): a ogni cambio di stato e ogni 30 s.
+    /// Cronometro sul tratto in corso; avanzamento a segmenti da 25 minuti (gli scatti del
+    /// ritmo) fino a 200, o in pausa i minuti della sosta fino ai 10 di un pit stop perfetto.
+    fn study_notify(&mut self, now: i64) {
+        use prep_core::group::{fmt_secs, State};
+        let code = match self.study_state {
+            State::Idle => 0,
+            State::Studying => 1,
+            State::Pause => 2,
+        };
+        let (last, last_code) = self.study_notified;
+        if code == last_code && (code == 0 || now - last < 30) {
+            return;
+        }
+        self.study_notified = (now, code);
+        if code == 0 {
+            crate::study_notify(r#"{"state":0}"#);
+            return;
+        }
+        let today = {
+            let s = self.my_group_status(now, false);
+            s.today
+        };
+        let doing = self.doing();
+        let color = self.accent.unwrap_or(crate::palette::DEFAULT_SEED);
+        let focus_until = crate::focus::state()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            .and_then(|j| j["until"].as_i64())
+            .unwrap_or(0);
+        let (title, since, progress, max, segment) = if self.study_state == State::Studying {
+            let start = self.run_start.unwrap_or(now);
+            let mins = (now - start).max(0) / 60;
+            (format!("In pista · oggi {}", fmt_secs(today)), start, mins.min(200), 200, 25)
+        } else {
+            let start = self.pit_since.unwrap_or(now);
+            let mins = (now - start).max(0) / 60;
+            (format!("Pit stop · oggi {}", fmt_secs(today)), start, mins.min(10), 10, 10)
+        };
+        let json = serde_json::json!({
+            "state": code,
+            "title": title,
+            "text": doing,
+            "since": since * 1000,
+            "progress": progress,
+            "max": max,
+            "segment": segment,
+            "color": color,
+            "focus_until": focus_until,
+        });
+        crate::study_notify(&json.to_string());
     }
 }

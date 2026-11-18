@@ -506,6 +506,10 @@ export global AppState {
     in-out property <string> pdf-pages;
     in property <bool> pdf-busy;
     in property <string> pdf-status;
+    // aggiornamento dell'app disponibile (solo APK pubblicati su GitHub)
+    in property <string> update-version;
+    in property <bool> update-busy;
+    callback update-install();
     // tempo che manca alla fine del blocco a tempo («23:41»; vuoto dopo la scadenza)
     in property <string> focus-left;
     in property <float> focus-left-frac;

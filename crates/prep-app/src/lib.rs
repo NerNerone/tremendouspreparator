@@ -116,6 +116,14 @@ fn android_call(method: &str, arg: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
+/// Notifica fissa della sessione di studio (Android; JSON, vedi StudyNotify.java).
+pub(crate) fn study_notify(json: &str) {
+    #[cfg(target_os = "android")]
+    let _ = android_call("studyNotify", Some(json));
+    #[cfg(not(target_os = "android"))]
+    let _ = json;
+}
+
 /// Notifica di sistema immediata (Android, browser): titolo e testo separati da un a capo.
 pub(crate) fn notify_now(text: &str) {
     #[cfg(target_os = "android")]
@@ -341,4 +349,47 @@ pub fn wasm_start() {
             web::log(&format!("errore: {e}"));
         }
     });
+}
+
+/// Passa l'APK all'installatore di sistema (classe Java `Updater`).
+#[cfg(target_os = "android")]
+pub(crate) fn install_apk(path: &std::path::Path) -> Result<(), String> {
+    let app = crate::ANDROID_APP.get().ok_or("attività non pronta")?;
+    // SAFETY: puntatori validi per tutta la vita del processo, forniti da android-activity
+    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr() as *mut jni::sys::JavaVM) }.map_err(|e| e.to_string())?;
+    let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
+    let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr() as jni::sys::jobject) };
+    // le classi dell'app si caricano con il class loader dell'attività
+    let loader = env
+        .call_method(&activity, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])
+        .and_then(|v| v.l())
+        .map_err(|e| e.to_string())?;
+    let name = env.new_string("io.github.nernerone.tremendouspreparator.Updater").map_err(|e| e.to_string())?;
+    let class = env
+        .call_method(&loader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;", &[(&name).into()])
+        .and_then(|v| v.l())
+        .map_err(|e| e.to_string())?;
+    let class = jni::objects::JClass::from(class);
+    let p = env.new_string(path.to_string_lossy()).map_err(|e| e.to_string())?;
+    let out = env
+        .call_static_method(
+            &class,
+            "install",
+            "(Landroid/app/Activity;Ljava/lang/String;)Ljava/lang/String;",
+            &[(&activity).into(), (&p).into()],
+        )
+        .and_then(|v| v.l())
+        .map_err(|e| e.to_string())?;
+    let msg: String = env.get_string(&jni::objects::JString::from(out)).map_err(|e| e.to_string())?.into();
+    if msg.is_empty() {
+        Ok(())
+    } else {
+        Err(msg)
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
+pub(crate) fn install_apk(_: &std::path::Path) -> Result<(), String> {
+    Err("disponibile solo su Android".into())
 }

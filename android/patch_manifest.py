@@ -2,6 +2,7 @@
 """Aggiunge al manifest generato da cargo-apk il receiver del promemoria giornaliero e
 gli intent-filter per aprire il pacchetto contenuti con «Apri con Tremendous Preparator»
 (cargo-apk non sa dichiararli). Uso: patch_manifest.py <in.xml> <out.xml>"""
+import os
 import re
 import sys
 
@@ -78,6 +79,12 @@ for need in ('android:hasCode="true"', 'io.github.nernerone.tremendouspreparator
 if "BLUETOOTH_CONNECT" not in xml:
     assert xml.count("<application") == 1
     xml = xml.replace("<application", BT_PERMS + "<application", 1)
+# aggiornamenti dall'app: solo negli APK pubblicati su GitHub (la CI imposta TP_UPDATES=github;
+# le build di F-Droid ne restano senza, e senza permesso)
+if os.environ.get("TP_UPDATES") == "github" and "REQUEST_INSTALL_PACKAGES" not in xml:
+    xml = xml.replace(
+        "<application", '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/><application', 1
+    )
 if "PACKAGE_USAGE_STATS" not in xml:
     xml = xml.replace("<application", FOCUS_PERMS + QUERIES + "<application", 1)
 if "FocusService" not in xml:

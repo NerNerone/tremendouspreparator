@@ -34,6 +34,8 @@ webpki-roots = "1"
 str0m = { version = "0.25", default-features = false, features = ["rust-crypto"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
+# aggiornamenti dalle release di GitHub (solo APK distribuiti lì)
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-android-activity-06", "renderer-femtovg"] }
 jni = "0.21"
 
@@ -58,6 +60,10 @@ name = "android.permission.INTERNET"
 # promemoria giornaliero (codice Java in android/java, aggiunto dalla CI)
 [[package.metadata.android.uses_permission]]
 name = "android.permission.POST_NOTIFICATIONS"
+
+# Android 16: la notifica della sessione di studio può diventare un aggiornamento in tempo reale
+[[package.metadata.android.uses_permission]]
+name = "android.permission.POST_PROMOTED_NOTIFICATIONS"
 
 [[package.metadata.android.uses_permission]]
 name = "android.permission.RECEIVE_BOOT_COMPLETED"

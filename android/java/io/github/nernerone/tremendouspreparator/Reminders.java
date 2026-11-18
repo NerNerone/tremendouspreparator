@@ -27,8 +27,10 @@ final class Reminders {
     static final String ACTION_CLEAR = "io.github.nernerone.tremendouspreparator.MEZZANOTTE";
     static final int NOTIFICATION_ID = 1;
     static final int GOALS_ID = 2;
-    private static final String CHANNEL = "promemoria";
-    private static final String CHANNEL_GOALS = "obiettivi";
+    // canali nuovi ad alta importanza (quella di un canale esistente non si può più cambiare:
+    // i vecchi «promemoria» e «obiettivi» finivano tra le notifiche silenziose)
+    private static final String CHANNEL = "promemoria-alta";
+    private static final String CHANNEL_GOALS = "obiettivi-alta";
     private static final String[] DEFAULT_TIMES = {"08:30", "13:45", "17:30", "21:00"};
 
     private Reminders() {}
@@ -156,6 +158,19 @@ final class Reminders {
         return icon != 0 ? icon : c.getApplicationInfo().icon;
     }
 
+    /** Toglie i canali vecchi (a bassa importanza), sostituiti da quelli nuovi. */
+    static void dropOldChannels(Context c) {
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        if (nm == null) return;
+        for (String old : new String[] {"promemoria", "obiettivi", "concentrazione"}) {
+            try {
+                nm.deleteNotificationChannel(old);
+            } catch (Exception e) {
+                // non c'era
+            }
+        }
+    }
+
     /** Notifica della fascia scattata. */
     static void show(Context c) {
         JSONObject j = config(c);
@@ -165,7 +180,7 @@ final class Reminders {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         if (nm == null) return;
         nm.createNotificationChannel(
-            new NotificationChannel(CHANNEL, "Promemoria di studio", NotificationManager.IMPORTANCE_DEFAULT));
+            new NotificationChannel(CHANNEL, "Promemoria di studio", NotificationManager.IMPORTANCE_HIGH));
         Notification n = new Notification.Builder(c, CHANNEL)
             .setSmallIcon(smallIcon(c))
             .setContentTitle(msg[0])
@@ -206,8 +221,10 @@ final class Reminders {
             nm.cancel(GOALS_ID);
             return;
         }
-        nm.createNotificationChannel(
-            new NotificationChannel(CHANNEL_GOALS, "Obiettivi del giorno", NotificationManager.IMPORTANCE_LOW));
+        NotificationChannel goals = new NotificationChannel(CHANNEL_GOALS, "Obiettivi del giorno", NotificationManager.IMPORTANCE_DEFAULT);
+        goals.setSound(null, null);
+        goals.enableVibration(false);
+        nm.createNotificationChannel(goals);
         String body = goalsSummary(g);
         Notification n = new Notification.Builder(c, CHANNEL_GOALS)
             .setSmallIcon(smallIcon(c))

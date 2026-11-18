@@ -86,6 +86,7 @@ public class MainActivity extends NativeActivity {
         super.onResume();
         // il servizio della concentrazione riparte se il sistema l'aveva fermato
         FocusService.ensure(this);
+        Reminders.dropOldChannels(this);
         // aperta l'app, il promemoria di oggi non serve più
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null) nm.cancel(Reminders.NOTIFICATION_ID);
@@ -209,6 +210,11 @@ public class MainActivity extends NativeActivity {
                 // nessun selettore disponibile
             }
         });
+    }
+
+    /** Notifica fissa della sessione di studio (JSON dal lato Rust, vedi StudyNotify). */
+    public void studyNotify(String json) {
+        StudyNotify.show(this, json);
     }
 
     /** Notifica immediata (avvisi del gruppo di studio). */

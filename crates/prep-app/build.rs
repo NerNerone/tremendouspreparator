@@ -61,5 +61,8 @@ fn main() {
         _ => pkg,
     };
     println!("cargo:rerun-if-env-changed=APP_BUILD");
+    // aggiornamenti dall'app solo negli APK pubblicati su GitHub (non nelle build di F-Droid)
+    println!("cargo:rerun-if-env-changed=TP_UPDATES");
+    println!("cargo:rustc-env=TP_UPDATES={}", std::env::var("TP_UPDATES").unwrap_or_default());
     println!("cargo:rustc-env=APP_VERSION={version}");
 }

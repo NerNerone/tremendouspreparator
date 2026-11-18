@@ -41,6 +41,7 @@ mod pdftools;
 mod quiz;
 mod quiz_setup;
 mod report;
+mod updates;
 
 const LEGAL_VERSION: u32 = 3;
 const LEGAL_TEXT: &str = "Tremendous Preparator è un programma libero (licenza GPL-3.0 o successive), fornito «così com'è», \
@@ -373,6 +374,12 @@ pub struct Ctrl {
     /// strumento PDF in attesa del file scelto
     pdf_pick: Option<pdftools::PdfTool>,
     pdf_return: i32,
+    /// inizio del tratto di studio senza pause lunghe (per il ritmo e la notifica)
+    run_start: Option<i64>,
+    /// ultima notifica della sessione: (istante, stato)
+    study_notified: (i64, i32),
+    /// APK della versione più nuova trovata (vedi `updates`)
+    update_url: String,
     group_leave_armed: Option<(String, Instant)>,
     /// giri completati finora oggi (per festeggiare il giro nuovo)
     my_laps: u64,
@@ -1007,6 +1014,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         profile_sel: None,
         pdf_pick: None,
         pdf_return: P_HOME,
+        run_start: None,
+        study_notified: (0, -1),
+        update_url: String::new(),
         group_leave_armed: None,
         my_laps: 0,
         bt: BtState::default(),
@@ -1038,6 +1048,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         c.apply_theme();
         c.refresh_profile_photo();
         c.ui().global::<AppState>().set_cars(ModelRc::from(c.cars_model.clone()));
+        c.updates_check();
         c.ui().global::<AppState>().set_bt_available(cfg!(target_os = "android"));
         if c.groups.active().is_some() {
             c.group_connect();
@@ -1294,6 +1305,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));
     st.on_focus_search(|q| with_ctrl(|c| c.focus_search(&q)));
     st.on_open_pdf_tools(|| with_ctrl(|c| c.open_pdf_tools()));
+    st.on_update_install(|| with_ctrl(|c| c.updates_install()));
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));
     st.on_open_profile(|id| {
