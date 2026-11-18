@@ -1377,6 +1377,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_contents_add(|| with_ctrl(|c| c.contents_add()));
     st.on_contents_remove(|p| with_ctrl(|c| c.contents_remove_ask(&p)));
     st.on_contents_export(|| with_ctrl(|c| c.contents_export()));
+    st.on_contents_check(|| with_ctrl(|c| c.contents_check()));
     st.on_select_exam(|id| with_ctrl(|c| c.open_exam(&id)));
     st.on_remove_exam(|id| with_ctrl(|c| c.remove_exam(&id)));
     st.on_save_username(|n| with_ctrl(|c| c.save_username(&n)));

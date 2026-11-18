@@ -1,5 +1,9 @@
 # Formati dei file
 
+Gli schemi JSON (draft 2020-12) di questi formati sono in [`schema/`](schema/): `syllabus`, `questions`,
+`flashcards`, `books`. Il controllo completo (anche di qualità) si fa con `prep check <cartella>` o con
+«Controlla» nella pagina Contenuti dell'app.
+
 ## Esame — `content/syllabus.json`
 
 Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato per esame

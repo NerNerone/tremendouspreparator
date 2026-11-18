@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/flashcards/*.json — flashcard",
+  "type": "object",
+  "required": [
+    "schema",
+    "cards"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "topic",
+          "front",
+          "back"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "front": {
+            "type": "string",
+            "minLength": 1
+          },
+          "back": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "object",
+            "required": [
+              "book"
+            ],
+            "properties": {
+              "book": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string",
+                "pattern": "^books/.+\\.md$"
+              },
+              "section": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

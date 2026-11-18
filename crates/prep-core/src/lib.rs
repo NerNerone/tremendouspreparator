@@ -15,6 +15,7 @@ pub mod pack;
 pub mod pdf;
 pub mod plan;
 pub mod progress;
+pub mod quality;
 pub mod reminder;
 pub mod score;
 pub mod select;

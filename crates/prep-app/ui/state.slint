@@ -253,6 +253,12 @@ export struct CrFileVM {
     info: string,
 }
 
+// una riga del controllo dei contenuti (head = titolo di gruppo)
+export struct QaLineVM {
+    text: string,
+    head: bool,
+}
+
 // creatore: una figura di un capitolo
 export struct CrFigVM {
     alt: string,
@@ -768,6 +774,10 @@ export global AppState {
     callback contents-add();
     callback contents-remove(string);
     callback contents-export();
+    // controllo di qualità dei contenuti: riassunto e righe («# Titolo» per i gruppi)
+    callback contents-check();
+    in property <string> qa-summary;
+    in property <[QaLineVM]> qa-lines;
     callback save-reminder();
     callback goals-toggle(int);
     callback goals-confirm();

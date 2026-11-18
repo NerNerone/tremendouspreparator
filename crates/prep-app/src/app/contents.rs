@@ -142,4 +142,27 @@ impl Ctrl {
             Err(e) => self.toast(format!("Esportazione non riuscita: {e}")),
         }
     }
+
+    /// «Controlla i contenuti»: errori, avvisi e consigli sui file dell'esame.
+    pub(super) fn contents_check(&mut self) {
+        let store = &self.store;
+        let r = prep_core::quality::check(&self.content, &|p| {
+            store.read_mirror(p).map(|b| String::from_utf8_lossy(&b).to_string())
+        });
+        let line = |t: String, head: bool| crate::QaLineVM { text: ss(t), head };
+        let mut lines = Vec::new();
+        for (title, list) in [("Errori", &r.errors), ("Avvisi", &r.warnings), ("Consigli", &r.tips)] {
+            if !list.is_empty() {
+                lines.push(line(format!("{title} ({})", list.len()), true));
+                lines.extend(list.iter().take(60).map(|x| line(x.clone(), false)));
+                if list.len() > 60 {
+                    lines.push(line(format!("… e altri {}", list.len() - 60), false));
+                }
+            }
+        }
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_qa_summary(ss(r.summary()));
+        st.set_qa_lines(model(lines));
+    }
 }

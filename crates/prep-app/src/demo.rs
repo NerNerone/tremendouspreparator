@@ -64,6 +64,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 // pagina «Contenuti»: contents (apre), addfile:percorso (come se fosse scelto),
                 // contentsexport, contentsrm:percorso nel mirror
                 "contents" => st.invoke_open_contents(),
+                "qacheck" => st.invoke_contents_check(),
                 "guide" => st.invoke_open_guide(),
                 "photofile" | "gphotofile" => {
                     if let Ok(b) = std::fs::read(arg) {

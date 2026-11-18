@@ -1,6 +1,6 @@
 import { M3, Icons, Type } from "../theme.slint";
 import { AppState, ContentFileVM } from "../state.slint";
-import { Page, IconButton, M3Button, Hint, TopBar, Scroller, VIcon, LlmCopy } from "../components.slint";
+import { Page, IconButton, M3Button, Hint, TopBar, Scroller, VIcon, LlmCopy, Card } from "../components.slint";
 
 component FileRow inherits Rectangle {
     in property <ContentFileVM> f;
@@ -107,6 +107,44 @@ export component ContentsPage inherits Page {
                 }
                 share => {
                     AppState.rd-share(AppState.guide-llm);
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 6px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Controllo dei contenuti";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                        }
+                        M3Button {
+                            text: AppState.qa-summary == "" ? "Controlla" : "Ricontrolla";
+                            kind: 1;
+                            small: true;
+                            clicked => {
+                                AppState.contents-check();
+                            }
+                        }
+                    }
+                    Text {
+                        text: AppState.qa-summary != "" ? AppState.qa-summary : "Cerca errori nei file, domande da sistemare (opzioni, spiegazioni, difficoltà), figure mancanti e argomenti con poche domande.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                    for l in AppState.qa-lines: Text {
+                        text: l.head ? l.text : "• " + l.text;
+                        wrap: word-wrap;
+                        font-size: l.head ? Type.body : Type.label;
+                        font-weight: l.head ? 700 : 400;
+                        color: l.head ? M3.on-surface : M3.on-surface-variant;
+                    }
                 }
             }
             if AppState.contents-status != "": Text {

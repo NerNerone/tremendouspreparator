@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/books.json — libri e capitoli",
+  "type": "object",
+  "required": [
+    "schema",
+    "books"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "books": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "file",
+                "title"
+              ],
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "pattern": "^books/.+\\.md$"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "topics": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "section",
+                      "topics"
+                    ],
+                    "properties": {
+                      "section": {
+                        "type": "string"
+                      },
+                      "topics": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

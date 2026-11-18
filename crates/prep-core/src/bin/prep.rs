@@ -109,6 +109,21 @@ fn main() {
                 }
             }
         }
+        "check" => {
+            let r = prep_core::quality::check(&content, &|p| fs::read_to_string(root.join(p)).ok());
+            for (title, list) in [("ERRORI", &r.errors), ("AVVISI", &r.warnings), ("CONSIGLI", &r.tips)] {
+                if !list.is_empty() {
+                    println!("{title} ({})", list.len());
+                    for x in list.iter() {
+                        println!("  - {x}");
+                    }
+                }
+            }
+            println!("{}", r.summary());
+            if !r.errors.is_empty() {
+                std::process::exit(2);
+            }
+        }
         "validate" => {
             if content.syllabus.is_none() {
                 eprintln!("ERRORE: content/syllabus.json mancante o non valido");
