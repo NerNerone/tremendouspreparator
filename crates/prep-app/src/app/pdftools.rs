@@ -182,8 +182,8 @@ impl Ctrl {
                 }
                 status("Carico i modelli OCR…".into());
                 let engine = crate::ocr::Engine::load(&dir)?;
-                let lower = name.to_lowercase();
-                if !lower.ends_with(".pdf") {
+                // PDF riconosciuto dal contenuto, non dal nome del file
+                if !bytes.starts_with(b"%PDF") {
                     status(format!("Leggo «{name}»…"));
                     let text = engine.read_image(&bytes)?;
                     return Ok((text, format!("Testo letto dall'immagine «{name}»")));

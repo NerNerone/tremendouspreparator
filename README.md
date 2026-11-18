@@ -78,15 +78,24 @@ capitoli) e `mathsvg.mjs` (formule → SVG).
 
 ## Rete e privacy
 
-L'app non ha un server, non ha pubblicità né statistiche d'uso e funziona offline. La rete serve solo
-alle funzioni tra dispositivi, che partono solo quando si collegano i propri dispositivi (*Opzioni ›
-Dispositivi*, con nome utente e password), si condivide un esame o si entra in un gruppo:
+L'app non ha un server, non ha pubblicità né statistiche d'uso e funziona offline. La rete serve alle
+funzioni tra dispositivi, che partono solo quando si collegano i propri dispositivi (*Opzioni ›
+Dispositivi*, con nome utente e password), si condivide un esame o si entra in un gruppo, e a due
+download:
 
 | Servizio | A cosa serve | Cosa vede |
 | --- | --- | --- |
 | Relay Nostr pubblici (`relay.damus.io`, `nos.lol`, `relay.primal.net`; modificabili) | far trovare i dispositivi; ripiego se il collegamento diretto non riesce | un tag casuale e dati cifrati |
 | Server STUN (`stun.l.google.com`, `stun.cloudflare.com`) | scoprire l'indirizzo pubblico per il collegamento diretto | l'indirizzo IP |
 | Altri dispositivi (WebRTC, Bluetooth) | scambio diretto di progressi, esami e foto | i dati, cifrati |
+| GitHub (release `ocr-modelli`), Amazon S3 (`ocrs-models`) come ripiego | i modelli dell'OCR, la prima volta che lo si usa | l'indirizzo IP |
+| GitHub (API e release) | solo APK e Flatpak scaricati dalle release: c'è una versione nuova? (all'avvio) | l'indirizzo IP |
+
+Il Flatpak delle release ha il permesso `--talk-name=org.freedesktop.Flatpak`, che gli permette di
+lanciare `flatpak` fuori dalla sandbox: serve solo a installare l'aggiornamento scaricato, quando si
+tocca «Aggiorna». Chi non lo vuole può toglierlo con `flatpak override --user
+--no-talk-name=org.freedesktop.Flatpak io.github.nernerone.TremendousPreparator` (l'aggiornamento
+si aprirà allora nel gestore di software).
 
 Se l'app si chiude per un errore, il rapporto (versione, sistema, punto dell'errore) resta sul dispositivo
 in `crash/`; al riavvio l'app propone di segnalarlo aprendo nel browser una issue già compilata, che si

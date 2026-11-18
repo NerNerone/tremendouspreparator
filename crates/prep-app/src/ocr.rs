@@ -119,9 +119,19 @@ impl Engine {
         Ok(prep_core::ocr::page_text(&lines))
     }
 
-    /// Testo di un file immagine (foto, JPEG/PNG).
+    /// Testo di un file immagine (foto, JPEG/PNG), raddrizzata secondo l'EXIF: i telefoni
+    /// salvano spesso le foto in verticale ruotate, con l'orientamento solo nei metadati.
     pub fn read_image(&self, bytes: &[u8]) -> Result<String, String> {
-        let img = image::load_from_memory(bytes).map_err(|e| format!("immagine non leggibile: {e}"))?;
+        use image::ImageDecoder;
+        let bad = |e: image::ImageError| format!("immagine non leggibile: {e}");
+        let mut decoder = image::ImageReader::new(std::io::Cursor::new(bytes))
+            .with_guessed_format()
+            .map_err(|e| format!("immagine non leggibile: {e}"))?
+            .into_decoder()
+            .map_err(bad)?;
+        let orientation = decoder.orientation().unwrap_or(image::metadata::Orientation::NoTransforms);
+        let mut img = image::DynamicImage::from_decoder(decoder).map_err(bad)?;
+        img.apply_orientation(orientation);
         let img = shrink(img).into_rgb8();
         let (w, h) = img.dimensions();
         self.read_rgb(img.as_raw(), w, h)

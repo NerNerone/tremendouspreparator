@@ -171,7 +171,7 @@ export component StudyPage inherits Page {
 
                             // registro delle simulazioni fatte (media, andamento, da rivedere)
                             if AppState.exam-rules != "" || AppState.sim-count > 0: M3Button {
-                                text: AppState.sim-count > 0 ? "Registro simulazioni · " + AppState.sim-summary : "Registro simulazioni";
+                                text: AppState.sim-count > 0 ? "Registro simulazioni · media " + AppState.sim-avg : "Registro simulazioni";
                                 kind: 3;
                                 small: true;
                                 has-icon: true;

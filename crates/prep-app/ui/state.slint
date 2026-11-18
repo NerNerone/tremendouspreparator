@@ -551,6 +551,8 @@ export global AppState {
     callback simlog-open(string);
     in property <int> sim-count;
     in property <string> sim-summary;
+    // solo la media («2,3 / 6,0»), per le etichette corte
+    in property <string> sim-avg;
     in property <string> sim-details;
     in property <[SimRowVM]> sim-rows;
     in property <[float]> sim-bars;

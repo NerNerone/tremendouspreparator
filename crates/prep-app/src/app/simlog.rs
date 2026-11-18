@@ -114,6 +114,7 @@ impl Ctrl {
         let st = ui.global::<AppState>();
         st.set_sim_count(n as i32);
         st.set_sim_summary(ss(summary));
+        st.set_sim_avg(ss(&avg));
         st.set_sim_details(ss(details));
         st.set_sim_rows(model(rows));
         st.set_sim_bars(model(bars));

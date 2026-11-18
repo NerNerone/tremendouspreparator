@@ -145,32 +145,33 @@ impl Ctrl {
                     let _ = vfs::create_dir_all(dest.parent().unwrap_or(&dest));
                     vfs::write(&dest, &bytes).map_err(|e| e.to_string()).map(|_| dest)
                 });
+            // Android: l'APK passa all'installatore di sistema dal thread dell'interfaccia
+            #[cfg(target_os = "android")]
             let _ = slint::invoke_from_event_loop(move || {
                 with_ctrl(|c| {
                     c.ui().global::<AppState>().set_update_busy(false);
-                    if let Err(e) = r.and_then(|p| install(&p)) {
+                    if let Err(e) = r.and_then(|p| crate::install_apk(&p)) {
                         c.toast(format!("Aggiornamento non riuscito: {e}"));
                     }
                 })
             });
+            // Flatpak: l'installazione può durare, resta qui; se riesce l'app si riavvia
+            #[cfg(not(target_os = "android"))]
+            {
+                let r = r.and_then(|p| crate::flatpak::install_and_restart(&p));
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ctrl(|c| {
+                        c.ui().global::<AppState>().set_update_busy(false);
+                        match r {
+                            Ok(_) => c.toast("Si è aperto il gestore di software: conferma lì l'aggiornamento"),
+                            Err(e) => c.toast(format!("Aggiornamento non riuscito: {e}")),
+                        }
+                    })
+                });
+            }
         });
         #[cfg(target_arch = "wasm32")]
         let _ = (url, dest);
-    }
-}
-
-/// Installa il pacchetto scaricato: APK (Android) o bundle Flatpak (computer).
-#[cfg(not(target_arch = "wasm32"))]
-fn install(p: &std::path::Path) -> Result<(), String> {
-    #[cfg(target_os = "android")]
-    return crate::install_apk(p);
-    #[cfg(not(target_os = "android"))]
-    match crate::flatpak::install_and_restart(p)? {
-        true => Ok(()),
-        false => {
-            Err("installazione diretta non permessa: conferma l'aggiornamento nel gestore di software che si è aperto"
-                .into())
-        }
     }
 }
 
