@@ -1211,17 +1211,36 @@ impl Ctrl {
         }
         // mappe di calore: la propria e quella del membro toccato in classifica
         let my_hist = mine.hist.as_ref().map(|h| h.on(today)).unwrap_or_else(|| self.study_log.hist(today));
-        let active: Vec<u32> = my_hist.iter().copied().filter(|x| *x > 0).collect();
-        st.set_my_heat(model(heat_cells(&my_hist, today)));
-        st.set_my_heat_total(ss(format!(
-            "Ultime 12 settimane: {} in {} giorni · record {}",
-            fmt_secs(my_hist.iter().map(|x| *x as u64).sum()),
-            active.len(),
-            fmt_secs(active.iter().copied().max().unwrap_or(0) as u64)
-        )));
+        // la propria: anche oltre le 12 settimane condivise, dal registro locale (fino a un anno)
+        let my_long: Vec<u32> = (0..366)
+            .map(|i| {
+                let d = (today - chrono::Duration::days(i)).format("%Y-%m-%d").to_string();
+                let local = self.study_log.days.get(&d).copied().unwrap_or(0) as u32;
+                local.max(my_hist.get(i as usize).copied().unwrap_or(0))
+            })
+            .collect();
+        let hm = heat_month(&my_long, today, self.heat_back[0]);
+        st.set_my_heat(model(hm.cells));
+        st.set_my_heat_total(ss(hm.total));
+        st.set_my_heat_title(ss(hm.title));
+        st.set_my_heat_prev(hm.can_prev);
+        st.set_my_heat_next(self.heat_back[0] > 0);
         let sel = st.get_member_sel().to_string();
+        if sel != self.heat_member {
+            self.heat_member = sel.clone();
+            self.heat_back[1] = 0;
+        }
         let member_hist = all.iter().find(|(id, _, _, _)| *id == sel).and_then(|(_, s, _, _)| s.hist.as_ref());
-        st.set_member_heat(model(member_hist.map(|h| heat_cells(&h.on(today), today)).unwrap_or_default()));
+        match member_hist {
+            Some(h) => {
+                let hm = heat_month(&h.on(today), today, self.heat_back[1]);
+                st.set_member_heat(model(hm.cells));
+                st.set_member_heat_title(ss(hm.title));
+                st.set_member_heat_prev(hm.can_prev);
+            }
+            None => st.set_member_heat(model(Vec::new())),
+        }
+        st.set_member_heat_next(self.heat_back[1] > 0);
         self.refresh_group_calendar(&all, today);
         self.refresh_profile(&all, &cars, &ck);
         let p = self.group_period;
@@ -1440,39 +1459,106 @@ impl Ctrl {
     }
 }
 
-/// Celle della mappa di calore: 12 settimane fino a quella di `today` (dal lunedì), per
-/// colonne; `hist[i]` = secondi di studio di `i` giorni fa. Intensità per durata assoluta.
-fn heat_cells(hist: &[u32], today: chrono::NaiveDate) -> Vec<crate::HeatVM> {
+const MONTH_NAMES: [&str; 12] = [
+    "gennaio",
+    "febbraio",
+    "marzo",
+    "aprile",
+    "maggio",
+    "giugno",
+    "luglio",
+    "agosto",
+    "settembre",
+    "ottobre",
+    "novembre",
+    "dicembre",
+];
+
+/// Primo giorno del mese di `today` spostato indietro di `back` mesi.
+fn month_start(today: chrono::NaiveDate, back: i32) -> chrono::NaiveDate {
+    use chrono::Datelike;
+    let mut y = today.year();
+    let mut m = today.month() as i32 - back;
+    while m < 1 {
+        m += 12;
+        y -= 1;
+    }
+    chrono::NaiveDate::from_ymd_opt(y, m as u32, 1).unwrap_or(today)
+}
+
+/// Mappa di calore di un mese: calendario a righe di settimane (dal lunedì), `back` mesi fa;
+/// `hist[i]` = secondi di studio di `i` giorni fa. Intensità per durata assoluta.
+pub(super) struct HeatMonth {
+    pub cells: Vec<crate::HeatVM>,
+    pub title: String,
+    pub total: String,
+    pub can_prev: bool,
+}
+
+fn heat_month(hist: &[u32], today: chrono::NaiveDate, back: i32) -> HeatMonth {
     use chrono::Datelike;
     const DAYS: [&str; 7] = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
-    let monday = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
-    let first = monday - chrono::Duration::weeks(11);
-    (0..84)
-        .map(|k| {
-            let date = first + chrono::Duration::days(k);
-            let i = (today - date).num_days();
-            if i < 0 {
-                return crate::HeatVM { level: -1, label: ss("") };
-            }
-            let secs = hist.get(i as usize).copied().unwrap_or(0) as u64;
-            let level = match secs {
-                0 => 0,
-                1..1800 => 1,
-                1800..5400 => 2,
-                5400..10800 => 3,
-                _ => 4,
-            };
-            let what = if secs == 0 { "niente studio".to_string() } else { prep_core::group::fmt_secs(secs) };
-            crate::HeatVM {
-                level,
-                label: ss(format!(
-                    "{} {}: {what}",
-                    DAYS[date.weekday().num_days_from_monday() as usize],
-                    date.format("%d/%m")
-                )),
-            }
-        })
-        .collect()
+    let start = month_start(today, back);
+    let next = month_start(today, back - 1);
+    let first = start - chrono::Duration::days(start.weekday().num_days_from_monday() as i64);
+    let weeks = ((next - first).num_days() + 6) / 7;
+    let known = |date: chrono::NaiveDate| {
+        let i = (today - date).num_days();
+        (i >= 0 && (i as usize) < hist.len()).then(|| hist[i as usize])
+    };
+    let mut cells = Vec::new();
+    for k in 0..weeks * 7 {
+        let date = first + chrono::Duration::days(k);
+        if date < start || date >= next {
+            cells.push(crate::HeatVM { level: -1, label: ss(""), day: ss("") });
+            continue;
+        }
+        let day = ss(date.day().to_string());
+        let Some(secs) = known(date) else {
+            // futuro o prima della storia conservata
+            cells.push(crate::HeatVM { level: -2, label: ss(""), day });
+            continue;
+        };
+        let level = match secs {
+            0 => 0,
+            1..1800 => 1,
+            1800..5400 => 2,
+            5400..10800 => 3,
+            _ => 4,
+        };
+        let what = if secs == 0 { "niente studio".to_string() } else { prep_core::group::fmt_secs(secs as u64) };
+        cells.push(crate::HeatVM {
+            level,
+            label: ss(format!(
+                "{} {}: {what}",
+                DAYS[date.weekday().num_days_from_monday() as usize],
+                date.format("%d/%m")
+            )),
+            day,
+        });
+    }
+    let days: Vec<u32> =
+        (0..(next - start).num_days()).filter_map(|d| known(start + chrono::Duration::days(d))).collect();
+    let active: Vec<u32> = days.iter().copied().filter(|x| *x > 0).collect();
+    let total = if active.is_empty() {
+        "Nessuno studio registrato in questo mese".to_string()
+    } else {
+        format!(
+            "{} in {} {} · record {}",
+            prep_core::group::fmt_secs(active.iter().map(|x| *x as u64).sum()),
+            active.len(),
+            if active.len() == 1 { "giorno" } else { "giorni" },
+            prep_core::group::fmt_secs(active.iter().copied().max().unwrap_or(0) as u64)
+        )
+    };
+    // il mese prima ha ancora giorni nella storia?
+    let prev_last = start - chrono::Duration::days(1);
+    HeatMonth {
+        cells,
+        title: format!("{} {}", MONTH_NAMES[start.month0() as usize], start.year()),
+        total,
+        can_prev: ((today - prev_last).num_days() as usize) < hist.len(),
+    }
 }
 
 impl Ctrl {
@@ -1485,20 +1571,7 @@ impl Ctrl {
     ) {
         use chrono::{Datelike, Duration};
         use prep_core::group::{fmt_secs, HIST_DAYS};
-        const MONTHS: [&str; 12] = [
-            "gennaio",
-            "febbraio",
-            "marzo",
-            "aprile",
-            "maggio",
-            "giugno",
-            "luglio",
-            "agosto",
-            "settembre",
-            "ottobre",
-            "novembre",
-            "dicembre",
-        ];
+        const MONTHS: [&str; 12] = MONTH_NAMES;
         const DAYS: [&str; 7] = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"];
         // per membro: nome e studio per giorno (indice = giorni fa)
         let rows: Vec<(String, Vec<u32>, Option<&prep_core::group::Hist>)> = all
@@ -1822,7 +1895,16 @@ impl Ctrl {
         st.set_profile_initial(ss(s.name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default()));
         st.set_profile_color(slint::Color::from_argb_encoded(s.color));
         st.set_profile_lines(model(lines.iter().map(ss).collect::<Vec<_>>()));
-        st.set_profile_heat(model(hist.map(|h| heat_cells(&h, ck.today)).unwrap_or_default()));
+        match hist {
+            Some(h) => {
+                let hm = heat_month(&h, ck.today, self.heat_back[2]);
+                st.set_profile_heat(model(hm.cells));
+                st.set_profile_heat_title(ss(hm.title));
+                st.set_profile_heat_prev(hm.can_prev);
+            }
+            None => st.set_profile_heat(model(Vec::new())),
+        }
+        st.set_profile_heat_next(self.heat_back[2] > 0);
         st.set_profile_racing(on && s.state == State::Studying);
         st.set_profile_open(true);
     }

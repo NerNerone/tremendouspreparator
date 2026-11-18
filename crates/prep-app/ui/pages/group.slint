@@ -1057,39 +1057,80 @@ component FocusSheet inherits Rectangle {
     }
 }
 
-// mappa di calore: 12 settimane (colonne) × 7 giorni (righe, dal lunedì); tocco = dettagli
+// mappa di calore di un mese: calendario a settimane (dal lunedì) con le frecce per i mesi
+// precedenti; tocco su un giorno = dettagli
 component Heatmap inherits VerticalLayout {
     in property <[HeatVM]> cells;
+    in property <string> title;
+    in property <bool> can-prev;
+    in property <bool> can-next;
+    callback shift(int);
     property <string> sel;
-    property <length> gap: 3px;
+    property <length> gap: 4px;
     spacing: 6px;
-    grid := HorizontalLayout {
-        spacing: root.gap;
-        VerticalLayout {
-            spacing: root.gap;
-            for l in ["L", "M", "M", "G", "V", "S", "D"]: Text {
-                height: (grid.width - 14px - 12 * root.gap) / 12;
-                width: 14px;
-                text: l;
-                font-size: 10px;
-                color: M3.on-surface-variant;
-                vertical-alignment: center;
+    HorizontalLayout {
+        alignment: space-between;
+        IconButton {
+            icon: Icons.chevron-left;
+            tint: root.can-prev ? M3.on-surface : M3.on-surface.with-alpha(0.25);
+            clicked => {
+                if root.can-prev {
+                    root.sel = "";
+                    root.shift(1);
+                }
             }
         }
-        for w in 12: VerticalLayout {
-            spacing: root.gap;
-            for d in 7: Rectangle {
-                property <HeatVM> c: root.cells[w * 7 + d];
-                height: self.width;
-                border-radius: 3px;
-                background: c.level < 0 ? transparent : c.level == 0 ? M3.surface-container-highest : M3.primary.with-alpha(0.15 + 0.85 * c.level / 4);
-                border-width: root.sel == c.label && c.level >= 0 ? 2px : 0;
-                border-color: M3.on-surface;
-                TouchArea {
-                    enabled: c.level >= 0;
-                    clicked => {
-                        root.sel = root.sel == c.label ? "" : c.label;
-                    }
+        Text {
+            text: root.title;
+            font-weight: 700;
+            color: M3.on-surface;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+        IconButton {
+            icon: Icons.chevron;
+            tint: root.can-next ? M3.on-surface : M3.on-surface.with-alpha(0.25);
+            clicked => {
+                if root.can-next {
+                    root.sel = "";
+                    root.shift(-1);
+                }
+            }
+        }
+    }
+    HorizontalLayout {
+        alignment: center;
+        spacing: root.gap;
+        for l in ["L", "M", "M", "G", "V", "S", "D"]: Text {
+            preferred-width: 40px;
+            min-width: 20px;
+            text: l;
+            font-size: 10px;
+            color: M3.on-surface-variant;
+            horizontal-alignment: center;
+        }
+    }
+    for w in root.cells.length / 7: HorizontalLayout {
+        alignment: center;
+        spacing: root.gap;
+        for d in 7: Rectangle {
+            property <HeatVM> c: root.cells[w * 7 + d];
+            preferred-width: 40px;
+            min-width: 20px;
+            height: self.width;
+            border-radius: 6px;
+            background: c.level < 0 ? (c.level == -2 ? M3.surface-container : transparent) : c.level == 0 ? M3.surface-container-highest : M3.primary.with-alpha(0.15 + 0.85 * c.level / 4);
+            border-width: root.sel == c.label && c.level >= 0 ? 2px : 0;
+            border-color: M3.on-surface;
+            Text {
+                text: c.day;
+                font-size: 10px;
+                color: c.level >= 3 ? M3.on-primary : c.level == -2 ? M3.on-surface-variant.with-alpha(0.5) : M3.on-surface-variant;
+            }
+            TouchArea {
+                enabled: c.level >= 0;
+                clicked => {
+                    root.sel = root.sel == c.label ? "" : c.label;
                 }
             }
         }
@@ -1561,6 +1602,12 @@ export component GroupPage inherits Page {
                         padding-top: 4px;
                         Heatmap {
                             cells: AppState.member-heat;
+                            title: AppState.member-heat-title;
+                            can-prev: AppState.member-heat-prev;
+                            can-next: AppState.member-heat-next;
+                            shift(d) => {
+                                AppState.heat-shift(1, d);
+                            }
                         }
                     }
                     // azioni sul membro toccato
@@ -1719,6 +1766,12 @@ export component GroupPage inherits Page {
                     }
                     Heatmap {
                         cells: AppState.my-heat;
+                        title: AppState.my-heat-title;
+                        can-prev: AppState.my-heat-prev;
+                        can-next: AppState.my-heat-next;
+                        shift(d) => {
+                            AppState.heat-shift(0, d);
+                        }
                     }
                 }
             }
@@ -1888,6 +1941,12 @@ export component GroupPage inherits Page {
                     }
                     if AppState.profile-heat.length > 0: Heatmap {
                         cells: AppState.profile-heat;
+                        title: AppState.profile-heat-title;
+                        can-prev: AppState.profile-heat-prev;
+                        can-next: AppState.profile-heat-next;
+                        shift(d) => {
+                            AppState.heat-shift(2, d);
+                        }
                     }
                     if AppState.profile-racing: M3Button {
                         text: "Mostra nel circuito";

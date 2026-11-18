@@ -382,6 +382,10 @@ pub struct Ctrl {
     pdf_return: i32,
     /// OCR in corso: alzato da «Ferma»
     ocr_stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// mappe di calore: mesi indietro (la propria, del membro toccato, del profilo aperto)
+    heat_back: [i32; 3],
+    /// membro di cui si mostra la mappa (cambiandolo si torna al mese corrente)
+    heat_member: String,
     /// risultati aperti dal registro delle simulazioni (si torna lì)
     results_from_log: bool,
     /// tratto di studio in corso e suoi effetti (punteggio, vedi prep_core::score)
@@ -1046,6 +1050,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         pdf_return: P_HOME,
         ocr_stop: Default::default(),
         results_from_log: false,
+        heat_back: [0; 3],
+        heat_member: String::new(),
         run: Default::default(),
         focus_on: false,
         racing_others: 0,
@@ -1357,6 +1363,15 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_open_profile(|id| {
         with_ctrl(|c| {
             c.profile_sel = if id.is_empty() { None } else { Some(id.to_string()) };
+            c.heat_back[2] = 0;
+            c.refresh_group();
+        })
+    });
+    st.on_heat_shift(|which, d| {
+        with_ctrl(|c| {
+            if let Some(b) = c.heat_back.get_mut(which as usize) {
+                *b = (*b + d).max(0);
+            }
             c.refresh_group();
         })
     });

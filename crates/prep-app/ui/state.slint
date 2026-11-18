@@ -286,9 +286,11 @@ export struct CrUnitVM {
 }
 
 // un giorno della mappa di calore: intensità 0..4 (-1 = giorno che deve ancora venire)
+// un giorno della mappa di calore: livello 0..4, -1 fuori dal mese, -2 senza dati
 export struct HeatVM {
     level: int,
     label: string,
+    day: string,
 }
 
 export struct RankVM {
@@ -625,6 +627,17 @@ export global AppState {
     in property <[HeatVM]> my-heat;
     in property <[HeatVM]> member-heat;
     in property <string> my-heat-total;
+    // mese mostrato e frecce (0 = la propria, 1 = membro toccato, 2 = profilo)
+    in property <string> my-heat-title;
+    in property <bool> my-heat-prev;
+    in property <bool> my-heat-next;
+    in property <string> member-heat-title;
+    in property <bool> member-heat-prev;
+    in property <bool> member-heat-next;
+    in property <string> profile-heat-title;
+    in property <bool> profile-heat-prev;
+    in property <bool> profile-heat-next;
+    callback heat-shift(int, int);
     // calendario del gruppo
     in property <[GHeatVM]> gcal-cells;
     in property <string> gcal-title;

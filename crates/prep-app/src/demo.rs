@@ -140,6 +140,8 @@ pub fn maybe_run(ui: &AppWindow) {
                 "pdftext" => crate::app::demo_pdf("text", arg),
                 "pdfocr" => crate::app::demo_pdf("ocr", arg),
                 "profileme" => crate::app::demo_profile_me(),
+                // heatshift:N — la propria mappa di calore N mesi indietro (negativo: avanti)
+                "heatshift" => st.invoke_heat_shift(0, arg.parse().unwrap_or(1)),
                 "gcal" => st.invoke_gcal_select(arg.parse().unwrap_or(0)),
                 "gcalmonth" => st.invoke_gcal_mode(arg == "1"),
                 "study" => st.invoke_study_start(),
