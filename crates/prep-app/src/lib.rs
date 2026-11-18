@@ -25,6 +25,8 @@ mod periodic;
 mod photo;
 #[cfg(target_arch = "wasm32")]
 mod web;
+#[cfg(target_os = "linux")]
+mod wl_clipboard;
 
 pub use app::{run, APP_VERSION};
 

@@ -970,6 +970,11 @@ fn device_name() -> String {
 
 pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     crate::crash::install(&data_dir);
+    // Linux: copia e incolla con il protocollo Wayland standard (anche nel Flatpak)
+    #[cfg(target_os = "linux")]
+    if let Ok(p) = crate::wl_clipboard::WaylandClipboardPlatform::new() {
+        let _ = slint::platform::set_platform(Box::new(p));
+    }
     let ui = AppWindow::new()?;
     #[cfg(target_arch = "wasm32")]
     crate::web::fit_window(&ui);

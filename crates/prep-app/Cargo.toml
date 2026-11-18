@@ -84,9 +84,17 @@ orientation = "portrait"
 config_changes = "orientation|screenSize|screenLayout|keyboardHidden|uiMode|density"
 
 [target.'cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))'.dependencies]
-slint = { version = "=1.18.1" }
+slint = { version = "=1.18.1", features = ["raw-window-handle-06"] }
 png = "0.17"
 zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
+
+# appunti su Wayland con il protocollo standard (vedi src/wl_clipboard.rs): il backend di Slint
+# resta lo stesso, si sostituiscono solo copia e incolla
+[target.'cfg(target_os = "linux")'.dependencies]
+i-slint-core = { version = "=1.18.1", default-features = false }
+i-slint-backend-winit = { version = "=1.18.1", default-features = false }
+smithay-clipboard = "0.7"
+raw-window-handle = "0.6"
 
 # versione web (browser): disegno WebGL, dati in IndexedDB, file scelti dal browser
 [target.'cfg(target_arch = "wasm32")'.dependencies]
