@@ -11,6 +11,14 @@ version = "0.2.0" # versionCode 16777728
 Il versionCode è quello che calcola cargo-apk (`1 << 24 | major << 16 | minor << 8 | patch`, ogni parte
 < 256): `python3 tools/version_code.py` lo stampa, `--check` (eseguito dalla CI) verifica il commento.
 
+## Novità in app
+
+Ogni cambiamento visibile si aggiunge come punto (`- …`) in
+[`crates/prep-app/assets/novita.md`](../crates/prep-app/assets/novita.md), sotto la data del giorno
+(sezioni `## <data>`, la più recente in alto). Dopo l'aggiornamento l'app mostra all'avvio i punti
+non ancora visti (riconosciuti dal testo: un punto riscritto ricompare); da Opzioni › Novità si
+rivedono tutti.
+
 ## Pubblicare una versione
 
 1. Aggiorna `version` e il commento in `Cargo.toml`, poi `cargo check` (aggiorna `Cargo.lock`).

@@ -133,6 +133,11 @@ export struct ContentFileVM {
 }
 
 // una simulazione del registro
+export struct NewsVM {
+    date: string,
+    items: [string],
+}
+
 export struct SimRowVM {
     id: string,
     date: string,
@@ -629,6 +634,11 @@ export global AppState {
     in property <bool> update-can-check;
     in property <bool> update-checking;
     callback update-check();
+    // novità dopo un aggiornamento (o da Opzioni)
+    in-out property <bool> news-visible;
+    in property <string> news-title;
+    in property <[NewsVM]> news-rows;
+    callback news-all();
     // tempo che manca alla fine del blocco a tempo («23:41»; vuoto dopo la scadenza)
     in property <string> focus-left;
     in property <float> focus-left-frac;

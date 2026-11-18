@@ -229,6 +229,91 @@ export component AppWindow inherits Window {
 
     if AppState.crop-visible: CropDialog { }
 
+    // novità dopo un aggiornamento
+    if AppState.news-visible: Rectangle {
+        property <float> enter: 0;
+        init => {
+            enter = 1;
+        }
+        animate enter {
+            duration: 300ms;
+            easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+        }
+        background: M3.scrim.with-alpha(0.6 * self.enter);
+        TouchArea {
+            clicked => {
+                AppState.news-visible = false;
+            }
+        }
+        Rectangle {
+            opacity: parent.enter;
+            transform-scale-x: 85% + 15% * parent.enter;
+            transform-scale-y: 85% + 15% * parent.enter;
+            width: min(root.width - 32px, 480px);
+            height: min(root.height - 96px, body.preferred-height + 150px);
+            border-radius: 28px;
+            background: M3.surface-container-high;
+            clip: true;
+            TouchArea { }
+            nl := VerticalLayout {
+                padding: 24px;
+                padding-bottom: 16px;
+                spacing: 12px;
+                Text {
+                    text: AppState.news-title;
+                    font-size: Type.headline;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+
+                fl := Flickable {
+                    vertical-stretch: 1;
+                    viewport-height: body.preferred-height;
+                    body := VerticalLayout {
+                        width: fl.width;
+                        spacing: 16px;
+                        for sec in AppState.news-rows: VerticalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: sec.date;
+                                font-size: Type.label;
+                                font-weight: 600;
+                                color: M3.primary;
+                            }
+
+                            for it in sec.items: HorizontalLayout {
+                                spacing: 8px;
+                                Text {
+                                    text: "•";
+                                    color: M3.primary;
+                                    vertical-alignment: top;
+                                }
+
+                                Text {
+                                    horizontal-stretch: 1;
+                                    text: it;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    M3Button {
+                        kind: 3;
+                        text: "Ok";
+                        clicked => {
+                            AppState.news-visible = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // dialogo di conferma
     if AppState.dialog-visible: Rectangle {
         property <float> enter: 0;

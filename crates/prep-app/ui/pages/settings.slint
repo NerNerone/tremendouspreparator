@@ -42,6 +42,13 @@ export component SettingsPage inherits Page {
                     }
                 }
                 ListRow {
+                    title: "Novità";
+                    subtitle: "Cosa è cambiato nelle ultime versioni";
+                    clicked => {
+                        AppState.news-all();
+                    }
+                }
+                ListRow {
                     title: "Note legali";
                     subtitle: "Nessuna garanzia; contenuti importati e servizi esterni sono responsabilità di chi li usa";
                     clicked => {

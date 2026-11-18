@@ -3,7 +3,7 @@
 use crate::periodic;
 use crate::{
     AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, CrewVM, ExamDateVM, ExamSectionVM, ExamVM, FlagVM,
-    FocusAppVM, GoalVM, GroupVM, NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM,
+    FocusAppVM, GoalVM, GroupVM, NavCellVM, NavRowVM, NewsVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM,
     SimRowVM, SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
@@ -38,6 +38,7 @@ mod exams;
 mod focus;
 mod goals;
 mod group;
+mod news;
 mod pdftools;
 mod quiz;
 mod quiz_setup;
@@ -1373,6 +1374,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_cr_close(|| with_ctrl(|c| c.creator_close()));
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
     st.on_update_check(|| with_ctrl(|c| c.updates_check_now()));
+    st.on_news_all(|| with_ctrl(|c| c.news_all()));
     st.set_update_can_check(updates::enabled());
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));
@@ -1543,6 +1545,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
 
     // errore nella sessione precedente: proposta di segnalazione, a interfaccia pronta
     slint::Timer::single_shot(Duration::from_millis(1200), || with_ctrl(|c| c.crash_check()));
+    // novità dell'aggiornamento appena installato
+    slint::Timer::single_shot(Duration::from_millis(900), || with_ctrl(|c| c.news_check()));
 
     crate::demo::maybe_run(&ui);
     let r = ui.run();

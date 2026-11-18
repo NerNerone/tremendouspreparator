@@ -75,6 +75,11 @@ pub struct Settings {
     /// versione delle note legali accettata (0 = mai)
     #[serde(default)]
     pub legal_accepted: u32,
+    /// novità già viste (impronte dei punti) e se il registro è stato avviato
+    #[serde(default)]
+    pub news_seen: Vec<String>,
+    #[serde(default)]
+    pub news_init: bool,
 }
 
 fn d_times() -> Vec<String> {
@@ -113,6 +118,8 @@ impl Default for Settings {
             focus_allowed: vec![],
             focus_minutes: 0,
             legal_accepted: 0,
+            news_seen: vec![],
+            news_init: false,
         }
     }
 }
