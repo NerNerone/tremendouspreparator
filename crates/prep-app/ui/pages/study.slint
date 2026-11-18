@@ -169,6 +169,18 @@ export component StudyPage inherits Page {
                                 }
                             }
 
+                            // registro delle simulazioni fatte (media, andamento, da rivedere)
+                            if AppState.exam-rules != "" || AppState.sim-count > 0: M3Button {
+                                text: AppState.sim-count > 0 ? "Registro simulazioni · " + AppState.sim-summary : "Registro simulazioni";
+                                kind: 3;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.insights;
+                                clicked => {
+                                    AppState.open-simlog();
+                                }
+                            }
+
                             // prove ufficiali definite dal pacchetto (domande reali, ordine originale)
                             if AppState.official-tests.length > 0: Text {
                                 text: "Prove ufficiali (domande reali, ordine originale):";

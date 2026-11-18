@@ -436,6 +436,24 @@ export component QuizHubPage inherits Page {
             }
 
             Rectangle { height: 8px; }
+            if AppState.exam-rules != "" || AppState.sim-count > 0: SectionTitle { text: "Simulazioni"; }
+            if AppState.exam-rules != "" || AppState.sim-count > 0: Text {
+                text: AppState.sim-summary;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            if AppState.exam-rules != "" || AppState.sim-count > 0: M3Button {
+                text: "Registro delle simulazioni";
+                kind: 1;
+                has-icon: true;
+                icon: Icons.insights;
+                clicked => {
+                    AppState.open-simlog();
+                }
+            }
+
+            Rectangle { height: 8px; }
             SectionTitle { text: "Insicure e sbagliate"; }
             Text {
                 text: AppState.flagged-count + " segnate insicure · " + AppState.wrong-count + " sbagliate l'ultima volta";

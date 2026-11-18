@@ -162,13 +162,6 @@ export component CreatorPage inherits Page {
                             AppState.cr-create-exam(exam-name.text);
                         }
                     }
-                    if AppState.cr-has-exam: M3Button {
-                        text: "Continua invece «" + AppState.cr-exam + "»";
-                        kind: 3;
-                        clicked => {
-                            AppState.cr-new = false;
-                        }
-                    }
                 }
             }
 

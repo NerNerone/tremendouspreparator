@@ -111,6 +111,13 @@ pub fn maybe_run(ui: &AppWindow) {
                 "fxdemo" => crate::app::demo_fx(),
                 "pdftools" => st.invoke_open_pdf_tools(),
                 "creator" => st.invoke_open_creator(arg == "new"),
+                // registro delle simulazioni: simlog (apre), simopen:N (riapre la N-esima)
+                "simlog" => st.invoke_open_simlog(),
+                "simopen" => {
+                    if let Some(r) = slint::Model::row_data(&st.get_sim_rows(), arg.parse().unwrap_or(0)) {
+                        st.invoke_simlog_open(r.id);
+                    }
+                }
                 "crexam" => st.invoke_cr_create_exam(arg.into()),
                 "cropen" => st.invoke_cr_open_file(arg.parse().unwrap_or(0), "".into()),
                 "crname" => {

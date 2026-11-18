@@ -4,7 +4,7 @@ use crate::periodic;
 use crate::{
     AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, CrewVM, ExamDateVM, ExamSectionVM, ExamVM, FlagVM,
     FocusAppVM, GoalVM, GroupVM, NavCellVM, NavRowVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM,
-    SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
+    SimRowVM, SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -42,6 +42,7 @@ mod pdftools;
 mod quiz;
 mod quiz_setup;
 mod report;
+mod simlog;
 mod updates;
 
 const LEGAL_VERSION: u32 = 3;
@@ -95,6 +96,7 @@ const P_GROUP: i32 = 13;
 const P_CONTENTS: i32 = 14;
 const P_PDFTOOLS: i32 = 15;
 const P_CREATOR: i32 = 16;
+const P_SIMLOG: i32 = 17;
 
 fn tab_page(tab: i32) -> i32 {
     match tab {
@@ -380,6 +382,8 @@ pub struct Ctrl {
     pdf_return: i32,
     /// OCR in corso: alzato da «Ferma»
     ocr_stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// risultati aperti dal registro delle simulazioni (si torna lì)
+    results_from_log: bool,
     /// tratto di studio in corso e suoi effetti (punteggio, vedi prep_core::score)
     run: prep_core::score::Run,
     /// concentrazione attiva (×1,5) e altri membri in pista (scia di gruppo)
@@ -720,6 +724,7 @@ impl Ctrl {
         self.refresh_unit();
         self.refresh_flags();
         self.refresh_quiz_setup();
+        self.refresh_simlog();
         self.refresh_settings_info();
         self.share_legacy_goals();
         self.refresh_goals();
@@ -804,6 +809,11 @@ impl Ctrl {
             }
             P_CREATOR => {
                 self.go_tab(0);
+                true
+            }
+            P_SIMLOG => {
+                let tab = st.get_tab();
+                self.set_page(tab_page(tab));
                 true
             }
             P_PDFTOOLS => {
@@ -1035,6 +1045,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         pdf_pick: None,
         pdf_return: P_HOME,
         ocr_stop: Default::default(),
+        results_from_log: false,
         run: Default::default(),
         focus_on: false,
         racing_others: 0,
@@ -1329,6 +1340,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_focus_search(|q| with_ctrl(|c| c.focus_search(&q)));
     st.on_open_pdf_tools(|| with_ctrl(|c| c.open_pdf_tools()));
     st.on_open_creator(|new| with_ctrl(|c| c.open_creator(new)));
+    st.on_open_simlog(|| with_ctrl(|c| c.open_simlog()));
+    st.on_simlog_open(|id| with_ctrl(|c| c.simlog_open(&id)));
     st.on_cr_create_exam(|n| with_ctrl(|c| c.creator_new_exam(&n)));
     st.on_cr_open_file(|k, p| with_ctrl(|c| c.creator_open_file(k, &p)));
     st.on_cr_refresh_prompt(|| with_ctrl(|c| c.creator_prompt()));

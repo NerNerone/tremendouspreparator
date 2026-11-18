@@ -9,7 +9,7 @@ import { M3, Icons, Type } from "theme.slint";
 import { AppState } from "state.slint";
 import { NavItem, M3Button, Scroller } from "components.slint";
 import { CropDialog } from "crop.slint";
-import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, GoalsPage, PeriodicPage, GroupPage, ContentsPage, PdfToolsPage, CreatorPage } from "pages.slint";
+import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, GoalsPage, PeriodicPage, GroupPage, ContentsPage, PdfToolsPage, CreatorPage, SimLogPage } from "pages.slint";
 
 export { AppState, M3 }
 
@@ -61,6 +61,7 @@ export component AppWindow inherits Window {
                 if AppState.page == 14: ContentsPage { }
                 if AppState.page == 15: PdfToolsPage { }
                 if AppState.page == 16: CreatorPage { }
+                if AppState.page == 17: SimLogPage { }
             }
 
             // concentrazione attiva: il tempo che manca, su ogni pagina

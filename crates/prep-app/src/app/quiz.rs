@@ -524,17 +524,18 @@ impl Ctrl {
         }
         self.reload_progress();
         self.refresh_all();
-        self.show_results(&session, &q);
+        self.results_from_log = false;
+        self.show_results(&session, &q.title);
         // gli altri propri dispositivi collegati ricevono subito la sessione
         self.p2p_announce();
     }
 
-    pub(super) fn show_results(&mut self, s: &Session, q: &Quiz) {
+    pub(super) fn show_results(&mut self, s: &Session, title: &str) {
         let ui = self.ui();
         let st = ui.global::<AppState>();
         let sc = s.score.clone().unwrap_or_default();
         let exam = s.kind == SessionKind::Exam;
-        st.set_r_title(ss(if exam { format!("Simulazione · {}", q.title) } else { q.title.clone() }));
+        st.set_r_title(ss(if exam { format!("Simulazione · {title}") } else { title.to_string() }));
         st.set_r_is_exam(exam);
         let timed: Vec<u32> = s.items.iter().map(|i| i.secs).filter(|x| *x > 0).collect();
         let avg = if timed.is_empty() { 0.0 } else { timed.iter().sum::<u32>() as f64 / timed.len() as f64 };
@@ -641,7 +642,10 @@ impl Ctrl {
         let unit = self.results.as_ref().and_then(|s| s.unit.clone());
         self.results = None;
         self.flush_flags();
-        if let Some(u) = unit {
+        if std::mem::take(&mut self.results_from_log) {
+            self.refresh_simlog();
+            self.set_page(P_SIMLOG);
+        } else if let Some(u) = unit {
             self.unit_id = u;
             self.refresh_unit();
             self.set_page(P_UNIT);

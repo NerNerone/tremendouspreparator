@@ -132,6 +132,19 @@ export struct ContentFileVM {
     head: bool,
 }
 
+// una simulazione del registro
+export struct SimRowVM {
+    id: string,
+    date: string,
+    title: string,
+    points: string,
+    // punti / massimo (0..1), per la barra
+    frac: float,
+    has-pass: bool,
+    passed: bool,
+    detail: string,
+}
+
 export struct ExamVM {
     id: string,
     name: string,
@@ -531,6 +544,16 @@ export global AppState {
     // creatore di pacchetti guidato
     // true: un pacchetto nuovo (si parte dal nome); false: quello in uso
     callback open-creator(bool);
+    // registro delle simulazioni
+    callback open-simlog();
+    callback simlog-open(string);
+    in property <int> sim-count;
+    in property <string> sim-summary;
+    in property <string> sim-details;
+    in property <[SimRowVM]> sim-rows;
+    in property <[float]> sim-bars;
+    // soglia di superamento (frazione del massimo), 0 se non si può disegnare
+    in property <float> sim-pass-frac;
     in property <bool> cr-has-exam;
     // creatore aperto per un pacchetto nuovo: si chiede il nome anche se un esame è in uso
     in-out property <bool> cr-new;
