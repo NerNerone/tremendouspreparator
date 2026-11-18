@@ -6,8 +6,13 @@ use std::path::PathBuf;
 
 /// Finestra «Apri file» di sistema; `None` se annullata o non disponibile.
 pub fn pick_file() -> Option<PathBuf> {
-    portal_open().or_else(|| {
-        command("zenity", &["--file-selection", "--title=Aggiungi un file ai contenuti"])
+    pick_file_titled("Aggiungi un file ai contenuti")
+}
+
+/// Come [`pick_file`], con il titolo della finestra.
+pub fn pick_file_titled(title: &str) -> Option<PathBuf> {
+    portal_open(title).or_else(|| {
+        command("zenity", &["--file-selection", &format!("--title={title}")])
             .or_else(|| command("kdialog", &["--getopenfilename", "."]))
     })
 }
@@ -20,7 +25,7 @@ fn command(cmd: &str, args: &[&str]) -> Option<PathBuf> {
 
 /// org.freedesktop.portal.FileChooser.OpenFile: la risposta arriva come segnale sulla
 /// richiesta creata dal portale.
-fn portal_open() -> Option<PathBuf> {
+fn portal_open(title: &str) -> Option<PathBuf> {
     use zbus::zvariant::{OwnedValue, Value};
     let conn = zbus::blocking::Connection::session().ok()?;
     let token = format!("tp{}", std::process::id());
@@ -44,7 +49,7 @@ fn portal_open() -> Option<PathBuf> {
         "/org/freedesktop/portal/desktop",
         Some("org.freedesktop.portal.FileChooser"),
         "OpenFile",
-        &("", "Aggiungi un file ai contenuti", opts),
+        &("", title, opts),
     )
     .ok()?;
     for msg in it.flatten() {

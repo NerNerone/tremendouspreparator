@@ -1223,6 +1223,87 @@ component Heatmap inherits VerticalLayout {
     }
 }
 
+// selettore a pillole affiancate (una sola scelta), compatto
+component Segmented inherits Rectangle {
+    in property <[string]> labels;
+    in property <int> index;
+    callback picked(int);
+    height: 34px;
+    border-radius: 17px;
+    border-width: 1px;
+    border-color: M3.outline;
+    clip: true;
+    HorizontalLayout {
+        for l[i] in root.labels: Rectangle {
+            background: i == root.index ? M3.secondary-container : transparent;
+            min-width: t.preferred-width + 24px;
+            t := Text {
+                text: l;
+                font-size: Type.label;
+                font-weight: i == root.index ? 700 : 500;
+                color: i == root.index ? M3.on-secondary-container : M3.on-surface-variant;
+            }
+            TouchArea {
+                clicked => {
+                    root.picked(i);
+                }
+            }
+        }
+    }
+}
+
+// codice del gruppo che si copia con un tocco (negli appunti) — comodo dal telefono
+component CodeCopy inherits Rectangle {
+    in property <string> code;
+    in property <length> code-size: Type.body;
+    // con il pulsante «Copia» sotto il codice (scheda dell'invito), o solo il codice toccabile
+    in property <bool> button: false;
+    min-height: lay.preferred-height;
+    buf := TextInput {
+        x: 0px;
+        y: 0px;
+        width: 0px;
+        height: 0px;
+        text: root.code;
+        read-only: true;
+        enabled: false;
+        opacity: 0;
+    }
+    function copy() {
+        buf.select-all();
+        buf.copy();
+        buf.clear-selection();
+        AppState.notify("Codice copiato: incollalo a chi vuoi invitare");
+    }
+    lay := VerticalLayout {
+        spacing: 8px;
+        Rectangle {
+            border-radius: 8px;
+            background: ta.pressed ? M3.primary.with-alpha(0.12) : transparent;
+            min-height: code-text.preferred-height + 4px;
+            code-text := Text {
+                x: 0px;
+                width: parent.width;
+                text: root.code;
+                font-size: root.code-size;
+                font-weight: 700;
+                color: M3.primary;
+                wrap: word-wrap;
+            }
+            ta := TouchArea {
+                clicked => {
+                    root.copy();
+                }
+            }
+        }
+        if !root.button: Text {
+            text: "Tocca il codice per copiarlo";
+            font-size: 11px;
+            color: M3.on-surface-variant;
+        }
+    }
+}
+
 // matitina tonda per modificare (nome, foto)
 component EditBadge inherits Rectangle {
     callback clicked;
@@ -1246,6 +1327,9 @@ component EditBadge inherits Rectangle {
 
 export component GroupPage inherits Page {
     property <bool> rename-open: false;
+    property <bool> has-group: AppState.group-has && AppState.group-code != "";
+    // calendario mostrato: il proprio (falso) o quello del gruppo
+    property <bool> cal-group: false;
     VerticalLayout {
         TopBar {
             title: "Studio di gruppo";
@@ -1311,8 +1395,8 @@ export component GroupPage inherits Page {
                     HorizontalLayout {
                         spacing: 12px;
                         Rectangle {
-                            width: 60px;
-                            height: 60px;
+                            width: 62px;
+                            height: 62px;
                             Avatar {
                                 x: 0;
                                 y: 0;
@@ -1333,8 +1417,9 @@ export component GroupPage inherits Page {
                                 }
                             }
                             if AppState.group-admin: EditBadge {
-                                x: parent.width - self.width + 4px;
-                                y: parent.height - self.height + 4px;
+                                // sul bordo del cerchio, in basso a destra, senza uscire dal riquadro
+                                x: parent.width - self.width;
+                                y: parent.height - self.height;
                                 clicked => {
                                     AppState.pick-photo("group");
                                 }
@@ -1367,10 +1452,9 @@ export component GroupPage inherits Page {
                                     horizontal-stretch: 1;
                                 }
                             }
-                            Text {
-                                text: "Codice " + AppState.group-code;
-                                font-weight: 700;
-                                color: M3.primary;
+                            CodeCopy {
+                                code: AppState.group-code;
+                                code-size: Type.label + 1px;
                             }
                             Text {
                                 text: AppState.group-admin-name == "" ? "Nessun amministratore noto" : "Amministratore: " + AppState.group-admin-name;
@@ -1629,19 +1713,23 @@ export component GroupPage inherits Page {
                                 color: M3.on-surface;
                                 overflow: elide;
                             }
+                            // si accorcia con «…» invece di spingere i punti fuori dallo schermo
                             Text {
-                                text: r.status + " · " + r.time + (r.admin ? " · amministratore" : "");
+                                text: r.status + " · " + r.time + (r.admin ? " · admin" : "");
                                 font-size: Type.label;
                                 color: M3.on-surface-variant;
+                                overflow: elide;
                             }
                         }
                         VerticalLayout {
                             alignment: center;
+                            horizontal-stretch: 0;
                             Text {
                                 text: r.value;
                                 font-weight: 700;
                                 color: M3.on-surface;
                                 horizontal-alignment: right;
+                                wrap: no-wrap;
                             }
                             if r.boost != "": Text {
                                 text: r.boost;
@@ -1699,135 +1787,131 @@ export component GroupPage inherits Page {
                 }
             }
 
-            // calendario del gruppo: settimana o mese, tocco su un giorno = chi ha studiato
-            if AppState.group-has && AppState.group-code != "": Card {
+            // calendario: il proprio o quello del gruppo, scelto con il selettore a sinistra
+            Card {
                 VerticalLayout {
                     padding: 16px;
                     spacing: 8px;
                     HorizontalLayout {
                         spacing: 8px;
-                        Text {
-                            text: "Calendario del gruppo";
+                        if has-group: Segmented {
+                            labels: ["Tu", "Gruppo"];
+                            index: cal-group ? 1 : 0;
+                            picked(i) => {
+                                cal-group = i == 1;
+                            }
+                        }
+                        if !has-group: Text {
+                            text: "I tuoi giorni di studio";
                             font-size: Type.title;
                             font-weight: 700;
                             color: M3.on-surface;
-                            horizontal-stretch: 1;
                             vertical-alignment: center;
                         }
-                        Chip {
-                            text: "Settimana";
-                            selected: !AppState.gcal-month;
-                            clicked => {
-                                AppState.gcal-mode(false);
-                            }
+                        Rectangle {
+                            horizontal-stretch: 1;
                         }
-                        Chip {
-                            text: "Mese";
-                            selected: AppState.gcal-month;
-                            clicked => {
-                                AppState.gcal-mode(true);
+                        if has-group && cal-group: Segmented {
+                            labels: ["Settimana", "Mese"];
+                            index: AppState.gcal-month ? 1 : 0;
+                            picked(i) => {
+                                AppState.gcal-mode(i == 1);
                             }
                         }
                     }
-                    HorizontalLayout {
-                        IconButton {
-                            icon: Icons.chevron-left;
-                            enabled: AppState.gcal-can-prev;
-                            clicked => {
-                                AppState.gcal-shift(-1);
-                            }
-                        }
+                    // il proprio: mese per mese
+                    if !has-group || !cal-group: VerticalLayout {
+                        spacing: 8px;
                         Text {
-                            text: AppState.gcal-title;
-                            horizontal-stretch: 1;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-weight: 700;
-                            color: M3.on-surface;
+                            text: AppState.my-heat-total;
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                            wrap: word-wrap;
                         }
-                        IconButton {
-                            icon: Icons.chevron;
-                            enabled: AppState.gcal-can-next;
-                            clicked => {
-                                AppState.gcal-shift(1);
+                        Heatmap {
+                            cells: AppState.my-heat;
+                            title: AppState.my-heat-title;
+                            can-prev: AppState.my-heat-prev;
+                            can-next: AppState.my-heat-next;
+                            shift(d) => {
+                                AppState.heat-shift(0, d);
                             }
                         }
                     }
-                    cal := Rectangle {
-                        property <length> gap: 4px;
-                        property <length> cw: (self.width - 6 * self.gap) / 7;
-                        height: 18px + ceil(AppState.gcal-cells.length / 7) * (self.cw + self.gap);
-                        for l[k] in ["L", "M", "M", "G", "V", "S", "D"]: Text {
-                            x: k * (cal.cw + cal.gap);
-                            y: 0;
-                            width: cal.cw;
-                            text: l;
-                            font-size: 11px;
-                            horizontal-alignment: center;
-                            color: M3.on-surface-variant;
-                        }
-                        for c[k] in AppState.gcal-cells: Rectangle {
-                            x: mod(k, 7) * (cal.cw + cal.gap);
-                            y: 18px + floor(k / 7) * (cal.cw + cal.gap);
-                            width: cal.cw;
-                            height: AppState.gcal-month ? cal.cw : cal.cw;
-                            border-radius: 8px;
-                            background: c.level < 0 ? transparent : c.level == 0 ? M3.surface-container-highest : M3.primary.with-alpha(0.15 + 0.85 * c.level / 4);
-                            border-width: c.sel ? 2px : c.today ? 1px : 0;
-                            border-color: c.sel ? M3.on-surface : M3.primary;
-                            Text {
-                                text: c.day;
-                                font-size: 12px;
-                                font-weight: c.today ? 800 : 400;
-                                color: c.level < 0 ? M3.outline-variant : c.level >= 3 ? M3.on-primary : M3.on-surface;
-                            }
-                            TouchArea {
-                                enabled: c.idx >= 0;
+                    // del gruppo: settimana o mese, tocco su un giorno = chi ha studiato
+                    if has-group && cal-group: VerticalLayout {
+                        spacing: 8px;
+                        HorizontalLayout {
+                            IconButton {
+                                icon: Icons.chevron-left;
+                                enabled: AppState.gcal-can-prev;
                                 clicked => {
-                                    AppState.gcal-select(c.idx);
+                                    AppState.gcal-shift(-1);
+                                }
+                            }
+                            Text {
+                                text: AppState.gcal-title;
+                                horizontal-stretch: 1;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                            }
+                            IconButton {
+                                icon: Icons.chevron;
+                                enabled: AppState.gcal-can-next;
+                                clicked => {
+                                    AppState.gcal-shift(1);
                                 }
                             }
                         }
-                    }
-                    for line[k] in AppState.gcal-lines: Text {
-                        text: line;
-                        wrap: word-wrap;
-                        font-size: k == 0 ? Type.body : Type.label;
-                        font-weight: k == 0 ? 700 : 400;
-                        color: k == 0 ? M3.on-surface : M3.on-surface-variant;
-                    }
-                    if AppState.gcal-lines.length == 0: Text {
-                        text: "Tocca un giorno: chi ha studiato, quanto e su cosa.";
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                    }
-                }
-            }
-
-            // i propri giorni di studio
-            Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 8px;
-                    Text {
-                        text: "I tuoi giorni di studio";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    Text {
-                        text: AppState.my-heat-total;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                        wrap: word-wrap;
-                    }
-                    Heatmap {
-                        cells: AppState.my-heat;
-                        title: AppState.my-heat-title;
-                        can-prev: AppState.my-heat-prev;
-                        can-next: AppState.my-heat-next;
-                        shift(d) => {
-                            AppState.heat-shift(0, d);
+                        cal := Rectangle {
+                            property <length> gap: 4px;
+                            property <length> cw: (self.width - 6 * self.gap) / 7;
+                            height: 18px + ceil(AppState.gcal-cells.length / 7) * (self.cw + self.gap);
+                            for l[k] in ["L", "M", "M", "G", "V", "S", "D"]: Text {
+                                x: k * (cal.cw + cal.gap);
+                                y: 0;
+                                width: cal.cw;
+                                text: l;
+                                font-size: 11px;
+                                horizontal-alignment: center;
+                                color: M3.on-surface-variant;
+                            }
+                            for c[k] in AppState.gcal-cells: Rectangle {
+                                x: mod(k, 7) * (cal.cw + cal.gap);
+                                y: 18px + floor(k / 7) * (cal.cw + cal.gap);
+                                width: cal.cw;
+                                height: AppState.gcal-month ? cal.cw : cal.cw;
+                                border-radius: 8px;
+                                background: c.level < 0 ? transparent : c.level == 0 ? M3.surface-container-highest : M3.primary.with-alpha(0.15 + 0.85 * c.level / 4);
+                                border-width: c.sel ? 2px : c.today ? 1px : 0;
+                                border-color: c.sel ? M3.on-surface : M3.primary;
+                                Text {
+                                    text: c.day;
+                                    font-size: 12px;
+                                    font-weight: c.today ? 800 : 400;
+                                    color: c.level < 0 ? M3.outline-variant : c.level >= 3 ? M3.on-primary : M3.on-surface;
+                                }
+                                TouchArea {
+                                    enabled: c.idx >= 0;
+                                    clicked => {
+                                        AppState.gcal-select(c.idx);
+                                    }
+                                }
+                            }
+                        }
+                        for line[k] in AppState.gcal-lines: Text {
+                            text: line;
+                            wrap: word-wrap;
+                            font-size: k == 0 ? Type.body : Type.label;
+                            font-weight: k == 0 ? 700 : 400;
+                            color: k == 0 ? M3.on-surface : M3.on-surface-variant;
+                        }
+                        if AppState.gcal-lines.length == 0: Text {
+                            text: "Tocca un giorno: chi ha studiato, quanto e su cosa.";
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
                         }
                     }
                 }
@@ -1848,21 +1932,20 @@ export component GroupPage inherits Page {
                         short: "Manda il codice a chi vuoi invitare.";
                         full: "Manda il codice a chi vuoi invitare: lo scrive in «Entra con un codice» (nell'app o nella web app). Il gruppo è privato: lo vede solo chi ha il codice.";
                     }
-                    LineEdit {
-                        text: AppState.group-code;
-                        read-only: true;
-                        font-size: 20px;
+                    CodeCopy {
+                        code: AppState.group-code;
+                        code-size: 20px;
+                    }
+                    M3Button {
+                        text: "Condividi codice";
+                        has-icon: true;
+                        icon: Icons.add;
+                        clicked => {
+                            AppState.group-invite();
+                        }
                     }
                     HorizontalLayout {
-                        spacing: 8px;
-                        M3Button {
-                            text: "Condividi codice";
-                            has-icon: true;
-                            icon: Icons.add;
-                            clicked => {
-                                AppState.group-invite();
-                            }
-                        }
+                        alignment: end;
                         M3Button {
                             text: "Esci dal gruppo";
                             kind: 3;

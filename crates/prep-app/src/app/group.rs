@@ -354,7 +354,7 @@ impl Ctrl {
             g.name, g.code
         );
         if !crate::share_text(&text) {
-            self.toast("Copia il codice qui sopra e mandalo a chi vuoi invitare");
+            self.toast("Tocca il codice per copiarlo e mandalo a chi vuoi invitare");
         }
     }
 
@@ -761,13 +761,21 @@ impl Ctrl {
         }
         #[cfg(target_arch = "wasm32")]
         crate::web::pick_photo(self.store.base.join("import"), if kind == "group" { "group" } else { "user" });
+        // computer (anche Flatpak): finestra di sistema, fuori dal thread dell'interfaccia
         #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-        match newest_image_download() {
-            Some(p) => match vfs::read(&p) {
-                Ok(bytes) => self.photo_imported(kind, &bytes),
-                Err(e) => self.toast(format!("Errore: {e}")),
-            },
-            None => self.toast("Nessuna immagine in Immagini o Download: salvane una lì e riprova"),
+        {
+            let kind = kind.to_string();
+            let title = if kind == "group" { "Scegli la foto del gruppo" } else { "Scegli la foto profilo" };
+            spawn_background(move || {
+                let Some(p) = crate::desktop_files::pick_file_titled(title) else { return };
+                let res = std::fs::read(&p);
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ctrl(|c| match res {
+                        Ok(bytes) => c.photo_imported(&kind, &bytes),
+                        Err(e) => c.toast(format!("Errore: {e}")),
+                    })
+                });
+            });
         }
     }
 

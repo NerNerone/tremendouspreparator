@@ -91,7 +91,15 @@ fn latest() -> Result<Option<(String, String)>, String> {
     } else {
         format!("{API}/releases/latest")
     };
-    let mut resp = get(&url)?;
+    // nessuna release (stabile o beta) pubblicata: niente da aggiornare
+    let mut resp = match ureq::get(&url)
+        .header("User-Agent", "TremendousPreparator")
+        .header("Accept", "application/vnd.github+json")
+        .call()
+    {
+        Err(ureq::Error::StatusCode(404)) => return Ok(None),
+        r => r.map_err(|e| e.to_string())?,
+    };
     let body = resp.body_mut().read_to_string().map_err(|e| e.to_string())?;
     let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
     Ok(newer(&v, mine, std::env::consts::ARCH, flatpak()))
@@ -117,6 +125,32 @@ impl Ctrl {
         });
         #[cfg(target_arch = "wasm32")]
         let _ = self;
+    }
+
+    /// «Cerca aggiornamenti» nelle Opzioni: come all'avvio, ma subito e con l'esito a schermo.
+    pub(super) fn updates_check_now(&mut self) {
+        if !enabled() {
+            return;
+        }
+        self.ui().global::<AppState>().set_update_checking(true);
+        #[cfg(not(target_arch = "wasm32"))]
+        spawn_background(move || {
+            let r = latest();
+            let _ = slint::invoke_from_event_loop(move || {
+                with_ctrl(|c| {
+                    c.ui().global::<AppState>().set_update_checking(false);
+                    match r {
+                        Ok(Some((v, url))) => {
+                            c.update_url = url;
+                            c.ui().global::<AppState>().set_update_version(ss(&v));
+                            c.toast(format!("È disponibile la versione {v}: tocca «Aggiorna»"));
+                        }
+                        Ok(None) => c.toast(format!("Hai già l'ultima versione ({})", crate::app::APP_VERSION)),
+                        Err(e) => c.toast(format!("Controllo non riuscito: {e}")),
+                    }
+                })
+            });
+        });
     }
 
     /// «Aggiorna»: scarica l'APK (o il bundle Flatpak) e lo installa.

@@ -603,6 +603,10 @@ export global AppState {
     in property <string> update-version;
     in property <bool> update-busy;
     callback update-install();
+    // «Cerca aggiornamenti»: solo nelle build che si aggiornano da sole
+    in property <bool> update-can-check;
+    in property <bool> update-checking;
+    callback update-check();
     // tempo che manca alla fine del blocco a tempo («23:41»; vuoto dopo la scadenza)
     in property <string> focus-left;
     in property <float> focus-left-frac;
@@ -814,6 +818,8 @@ export global AppState {
     in property <string> guide-llm;
     in property <bool> rd-llm-card;
     callback rd-copied();
+    // messaggio breve in basso (es. «Codice copiato»)
+    callback notify(string);
     callback rd-share(string);
 
     callback import-pack();

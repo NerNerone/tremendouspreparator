@@ -48,6 +48,17 @@ export component SettingsPage inherits Page {
                         AppState.legal-visible = true;
                     }
                 }
+                // controllo a mano, senza aspettare il prossimo avvio
+                if AppState.update-can-check && AppState.update-version == "": M3Button {
+                    text: AppState.update-checking ? "Cerco…" : "Cerca aggiornamenti";
+                    kind: 2;
+                    has-icon: true;
+                    icon: Icons.sync;
+                    enabled: !AppState.update-checking;
+                    clicked => {
+                        AppState.update-check();
+                    }
+                }
                 // nuova versione dell'app disponibile
                 if AppState.update-version != "": M3Button {
                     text: AppState.update-busy ? "Scarico l'aggiornamento…" : "Aggiorna alla versione " + AppState.update-version;

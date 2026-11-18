@@ -147,25 +147,6 @@ type PitKey = (usize, usize, Vec<i64>);
 /// Collegamenti diretti (WebRTC) al massimo per il gruppo di studio: oltre, i relay.
 const GROUP_DIRECT: usize = 8;
 
-/// Desktop: l'immagine più recente in Immagini o Download (per la foto profilo).
-#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-fn newest_image_download() -> Option<PathBuf> {
-    let home = PathBuf::from(std::env::var("HOME").ok()?);
-    let dirs = ["Immagini", "Pictures", "Scaricati", "Downloads"];
-    dirs.iter()
-        .filter_map(|d| std::fs::read_dir(home.join(d)).ok())
-        .flatten()
-        .flatten()
-        .filter(|e| {
-            e.path()
-                .extension()
-                .and_then(|x| x.to_str())
-                .is_some_and(|x| matches!(x.to_lowercase().as_str(), "jpg" | "jpeg" | "png"))
-        })
-        .max_by_key(|e| e.metadata().and_then(|m| m.modified()).ok())
-        .map(|e| e.path())
-}
-
 fn model<T: Clone + 'static>(v: Vec<T>) -> ModelRc<T> {
     ModelRc::new(VecModel::from(v))
 }
@@ -1347,6 +1328,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_open_pdf_tools(|| with_ctrl(|c| c.open_pdf_tools()));
     st.on_open_creator(|new| with_ctrl(|c| c.open_creator(new)));
     st.on_open_simlog(|| with_ctrl(|c| c.open_simlog()));
+    st.on_notify(|m| with_ctrl(|c| c.toast(m.to_string())));
     st.on_simlog_open(|id| with_ctrl(|c| c.simlog_open(&id)));
     st.on_cr_create_exam(|n| with_ctrl(|c| c.creator_new_exam(&n)));
     st.on_cr_open_file(|k, p| with_ctrl(|c| c.creator_open_file(k, &p)));
@@ -1355,6 +1337,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_cr_open_figure(|p| with_ctrl(|c| c.creator_open_figure(&p)));
     st.on_cr_close(|| with_ctrl(|c| c.creator_close()));
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
+    st.on_update_check(|| with_ctrl(|c| c.updates_check_now()));
+    st.set_update_can_check(updates::enabled());
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));
     st.on_pdf_ocr(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Ocr)));
