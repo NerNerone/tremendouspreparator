@@ -1401,7 +1401,7 @@ export component GroupPage inherits Page {
                         spacing: 12px;
                         Rectangle {
                             width: 56px;
-                            height: 56px;
+                            height: 60px;
                             Avatar {
                                 x: 0;
                                 y: 0;
@@ -1422,10 +1422,10 @@ export component GroupPage inherits Page {
                                 }
                             }
                             if AppState.group-admin: EditBadge {
-                                // dentro il cerchio dell'avatar, in basso a destra
+                                // in basso a destra, sul fondo del cerchio dell'avatar
                                 size: 24px;
-                                x: 27px;
-                                y: 27px;
+                                x: 32px;
+                                y: 36px;
                                 clicked => {
                                     AppState.pick-photo("group");
                                 }
