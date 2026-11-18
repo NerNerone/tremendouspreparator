@@ -13,6 +13,7 @@ solo un piccolo [esempio](examples/esempio).
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="200" alt="Home">
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="200" alt="Quiz">
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width="200" alt="Gruppo">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" width="200" alt="Registro simulazioni">
 </p>
 
 ## Funzioni
@@ -22,14 +23,17 @@ solo un piccolo [esempio](examples/esempio).
   materia strumenti (tavola periodica) e scorciatoie a capitoli dei libri.
 - **Quiz** per argomento, unità o materia; risposta multipla o completamento (anche numerico, con
   unità di misura); spiegazione e rimando al punto del libro.
-- **Simulazione d'esame** con numero di domande, tempo e punteggi definiti dal pacchetto.
+- **Simulazione d'esame** con numero di domande, tempo e punteggi definiti dal pacchetto; registro delle
+  simulazioni fatte con media, andamento e ognuna da rivedere.
 - **Flashcard** con ripetizione dilazionata; ripasso delle domande sbagliate o incerte.
 - **Progressi**: stima della preparazione per argomento e obiettivi del giorno
   ([modello](docs/MODELLO_PROGRESSI.md)); pausa e ripresa delle sessioni; promemoria.
 - **Tra dispositivi**: progressi sincronizzati senza un server dell'app (vedi [Rete e privacy](#rete-e-privacy));
   un esame installato si può passare a un altro dispositivo o, con un codice usa e getta, a un'altra persona.
 - **Gruppi di studio**: classifica e una gara in cui ogni minuto di studio è un giro di pista; avvisi
-  «vieni a studiare»; foto profilo.
+  «vieni a studiare»; foto profilo; calendario dei giorni di studio mese per mese.
+- **Creare un pacchetto** con un'AI passo passo, con il controllo di qualità dei contenuti; strumenti per
+  dividere i PDF ed estrarne il testo, anche con l'OCR sul dispositivo (scansioni e foto).
 - **Concentrazione** (Android): per il tempo scelto le altre app riportano allo studio, tranne quelle
   permesse. Chiamate, numeri d'emergenza, sveglia e schermo bloccato non vengono mai toccati.
 - **Aspetto**: colore del tema a scelta; su Android 12+ anche quello di sistema.
