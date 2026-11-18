@@ -94,7 +94,8 @@ final class StudyNotify {
             // notifica del servizio in primo piano: può avere lo sfondo nel colore dell'app
             b.setColorized(true);
         }
-        if (!progressStyle(c, b, progress, max, segment, color)) {
+        boolean colorized = until > System.currentTimeMillis();
+        if (!progressStyle(c, b, progress, max, segment, color, colorized)) {
             b.setProgress(max, progress, false);
         }
         // Android 16: promossa ad aggiornamento in tempo reale (barra di stato, schermata di blocco)
@@ -107,7 +108,8 @@ final class StudyNotify {
     }
 
     /** ProgressStyle (Android 16+), per riflessione: compila con la piattaforma attuale. */
-    private static boolean progressStyle(Context c, Notification.Builder b, int progress, int max, int segment, int color) {
+    private static boolean progressStyle(Context c, Notification.Builder b, int progress, int max, int segment, int color,
+                                         boolean colorized) {
         if (android.os.Build.VERSION.SDK_INT < 36) return false;
         try {
             Class<?> ps = Class.forName("android.app.Notification$ProgressStyle");
@@ -124,7 +126,12 @@ final class StudyNotify {
             ps.getMethod("setProgressSegments", List.class).invoke(style, segs);
             ps.getMethod("setProgress", int.class).invoke(style, progress);
             ps.getMethod("setStyledByProgress", boolean.class).invoke(style, true);
-            ps.getMethod("setProgressTrackerIcon", Icon.class).invoke(style, Icon.createWithResource(c, smallIcon(c)));
+            // la monoposto (muso nel verso della barra) al posto dell'icona dell'app
+            int car = c.getResources().getIdentifier("ic_car", "drawable", c.getPackageName());
+            Icon tracker = Icon.createWithResource(c, car != 0 ? car : smallIcon(c));
+            // su fondo nel colore dell'app resta bianca, altrimenti prende il colore dell'app
+            if (!colorized) tracker.setTint(color);
+            ps.getMethod("setProgressTrackerIcon", Icon.class).invoke(style, tracker);
             b.setStyle((Notification.Style) style);
             return true;
         } catch (Exception e) {

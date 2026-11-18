@@ -120,7 +120,8 @@ impl Ctrl {
         }
         let return_page = self.ui().global::<AppState>().get_page();
         self.reader = Some(Reader { title: GUIDE_TITLE.into(), entries, pos: 0, return_page });
-        self.ui().global::<AppState>().set_rd_toc_visible(true);
+        // si apre sulla prima pagina (il percorso con l'AI), non sull'indice
+        self.ui().global::<AppState>().set_rd_toc_visible(false);
         self.render_reader();
         self.set_page(P_READER);
     }

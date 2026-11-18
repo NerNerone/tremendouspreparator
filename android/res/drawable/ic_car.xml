@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- monoposto vista dall'alto, muso a destra: indicatore della barra nella notifica di studio -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="36dp" android:height="20dp"
+    android:viewportWidth="36" android:viewportHeight="20">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M0,3h3v14h-3z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M4,0h7v5h-7z M4,15h7v5h-7z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M23,1h6v4h-6z M23,15h6v4h-6z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M10,6h8a4,4 0 0,1 0,8h-8a4,4 0 0,1 0,-8z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M20,8.5h13v3h-13z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M32,2h3v16h-3z"/>
+</vector>

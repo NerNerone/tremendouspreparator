@@ -1,0 +1,405 @@
+import { LineEdit, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type } from "../theme.slint";
+import { AppState, CrFileVM, CrUnitVM } from "../state.slint";
+import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip, IconButton, VIcon, LlmCopy } from "../components.slint";
+
+// una riga del creatore: un file dell'esame, da aprire per rifarlo o correggerlo
+component CrRow inherits Rectangle {
+    in property <CrFileVM> f;
+    min-height: 56px;
+    border-radius: 12px;
+    background: ta.pressed ? M3.surface-container-high : M3.surface-container-low;
+    ta := TouchArea {
+        clicked => {
+            AppState.cr-open-file(root.f.kind, root.f.path);
+        }
+    }
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 4px;
+        spacing: 8px;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: root.f.title;
+                font-weight: 600;
+                color: M3.on-surface;
+                overflow: elide;
+            }
+            Text {
+                text: root.f.info;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                overflow: elide;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: Icons.edit;
+                clicked => {
+                    AppState.cr-open-file(root.f.kind, root.f.path);
+                }
+            }
+        }
+    }
+}
+
+// un gruppo di file dello stesso tipo, con il pulsante «+»
+component CrGroup inherits Card {
+    in property <int> kind;
+    in property <string> title;
+    in property <string> help;
+    in property <string> add;
+    in property <bool> enabled: true;
+    VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
+        Text {
+            text: root.title;
+            font-size: Type.title;
+            font-weight: 700;
+            color: M3.on-surface;
+        }
+        Text {
+            text: root.help;
+            wrap: word-wrap;
+            font-size: Type.label;
+            color: M3.on-surface-variant;
+        }
+        for f in AppState.cr-files: VerticalLayout {
+            if f.kind == root.kind: CrRow {
+                f: f;
+            }
+        }
+        if root.add != "": M3Button {
+            text: root.add;
+            has-icon: true;
+            icon: Icons.add;
+            kind: 1;
+            enabled: root.enabled;
+            clicked => {
+                AppState.cr-open-file(root.kind, "");
+            }
+        }
+    }
+}
+
+// creatore di pacchetti guidato: ogni file con il suo prompt per l'AI e la risposta da incollare
+export component CreatorPage inherits Page {
+    property <bool> has-syl: AppState.cr-files.length > 0 && AppState.cr-has-syllabus;
+    VerticalLayout {
+        TopBar {
+            title: "Crea pacchetto";
+            subtitle: AppState.cr-has-exam ? AppState.cr-exam : "Con l'aiuto di un'AI, passo passo";
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            Card {
+                bg: M3.secondary-container;
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 6px;
+                    Text {
+                        text: "Come funziona";
+                        font-weight: 700;
+                        color: M3.on-secondary-container;
+                    }
+                    Text {
+                        text: "Per ogni file: 1) copia il prompt e dallo a un'AI (ChatGPT, Claude, Gemini…) insieme al tuo materiale; 2) copia TUTTA la sua risposta; 3) incollala qui e premi Salva. L'app capisce da sola cosa salvare e dove, e ti dice cosa correggere. Puoi riaprire ogni file quando vuoi.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-secondary-container;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Guida";
+                            kind: 2;
+                            small: true;
+                            clicked => {
+                                AppState.open-guide();
+                            }
+                        }
+                        M3Button {
+                            text: "Strumenti PDF";
+                            kind: 2;
+                            small: true;
+                            clicked => {
+                                AppState.open-pdf-tools();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // nessun esame: si comincia dal nome
+            if !AppState.cr-has-exam: Card {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 8px;
+                    Text {
+                        text: "Nome dell'esame";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    exam-name := LineEdit {
+                        placeholder-text: "es. Fisica I, Anatomia, Concorso…";
+                    }
+                    M3Button {
+                        text: "Crea l'esame";
+                        clicked => {
+                            AppState.cr-create-exam(exam-name.text);
+                        }
+                    }
+                }
+            }
+
+            if AppState.cr-has-exam: CrGroup {
+                kind: 0;
+                title: "1 · L'esame";
+                help: "Materie, unità e argomenti (dal programma ufficiale), e se vuoi le regole della prova: senza regole l'app non propone simulazioni. Serve prima di tutto il resto.";
+                add: AppState.cr-has-syllabus ? "" : "Prepara la definizione dell'esame";
+            }
+            if AppState.cr-has-exam: CrGroup {
+                kind: 1;
+                title: "2 · Capitoli da leggere (facoltativi)";
+                help: "Il testo di libri, dispense o slide, corretto dall'AI e letto nell'app. Prima estrai il testo con Strumenti PDF.";
+                add: "Aggiungi capitolo";
+                enabled: AppState.cr-has-syllabus;
+            }
+            if AppState.cr-has-exam: CrGroup {
+                kind: 2;
+                title: "3 · Quiz";
+                help: "Domande dal tuo materiale, sugli argomenti dell'esame. Un file per capitolo o argomento; poi fallo verificare da un'altra AI (riapri il file).";
+                add: "Aggiungi quiz";
+                enabled: AppState.cr-has-syllabus;
+            }
+            if AppState.cr-has-exam: CrGroup {
+                kind: 3;
+                title: "4 · Flashcard";
+                help: "Definizioni, formule e cose da ricordare, dal tuo materiale.";
+                add: "Aggiungi flashcard";
+                enabled: AppState.cr-has-syllabus;
+            }
+            if AppState.cr-has-exam: Card {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 6px;
+                    Text {
+                        text: "Come si muove la barra di preparazione";
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: AppState.cr-bar;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                }
+            }
+            if AppState.cr-has-exam: HorizontalLayout {
+                spacing: 8px;
+                M3Button {
+                    text: "Tutti i file";
+                    kind: 2;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.open-contents();
+                    }
+                }
+                M3Button {
+                    text: "Esporta pacchetto";
+                    kind: 1;
+                    horizontal-stretch: 1;
+                    clicked => {
+                        AppState.contents-export();
+                    }
+                }
+            }
+        }
+    }
+
+    // editor di un file: prompt da copiare, risposta da incollare
+    if AppState.cr-open: Rectangle {
+        background: M3.surface;
+        TouchArea { }
+        VerticalLayout {
+            TopBar {
+                title: AppState.cr-title;
+                subtitle: AppState.cr-path != "" ? AppState.cr-path : "Nuovo file";
+                can-back: true;
+                back => {
+                    AppState.cr-open = false;
+                }
+            }
+            Scroller {
+                vertical-stretch: 1;
+                pad: 16px;
+                pad-top: 4px;
+                gap: 10px;
+                if AppState.cr-kind != 0 && AppState.cr-path == "": VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "Nome del file";
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    LineEdit {
+                        text <=> AppState.cr-name;
+                        placeholder-text: AppState.cr-kind == 1 ? "es. 2 Cinematica" : "es. Cinematica";
+                        edited => {
+                            AppState.cr-refresh-prompt();
+                        }
+                    }
+                }
+                // quanti e su quali argomenti (quiz e flashcard nuovi)
+                if (AppState.cr-kind == 2 || AppState.cr-kind == 3) && AppState.cr-path == "": VerticalLayout {
+                    spacing: 6px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: AppState.cr-kind == 2 ? "Domande da creare" : "Flashcard da creare";
+                            font-weight: 700;
+                            color: M3.on-surface;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        IconButton {
+                            icon: Icons.remove;
+                            clicked => {
+                                AppState.cr-count = max(5, AppState.cr-count - 5);
+                                AppState.cr-refresh-prompt();
+                            }
+                        }
+                        Text {
+                            text: AppState.cr-count;
+                            font-size: Type.title;
+                            font-weight: 800;
+                            color: M3.primary;
+                            vertical-alignment: center;
+                            min-width: 36px;
+                            horizontal-alignment: center;
+                        }
+                        IconButton {
+                            icon: Icons.add;
+                            clicked => {
+                                AppState.cr-count = min(100, AppState.cr-count + 5);
+                                AppState.cr-refresh-prompt();
+                            }
+                        }
+                    }
+                    Text {
+                        text: "Argomenti";
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Flickable {
+                        height: 40px;
+                        interactive: true;
+                        content-width: max(self.width, unit-row.preferred-width);
+                        content-height: 40px;
+                        unit-row := HorizontalLayout {
+                            x: 0px;
+                            y: 0px;
+                            height: 40px;
+                            spacing: 6px;
+                            alignment: start;
+                            for u in AppState.cr-units: Chip {
+                                text: u.label;
+                                selected: AppState.cr-unit == u.id;
+                                clicked => {
+                                    AppState.cr-unit = u.id;
+                                    AppState.cr-refresh-prompt();
+                                }
+                            }
+                        }
+                    }
+                    if AppState.cr-kind == 2: HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Nota su ogni risposta sbagliata (perché è sbagliata)";
+                            wrap: word-wrap;
+                            color: M3.on-surface;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Switch {
+                            checked <=> AppState.cr-notes;
+                            toggled => {
+                                AppState.cr-refresh-prompt();
+                            }
+                        }
+                    }
+                }
+                LlmCopy {
+                    title: AppState.cr-kind == 2 && AppState.cr-path != "" ? "1 · Prompt per farlo verificare" : "1 · Copia il prompt per l'AI";
+                    body: AppState.cr-kind == 2 && AppState.cr-path != ""
+                        ? "Dallo a un'altra AI (o a una chat nuova): controlla chiavi, calcoli e italiano. Poi incolla qui sotto la sua risposta al posto del testo attuale."
+                        : AppState.cr-kind == 0
+                            ? "Incollalo in una chat con un'AI e allega il programma ufficiale dell'esame (PDF o testo)."
+                            : "Incollalo in una chat con un'AI e allega il materiale: meglio il testo estratto con Strumenti PDF, o il PDF diviso in parti.";
+                    text: AppState.cr-prompt;
+                    copied => {
+                        AppState.rd-copied();
+                    }
+                    share => {
+                        AppState.rd-share(AppState.cr-prompt);
+                    }
+                }
+                Text {
+                    text: "2 · Incolla qui TUTTA la risposta dell'AI";
+                    font-weight: 700;
+                    color: M3.on-surface;
+                }
+                Text {
+                    text: "Di solito sotto la risposta c'è un pulsante «Copia». Non serve togliere niente: l'app prende il file dai blocchi di codice e legge i dubbi dell'AI.";
+                    wrap: word-wrap;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                }
+                answer := TextEdit {
+                    height: 220px;
+                    text <=> AppState.cr-text;
+                    font-size: 13px;
+                    wrap: no-wrap;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    M3Button {
+                        text: "Incolla";
+                        kind: 1;
+                        horizontal-stretch: 1;
+                        clicked => {
+                            answer.select-all();
+                            answer.paste();
+                        }
+                    }
+                    M3Button {
+                        text: "3 · Salva";
+                        horizontal-stretch: 1;
+                        clicked => {
+                            AppState.cr-save();
+                        }
+                    }
+                }
+                if AppState.cr-status != "": Text {
+                    text: AppState.cr-status;
+                    wrap: word-wrap;
+                    color: M3.on-surface;
+                }
+            }
+        }
+    }
+}

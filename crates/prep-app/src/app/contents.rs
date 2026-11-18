@@ -31,7 +31,7 @@ impl Ctrl {
     }
 
     /// Dopo una modifica: contenuti, progressi e pagine si ricalcolano.
-    fn contents_changed(&mut self, status: String) {
+    pub(super) fn contents_changed(&mut self, status: String) {
         self.reload_content();
         self.reload_progress();
         self.refresh_all();

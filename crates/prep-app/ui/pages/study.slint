@@ -10,7 +10,7 @@ export component StudyPage inherits Page {
             subtitle: "Allenamento per unità e simulazioni d'esame";
         }
 
-        HorizontalLayout {
+        if AppState.subjects.length > 0: HorizontalLayout {
             padding-left: 16px;
             padding-right: 16px;
             padding-bottom: 8px;
@@ -89,19 +89,58 @@ export component StudyPage inherits Page {
                         }
                     }
 
-                    Card {
+                    // nessun esame: da dove cominciare
+                    if AppState.subjects.length == 0: Card {
                         bg: M3.surface-container;
                         VerticalLayout {
                             padding: 16px;
                             spacing: 10px;
                             Text {
-                                text: "Simulazione d'esame";
+                                text: "Nessun esame";
+                                font-size: Type.title;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                            }
+                            Text {
+                                text: "Qui compaiono materie, unità, libri e simulazioni dell'esame che installi. Importa un pacchetto o creane uno tuo con l'aiuto di un'AI.";
+                                wrap: word-wrap;
+                                color: M3.on-surface-variant;
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                M3Button {
+                                    text: "Importa pacchetto";
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.import-pack();
+                                    }
+                                }
+                                M3Button {
+                                    text: "Crea un pacchetto";
+                                    kind: 1;
+                                    horizontal-stretch: 1;
+                                    clicked => {
+                                        AppState.open-creator();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // simulazione solo se il pacchetto ne definisce le regole; il quiz misto sempre
+                    if AppState.subjects.length > 0: Card {
+                        bg: M3.surface-container;
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 10px;
+                            Text {
+                                text: AppState.exam-rules != "" ? "Simulazione d'esame" : "Allenamento";
                                 font-size: Type.title;
                                 font-weight: 700;
                                 color: M3.on-surface;
                             }
 
-                            Text {
+                            if AppState.exam-rules != "": Text {
                                 text: AppState.exam-rules;
                                 wrap: word-wrap;
                                 font-size: Type.label;
@@ -110,7 +149,7 @@ export component StudyPage inherits Page {
 
                             HorizontalLayout {
                                 spacing: 8px;
-                                M3Button {
+                                if AppState.exam-rules != "": M3Button {
                                     text: "Simula esame";
                                     has-icon: true;
                                     icon: Icons.timer;
@@ -122,7 +161,7 @@ export component StudyPage inherits Page {
 
                                 M3Button {
                                     text: "Quiz misto";
-                                    kind: 2;
+                                    kind: AppState.exam-rules != "" ? 2 : 0;
                                     horizontal-stretch: 1;
                                     clicked => {
                                         AppState.start-practice("subject", AppState.current-subject);
@@ -193,7 +232,7 @@ export component StudyPage inherits Page {
                         }
                     }
 
-                    SectionTitle {
+                    if AppState.units.length > 0: SectionTitle {
                         text: "Unità didattiche";
                     }
 

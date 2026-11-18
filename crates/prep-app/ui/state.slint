@@ -245,6 +245,20 @@ export struct GHeatVM {
     today: bool,
 }
 
+// creatore di pacchetti: un file dell'esame (kind: 0 esame, 1 capitolo, 2 quiz, 3 flashcard)
+export struct CrFileVM {
+    path: string,
+    kind: int,
+    title: string,
+    info: string,
+}
+
+// creatore: un'unità tra cui scegliere gli argomenti (id vuoto = tutti)
+export struct CrUnitVM {
+    id: string,
+    label: string,
+}
+
 // un giorno della mappa di calore: intensità 0..4 (-1 = giorno che deve ancora venire)
 export struct HeatVM {
     level: int,
@@ -499,6 +513,29 @@ export global AppState {
     callback focus-search(string);
     // strumenti per l'AI: dividere un PDF, estrarne il testo
     callback open-pdf-tools();
+    // creatore di pacchetti guidato
+    callback open-creator();
+    in property <bool> cr-has-exam;
+    in property <string> cr-exam;
+    in property <bool> cr-has-syllabus;
+    in property <[CrFileVM]> cr-files;
+    in property <[CrUnitVM]> cr-units;
+    in property <string> cr-bar;
+    in-out property <bool> cr-open;
+    in-out property <int> cr-kind;
+    in-out property <string> cr-path;
+    in-out property <string> cr-title;
+    in-out property <string> cr-name;
+    in-out property <string> cr-text;
+    in-out property <string> cr-status;
+    in-out property <string> cr-prompt;
+    in-out property <string> cr-unit;
+    in-out property <int> cr-count: 30;
+    in-out property <bool> cr-notes;
+    callback cr-create-exam(string);
+    callback cr-open-file(int, string);
+    callback cr-refresh-prompt();
+    callback cr-save();
     callback pdf-split();
     callback pdf-text();
     in-out property <float> pdf-max-mb: 20;

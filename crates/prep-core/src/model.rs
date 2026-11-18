@@ -10,6 +10,8 @@ pub struct Syllabus {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub id: String,
     pub title: String,
+    /// regole della simulazione d'esame; senza (o con 0 quesiti) l'app non propone simulazioni
+    #[serde(default)]
     pub exam: ExamRules,
     pub subjects: Vec<Subject>,
     /// schede informative dell'esame (regole, consigli…), mostrate nelle Opzioni

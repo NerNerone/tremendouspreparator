@@ -39,7 +39,7 @@
 
 - `id`: identificativo **stabile** dell'esame (minuscole, cifre, trattini). Un pacchetto con lo stesso `id` aggiorna l'esame installato; con un `id` diverso ne aggiunge un altro.
 - `title`: nome mostrato nel selettore in Home.
-- `exam`: regole della simulazione, **per materia**: numero di quesiti, quanti a risposta multipla (`mcq`) e quanti a completamento (`fill`), opzioni per domanda, minuti, punti per risposta giusta, sbagliata e omessa, soglia di superamento, date degli appelli (`AAAA-MM-GG`).
+- `exam` (facoltativo): regole della simulazione d'esame, **per materia**. Senza `exam` (o con 0 quesiti) l'app non propone simulazioni, solo allenamento. Contiene: numero di quesiti, quanti a risposta multipla (`mcq`) e quanti a completamento (`fill`), opzioni per domanda, minuti, punti per risposta giusta, sbagliata e omessa, soglia di superamento, date degli appelli (`AAAA-MM-GG`).
 - `sections` (facoltativo): schede informative nelle Opzioni: titolo, riassunto di una riga e testo completo.
 - `official` (facoltativo): prove ufficiali da rifare così com'erano. Le loro domande hanno id `<materia>-<tag>-…`, nell'ordine della prova.
 - `subjects`: le materie, ognuna con unità e argomenti.

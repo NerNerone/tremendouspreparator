@@ -32,6 +32,7 @@ use web_time::Instant;
 mod books;
 mod cards;
 mod contents;
+mod creator;
 mod devices;
 mod exams;
 mod focus;
@@ -91,6 +92,7 @@ const P_PERIODIC: i32 = 12;
 const P_GROUP: i32 = 13;
 const P_CONTENTS: i32 = 14;
 const P_PDFTOOLS: i32 = 15;
+const P_CREATOR: i32 = 16;
 
 fn tab_page(tab: i32) -> i32 {
     match tab {
@@ -786,6 +788,15 @@ impl Ctrl {
                 self.set_page(P_SETTINGS);
                 true
             }
+            // nel creatore: prima si chiude l'editor del file
+            P_CREATOR if st.get_cr_open() => {
+                st.set_cr_open(false);
+                true
+            }
+            P_CREATOR => {
+                self.go_tab(0);
+                true
+            }
             P_PDFTOOLS => {
                 // si torna da dove si era venuti (guida o contenuti)
                 self.set_page(self.pdf_return);
@@ -1305,6 +1316,11 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));
     st.on_focus_search(|q| with_ctrl(|c| c.focus_search(&q)));
     st.on_open_pdf_tools(|| with_ctrl(|c| c.open_pdf_tools()));
+    st.on_open_creator(|| with_ctrl(|c| c.open_creator()));
+    st.on_cr_create_exam(|n| with_ctrl(|c| c.creator_new_exam(&n)));
+    st.on_cr_open_file(|k, p| with_ctrl(|c| c.creator_open_file(k, &p)));
+    st.on_cr_refresh_prompt(|| with_ctrl(|c| c.creator_prompt()));
+    st.on_cr_save(|| with_ctrl(|c| c.creator_save()));
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));

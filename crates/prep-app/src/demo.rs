@@ -109,6 +109,16 @@ pub fn maybe_run(ui: &AppWindow) {
                 "gjoin" => st.invoke_group_join(arg.into()),
                 "fxdemo" => crate::app::demo_fx(),
                 "pdftools" => st.invoke_open_pdf_tools(),
+                "creator" => st.invoke_open_creator(),
+                "crexam" => st.invoke_cr_create_exam(arg.into()),
+                "cropen" => st.invoke_cr_open_file(arg.parse().unwrap_or(0), "".into()),
+                "crname" => {
+                    st.set_cr_name(arg.into());
+                    st.invoke_cr_refresh_prompt();
+                }
+                "crtext" => st.set_cr_text(std::fs::read_to_string(arg).unwrap_or_default().into()),
+                "crsave" => st.invoke_cr_save(),
+                "crscroll" => {}
                 "pdfpages" => st.set_pdf_pages(arg.into()),
                 "pdfmb" => st.set_pdf_max_mb(arg.parse().unwrap_or(20.0)),
                 "pdfsplit" => crate::app::demo_pdf("split", arg),

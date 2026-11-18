@@ -126,10 +126,10 @@ export component HomePage inherits Page {
                     }
                 }
                 M3Button {
-                    text: "Come si crea un pacchetto";
+                    text: "Crea un pacchetto con l'AI";
                     kind: 2;
                     clicked => {
-                        AppState.open-guide();
+                        AppState.open-creator();
                     }
                 }
             }
@@ -562,7 +562,7 @@ export component HomePage inherits Page {
                     guide-ta := TouchArea {
                         clicked => {
                             AppState.exam-menu = false;
-                            AppState.open-guide();
+                            AppState.open-creator();
                         }
                     }
                     HorizontalLayout {
@@ -574,7 +574,7 @@ export component HomePage inherits Page {
                             size: 22px;
                         }
                         Text {
-                            text: "Crea un pacchetto: guida e prompt per l'AI";
+                            text: "Crea un pacchetto con l'AI (passo passo)";
                             color: M3.primary;
                             vertical-alignment: center;
                             wrap: word-wrap;

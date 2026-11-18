@@ -455,8 +455,16 @@ component RaceView inherits Rectangle {
     property <float> clin: clamp((animation-tick() - root.ctp) / root.cT, 0, 1);
     property <float> cq: root.cam-pit ? 1 - (1 - root.clin) * (1 - root.clin) : (1 - root.clin) * (1 - root.clin);
     property <float> cf: (root.cam-v > 0 ? root.cf0 + root.cam-v * ((animation-tick() - root.ct0) / 1s) : root.cf0) + root.cl-run * root.cq;
+    // direzione della strada nel punto `f`: dalla corda tra due punti vicini del tracciato DISEGNATO
+    // (stirato in larghezza e altezza). La tangente del tracciato di partenza (angle-at) non tiene
+    // conto dello stiramento e alle giunzioni delle curve può saltare: la monoposto girava su sé stessa.
+    pure function heading(f: float) -> angle {
+        return atan2(
+            (road-path.point-at(f + 1.0015).y - road-path.point-at(f + 0.9985).y) / 1px,
+            (road-path.point-at(f + 1.0015).x - road-path.point-at(f + 0.9985).x) / 1px);
+    }
     property <Point> cp: road-path.point-at(root.cf);
-    property <angle> ca: road-path.angle-at(root.cf);
+    property <angle> ca: root.heading(root.cf);
     // al pit stop la telecamera si sposta sulla piazzola, fuori pista
     in property <float> cam-side: 1;
     in property <float> cam-stack;
@@ -484,7 +492,6 @@ component RaceView inherits Rectangle {
         Rectangle {
             width: root.pad-w * root.TW;
             height: root.TH * 0.2;
-            animate width { duration: 400ms; easing: ease-in-out; }
             x: root.P + root.pad-x * root.TW - self.width / 2;
             y: root.P + root.pad-y * root.TH - self.height / 2;
             border-radius: min(self.height / 4, 18px);
@@ -536,7 +543,7 @@ component RaceView inherits Rectangle {
             width: root.TW * root.scale * 0.006 + root.TH * 0.02;
             height: max(1.5px, root.TH * 0.006);
             background: root.bg;
-            transform-rotation: road-path.angle-at(self.t);
+            transform-rotation: root.heading(self.t);
         }
         // traguardo a scacchi, di traverso sulla strada
         Rectangle {
@@ -546,7 +553,7 @@ component RaceView inherits Rectangle {
             y: road-path.y + self.p.y - self.height / 2;
             width: 2 * self.sq;
             height: root.sw;
-            transform-rotation: road-path.angle-at(0);
+            transform-rotation: root.heading(0);
             for i in 16: Rectangle {
                 x: mod(i, 2) * parent.sq;
                 y: floor(i / 2) * parent.sq;
@@ -617,7 +624,7 @@ component RaceView inherits Rectangle {
             property <length> run-len: (170 + 90 * self.l-stack) * 1px * root.k;
             property <angle> yaw: atan((car.pit ? 1 : -1) * (self.pad-off - self.lane-off) / max(1px, self.run-len) * 6 * self.sp * (1 - self.sp));
             property <Point> p: road-path.point-at(self.f);
-            property <angle> a: road-path.angle-at(self.f);
+            property <angle> a: root.heading(self.f);
             property <length> cx: car.parked ? root.P + car.px * root.TW : road-path.x + self.p.x - sin(self.a) * self.off;
             property <length> cy: car.parked ? root.P + car.py * root.TH : road-path.y + self.p.y + cos(self.a) * self.off;
             x: self.cx - self.width / 2;

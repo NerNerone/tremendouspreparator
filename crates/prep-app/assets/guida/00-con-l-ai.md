@@ -1,5 +1,7 @@
 # Creare un pacchetto con un'AI
 
+**Il modo più semplice è nell'app: Home › «Crea un pacchetto con l'AI»** (o Opzioni › Pacchetto contenuti). Ti guida file per file: per ognuno prepara il prompt (con gli argomenti del tuo esame, il numero di domande e gli id già pronti), tu lo dai all'AI con il tuo materiale e incolli la risposta; l'app la legge, la salva nel posto giusto e ti dice cosa correggere.
+
 Questa pagina è il percorso completo, in ordine: dal materiale grezzo (libri, dispense, slide) a un pacchetto con esame, quiz e flashcard. Con **Copia** nel riquadro qui sopra dai a un'AI (ChatGPT, Claude, Gemini, …) **tutta la guida in un solo testo**: istruzioni severe, formati e prompt. Con **Strumenti PDF** dividi i PDF troppo grandi ed estrai il testo.
 
 ## Passo 1: raccogli il materiale
