@@ -271,9 +271,13 @@ pub(crate) mod focus {
         #[cfg(target_os = "android")]
         return super::android_call_str("focusState", None).ok();
         #[cfg(not(target_os = "android"))]
-        std::env::var("PREP_FOCUS_FAKE").ok().map(|_| {
-            r#"{"usage":true,"overlay":false,"until":0,"armed":false,"session":0,"active":false,"allowed":[]}"#
-                .to_string()
+        // PREP_FOCUS_FAKE=restricted: come un APK installato da file su Android 13+
+        std::env::var("PREP_FOCUS_FAKE").ok().map(|v| {
+            let r = v == "restricted";
+            format!(
+                r#"{{"usage":{},"restricted":{r},"overlay":false,"until":0,"armed":false,"session":0,"active":false,"allowed":[]}}"#,
+                !r
+            )
         })
     }
 

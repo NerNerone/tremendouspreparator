@@ -24,7 +24,8 @@ export component AppWindow inherits Window {
     // telefono; la tavola periodica ha più spazio
     property <length> column-max: AppState.page == 12 ? 1240px : 720px;
     property <length> side: max(0px, (root.width - root.column-max) / 2);
-    property <bool> show-nav: AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13;
+    // senza barra quando il foglio della concentrazione è aperto: arriva fino in fondo allo schermo
+    property <bool> show-nav: !AppState.focus-open && (AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13);
 
     fs := FocusScope {
         key-pressed(e) => {

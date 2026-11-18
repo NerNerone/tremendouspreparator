@@ -871,11 +871,14 @@ component FocusSheet inherits Rectangle {
     property <bool> app-search: false;
     background: #0007;
     TouchArea { }
+    // foglio dal basso: attaccato al fondo dello schermo, arrotondato solo in alto, dello stesso
+    // colore della fascia di sistema sotto (così non resta sospeso)
     Rectangle {
-        y: parent.height * 0.08;
-        height: parent.height * 0.92;
-        border-radius: 24px;
-        background: M3.surface-container-low;
+        y: parent.height * 0.06;
+        height: parent.height * 0.94;
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        background: M3.surface;
         VerticalLayout {
             padding: 16px;
             padding-bottom: 20px;
@@ -942,16 +945,30 @@ component FocusSheet inherits Rectangle {
                         wrap: word-wrap;
                     }
                     Text {
-                        text: "Android blocca l'accesso all'utilizzo per le app installate da un file APK invece che da uno store (vedrai «All'app è stato negato l'accesso»). Si sblocca una volta sola:\n1. Tocca «Info app» qui sotto.\n2. In alto a destra ⋮ › «Consenti impostazioni con limitazioni» (su alcuni telefoni «impostazioni limitate») e conferma.\n3. Torna qui e tocca «Concedi» su Accesso all'utilizzo: l'interruttore ora si attiva.";
+                        text: "Android blocca l'accesso all'utilizzo per le app installate da un file APK invece che da uno store. Si sblocca una volta sola, in quest'ordine:\n1. Tocca «Prova l'interruttore» e prova ad attivare quello grigio: esce «All'app è stato negato l'accesso», tocca Chiudi. Serve: solo dopo questo tentativo Android mostra l'opzione per sbloccare.\n2. Tocca «Info app»: in alto a destra ⋮ › «Consenti impostazioni con limitazioni» (su alcuni telefoni «impostazioni limitate») e conferma.\n3. Torna qui e tocca «Concedi» su Accesso all'utilizzo: ora l'interruttore si attiva.";
                         font-size: Type.label;
                         color: M3.on-secondary-container;
                         wrap: word-wrap;
                     }
-                    M3Button {
-                        text: "Info app";
-                        kind: 0;
-                        clicked => {
-                            AppState.focus-perm("appinfo");
+                    HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "1 · Prova l'interruttore";
+                            kind: 0;
+                            compact: true;
+                            horizontal-stretch: 1;
+                            clicked => {
+                                AppState.focus-perm("usage");
+                            }
+                        }
+                        M3Button {
+                            text: "2 · Info app";
+                            kind: 2;
+                            compact: true;
+                            horizontal-stretch: 1;
+                            clicked => {
+                                AppState.focus-perm("appinfo");
+                            }
                         }
                     }
                 }
@@ -959,7 +976,7 @@ component FocusSheet inherits Rectangle {
             if !AppState.focus-restricted && (!AppState.focus-usage-ok || !AppState.focus-overlay-ok): HorizontalLayout {
                 spacing: 8px;
                 Text {
-                    text: "Interruttore grigio o «accesso negato»? Apri Info app › ⋮ › «Consenti impostazioni con limitazioni», poi riprova.";
+                    text: "Interruttore grigio? Provalo una volta (esce «accesso negato»), poi Info app › ⋮ › «Consenti impostazioni con limitazioni» e riprova.";
                     font-size: Type.label;
                     color: M3.on-surface-variant;
                     wrap: word-wrap;
