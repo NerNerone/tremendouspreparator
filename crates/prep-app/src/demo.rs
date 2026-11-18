@@ -110,7 +110,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "gjoin" => st.invoke_group_join(arg.into()),
                 "fxdemo" => crate::app::demo_fx(),
                 "pdftools" => st.invoke_open_pdf_tools(),
-                "creator" => st.invoke_open_creator(),
+                "creator" => st.invoke_open_creator(arg == "new"),
                 "crexam" => st.invoke_cr_create_exam(arg.into()),
                 "cropen" => st.invoke_cr_open_file(arg.parse().unwrap_or(0), "".into()),
                 "crname" => {

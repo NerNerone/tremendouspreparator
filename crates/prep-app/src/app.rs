@@ -1328,7 +1328,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));
     st.on_focus_search(|q| with_ctrl(|c| c.focus_search(&q)));
     st.on_open_pdf_tools(|| with_ctrl(|c| c.open_pdf_tools()));
-    st.on_open_creator(|| with_ctrl(|c| c.open_creator()));
+    st.on_open_creator(|new| with_ctrl(|c| c.open_creator(new)));
     st.on_cr_create_exam(|n| with_ctrl(|c| c.creator_new_exam(&n)));
     st.on_cr_open_file(|k, p| with_ctrl(|c| c.creator_open_file(k, &p)));
     st.on_cr_refresh_prompt(|| with_ctrl(|c| c.creator_prompt()));

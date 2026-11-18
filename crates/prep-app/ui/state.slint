@@ -529,8 +529,11 @@ export global AppState {
     // strumenti per l'AI: dividere un PDF, estrarne il testo
     callback open-pdf-tools();
     // creatore di pacchetti guidato
-    callback open-creator();
+    // true: un pacchetto nuovo (si parte dal nome); false: quello in uso
+    callback open-creator(bool);
     in property <bool> cr-has-exam;
+    // creatore aperto per un pacchetto nuovo: si chiede il nome anche se un esame è in uso
+    in-out property <bool> cr-new;
     in property <string> cr-exam;
     in property <bool> cr-has-syllabus;
     in property <[CrFileVM]> cr-files;

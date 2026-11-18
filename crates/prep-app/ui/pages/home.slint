@@ -129,7 +129,7 @@ export component HomePage inherits Page {
                     text: "Crea un pacchetto con l'AI";
                     kind: 2;
                     clicked => {
-                        AppState.open-creator();
+                        AppState.open-creator(true);
                     }
                 }
             }
@@ -514,6 +514,15 @@ export component HomePage inherits Page {
                                 wrap: word-wrap;
                             }
                         }
+                        // matita: modificare il pacchetto in uso (aggiungere o rifare file) con il creatore
+                        if e.active: IconButton {
+                            icon: Icons.edit;
+                            tint: M3.on-secondary-container;
+                            clicked => {
+                                AppState.exam-menu = false;
+                                AppState.open-creator(false);
+                            }
+                        }
                         IconButton {
                             icon: Icons.close;
                             tint: M3.on-surface-variant;
@@ -562,7 +571,7 @@ export component HomePage inherits Page {
                     guide-ta := TouchArea {
                         clicked => {
                             AppState.exam-menu = false;
-                            AppState.open-creator();
+                            AppState.open-creator(true);
                         }
                     }
                     HorizontalLayout {

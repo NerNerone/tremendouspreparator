@@ -92,7 +92,7 @@ export component CreatorPage inherits Page {
     VerticalLayout {
         TopBar {
             title: "Crea pacchetto";
-            subtitle: AppState.cr-has-exam ? AppState.cr-exam : "Con l'aiuto di un'AI, passo passo";
+            subtitle: AppState.cr-has-exam && !AppState.cr-new ? AppState.cr-exam : "Con l'aiuto di un'AI, passo passo";
             can-back: true;
             back => {
                 AppState.back();
@@ -142,13 +142,13 @@ export component CreatorPage inherits Page {
                 }
             }
 
-            // nessun esame: si comincia dal nome
-            if !AppState.cr-has-exam: Card {
+            // pacchetto nuovo (o nessun esame): si comincia dal nome
+            if !AppState.cr-has-exam || AppState.cr-new: Card {
                 VerticalLayout {
                     padding: 14px;
                     spacing: 8px;
                     Text {
-                        text: "Nome dell'esame";
+                        text: "Nome del nuovo esame";
                         font-size: Type.title;
                         font-weight: 700;
                         color: M3.on-surface;
@@ -162,37 +162,44 @@ export component CreatorPage inherits Page {
                             AppState.cr-create-exam(exam-name.text);
                         }
                     }
+                    if AppState.cr-has-exam: M3Button {
+                        text: "Continua invece «" + AppState.cr-exam + "»";
+                        kind: 3;
+                        clicked => {
+                            AppState.cr-new = false;
+                        }
+                    }
                 }
             }
 
-            if AppState.cr-has-exam: CrGroup {
+            if AppState.cr-has-exam && !AppState.cr-new: CrGroup {
                 kind: 0;
                 title: "1 · L'esame";
                 help: "Materie, unità e argomenti (dal programma ufficiale), e se vuoi le regole della prova: senza regole l'app non propone simulazioni. Serve prima di tutto il resto.";
                 add: AppState.cr-has-syllabus ? "" : "Prepara la definizione dell'esame";
             }
-            if AppState.cr-has-exam: CrGroup {
+            if AppState.cr-has-exam && !AppState.cr-new: CrGroup {
                 kind: 1;
                 title: "2 · Capitoli da leggere (facoltativi)";
                 help: "Il testo di libri, dispense o slide, corretto dall'AI e letto nell'app. Prima estrai il testo con Strumenti PDF.";
                 add: "Aggiungi capitolo";
                 enabled: AppState.cr-has-syllabus;
             }
-            if AppState.cr-has-exam: CrGroup {
+            if AppState.cr-has-exam && !AppState.cr-new: CrGroup {
                 kind: 2;
                 title: "3 · Quiz";
                 help: "Domande dal tuo materiale, sugli argomenti dell'esame. Un file per capitolo o argomento; poi fallo verificare da un'altra AI (riapri il file).";
                 add: "Aggiungi quiz";
                 enabled: AppState.cr-has-syllabus;
             }
-            if AppState.cr-has-exam: CrGroup {
+            if AppState.cr-has-exam && !AppState.cr-new: CrGroup {
                 kind: 3;
                 title: "4 · Flashcard";
                 help: "Definizioni, formule e cose da ricordare, dal tuo materiale.";
                 add: "Aggiungi flashcard";
                 enabled: AppState.cr-has-syllabus;
             }
-            if AppState.cr-has-exam: Card {
+            if AppState.cr-has-exam && !AppState.cr-new: Card {
                 VerticalLayout {
                     padding: 14px;
                     spacing: 6px;
@@ -209,7 +216,7 @@ export component CreatorPage inherits Page {
                     }
                 }
             }
-            if AppState.cr-has-exam: HorizontalLayout {
+            if AppState.cr-has-exam && !AppState.cr-new: HorizontalLayout {
                 spacing: 8px;
                 M3Button {
                     text: "Tutti i file";

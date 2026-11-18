@@ -20,8 +20,12 @@ fn kind_of(k: i32) -> FileKind {
 }
 
 impl Ctrl {
-    pub(super) fn open_creator(&mut self) {
-        self.ui().global::<AppState>().set_cr_open(false);
+    /// `new`: un pacchetto nuovo (si parte dal nome, non dai file di quello in uso).
+    pub(super) fn open_creator(&mut self, new: bool) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_cr_open(false);
+        st.set_cr_new(new);
         self.refresh_creator();
         self.set_page(P_CREATOR);
     }
@@ -44,7 +48,7 @@ impl Ctrl {
         let _ = self.exams.save(&self.store.base);
         let _ = vfs::create_dir_all(&prep_core::exams::dir(&self.store.base, &id).join("mirror"));
         self.open_exam(&id);
-        self.open_creator();
+        self.open_creator(false);
         self.toast(format!("Esame «{name}» creato: ora la sua definizione"));
     }
 
