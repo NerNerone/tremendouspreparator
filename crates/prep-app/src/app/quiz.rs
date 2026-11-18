@@ -187,7 +187,7 @@ impl Ctrl {
         let minutes = self.content.syllabus().exam.minutes as u64;
         let deadline = (kind == SessionKind::Exam).then(|| Instant::now() + Duration::from_secs(minutes * 60));
         // opzioni mescolate a ogni presentazione: la risposta giusta non è mai "sempre la A"
-        let perm = questions.iter().map(|q| prep_core::model::shuffled_order(q.options.len())).collect();
+        let perm = questions.iter().map(|q| prep_core::model::display_order(&q.options)).collect();
         self.quiz = Some(Quiz {
             kind,
             subject,

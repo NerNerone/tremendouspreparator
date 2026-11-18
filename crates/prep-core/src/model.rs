@@ -336,6 +336,21 @@ pub fn shuffled_order(n: usize) -> Vec<usize> {
     v
 }
 
+/// Ordine in cui mostrare le opzioni di una domanda: mescolato, tranne quando un'opzione cita
+/// le altre per lettera («sono corrette sia la A che la C», «A e B»): lì l'ordine resta quello
+/// originale, altrimenti le lettere non corrisponderebbero più.
+pub fn display_order(options: &[String]) -> Vec<usize> {
+    let re = regex_lite::Regex::new(
+        r"(?i:\b(?:la|le|sia|rispost[ae]|opzion[ei]|affermazion[ei])\s+)[A-E]\b|\b[A-E]\s+(?:e|ed|o)\s+[A-E]\b",
+    )
+    .unwrap();
+    if options.iter().any(|o| re.is_match(o)) {
+        (0..options.len()).collect()
+    } else {
+        shuffled_order(options.len())
+    }
+}
+
 /// Nelle spiegazioni dei libri le opzioni sono citate per lettera ("risposta B errata",
 /// "risposte A e D", "opzione C"): con le opzioni mescolate le lettere vanno rimappate
 /// su quelle mostrate. `perm` come in [`shuffled_order`].
@@ -353,9 +368,10 @@ pub fn remap_letters(text: &str, perm: &[usize]) -> String {
         let o = (c as u8).wrapping_sub(b'A') as usize;
         disp.get(o).map(|&d| letter(d)).unwrap_or(c)
     };
-    // "risposta B", "risposte A, C e D", "opzione E", "alternativa C", "lettera D", "(A)", "A)"
+    // "risposta B", "risposte A, C e D", "opzione E", "alternativa C", "lettera D",
+    // "affermazione B", "(A)"
     let re = regex_lite::Regex::new(
-        r"(?i:\b(?:rispost[ae]|opzion[ei]|alternativ[ae]|letter[ae])\s+)([A-E](?:\s*(?:,|e|ed|o|ed anche)\s*[A-E])*)\b|\(([A-E])\)",
+        r"(?i:\b(?:rispost[ae]|opzion[ei]|alternativ[ae]|letter[ae]|affermazion[ei])\s+)([A-E](?:\s*(?:,|e|ed|o|ed anche)\s*[A-E])*)\b|\(([A-E])\)",
     )
     .unwrap();
     re.replace_all(text, |c: &regex_lite::Captures| {
@@ -503,6 +519,10 @@ mod shuffle_tests {
         );
         assert_eq!(remap_letters("(risposte A e C errate)", &perm), "(risposte B e A errate)");
         assert_eq!(remap_letters("vedi opzione B; (C) no", &perm), "vedi opzione C; (A) no");
+        assert_eq!(
+            remap_letters("L'affermazione A è falsa; le affermazioni C e D no", &perm),
+            "L'affermazione B è falsa; le affermazioni A e D no"
+        );
         assert_eq!(remap_letters("Il DNA (A)", &[0, 1, 2, 3, 4]), "Il DNA (A)");
         let opts: Vec<String> =
             ["Argon", "Fluoro", "Azoto", "Neon", "Ossigeno"].iter().map(|s| s.to_string()).collect();
@@ -528,6 +548,15 @@ mod shuffle_tests {
             remap_explanation(e2, &perm2, &opts).lines().find(|l| l.contains("gas")),
             Some("• C), D) e E): sono tutti gas nobili.")
         );
+        let fixed: Vec<String> =
+            ["ha carica nulla", "è priva di massa", "sono corrette sia la A che la B"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(display_order(&fixed), vec![0, 1, 2]);
+        let both: Vec<String> = ["A e B", "Vitamina C", "C"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(display_order(&both), vec![0, 1, 2]);
+        let free: Vec<String> = ["Vitamina C", "gruppo A", "acqua"].iter().map(|s| s.to_string()).collect();
+        let mut d = display_order(&free);
+        d.sort();
+        assert_eq!(d, vec![0, 1, 2]);
         let p = shuffled_order(5);
         let mut s = p.clone();
         s.sort();
