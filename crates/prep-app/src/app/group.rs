@@ -99,6 +99,7 @@ impl Ctrl {
             &name,
             color,
             self.study_state,
+            // solo lo studio di questo dispositivo: il gruppo somma quelli di ogni dispositivo
             &self.study_log,
             self.study_since,
             &prep_core::group::Clock::local(now),
@@ -460,7 +461,9 @@ impl Ctrl {
         let now = Self::now_secs();
         // gruppi cambiati qui (creati, lasciati, rinominati, nuova foto): lo si dice subito agli
         // altri propri dispositivi
-        let sig = serde_json::to_string(&(self.groups.refs(), &self.groups.left)).unwrap_or_default();
+        // (anche il proprio studio: gli altri propri dispositivi sommano i tempi)
+        let sig =
+            serde_json::to_string(&(self.groups.refs(), &self.groups.left, self.study_log.total())).unwrap_or_default();
         if sig != self.groups_sig {
             let first = self.groups_sig.is_empty();
             self.groups_sig = sig;
@@ -610,6 +613,13 @@ impl Ctrl {
     /// la nostra (o si toglie, se lì è stata tolta); se manca il file lo si chiede a lui.
     pub(super) fn profile_in(&mut self, from: String, p: p2p::Profile) {
         self.unify_user_id(&p.uid);
+        // tempo di studio: si sommano quelli di tutti i propri dispositivi
+        if let Some(l) = p.study.clone() {
+            if self.study_log.set_other(&from, l) {
+                let _ = self.study_log.save(&self.store.base);
+                self.refresh_group();
+            }
+        }
         // gruppi: uguali su tutti i propri dispositivi, con nome e foto più recenti
         let before = self.groups.active.clone();
         if self.groups.merge_own(&p.groups, &p.left) {
@@ -979,11 +989,22 @@ impl Ctrl {
         let mine = {
             let here = self.my_group_status(now, true);
             let mut devs = vec![(here.clone(), true)];
+            let mut seen = vec![me_dev.clone()];
             if let Some(m) = self.groups.active().and_then(|g| g.members.get(&me_id)) {
                 for (d, ds) in &m.devices {
                     if *d != me_dev {
                         devs.push(prep_core::group::frozen(&ds.status, ds.last_seen, &ck));
+                        seen.push(d.clone());
                     }
+                }
+            }
+            // altri propri dispositivi noti solo dalla sincronizzazione: il loro registro
+            for (d, l) in &self.study_log.others {
+                if !seen.contains(d) {
+                    let log: prep_core::group::StudyLog = l.clone().into();
+                    let idle = prep_core::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+                    let s = prep_core::group::my_status("", 0, State::Idle, &log, None, &ck, false, idle);
+                    devs.push((s, false));
                 }
             }
             let (mut c, _) = prep_core::group::combine(&devs, &ck);
@@ -1295,12 +1316,13 @@ impl Ctrl {
             }
         }
         // mappe di calore: la propria e quella del membro toccato in classifica
-        let my_hist = mine.hist.as_ref().map(|h| h.on(today)).unwrap_or_else(|| self.study_log.hist(today));
+        let all_log = self.study_log.combined();
+        let my_hist = mine.hist.as_ref().map(|h| h.on(today)).unwrap_or_else(|| all_log.hist(today));
         // la propria: anche oltre le 12 settimane condivise, dal registro locale (fino a un anno)
         let my_long: Vec<u32> = (0..366)
             .map(|i| {
                 let d = (today - chrono::Duration::days(i)).format("%Y-%m-%d").to_string();
-                let local = self.study_log.days.get(&d).copied().unwrap_or(0) as u32;
+                let local = all_log.days.get(&d).copied().unwrap_or(0) as u32;
                 local.max(my_hist.get(i as usize).copied().unwrap_or(0))
             })
             .collect();
@@ -2081,7 +2103,7 @@ impl Ctrl {
         if self.study_state != State::Studying {
             return prep_core::score::Score { mult: 1.0, fx: 0, level: 0.0 };
         }
-        let today = self.study_log.day(Local::now().date_naive())
+        let today = self.study_log.combined().day(Local::now().date_naive())
             + self.study_since.map(|t| (now - t).max(0) as u64).unwrap_or(0);
         self.run.score(now, self.focus_on, self.racing_others, today)
     }

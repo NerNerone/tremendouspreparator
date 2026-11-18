@@ -588,6 +588,7 @@ impl p2p::Host for Ctrl {
             uid: s.user_id,
             groups: self.groups.refs(),
             left: self.groups.left.clone(),
+            study: Some(self.study_log.own()),
         })
     }
 }

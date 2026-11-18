@@ -257,6 +257,9 @@ pub struct Profile {
     /// gruppi lasciati (codice → quando)
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub left: std::collections::BTreeMap<String, i64>,
+    /// lo studio fatto su questo dispositivo: i propri dispositivi sommano i tempi
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub study: Option<crate::group::DevLog>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

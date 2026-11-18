@@ -1307,16 +1307,21 @@ component CodeCopy inherits Rectangle {
 // matitina tonda per modificare (nome, foto)
 component EditBadge inherits Rectangle {
     callback clicked;
-    width: 28px;
-    height: 28px;
-    border-radius: 14px;
+    in property <length> size: 28px;
+    width: root.size;
+    height: root.size;
+    border-radius: root.size / 2;
     background: ta.pressed ? M3.secondary-container.darker(0.1) : M3.secondary-container;
     border-width: 2px;
     border-color: M3.surface-container-low;
     VIcon {
+        x: (parent.width - root.size * 0.54) / 2;
+        y: (parent.height - root.size * 0.54) / 2;
+        width: root.size * 0.54;
+        height: root.size * 0.54;
         source: Icons.edit;
         tint: M3.on-secondary-container;
-        size: 15px;
+        size: root.size * 0.54;
     }
     ta := TouchArea {
         clicked => {
@@ -1395,8 +1400,8 @@ export component GroupPage inherits Page {
                     HorizontalLayout {
                         spacing: 12px;
                         Rectangle {
-                            width: 62px;
-                            height: 62px;
+                            width: 56px;
+                            height: 56px;
                             Avatar {
                                 x: 0;
                                 y: 0;
@@ -1417,9 +1422,10 @@ export component GroupPage inherits Page {
                                 }
                             }
                             if AppState.group-admin: EditBadge {
-                                // sul bordo del cerchio, in basso a destra, senza uscire dal riquadro
-                                x: parent.width - self.width;
-                                y: parent.height - self.height;
+                                // dentro il cerchio dell'avatar, in basso a destra
+                                size: 24px;
+                                x: 27px;
+                                y: 27px;
                                 clicked => {
                                     AppState.pick-photo("group");
                                 }

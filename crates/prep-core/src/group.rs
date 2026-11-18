@@ -767,6 +767,12 @@ pub fn parse_invite(text: &str) -> Option<(String, String)> {
 
 // ---------- tempo di studio ----------
 
+impl From<DevLog> for StudyLog {
+    fn from(d: DevLog) -> StudyLog {
+        StudyLog { days: d.days, pts: d.pts, what: d.what, ..Default::default() }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StudyLog {
     #[serde(default)]
@@ -780,6 +786,22 @@ pub struct StudyLog {
     /// punti per giorno (vedi [`crate::score`])
     #[serde(default)]
     pub pts: BTreeMap<String, f64>,
+    /// lo studio fatto sugli altri propri dispositivi (id del dispositivo → registro): i
+    /// totali sono la somma (vedi [`StudyLog::combined`])
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub others: BTreeMap<String, DevLog>,
+}
+
+/// Lo studio fatto su un dispositivo, come lo si passa agli altri propri dispositivi.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct DevLog {
+    #[serde(default)]
+    pub days: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub pts: BTreeMap<String, f64>,
+    /// su cosa (solo le ultime settimane)
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub what: BTreeMap<String, BTreeMap<String, u64>>,
 }
 
 fn monday(d: NaiveDate) -> NaiveDate {
@@ -803,6 +825,42 @@ impl StudyLog {
 
     pub fn save(&self, base: &Path) -> std::io::Result<()> {
         vfs::write(&base.join(LOG_FILE), serde_json::to_string(self)?.as_bytes())
+    }
+
+    /// Lo studio fatto su questo dispositivo, da passare agli altri propri dispositivi.
+    pub fn own(&self) -> DevLog {
+        DevLog { days: self.days.clone(), pts: self.pts.clone(), what: self.what.clone() }
+    }
+
+    /// Registro arrivato dall'altro proprio dispositivo `dev` (sostituisce il precedente: è
+    /// lui a sapere quanto ha studiato). `true` se è cambiato.
+    pub fn set_other(&mut self, dev: &str, log: DevLog) -> bool {
+        if dev.is_empty() || self.others.get(dev) == Some(&log) {
+            return false;
+        }
+        self.others.insert(dev.to_string(), log);
+        true
+    }
+
+    /// Questo dispositivo più gli altri propri: i numeri da mostrare e da mandare al gruppo
+    /// (una sessione di studio è aperta su un dispositivo alla volta, quindi niente doppioni).
+    pub fn combined(&self) -> StudyLog {
+        let mut out = StudyLog { pits: self.pits.clone(), ..self.own().into() };
+        for o in self.others.values() {
+            for (d, v) in &o.days {
+                *out.days.entry(d.clone()).or_default() += v;
+            }
+            for (d, v) in &o.pts {
+                *out.pts.entry(d.clone()).or_default() += v;
+            }
+            for (d, m) in &o.what {
+                let e = out.what.entry(d.clone()).or_default();
+                for (k, v) in m {
+                    *e.entry(k.clone()).or_default() += v;
+                }
+            }
+        }
+        out
     }
 
     /// Registra un pit stop finito (dimentica quelli di più di una settimana fa).
@@ -1760,5 +1818,27 @@ mod tests {
         phone.join("AAAA-BBBB-CCCC-DDDD", "LU", 400);
         assert!(pc.merge_own(&phone.refs(), &phone.left));
         assert_eq!(pc.groups.len(), 1);
+    }
+
+    #[test]
+    fn study_time_adds_up_across_own_devices() {
+        let day = NaiveDate::from_ymd_opt(2026, 11, 18).unwrap();
+        let mut phone = StudyLog::default();
+        phone.add(day, 600);
+        phone.pts.insert("2026-11-18".into(), 600.0);
+        let mut pc = StudyLog::default();
+        pc.add(day, 1200);
+        pc.pts.insert("2026-11-18".into(), 1500.0);
+        assert!(phone.set_other("pc", pc.own()));
+        assert!(!phone.set_other("pc", pc.own()));
+        let all = phone.combined();
+        assert_eq!(all.day(day), 1800);
+        assert_eq!(all.points(day)[0], 2100.0);
+        // il registro proprio resta solo di questo dispositivo
+        assert_eq!(phone.day(day), 600);
+        // aggiornamento dall'altro: sostituisce, non somma due volte
+        pc.add(day, 60);
+        phone.set_other("pc", pc.own());
+        assert_eq!(phone.combined().day(day), 1860);
     }
 }
