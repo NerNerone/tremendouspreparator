@@ -11,7 +11,7 @@ impl Ctrl {
     fn exam_sessions(&self) -> Vec<&Session> {
         let mut v: Vec<&Session> =
             self.sessions.iter().filter(|s| s.kind == SessionKind::Exam && s.score.is_some()).collect();
-        v.sort_by(|a, b| b.ended_at.cmp(&a.ended_at));
+        v.sort_by_key(|s| std::cmp::Reverse(s.ended_at));
         v
     }
 
