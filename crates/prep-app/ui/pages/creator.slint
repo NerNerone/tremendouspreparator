@@ -1,6 +1,6 @@
 import { LineEdit, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type } from "../theme.slint";
-import { AppState, CrFileVM, CrUnitVM } from "../state.slint";
+import { AppState, CrFileVM, CrUnitVM, CrFigVM } from "../state.slint";
 import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip, IconButton, VIcon, LlmCopy } from "../components.slint";
 
 // una riga del creatore: un file dell'esame, da aprire per rifarlo o correggerlo
@@ -241,7 +241,7 @@ export component CreatorPage inherits Page {
                 subtitle: AppState.cr-path != "" ? AppState.cr-path : "Nuovo file";
                 can-back: true;
                 back => {
-                    AppState.cr-open = false;
+                    AppState.cr-close();
                 }
             }
             Scroller {
@@ -343,10 +343,69 @@ export component CreatorPage inherits Page {
                         }
                     }
                 }
+                // figure del capitolo: ognuna al suo posto nel testo, da ricomporre con l'AI
+                if AppState.cr-kind == 1 && AppState.cr-figs.length > 0: Card {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 8px;
+                        Text {
+                            text: "Figure del capitolo";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                        }
+                        Text {
+                            text: "Ognuna ha già il suo posto nel testo. Toccala per farla ridisegnare dall'AI (allega la foto della figura) e incollare qui l'SVG; oppure aggiungi da Contenuti un file .svg con lo stesso nome.";
+                            wrap: word-wrap;
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                        }
+                        for f in AppState.cr-figs: Rectangle {
+                            min-height: 52px;
+                            border-radius: 12px;
+                            background: fta.pressed ? M3.surface-container-high : M3.surface-container-low;
+                            fta := TouchArea {
+                                clicked => {
+                                    AppState.cr-open-figure(f.path);
+                                }
+                            }
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 8px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: f.alt;
+                                        font-weight: 600;
+                                        color: M3.on-surface;
+                                        overflow: elide;
+                                    }
+                                    Text {
+                                        text: f.present ? "presente · " + f.path : "da aggiungere · " + f.path;
+                                        font-size: Type.label;
+                                        color: f.present ? M3.on-surface-variant : M3.error;
+                                        overflow: elide;
+                                    }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    VIcon {
+                                        source: f.present ? Icons.edit : Icons.add;
+                                        tint: M3.primary;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 LlmCopy {
-                    title: AppState.cr-kind == 2 && AppState.cr-path != "" ? "1 · Prompt per farlo verificare" : "1 · Copia il prompt per l'AI";
+                    title: AppState.cr-kind == 2 && AppState.cr-path != "" ? "1 · Prompt per farlo verificare" : AppState.cr-kind == 4 ? "1 · Prompt per ridisegnare la figura" : "1 · Copia il prompt per l'AI";
                     body: AppState.cr-kind == 2 && AppState.cr-path != ""
                         ? "Dallo a un'altra AI (o a una chat nuova): controlla chiavi, calcoli e italiano. Poi incolla qui sotto la sua risposta al posto del testo attuale."
+                        : AppState.cr-kind == 4
+                            ? "Incollalo in una chat con un'AI e allega la foto o il ritaglio della pagina con la figura."
                         : AppState.cr-kind == 0
                             ? "Incollalo in una chat con un'AI e allega il programma ufficiale dell'esame (PDF o testo)."
                             : "Incollalo in una chat con un'AI e allega il materiale: meglio il testo estratto con Strumenti PDF, o il PDF diviso in parti.";

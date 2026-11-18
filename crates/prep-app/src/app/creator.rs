@@ -3,9 +3,12 @@
 //! proprio materiale, incolla qui la risposta e l'app la legge e la salva nel file giusto.
 
 use super::*;
-use crate::{CrFileVM, CrUnitVM};
+use crate::{CrFigVM, CrFileVM, CrUnitVM};
 use prep_core::contents::{self, Kind};
 use prep_core::creator::{self, FileKind};
+
+/// Il quinto tipo di file del creatore: una figura SVG di un capitolo.
+const K_FIGURE: i32 = 4;
 
 fn kind_of(k: i32) -> FileKind {
     match k {
@@ -116,8 +119,64 @@ impl Ctrl {
         st.set_cr_count(if kind == 3 { 20 } else { 30 });
         st.set_cr_notes(false);
         st.set_cr_unit(ss(""));
+        st.set_cr_parent(ss(""));
         st.set_cr_open(true);
+        self.refresh_chapter_figs();
         self.creator_prompt();
+    }
+
+    /// Figure del capitolo aperto nell'editor.
+    fn refresh_chapter_figs(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let path = st.get_cr_path().to_string();
+        let figs: Vec<CrFigVM> = if st.get_cr_kind() == 1 && !path.is_empty() {
+            contents::chapter_figures(&self.store, &path)
+                .into_iter()
+                .map(|f| CrFigVM {
+                    alt: ss(if f.alt.is_empty() { "Figura" } else { &f.alt }),
+                    path: ss(&f.path),
+                    present: f.present,
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        st.set_cr_figs(model(figs));
+    }
+
+    /// Apre una figura del capitolo aperto: prompt per ricomporla, SVG da incollare.
+    pub(super) fn creator_open_figure(&mut self, path: &str) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let chapter = st.get_cr_path().to_string();
+        let alt = contents::chapter_figures(&self.store, &chapter)
+            .into_iter()
+            .find(|f| f.path == path)
+            .map(|f| f.alt)
+            .unwrap_or_default();
+        let existing =
+            self.store.read_mirror(path).map(|b| String::from_utf8_lossy(&b).to_string()).unwrap_or_default();
+        st.set_cr_parent(ss(&chapter));
+        st.set_cr_kind(K_FIGURE);
+        st.set_cr_path(ss(path));
+        st.set_cr_title(ss(if alt.is_empty() { "Figura".to_string() } else { alt }));
+        st.set_cr_text(ss(existing));
+        st.set_cr_status(ss(""));
+        st.set_cr_figs(model(Vec::<CrFigVM>::new()));
+        self.creator_prompt();
+    }
+
+    /// Indietro dall'editor: da una figura si torna al suo capitolo.
+    pub(super) fn creator_close(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let parent = st.get_cr_parent().to_string();
+        if st.get_cr_kind() == K_FIGURE && !parent.is_empty() {
+            self.creator_open_file(1, &parent);
+        } else {
+            st.set_cr_open(false);
+        }
     }
 
     /// Prompt per il file aperto, con le scelte attuali.
@@ -138,6 +197,15 @@ impl Ctrl {
             s.chars().take(14).collect::<String>().trim_end_matches('-').to_string()
         };
         let prompt = match kind {
+            K_FIGURE => {
+                let chapter = st.get_cr_parent().to_string();
+                let ch_title = contents::list(&self.store)
+                    .into_iter()
+                    .find(|e| e.path == chapter)
+                    .map(|e| e.name)
+                    .unwrap_or(chapter);
+                creator::prompt_figure(st.get_cr_title().as_str(), &ch_title)
+            }
             0 => creator::prompt_syllabus(&self.exams.active, &exam_name),
             1 => creator::prompt_chapter(&label),
             2 if !path.is_empty() => creator::prompt_review(st.get_cr_text().as_str()),
@@ -170,6 +238,24 @@ impl Ctrl {
         let text = st.get_cr_text().to_string();
         if kind != 0 && path.is_empty() && name.is_empty() {
             st.set_cr_status(ss("Dai un nome al file (per esempio il titolo del capitolo o dell'argomento)."));
+            return;
+        }
+        if kind == K_FIGURE {
+            let res = creator::to_svg(&text)
+                .and_then(|svg| contents::add_figure(&self.store, &path, svg.as_bytes()).map(|_| svg));
+            match res {
+                Ok(svg) => {
+                    self.contents_changed(format!("Figura salvata ({path})."));
+                    let ui = self.ui();
+                    let st = ui.global::<AppState>();
+                    st.set_cr_text(ss(&svg));
+                    st.set_cr_status(ss(
+                        "Figura salvata: la vedi nel capitolo, al suo posto. Indietro per le altre figure.",
+                    ));
+                    self.refresh_creator();
+                }
+                Err(e) => self.ui().global::<AppState>().set_cr_status(ss(format!("Non salvata: {e}"))),
+            }
             return;
         }
         let reply = creator::read_reply(&text);
@@ -217,9 +303,12 @@ impl Ctrl {
                 let ui = self.ui();
                 let st = ui.global::<AppState>();
                 st.set_cr_path(ss(&a.path));
-                st.set_cr_text(ss(&body));
+                // il testo salvato (con i percorsi delle figure assegnati)
+                let saved = self.store.read_mirror(&a.path).map(|b| String::from_utf8_lossy(&b).to_string());
+                st.set_cr_text(ss(saved.unwrap_or(body)));
                 st.set_cr_status(ss(msg));
                 self.refresh_creator();
+                self.refresh_chapter_figs();
                 self.creator_prompt();
             }
             Err(e) => st.set_cr_status(ss(format!("Non salvato: {e}"))),

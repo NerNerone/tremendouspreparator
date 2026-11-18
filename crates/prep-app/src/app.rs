@@ -793,7 +793,7 @@ impl Ctrl {
             }
             // nel creatore: prima si chiude l'editor del file
             P_CREATOR if st.get_cr_open() => {
-                st.set_cr_open(false);
+                self.creator_close();
                 true
             }
             P_CREATOR => {
@@ -1326,6 +1326,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_cr_open_file(|k, p| with_ctrl(|c| c.creator_open_file(k, &p)));
     st.on_cr_refresh_prompt(|| with_ctrl(|c| c.creator_prompt()));
     st.on_cr_save(|| with_ctrl(|c| c.creator_save()));
+    st.on_cr_open_figure(|p| with_ctrl(|c| c.creator_open_figure(&p)));
+    st.on_cr_close(|| with_ctrl(|c| c.creator_close()));
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));

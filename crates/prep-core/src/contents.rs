@@ -105,6 +105,81 @@ fn chapter_title(text: &str, name: &str) -> String {
         })
 }
 
+/// Una figura citata da un capitolo con `![didascalia](percorso.svg)`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Figure {
+    pub alt: String,
+    pub path: String,
+    /// il file SVG c'è
+    pub present: bool,
+}
+
+/// Figure citate nel testo di un capitolo: (didascalia, percorso; vuoto se non ancora assegnato).
+pub fn figure_refs(md: &str) -> Vec<(String, String)> {
+    md.lines()
+        .filter_map(|l| {
+            let rest = l.trim().strip_prefix("![")?;
+            let (alt, after) = rest.split_once("](")?;
+            let src = after.split(')').next().unwrap_or("").trim();
+            Some((alt.trim().to_string(), src.to_string()))
+        })
+        .collect()
+}
+
+/// Dà un percorso a ogni figura del capitolo `chapter` che non ne ha uno SVG valido: accanto al
+/// capitolo, `…/fig/<capitolo>-<n>.svg`. Così l'SVG che si aggiunge dopo finisce al posto giusto.
+pub fn assign_figures(md: &str, chapter: &str) -> String {
+    let (dir, file) = chapter.rsplit_once('/').unwrap_or(("books", chapter));
+    let stem = file.trim_end_matches(".md");
+    let mut n = 0;
+    let mut out: Vec<String> = Vec::new();
+    for line in md.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("![") {
+            if let Some((alt, after)) = rest.split_once("](") {
+                n += 1;
+                let src = after.split(')').next().unwrap_or("").trim();
+                let ok = src.starts_with("books/") && src.ends_with(".svg") && crate::pack::in_pack(src);
+                if !ok {
+                    out.push(format!("![{}]({dir}/fig/{stem}-{n}.svg)", alt.trim()));
+                    continue;
+                }
+            }
+        }
+        out.push(line.to_string());
+    }
+    let mut s = out.join("\n");
+    if md.ends_with('\n') {
+        s.push('\n');
+    }
+    s
+}
+
+/// Le figure di un capitolo, con quelle mancanti.
+pub fn chapter_figures(store: &Store, chapter: &str) -> Vec<Figure> {
+    let md = store.read_mirror(chapter).map(|b| String::from_utf8_lossy(&b).to_string()).unwrap_or_default();
+    figure_refs(&md)
+        .into_iter()
+        .filter(|(_, p)| !p.is_empty())
+        .map(|(alt, path)| {
+            let present = store.read_mirror(&path).is_some();
+            Figure { alt, path, present }
+        })
+        .collect()
+}
+
+/// Salva la figura SVG `bytes` al percorso `path` citato da un capitolo.
+pub fn add_figure(store: &Store, path: &str, bytes: &[u8]) -> Result<(), String> {
+    if !(crate::pack::in_pack(path) && path.ends_with(".svg")) {
+        return Err(format!("percorso non ammesso: {path}"));
+    }
+    let text = std::str::from_utf8(bytes).map_err(|_| "la figura non è testo SVG".to_string())?;
+    if !text.contains("<svg") {
+        return Err("non è un'immagine SVG (manca <svg …>)".into());
+    }
+    write(store, path, bytes)
+}
+
 fn files_of(store: &Store) -> Vec<(String, String)> {
     let mirror = store.root.join("mirror");
     let mut out = Vec::new();
@@ -153,7 +228,7 @@ pub struct Added {
 /// Un pacchetto intero va importato con [`crate::pack::import_merge`].
 pub fn add_file(store: &Store, name: &str, bytes: &[u8], subject: &str) -> Result<Added, String> {
     let kind = classify(name, bytes)?;
-    let text = std::str::from_utf8(bytes).map_err(|_| "il file non è testo UTF-8".to_string())?;
+    std::str::from_utf8(bytes).map_err(|_| "il file non è testo UTF-8".to_string())?;
     let path = match kind {
         Kind::Pack => return Err("questo è un pacchetto intero: importalo come pacchetto".into()),
         Kind::Exam => "content/syllabus.json".to_string(),
@@ -161,8 +236,27 @@ pub fn add_file(store: &Store, name: &str, bytes: &[u8], subject: &str) -> Resul
         Kind::Questions => format!("content/questions/{}", file_name(name, "json")),
         Kind::Cards => format!("content/flashcards/{}", file_name(name, "json")),
         Kind::Chapter => format!("books/{IMPORTED_BOOK}/{}", file_name(name, "md")),
-        Kind::Figure => format!("books/{IMPORTED_BOOK}/{}", file_name(name, "svg")),
+        // una figura con lo stesso nome di una citata da un capitolo va proprio lì
+        Kind::Figure => {
+            let want = file_name(name, "svg");
+            files_of(store)
+                .iter()
+                .filter(|(p, _)| p.ends_with(".md"))
+                .flat_map(|(_, t)| figure_refs(t))
+                .map(|(_, p)| p)
+                .find(|p| p.rsplit('/').next().is_some_and(|f| f == want || f == name))
+                .unwrap_or_else(|| format!("books/{IMPORTED_BOOK}/fig/{want}"))
+        }
     };
+    // le figure di un capitolo ricevono i loro percorsi
+    let assigned;
+    let bytes = if kind == Kind::Chapter {
+        assigned = assign_figures(std::str::from_utf8(bytes).unwrap_or_default(), &path);
+        assigned.as_bytes()
+    } else {
+        bytes
+    };
+    let text = std::str::from_utf8(bytes).map_err(|_| "il file non è testo UTF-8".to_string())?;
     // il file deve essere leggibile prima di sostituire quello che c'è
     let mut files = files_of(store);
     files.retain(|(p, _)| *p != path);
@@ -187,7 +281,14 @@ pub fn add_file(store: &Store, name: &str, bytes: &[u8], subject: &str) -> Resul
                 serde_json::from_str(text).map_err(|e| format!("catalogo dei libri non valido: {e}"))?;
             format!("{} libri", c.books.len())
         }
-        Kind::Chapter => format!("capitolo «{}»", chapter_title(text, name)),
+        Kind::Chapter => {
+            let figs = figure_refs(text).len();
+            if figs > 0 {
+                format!("capitolo «{}», {figs} figure", chapter_title(text, name))
+            } else {
+                format!("capitolo «{}»", chapter_title(text, name))
+            }
+        }
         Kind::Figure => "figura".to_string(),
         Kind::Pack => unreachable!(),
     };
@@ -279,12 +380,37 @@ pub fn list(store: &Store) -> Vec<Entry> {
                 let found = cat.books.iter().find_map(|b| {
                     b.chapters.iter().find(|c| c.file == *path).map(|c| (b.title.clone(), c.title.clone()))
                 });
+                let refs = figure_refs(text);
+                let missing = refs.iter().filter(|(_, p)| !files.iter().any(|(q, _)| q == p)).count();
+                let figs = match (refs.len(), missing) {
+                    (0, _) => String::new(),
+                    (n, 0) => format!(" · {n} figure"),
+                    (n, m) => format!(" · {n} figure, {m} da aggiungere"),
+                };
                 match found {
-                    Some((book, ch)) => (Kind::Chapter, ch, book),
-                    None => (Kind::Chapter, file, "non collegato a un libro".into()),
+                    Some((book, ch)) => (Kind::Chapter, ch, format!("{book}{figs}")),
+                    None => (Kind::Chapter, file, format!("non collegato a un libro{figs}")),
                 }
             } else if path.ends_with(".svg") {
-                (Kind::Figure, file, path.trim_start_matches("books/").to_string())
+                // di quale capitolo è
+                let owner = files.iter().filter(|(p, _)| p.ends_with(".md")).find_map(|(p, t)| {
+                    figure_refs(t).into_iter().find(|(_, f)| f == path).map(|(alt, _)| {
+                        let ch = cat
+                            .books
+                            .iter()
+                            .flat_map(|b| &b.chapters)
+                            .find(|c| c.file == *p)
+                            .map(|c| c.title.clone())
+                            .unwrap_or_else(|| chapter_title(t, p));
+                        (alt, ch)
+                    })
+                });
+                match owner {
+                    Some((alt, ch)) => {
+                        (Kind::Figure, if alt.is_empty() { file } else { alt }, format!("figura di «{ch}»"))
+                    }
+                    None => (Kind::Figure, file, "non usata in nessun capitolo".into()),
+                }
             } else {
                 (Kind::Books, file, String::new())
             };
@@ -368,5 +494,29 @@ mod tests {
         assert_eq!(after.len(), before.len() + 1, "resta solo books.json in più"); // catalogo creato
         assert!(!vfs::read_to_string(&st.mirror_path("content/books.json").unwrap()).unwrap().contains(IMPORTED_BOOK));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn figures_belong_to_their_chapter() {
+        let (st, dir) = store("figure");
+        let md = "# 2 Cinematica\n![Figura 2.1: grafico s-t]()\ntesto\n![Figura 2.2](books/x/fig/a.svg)\n";
+        let a = add_file(&st, "cinematica.md", md.as_bytes(), "fis").unwrap();
+        assert!(a.summary.contains("2 figure"));
+        let figs = chapter_figures(&st, &a.path);
+        assert_eq!(figs[0].path, "books/importati/fig/cinematica-1.svg");
+        assert_eq!(figs[1].path, "books/x/fig/a.svg");
+        assert!(figs.iter().all(|f| !f.present));
+        // un SVG con lo stesso nome va al suo posto
+        let svg = b"<svg xmlns='http://www.w3.org/2000/svg'></svg>";
+        let f = add_file(&st, "cinematica-1.svg", svg, "fis").unwrap();
+        assert_eq!(f.path, "books/importati/fig/cinematica-1.svg");
+        add_figure(&st, "books/x/fig/a.svg", svg).unwrap();
+        assert!(add_figure(&st, "books/x/fig/b.svg", b"ciao").is_err());
+        assert!(chapter_figures(&st, &a.path).iter().all(|f| f.present));
+        let l = list(&st);
+        let fig = l.iter().find(|e| e.path == "books/importati/fig/cinematica-1.svg").unwrap();
+        assert_eq!(fig.info, "figura di «2 Cinematica»");
+        assert_eq!(fig.name, "Figura 2.1: grafico s-t");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

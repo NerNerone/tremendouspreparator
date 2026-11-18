@@ -253,6 +253,13 @@ export struct CrFileVM {
     info: string,
 }
 
+// creatore: una figura di un capitolo
+export struct CrFigVM {
+    alt: string,
+    path: string,
+    present: bool,
+}
+
 // creatore: un'unità tra cui scegliere gli argomenti (id vuoto = tutti)
 export struct CrUnitVM {
     id: string,
@@ -538,6 +545,11 @@ export global AppState {
     callback cr-open-file(int, string);
     callback cr-refresh-prompt();
     callback cr-save();
+    // figure del capitolo aperto; capitolo da cui si è aperta una figura
+    in property <[CrFigVM]> cr-figs;
+    in-out property <string> cr-parent;
+    callback cr-open-figure(string);
+    callback cr-close();
     callback pdf-split();
     callback pdf-text();
     in-out property <float> pdf-max-mb: 20;

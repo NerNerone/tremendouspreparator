@@ -128,6 +128,41 @@ pub fn to_file(kind: FileKind, reply: &Reply, exam_id: &str) -> Result<String, S
     }
 }
 
+/// La figura SVG nella risposta dell'AI (da `<svg` a `</svg>`).
+pub fn to_svg(text: &str) -> Result<String, String> {
+    let start = text.find("<svg").ok_or("nella risposta non c'è un'immagine SVG (<svg …>)")?;
+    let end = text[start..].rfind("</svg>").map(|i| start + i + 6).ok_or("l'SVG è incompleto (manca </svg>)")?;
+    let svg = &text[start..end];
+    if svg.contains("<script") || svg.contains("<image") || svg.contains("href=\"http") {
+        return Err("l'SVG contiene script o immagini esterne: chiedi all'AI una versione con sole forme".into());
+    }
+    let svg = if svg.contains("xmlns=") {
+        svg.to_string()
+    } else {
+        svg.replacen("<svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"", 1)
+    };
+    Ok(format!("{svg}\n"))
+}
+
+/// Prompt per ricomporre una figura di un capitolo come SVG.
+pub fn prompt_figure(caption: &str, chapter: &str) -> String {
+    format!(
+        "Ti allego una figura del capitolo «{chapter}» (didascalia: «{caption}»). Ricreala come immagine SVG semplice e leggibile per un'app su telefono (Tremendous Preparator).
+
+{RULES}
+
+ISTRUZIONI:
+- SVG valido e autonomo: viewBox=\"0 0 400 300\" (adatta le proporzioni alla figura), xmlns=\"http://www.w3.org/2000/svg\", nessuna immagine esterna, nessuno script, font-family=\"sans-serif\".
+- Solo forme essenziali: linee, frecce, rettangoli, cerchi, percorsi semplici; etichette di testo brevi (almeno 14 px); pochi colori ben distinguibili su sfondo bianco.
+- Tutte le etichette, i valori e gli assi dell'originale devono esserci e stare al posto giusto; non aggiungere informazioni che non ci sono.
+- Grafici: assi con nome e unità, tacche principali con i valori, curve con la forma corretta.
+- Se la figura è una foto o è troppo complessa, scrivi in «DUBBI:» una descrizione di 3-5 righe da mettere nel capitolo al suo posto, e disegna solo uno schema semplice.
+- Rispondi con un solo blocco ```svg, poi «DUBBI:».
+
+FIGURA: [allega la foto o il ritaglio della pagina con la figura]"
+    )
+}
+
 /// JSON senza quello che a volte l'AI mette attorno (testo prima della prima graffa o quadra).
 fn clean_json(s: &str) -> &str {
     let s = s.trim();
@@ -357,6 +392,10 @@ mod tests {
         assert!(to_file(FileKind::Questions, &read_reply("non json"), "e").is_err());
         assert_eq!(next_number(["cin-q001", "cin-q007", "altro-q050"].into_iter(), "cin", 'q'), 8);
         assert_eq!(next_number(std::iter::empty(), "cin", 'c'), 1);
+        let svg = to_svg("Ecco:\n```svg\n<svg viewBox=\"0 0 4 3\"><line/></svg>\n```\nDUBBI: nessuno").unwrap();
+        assert!(svg.starts_with("<svg xmlns=") && svg.trim_end().ends_with("</svg>"));
+        assert!(to_svg("niente").is_err());
+        assert!(to_svg("<svg><script>x</script></svg>").is_err());
         let p = prompt_questions("fis-u1-t1: Moto", 30, true, "cin", 8, "Dispense");
         assert!(p.contains("ESATTAMENTE 30 domande: 20 a risposta multipla e 10 a completamento"));
         assert!(p.contains("cin-q008") && p.contains("• B)"));

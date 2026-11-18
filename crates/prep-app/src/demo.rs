@@ -118,6 +118,13 @@ pub fn maybe_run(ui: &AppWindow) {
                 }
                 "crtext" => st.set_cr_text(std::fs::read_to_string(arg).unwrap_or_default().into()),
                 "crsave" => st.invoke_cr_save(),
+                "crfig" => {
+                    let figs = st.get_cr_figs();
+                    if let Some(f) = slint::Model::row_data(&figs, arg.parse().unwrap_or(0)) {
+                        st.invoke_cr_open_figure(f.path);
+                    }
+                }
+                "crclose" => st.invoke_cr_close(),
                 "crscroll" => {}
                 "pdfpages" => st.set_pdf_pages(arg.into()),
                 "pdfmb" => st.set_pdf_max_mb(arg.parse().unwrap_or(20.0)),
