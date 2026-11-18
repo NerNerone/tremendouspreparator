@@ -38,6 +38,7 @@ jobs:
           TXT
           sed -i 's/^ *//' ATTRIBUZIONE.txt
           gh release delete ocr-modelli -R "$REPO" --cleanup-tag --yes 2>/dev/null || true
-          gh release create ocr-modelli -R "$REPO" --target "$GITHUB_SHA" --latest=false \
+          # pre-release: non deve mai apparire come «ultima versione» dell'app
+          gh release create ocr-modelli -R "$REPO" --target "$GITHUB_SHA" --prerelease --latest=false \
             --title "Modelli OCR" --notes-file ATTRIBUZIONE.txt \
             text-detection.onnx text-recognition.onnx SHA256SUMS ATTRIBUZIONE.txt
