@@ -1259,10 +1259,6 @@ impl Ctrl {
         }
         // «Mostra nel circuito»: la telecamera segue la monoposto di un altro finché è in pista e
         // la sua scheda resta aperta
-        if self.cam_follow.is_some() && st.get_car_sel().is_empty() && !self.car_sel.is_empty() {
-            self.car_sel.clear();
-            self.cam_follow = None;
-        }
         if let Some(fid) = self.cam_follow.clone() {
             match cars.iter().find(|c| c.id.as_str() == fid && c.racing) {
                 Some(c) => {
@@ -1326,6 +1322,32 @@ impl Ctrl {
                     lines.push(fx);
                 }
                 let me = *id == me_id;
+                st.set_car_info_kind(match (*on, s.state) {
+                    (false, _) => 0,
+                    (true, State::Studying) => 1,
+                    (true, State::Pause) => 2,
+                    (true, State::Idle) => 3,
+                });
+                st.set_car_info_state(ss(match (*on, s.state) {
+                    (false, _) => "Non collegato",
+                    (true, State::Studying) => "In pista",
+                    (true, State::Pause) => "Pit stop",
+                    (true, State::Idle) => "Al paddock",
+                }));
+                st.set_car_info_today(ss(fmt_secs(t_day)));
+                st.set_car_info_week(ss(fmt_secs(t_week)));
+                st.set_car_info_month(ss(fmt_secs(t_month)));
+                // dettagli: tutto tranne i tempi, già nei riquadri
+                // (lo stato è già nell'etichetta: resta il giro)
+                let details: Vec<slint::SharedString> = lines
+                    .iter()
+                    .filter(|l| !l.starts_with("Studio: "))
+                    .map(|l| ss(l.strip_prefix("In pista · g").map(|r| format!("G{r}")).unwrap_or_else(|| l.clone())))
+                    .collect();
+                st.set_car_info_lines(model(details));
+                st.set_car_info_me(me);
+                st.set_car_info_racing(*on && s.state == State::Studying);
+                st.set_car_info_following(self.cam_follow.as_deref() == Some(id.as_str()));
                 let photo = self.photo_image(&s.photo.clone());
                 st.set_car_info_has_photo(photo.is_some());
                 st.set_car_info_photo(photo.unwrap_or_default());
@@ -1348,6 +1370,11 @@ impl Ctrl {
                 st.set_car_info_initial(c.label.clone());
                 st.set_car_info_title(ss(format!("Pilota {}", c.label)));
                 st.set_car_info_body(ss(format!("In pista\n{}", fx_text(&c))));
+                st.set_car_info_kind(1);
+                st.set_car_info_state(ss("In pista"));
+                st.set_car_info_lines(model(vec![ss(fx_text(&c))]));
+                st.set_car_info_me(false);
+                st.set_car_info_racing(false);
                 st.set_car_sel(c.id.clone());
             }
             None => {
@@ -1372,7 +1399,26 @@ impl Ctrl {
         st.set_my_heat_title(ss(hm.title));
         st.set_my_heat_prev(hm.can_prev);
         st.set_my_heat_next(self.heat_back[0] > 0);
-        let sel = st.get_member_sel().to_string();
+        // calendario: «Tu», gli altri membri (in ordine di nome), «Gruppo»
+        let mut people: Vec<(String, String)> =
+            all.iter().filter(|(id, _, _, _)| *id != me_id).map(|(id, s, _, _)| (id.clone(), s.name.clone())).collect();
+        people.sort_by(|a, b| a.1.to_lowercase().cmp(&b.1.to_lowercase()));
+        let mut labels = vec![ss("Tu")];
+        let mut ids = vec![ss("")];
+        for (id, name) in &people {
+            labels.push(ss(name));
+            ids.push(ss(id));
+        }
+        labels.push(ss("Gruppo"));
+        ids.push(ss("*"));
+        if !self.cal_sel.is_empty() && !ids.iter().any(|i| i.as_str() == self.cal_sel) {
+            self.cal_sel.clear();
+        }
+        let idx = ids.iter().position(|i| i.as_str() == self.cal_sel).unwrap_or(0);
+        st.set_cal_labels(model(labels));
+        st.set_cal_ids(model(ids));
+        st.set_cal_index(idx as i32);
+        let sel = if self.cal_sel == "*" { String::new() } else { self.cal_sel.clone() };
         if sel != self.heat_member {
             self.heat_member = sel.clone();
             self.heat_back[1] = 0;
@@ -1429,6 +1475,7 @@ impl Ctrl {
                         (true, State::Idle) => "al paddock",
                     }),
                     me: *id == me_id,
+                    racing: on && s.state == State::Studying,
                     boost: ss(cars
                         .iter()
                         .find(|c| c.id.as_str() == id.as_str())

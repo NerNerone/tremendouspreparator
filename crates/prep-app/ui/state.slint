@@ -311,6 +311,8 @@ export struct RankVM {
     boost: string,
     // tempo di studio nel periodo della classifica
     time: string,
+    // in pista adesso (si può seguire)
+    racing: bool,
 }
 
 export struct ExamDateVM {
@@ -514,6 +516,24 @@ export global AppState {
     in-out property <string> car-sel;
     in property <string> car-info-title;
     in property <string> car-info-body;
+    // scheda della monoposto: stato (0 non collegato, 1 in pista, 2 pit stop, 3 al paddock),
+    // tempi, righe di dettaglio, seguita dalla telecamera, è la propria
+    in property <int> car-info-kind;
+    in property <string> car-info-state;
+    in property <string> car-info-today;
+    in property <string> car-info-week;
+    in property <string> car-info-month;
+    in property <[string]> car-info-lines;
+    in property <bool> car-info-following;
+    in property <bool> car-info-me;
+    in property <bool> car-info-racing;
+    callback car-close();
+    callback car-follow(string);
+    // calendario: «Tu», gli altri membri, «Gruppo» (etichette, id: "" = tu, "*" = gruppo)
+    in property <[string]> cal-labels;
+    in property <[string]> cal-ids;
+    in property <int> cal-index;
+    callback cal-pick(int);
     callback car-tap(string);
     in property <string> race-hud;
     // vista d'insieme del circuito (chi è in pausa o fermo) invece della telecamera ravvicinata

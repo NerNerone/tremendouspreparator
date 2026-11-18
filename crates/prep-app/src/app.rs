@@ -365,6 +365,8 @@ pub struct Ctrl {
     ocr_stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// mappe di calore: mesi indietro (la propria, del membro toccato, del profilo aperto)
     heat_back: [i32; 3],
+    /// calendario scelto: "" = il proprio, "*" = del gruppo, altrimenti l'id di un membro
+    cal_sel: String,
     /// membro di cui si mostra la mappa (cambiandolo si torna al mese corrente)
     heat_member: String,
     /// inizio della sessione di studio in corso (0 = nessuna)
@@ -1059,6 +1061,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         own_devs: BTreeMap::new(),
         heat_back: [0; 3],
         heat_member: String::new(),
+        cal_sel: String::new(),
         run: Default::default(),
         focus_on: false,
         racing_others: 0,
@@ -1385,6 +1388,27 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
             c.refresh_group();
         })
     });
+    // scheda della monoposto: chiusa davvero (anche la telecamera smette di seguire)
+    st.on_car_close(|| {
+        with_ctrl(|c| {
+            c.car_sel.clear();
+            c.cam_follow = None;
+            c.refresh_group();
+        })
+    });
+    st.on_car_follow(|id| {
+        with_ctrl(|c| {
+            c.cam_follow = if c.cam_follow.as_deref() == Some(id.as_str()) { None } else { Some(id.to_string()) };
+            c.refresh_group();
+        })
+    });
+    st.on_cal_pick(|i| {
+        with_ctrl(|c| {
+            let ids = c.ui().global::<AppState>().get_cal_ids();
+            c.cal_sel = slint::Model::row_data(&ids, i as usize).map(|s| s.to_string()).unwrap_or_default();
+            c.refresh_group();
+        })
+    });
     st.on_show_in_circuit(|id| {
         with_ctrl(|c| {
             c.profile_sel = None;
@@ -1472,7 +1496,12 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_study_stop(|| with_ctrl(|c| c.study_set(prep_core::group::State::Idle)));
     st.on_car_tap(|id| {
         with_ctrl(|c| {
-            c.car_sel = if c.car_sel == id.as_str() { String::new() } else { id.to_string() };
+            if c.car_sel == id.as_str() {
+                c.car_sel.clear();
+                c.cam_follow = None;
+            } else {
+                c.car_sel = id.to_string();
+            }
             c.refresh_group();
         })
     });

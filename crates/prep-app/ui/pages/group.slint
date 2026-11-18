@@ -723,26 +723,24 @@ component RaceView inherits Rectangle {
             lap.seen = root.flash;
         }
     }
-    // chi è quella macchina: tempo di studio, pit stop, cosa sta studiando
+    // chi è quella macchina: stato, tempi, pit stop, cosa sta studiando; «Segui» e «Profilo»
     if AppState.car-sel != "": Rectangle {
-        x: 12px;
-        y: root.height - self.height - 12px;
-        width: root.width - 24px;
-        height: info.preferred-height;
-        border-radius: 16px;
+        x: 10px;
+        y: root.height - self.height - 10px;
+        width: root.width - 20px;
+        height: card.preferred-height;
+        border-radius: 20px;
         background: M3.surface-container-high;
-        drop-shadow-blur: 8px;
-        drop-shadow-color: #0003;
-        TouchArea {
-            clicked => {
-                AppState.car-sel = "";
-            }
-        }
-        info := HorizontalLayout {
+        drop-shadow-blur: 12px;
+        drop-shadow-color: #0004;
+        clip: true;
+        // il tocco sulla scheda non arriva alla pista sotto
+        TouchArea { }
+        card := VerticalLayout {
             padding: 12px;
             spacing: 10px;
-            VerticalLayout {
-                alignment: start;
+            HorizontalLayout {
+                spacing: 10px;
                 Avatar {
                     width: 44px;
                     photo: AppState.car-info-photo;
@@ -759,20 +757,95 @@ component RaceView inherits Rectangle {
                         }
                     }
                 }
-            }
-            VerticalLayout {
-                spacing: 4px;
-                Text {
-                    text: AppState.car-info-title;
-                    font-weight: 800;
-                    color: M3.on-surface;
-                    overflow: elide;
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: AppState.car-info-title;
+                        font-weight: 800;
+                        font-size: Type.body + 1px;
+                        color: M3.on-surface;
+                        overflow: elide;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        Rectangle {
+                            height: 22px;
+                            border-radius: 11px;
+                            background: AppState.car-info-kind == 1 ? AppState.car-info-color.with-alpha(0.22) : AppState.car-info-kind == 2 ? M3.tertiary-container : M3.surface-container-highest;
+                            width: state-text.preferred-width + 16px;
+                            state-text := Text {
+                                text: AppState.car-info-state;
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: AppState.car-info-kind == 2 ? M3.on-tertiary-container : M3.on-surface;
+                            }
+                        }
+                    }
                 }
-                Text {
-                    text: AppState.car-info-body;
-                    font-size: Type.label;
-                    color: M3.on-surface-variant;
-                    wrap: word-wrap;
+                IconButton {
+                    icon: Icons.close;
+                    clicked => {
+                        AppState.car-close();
+                    }
+                }
+            }
+            // tempi di studio
+            HorizontalLayout {
+                spacing: 8px;
+                for st[i] in [
+                    { label: "Oggi", value: AppState.car-info-today },
+                    { label: "Settimana", value: AppState.car-info-week },
+                    { label: "Mese", value: AppState.car-info-month },
+                ]: Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 12px;
+                    background: M3.surface-container;
+                    min-height: tile.preferred-height;
+                    tile := VerticalLayout {
+                        padding: 8px;
+                        spacing: 2px;
+                        Text {
+                            text: st.label;
+                            font-size: 11px;
+                            color: M3.on-surface-variant;
+                        }
+                        Text {
+                            text: st.value;
+                            font-weight: 700;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                            overflow: elide;
+                        }
+                    }
+                }
+            }
+            for line in AppState.car-info-lines: Text {
+                text: line;
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            if !AppState.car-info-me: HorizontalLayout {
+                spacing: 8px;
+                if AppState.car-info-racing: M3Button {
+                    horizontal-stretch: 1;
+                    small: true;
+                    kind: AppState.car-info-following ? 2 : 1;
+                    text: AppState.car-info-following ? "Smetti di seguire" : "Segui";
+                    clicked => {
+                        AppState.car-follow(AppState.car-sel);
+                    }
+                }
+                M3Button {
+                    horizontal-stretch: 1;
+                    small: true;
+                    kind: 2;
+                    text: "Profilo";
+                    clicked => {
+                        AppState.open-profile(AppState.car-sel);
+                    }
                 }
             }
         }
@@ -1333,8 +1406,9 @@ component EditBadge inherits Rectangle {
 export component GroupPage inherits Page {
     property <bool> rename-open: false;
     property <bool> has-group: AppState.group-has && AppState.group-code != "";
-    // calendario mostrato: il proprio (falso) o quello del gruppo
-    property <bool> cal-group: false;
+    // calendario mostrato: quello del gruppo, di un altro membro, o il proprio
+    property <bool> cal-group: has-group && AppState.cal-ids[AppState.cal-index] == "*";
+    property <bool> cal-member: has-group && AppState.cal-ids[AppState.cal-index] != "" && !cal-group;
     VerticalLayout {
         TopBar {
             title: "Studio di gruppo";
@@ -1747,21 +1821,6 @@ export component GroupPage inherits Page {
                             }
                         }
                     }
-                    // giorni di studio del membro toccato
-                    if AppState.member-sel == r.id && !r.me && AppState.member-heat.length > 0: VerticalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        padding-top: 4px;
-                        Heatmap {
-                            cells: AppState.member-heat;
-                            title: AppState.member-heat-title;
-                            can-prev: AppState.member-heat-prev;
-                            can-next: AppState.member-heat-next;
-                            shift(d) => {
-                                AppState.heat-shift(1, d);
-                            }
-                        }
-                    }
                     // azioni sul membro toccato
                     if AppState.member-sel == r.id: HorizontalLayout {
                         padding-left: 12px;
@@ -1773,6 +1832,14 @@ export component GroupPage inherits Page {
                             text: "Profilo";
                             clicked => {
                                 AppState.open-profile(r.id);
+                            }
+                        }
+                        // la telecamera segue la sua monoposto (finché è in pista)
+                        if !r.me && r.racing: M3Button {
+                            text: "Segui";
+                            kind: 1;
+                            clicked => {
+                                AppState.show-in-circuit(r.id);
                             }
                         }
                         if !r.me: M3Button {
@@ -1801,11 +1868,21 @@ export component GroupPage inherits Page {
                     spacing: 8px;
                     HorizontalLayout {
                         spacing: 8px;
-                        if has-group: Segmented {
-                            labels: ["Tu", "Gruppo"];
-                            index: cal-group ? 1 : 0;
-                            picked(i) => {
-                                cal-group = i == 1;
+                        // di chi è il calendario: tu, uno degli altri membri o tutto il gruppo
+                        if has-group: Flickable {
+                            height: 34px;
+                            horizontal-stretch: 1;
+                            interactive: true;
+                            content-width: who.preferred-width;
+                            content-height: 34px;
+                            who := Segmented {
+                                x: 0px;
+                                y: 0px;
+                                labels: AppState.cal-labels;
+                                index: AppState.cal-index;
+                                picked(i) => {
+                                    AppState.cal-pick(i);
+                                }
                             }
                         }
                         if !has-group: Text {
@@ -1815,10 +1892,13 @@ export component GroupPage inherits Page {
                             color: M3.on-surface;
                             vertical-alignment: center;
                         }
-                        Rectangle {
+                        if !has-group: Rectangle {
                             horizontal-stretch: 1;
                         }
-                        if has-group && cal-group: Segmented {
+                    }
+                    if has-group && cal-group: HorizontalLayout {
+                        alignment: end;
+                        Segmented {
                             labels: ["Settimana", "Mese"];
                             index: AppState.gcal-month ? 1 : 0;
                             picked(i) => {
@@ -1826,8 +1906,27 @@ export component GroupPage inherits Page {
                             }
                         }
                     }
+                    // di un altro membro: le sue ultime 12 settimane, mese per mese
+                    if cal-member: VerticalLayout {
+                        spacing: 8px;
+                        if AppState.member-heat.length == 0: Text {
+                            text: "Nessun dato di studio ricevuto finora da questo membro.";
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                            wrap: word-wrap;
+                        }
+                        if AppState.member-heat.length > 0: Heatmap {
+                            cells: AppState.member-heat;
+                            title: AppState.member-heat-title;
+                            can-prev: AppState.member-heat-prev;
+                            can-next: AppState.member-heat-next;
+                            shift(d) => {
+                                AppState.heat-shift(1, d);
+                            }
+                        }
+                    }
                     // il proprio: mese per mese
-                    if !has-group || !cal-group: VerticalLayout {
+                    if !cal-group && !cal-member: VerticalLayout {
                         spacing: 8px;
                         Text {
                             text: AppState.my-heat-total;

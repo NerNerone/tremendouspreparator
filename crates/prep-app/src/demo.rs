@@ -149,6 +149,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "pit" => st.invoke_study_pause(),
                 "stop" => st.invoke_study_stop(),
                 "cartap" => st.invoke_car_tap(arg.into()),
+                "carclose" => st.invoke_car_close(),
                 "theme" => st.invoke_theme_color(arg.parse::<u32>().unwrap_or(0) as i32),
                 "pickphoto" => st.invoke_pick_photo(arg.into()),
                 "member" => st.set_member_sel(arg.into()),
