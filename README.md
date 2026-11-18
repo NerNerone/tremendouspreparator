@@ -147,7 +147,10 @@ wasm-bindgen --target web --no-typescript --out-dir site target/wasm32-unknown-u
 ## Licenza ed esclusione di responsabilità
 
 [GPL-3.0-or-later](LICENSE). I font inclusi (Roboto, DejaVu) hanno le proprie licenze, in
-[crates/prep-app/fonts/LICENSES.txt](crates/prep-app/fonts/LICENSES.txt).
+[crates/prep-app/fonts/LICENSES.txt](crates/prep-app/fonts/LICENSES.txt). L'OCR usa il motore
+[ocrs](https://github.com/robertknight/ocrs) (MIT/Apache-2.0) con i suoi modelli, di Robert Knight
+(licenza [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)): non sono inclusi nell'app,
+che li scarica la prima volta dalla release `ocr-modelli` (copia identica dell'originale) o dalla fonte.
 
 Il software è fornito «così com'è», senza garanzie (sezioni 15–16 della licenza). I contenuti che
 ciascuno importa, e il diritto di usarli o condividerli, sono responsabilità di chi li importa. Relay e

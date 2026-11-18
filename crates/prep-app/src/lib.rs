@@ -16,6 +16,8 @@ mod desktop_files;
 pub mod desktop_reminder;
 mod direct;
 mod net;
+#[cfg(not(target_arch = "wasm32"))]
+mod ocr;
 mod palette;
 mod periodic;
 mod photo;

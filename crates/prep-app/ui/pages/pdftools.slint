@@ -8,7 +8,7 @@ export component PdfToolsPage inherits Page {
     VerticalLayout {
         TopBar {
             title: "Strumenti per l'AI";
-            subtitle: "PDF da dividere o da trasformare in testo";
+            subtitle: "PDF e foto da trasformare in testo, o da dividere";
             can-back: true;
             back => {
                 AppState.back();
@@ -43,6 +43,19 @@ export component PdfToolsPage inherits Page {
                     }
                 }
             }
+            // esito (o avanzamento) dell'ultimo lavoro: in alto, così si vede senza scorrere
+            if AppState.pdf-status != "": Rectangle {
+                background: M3.secondary-container;
+                border-radius: 16px;
+                VerticalLayout {
+                    padding: 14px;
+                    Text {
+                        text: AppState.pdf-status;
+                        wrap: word-wrap;
+                        color: M3.on-secondary-container;
+                    }
+                }
+            }
             Card {
                 VerticalLayout {
                     padding: 16px;
@@ -54,7 +67,7 @@ export component PdfToolsPage inherits Page {
                         color: M3.on-surface;
                     }
                     Text {
-                        text: "Il consigliato. Salva il testo di ogni pagina in un file Markdown, con i segnaposto di pagina. È testo GREZZO: a capo spezzati, titoli non riconosciuti, formule e tabelle rovinate, intestazioni ripetute. Prima di usarlo va revisionato: dallo a un'AI con il prompt 8.5 della guida (revisione grammaticale, semantica e logica), non il PDF: costa meno, sbaglia meno e non ha limiti di MB. Le pagine scansionate (senza testo) vengono segnalate: passale dall'OCR.";
+                        text: "Il consigliato. Salva il testo di ogni pagina in un file Markdown, con i segnaposto di pagina. È testo GREZZO: a capo spezzati, titoli non riconosciuti, formule e tabelle rovinate, intestazioni ripetute. Prima di usarlo va revisionato: dallo a un'AI con il prompt 8.5 della guida (revisione grammaticale, semantica e logica), non il PDF: costa meno, sbaglia meno e non ha limiti di MB. Le pagine scansionate (senza testo) vengono segnalate: per quelle usa l'OCR qui sotto.";
                         wrap: word-wrap;
                         font-size: Type.label;
                         color: M3.on-surface-variant;
@@ -75,7 +88,47 @@ export component PdfToolsPage inherits Page {
                     padding: 16px;
                     spacing: 10px;
                     Text {
-                        text: "2 · Dividi il PDF in più parti";
+                        text: "2 · Testo con l'OCR: scansioni e foto";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: AppState.ocr-available
+                            ? "Per i PDF scansionati (o una foto di una pagina): riconosce il testo sul dispositivo e lo salva in Markdown con i segnaposto di pagina; le pagine che hanno già testo lo usano così com'è. Legge anche le pagine su due colonne. La prima volta scarica i modelli (12 MB). Sbaglia più del testo vero (lettere accentate, formule, simboli): va sempre revisionato da un'AI con il prompt 8.5, che costa comunque molto meno che passarle il PDF. Le foto vengono meglio dritte, ben illuminate e a tutta pagina."
+                            : "Nel browser l'OCR non c'è: usalo dall'app per Android o per computer, oppure passa il PDF diviso direttamente all'AI.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+                    if AppState.ocr-available: HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Scegli PDF o foto";
+                            has-icon: true;
+                            icon: Icons.search;
+                            kind: 1;
+                            enabled: !AppState.pdf-busy;
+                            clicked => {
+                                AppState.pdf-ocr();
+                            }
+                        }
+                        if AppState.pdf-ocr-running: M3Button {
+                            text: "Ferma";
+                            kind: 2;
+                            clicked => {
+                                AppState.pdf-stop();
+                            }
+                        }
+                    }
+                }
+            }
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: "3 · Dividi il PDF in più parti";
                         font-size: Type.title;
                         font-weight: 700;
                         color: M3.on-surface;
@@ -111,14 +164,9 @@ export component PdfToolsPage inherits Page {
                     }
                 }
             }
-            if AppState.pdf-status != "": Text {
-                text: AppState.pdf-status;
-                wrap: word-wrap;
-                color: M3.on-surface;
-            }
             Hint {
                 short: "Le parti e il testo restano sul tuo dispositivo.";
-                full: "Il lavoro si fa tutto sul dispositivo: niente viene mandato da nessuna parte. Su Android scegli la cartella dove salvare i file; sul computer finiscono in Download; nel browser vengono scaricati. Un PDF protetto da password va prima sbloccato.";
+                full: "Il lavoro si fa tutto sul dispositivo: niente viene mandato da nessuna parte (l'OCR scarica solo i suoi modelli, la prima volta: modelli del progetto ocrs di Robert Knight, licenza CC BY-SA 4.0). Su Android scegli la cartella dove salvare i file; sul computer finiscono in Download; nel browser vengono scaricati. Un PDF protetto da password va prima sbloccato.";
             }
         }
     }

@@ -60,7 +60,9 @@ a server STUN pubblici (Google, Cloudflare), che non ricevono dati. I relay di n
 conservarli; fanno eccezione gli avvisi «vieni a studiare» dei gruppi di studio, che restano cifrati sui relay \
 per arrivare anche a chi è offline e scadono dopo 24 ore (un relay potrebbe non rispettare la scadenza). Foto profilo \
 e del gruppo e il nome utente li vedono i membri dei gruppi in cui entri. Questi servizi hanno le loro condizioni e la loro gestione dei dati (per esempio \
-possono vedere l'indirizzo IP): usarli è una tua scelta, e la password della sincronizzazione va custodita da te.
+possono vedere l'indirizzo IP): usarli è una tua scelta, e la password della sincronizzazione va custodita da te. \
+La prima volta che usi l'OCR l'app scarica i suoi modelli (progetto ocrs di Robert Knight, licenza CC BY-SA 4.0) \
+da GitHub o da Amazon S3; le pagine da leggere restano sul dispositivo.
 
 • Risultati. Percentuali di preparazione, punteggi attesi, simulazioni e obiettivi sono stime indicative e non \
 garantiscono l'esito di alcun esame.
@@ -376,6 +378,8 @@ pub struct Ctrl {
     /// strumento PDF in attesa del file scelto
     pdf_pick: Option<pdftools::PdfTool>,
     pdf_return: i32,
+    /// OCR in corso: alzato da «Ferma»
+    ocr_stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// tratto di studio in corso e suoi effetti (punteggio, vedi prep_core::score)
     run: prep_core::score::Run,
     /// concentrazione attiva (×1,5) e altri membri in pista (scia di gruppo)
@@ -591,13 +595,15 @@ pub(crate) fn on_direct_event(sess: usize, peer: String, ev: crate::direct::Dire
     with_ctrl(|c| c.direct_event(Sess::from_index(sess), peer, ev));
 }
 
-/// Modalità dimostrativa: un'immagine scelta come foto profilo (apre il ritaglio).
-#[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
-/// Modalità dimostrativa: un PDF «scelto» per uno strumento («split» o «text»).
+/// Modalità dimostrativa: un PDF «scelto» per uno strumento («split», «text» o «ocr»).
 #[cfg_attr(any(target_os = "android", target_arch = "wasm32"), allow(dead_code))]
 pub(crate) fn demo_pdf(tool: &str, path: &str) {
     with_ctrl(|c| {
-        c.pdf_pick = Some(if tool == "split" { pdftools::PdfTool::Split } else { pdftools::PdfTool::Text });
+        c.pdf_pick = Some(match tool {
+            "split" => pdftools::PdfTool::Split,
+            "ocr" => pdftools::PdfTool::Ocr,
+            _ => pdftools::PdfTool::Text,
+        });
         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
         if let Ok(b) = std::fs::read(path) {
             let dir = c.store.base.join("import");
@@ -1028,6 +1034,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         profile_sel: None,
         pdf_pick: None,
         pdf_return: P_HOME,
+        ocr_stop: Default::default(),
         run: Default::default(),
         focus_on: false,
         racing_others: 0,
@@ -1331,6 +1338,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));
+    st.on_pdf_ocr(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Ocr)));
+    st.on_pdf_stop(|| with_ctrl(|c| c.ocr_stop.store(true, std::sync::atomic::Ordering::SeqCst)));
+    st.set_ocr_available(cfg!(not(target_arch = "wasm32")));
     st.on_open_profile(|id| {
         with_ctrl(|c| {
             c.profile_sel = if id.is_empty() { None } else { Some(id.to_string()) };

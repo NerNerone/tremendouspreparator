@@ -131,6 +131,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "pdfmb" => st.set_pdf_max_mb(arg.parse().unwrap_or(20.0)),
                 "pdfsplit" => crate::app::demo_pdf("split", arg),
                 "pdftext" => crate::app::demo_pdf("text", arg),
+                "pdfocr" => crate::app::demo_pdf("ocr", arg),
                 "profileme" => crate::app::demo_profile_me(),
                 "gcal" => st.invoke_gcal_select(arg.parse().unwrap_or(0)),
                 "gcalmonth" => st.invoke_gcal_mode(arg == "1"),

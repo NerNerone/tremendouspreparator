@@ -16,8 +16,10 @@ python3 tools/pdf2md.py libro.pdf bozza.md --offset N
 
 Serve l'OCR, il riconoscimento del testo nelle immagini:
 
-- al computer, lo stesso `pdf2md.py` usa tesseract quando una pagina non ha testo (`tesseract-ocr` e `tesseract-ocr-ita`);
-- sul telefono, finché l'app non avrà un suo OCR, puoi usare il riconoscimento del testo del sistema (copia il testo dalla foto) e incollarlo in un file `.md`.
+- nell'app (Android e computer): **Strumenti PDF › «Testo con l'OCR»**, poi scegli un PDF scansionato o la foto di una pagina. Il riconoscimento avviene sul dispositivo (la prima volta scarica i modelli, 12 MB) e il risultato è un file `.md` con i segnaposto di pagina; le pagine che hanno già testo lo usano così com'è e quelle su due colonne si leggono una colonna dopo l'altra. Con il campo «Pagine» scegli solo una parte (es. un capitolo) e con «Ferma» interrompi. Nel browser l'OCR non c'è;
+- al computer, nel repository, anche `pdf2md.py` usa tesseract quando una pagina non ha testo (`tesseract-ocr` e `tesseract-ocr-ita`).
+
+Per le foto: pagina dritta, a tutta inquadratura, ben illuminata e senza ombre. L'OCR dell'app non conosce le lettere accentate: rimette da solo quelle sicure (è, perché, più, città…) e lascia le altre all'AI.
 
 L'OCR sbaglia: parole spezzate a fine riga, `l`/`1` e `O`/`0` confusi, esponenti persi (`10-4` invece di `10⁻⁴`), formule illeggibili, tabelle sbriciolate. Per questo c'è il prompt 8.5.
 

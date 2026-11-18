@@ -156,9 +156,131 @@ pub fn to_markdown(bytes: &[u8], sel: &[u32], offset: i32) -> Result<(String, Ve
     Ok((md, empty))
 }
 
+/// Immagine di una pagina scansionata, da passare all'OCR.
+pub enum Scan {
+    /// JPEG (filtro DCTDecode) da decodificare.
+    Jpeg(Vec<u8>),
+    /// Pixel grezzi a 8 bit: 1 canale (grigi) o 3 (RGB).
+    Raw { width: u32, height: u32, channels: u8, data: Vec<u8> },
+}
+
+/// Cosa c'è in una pagina, per l'OCR: testo già presente, immagine da leggere o niente di
+/// leggibile (immagini in formati che l'app non decodifica, come JBIG2 o CCITT).
+pub enum PageContent {
+    Text(String),
+    Scan(Scan),
+    Unreadable,
+}
+
+/// Un PDF aperto per l'OCR, pagina per pagina (per non tenere in memoria tutte le immagini).
+pub struct ScanDoc {
+    doc: Document,
+}
+
+impl ScanDoc {
+    pub fn open(bytes: &[u8]) -> Result<ScanDoc, String> {
+        Ok(ScanDoc { doc: load(bytes)? })
+    }
+
+    pub fn page_count(&self) -> u32 {
+        self.doc.get_pages().len() as u32
+    }
+
+    /// La pagina `p` (contata da 1): il suo testo se ne ha, altrimenti l'immagine più grande.
+    pub fn page(&self, p: u32) -> PageContent {
+        let pages = self.doc.get_pages();
+        let Some(&id) = pages.get(&p) else { return PageContent::Unreadable };
+        let text = tidy(&self.doc.extract_text(&[p]).unwrap_or_default());
+        if text.chars().filter(|c| c.is_alphanumeric()).count() >= 40 {
+            return PageContent::Text(text);
+        }
+        let mut imgs = self.doc.get_page_images(id).unwrap_or_default();
+        imgs.sort_by_key(|i| std::cmp::Reverse(i.width * i.height));
+        for img in imgs.iter().filter(|i| i.width >= 200 && i.height >= 200) {
+            if let Some(s) = self.decode(img) {
+                return PageContent::Scan(s);
+            }
+        }
+        if text.trim().is_empty() {
+            PageContent::Unreadable
+        } else {
+            PageContent::Text(text)
+        }
+    }
+
+    fn decode(&self, img: &lopdf::xobject::PdfImage) -> Option<Scan> {
+        let filters = img.filters.clone().unwrap_or_default();
+        let (w, h) = (img.width as u32, img.height as u32);
+        let last = filters.last().map(String::as_str);
+        if filters.iter().any(|f| !matches!(f.as_str(), "DCTDecode" | "FlateDecode")) {
+            return None; // JBIG2, CCITT, JPX…
+        }
+        let data = if filters.iter().any(|f| f == "FlateDecode") {
+            let stream = self.doc.get_object(img.id).ok()?.as_stream().ok()?;
+            let mut s = stream.clone();
+            // si toglie solo la compressione: un eventuale JPEG resta tale
+            if last == Some("DCTDecode") {
+                s.dict.set("Filter", lopdf::Object::Name(b"FlateDecode".to_vec()));
+            }
+            s.decompressed_content().ok()?
+        } else {
+            img.content.to_vec()
+        };
+        if last == Some("DCTDecode") {
+            return Some(Scan::Jpeg(data));
+        }
+        if img.color_space.as_deref().is_some_and(|c| c == "Indexed" || c == "Separation") {
+            return None;
+        }
+        let px = (w as usize) * (h as usize);
+        match img.bits_per_component.unwrap_or(8) {
+            8 if px > 0 && data.len() >= px => {
+                let ch = (data.len() / px).min(4);
+                let data = match ch {
+                    1 | 3 => data[..px * ch].to_vec(),
+                    // CMYK → RGB, approssimato
+                    4 => data[..px * 4]
+                        .chunks(4)
+                        .flat_map(|c| {
+                            let k = 255 - c[3] as u32;
+                            [c[0], c[1], c[2]].map(|v| ((255 - v as u32) * k / 255) as u8)
+                        })
+                        .collect(),
+                    _ => return None,
+                };
+                Some(Scan::Raw { width: w, height: h, channels: if ch == 1 { 1 } else { 3 }, data })
+            }
+            1 => {
+                // bianco e nero: 1 bit per pixel, righe allineate al byte (0 = nero)
+                let row = (w as usize).div_ceil(8);
+                if data.len() < row * h as usize {
+                    return None;
+                }
+                let inv = img
+                    .origin_dict
+                    .get(b"Decode")
+                    .ok()
+                    .and_then(|d| d.as_array().ok())
+                    .and_then(|a| a.first())
+                    .and_then(|v| v.as_float().ok().or_else(|| v.as_i64().ok().map(|i| i as f32)))
+                    .is_some_and(|v| v > 0.5);
+                let mut out = Vec::with_capacity(px);
+                for y in 0..h as usize {
+                    for x in 0..w as usize {
+                        let bit = data[y * row + x / 8] >> (7 - x % 8) & 1;
+                        out.push(if (bit == 1) != inv { 255 } else { 0 });
+                    }
+                }
+                Some(Scan::Raw { width: w, height: h, channels: 1, data: out })
+            }
+            _ => None,
+        }
+    }
+}
+
 /// Ripulitura minima del testo estratto: righe spezzate a metà parola («para-\ngrafo»), spazi
 /// ripetuti, righe vuote in eccesso. Il resto lo fa la revisione con l'AI.
-fn tidy(text: &str) -> String {
+pub(crate) fn tidy(text: &str) -> String {
     let mut paras: Vec<String> = Vec::new();
     let mut cur = String::new();
     for line in text.lines() {
@@ -274,5 +396,54 @@ mod tests {
         assert!(md.contains("<!-- p. 11 -->"));
         assert!(md.contains("Pagina 3 del capitolo"));
         assert_eq!(tidy("para-\ngrafo  lungo\n\n\n\naltro"), "paragrafo lungo\n\naltro");
+    }
+
+    /// Pagina scansionata: un'immagine grigia 1 bit (compressa) e nessun testo.
+    #[test]
+    fn scanned_page_gives_its_image() {
+        let mut doc = Document::with_version("1.5");
+        let pages_id = doc.new_object_id();
+        let (w, h) = (240u32, 210u32);
+        let row = w.div_ceil(8) as usize;
+        // metà sinistra nera (0), metà destra bianca (1)
+        let data: Vec<u8> = (0..h as usize * row).map(|i| if i % row < row / 2 { 0x00 } else { 0xff }).collect();
+        let mut img = Stream::new(
+            dictionary! {
+                "Type" => "XObject", "Subtype" => "Image", "Width" => w as i64, "Height" => h as i64,
+                "ColorSpace" => "DeviceGray", "BitsPerComponent" => 1,
+            },
+            data,
+        );
+        img.compress().unwrap();
+        let img_id = doc.add_object(img);
+        let content = Content { operations: vec![Operation::new("Do", vec!["Im0".into()])] };
+        let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+        let page_id = doc.add_object(dictionary! {
+            "Type" => "Page", "Parent" => pages_id, "Contents" => content_id,
+            "Resources" => dictionary! { "XObject" => dictionary! { "Im0" => img_id } },
+            "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()],
+        });
+        doc.objects.insert(
+            pages_id,
+            Object::Dictionary(dictionary! { "Type" => "Pages", "Kids" => vec![page_id.into()], "Count" => 1 }),
+        );
+        let catalog_id = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
+        doc.trailer.set("Root", catalog_id);
+        let mut out = Vec::new();
+        doc.save_to(&mut out).unwrap();
+
+        let sd = ScanDoc::open(&out).unwrap();
+        assert_eq!(sd.page_count(), 1);
+        match sd.page(1) {
+            PageContent::Scan(Scan::Raw { width, height, channels, data }) => {
+                assert_eq!((width, height, channels), (w, h, 1));
+                assert_eq!(data[0], 0);
+                assert_eq!(data[w as usize - 1], 255);
+            }
+            _ => panic!("attesa un'immagine"),
+        }
+        // le pagine di testo restano testo
+        let txt = ScanDoc::open(&sample(1, 0)).unwrap();
+        assert!(matches!(txt.page(1), PageContent::Text(_) | PageContent::Unreadable));
     }
 }

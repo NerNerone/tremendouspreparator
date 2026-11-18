@@ -13,3 +13,19 @@ opt-level = 3
 lto = "thin"
 codegen-units = 4
 strip = true
+
+# l'OCR in debug sarebbe lentissimo: le sue dipendenze si compilano sempre ottimizzate
+[profile.dev.package.rten]
+opt-level = 3
+[profile.dev.package.rten-tensor]
+opt-level = 3
+[profile.dev.package.rten-imageproc]
+opt-level = 3
+[profile.dev.package.rten-vecmath]
+opt-level = 3
+[profile.dev.package.rten-simd]
+opt-level = 3
+[profile.dev.package.rten-gemm]
+opt-level = 3
+[profile.dev.package.ocrs]
+opt-level = 3

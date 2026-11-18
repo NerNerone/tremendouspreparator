@@ -1,0 +1,43 @@
+# Copia dei modelli OCR (ocrs, di Robert Knight, licenza CC BY-SA 4.0) nella release
+# «ocr-modelli»: l'app li scarica da qui la prima volta che si usa l'OCR (e, se manca, dalla
+# fonte originale). Solo a mano: Actions › Modelli OCR › Run workflow.
+name: Modelli OCR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  modelli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica, verifica e pubblica
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          base=https://ocrs-models.s3-accelerate.amazonaws.com
+          curl -fsSLo text-detection.onnx "$base/text-detection.onnx"
+          curl -fsSLo text-recognition.onnx "$base/text-recognition.onnx"
+          cat > SHA256SUMS <<'SUMS'
+          a917b23dbd9524b465df7e922641b3ff2981623df4ded5a0234004ef2fee7cfe  text-detection.onnx
+          86c145c2edb96c8caed5b1ebb8f44d706408922211451c309c625157dd6061c5  text-recognition.onnx
+          SUMS
+          sed -i 's/^ *//' SHA256SUMS
+          sha256sum -c SHA256SUMS
+          cat > ATTRIBUZIONE.txt <<'TXT'
+          Modelli di rilevamento e riconoscimento del testo del progetto ocrs
+          (https://github.com/robertknight/ocrs), di Robert Knight, addestrati su HierText e dati
+          sintetici. Licenza Creative Commons Attribution-ShareAlike 4.0
+          (https://creativecommons.org/licenses/by-sa/4.0/). Copie identiche, non modificate,
+          di https://ocrs-models.s3-accelerate.amazonaws.com/text-detection.onnx e
+          text-recognition.onnx.
+          TXT
+          sed -i 's/^ *//' ATTRIBUZIONE.txt
+          gh release delete ocr-modelli -R "$REPO" --cleanup-tag --yes 2>/dev/null || true
+          gh release create ocr-modelli -R "$REPO" --target "$GITHUB_SHA" --latest=false \
+            --title "Modelli OCR" --notes-file ATTRIBUZIONE.txt \
+            text-detection.onnx text-recognition.onnx SHA256SUMS ATTRIBUZIONE.txt

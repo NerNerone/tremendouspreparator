@@ -32,10 +32,14 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 webpki-roots = "1"
 # collegamento diretto tra dispositivi (WebRTC, crittografia in puro Rust)
 str0m = { version = "0.25", default-features = false, features = ["rust-crypto"] }
+# OCR sul dispositivo (modelli ONNX scaricati la prima volta che si usa)
+ocrs = "0.14"
+rten = { version = "0.28", default-features = false, features = ["onnx_format"] }
+rten-imageproc = "0.28"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+sha2 = "0.10"
 
 [target.'cfg(target_os = "android")'.dependencies]
-# aggiornamenti dalle release di GitHub (solo APK distribuiti lì)
-ureq = { version = "3", default-features = false, features = ["rustls"] }
 slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-android-activity-06", "renderer-femtovg"] }
 jni = "0.21"
 

@@ -8,6 +8,8 @@ use super::*;
 pub(super) enum PdfTool {
     Split,
     Text,
+    /// testo con l'OCR: PDF scansionati o foto
+    Ocr,
 }
 
 impl Ctrl {
@@ -61,6 +63,10 @@ impl Ctrl {
         let name = fname.split_once("--").map(|(_, n)| n.to_string()).unwrap_or(fname);
         let ui = self.ui();
         let st = ui.global::<AppState>();
+        if tool == PdfTool::Ocr {
+            self.ocr_start(name, bytes);
+            return;
+        }
         st.set_pdf_busy(true);
         st.set_pdf_status(ss(format!("Lavoro su «{name}»…")));
         slint::Timer::single_shot(Duration::from_millis(60), move || {
@@ -68,6 +74,7 @@ impl Ctrl {
                 let res = match tool {
                     PdfTool::Split => c.pdf_split(&name, &bytes),
                     PdfTool::Text => c.pdf_text(&name, &bytes),
+                    PdfTool::Ocr => unreachable!(),
                 };
                 let ui = c.ui();
                 let st = ui.global::<AppState>();
@@ -128,7 +135,7 @@ impl Ctrl {
         let total = sel.len() as u32;
         if empty.len() as u32 == total {
             return Err(
-                "nessuna pagina ha testo: è una scansione. Usa l'OCR (vedi la guida) o, se l'OCR non può farcela, passa il PDF diviso direttamente all'AI.".into(),
+                "nessuna pagina ha testo: è una scansione. Usa «Testo con l'OCR» o, se l'OCR non può farcela, passa il PDF diviso direttamente all'AI.".into(),
             );
         }
         let stem = name.trim_end_matches(".pdf").trim_end_matches(".PDF");
@@ -140,13 +147,123 @@ impl Ctrl {
         if !empty.is_empty() {
             let list: Vec<String> = empty.iter().take(12).map(|p| p.to_string()).collect();
             msg.push_str(&format!(
-                " {} pagine sono scansioni senza testo (p. {}{}): falle passare dall'OCR.",
+                " {} pagine sono scansioni senza testo (p. {}{}): per quelle usa «Testo con l'OCR».",
                 empty.len(),
                 list.join(", "),
                 if empty.len() > 12 { "…" } else { "" }
             ));
         }
         Ok(msg)
+    }
+
+    /// OCR in un thread a parte: modelli (la prima volta), poi pagina per pagina con
+    /// l'avanzamento nella pagina e «Ferma». Le pagine che hanno già testo lo usano così com'è.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn ocr_start(&mut self, name: String, bytes: Vec<u8>) {
+        use std::sync::atomic::Ordering;
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_pdf_busy(true);
+        st.set_pdf_ocr_running(true);
+        st.set_pdf_status(ss(format!("Preparo l'OCR di «{name}»…")));
+        let spec = st.get_pdf_pages().to_string();
+        let dir = crate::ocr::models_dir(&self.store.base);
+        let stop = self.ocr_stop.clone();
+        stop.store(false, Ordering::SeqCst);
+        let status = |msg: String| {
+            let _ = slint::invoke_from_event_loop(move || {
+                with_ctrl(|c| c.ui().global::<AppState>().set_pdf_status(ss(msg)));
+            });
+        };
+        spawn_background(move || {
+            let res = (|| -> Result<(String, String), String> {
+                if !crate::ocr::ready(&dir) {
+                    crate::ocr::download(&dir, &status)?;
+                }
+                status("Carico i modelli OCR…".into());
+                let engine = crate::ocr::Engine::load(&dir)?;
+                let lower = name.to_lowercase();
+                if !lower.ends_with(".pdf") {
+                    status(format!("Leggo «{name}»…"));
+                    let text = engine.read_image(&bytes)?;
+                    return Ok((text, format!("Testo letto dall'immagine «{name}»")));
+                }
+                let doc = prep_core::pdf::ScanDoc::open(&bytes)?;
+                let sel = prep_core::pdf::parse_pages(&spec, doc.page_count())?;
+                let (mut md, mut ocr, mut text, mut bad) = (String::new(), 0, 0, Vec::new());
+                let mut done = 0;
+                for (i, &p) in sel.iter().enumerate() {
+                    if stop.load(Ordering::SeqCst) {
+                        break;
+                    }
+                    status(format!("OCR: pagina {p} ({} di {})…", i + 1, sel.len()));
+                    md.push_str(&format!("<!-- p. {p} -->\n"));
+                    match doc.page(p) {
+                        prep_core::pdf::PageContent::Text(t) => {
+                            text += 1;
+                            md.push_str(&t);
+                        }
+                        prep_core::pdf::PageContent::Scan(s) => match engine.read_scan(s) {
+                            Ok(t) => {
+                                ocr += 1;
+                                md.push_str(&t);
+                            }
+                            Err(_) => {
+                                bad.push(p);
+                                md.push_str("[pagina non letta]");
+                            }
+                        },
+                        prep_core::pdf::PageContent::Unreadable => {
+                            bad.push(p);
+                            md.push_str("[pagina non letta: immagine in un formato non supportato]");
+                        }
+                    }
+                    md.push_str("\n\n");
+                    done += 1;
+                }
+                let mut msg = format!("{ocr} pagine lette con l'OCR");
+                if text > 0 {
+                    msg.push_str(&format!(", {text} con il testo già presente"));
+                }
+                if done < sel.len() {
+                    msg.push_str(&format!(" (fermato a {done} pagine su {})", sel.len()));
+                }
+                if !bad.is_empty() {
+                    let list: Vec<String> = bad.iter().take(12).map(|p| p.to_string()).collect();
+                    msg.push_str(&format!(
+                        "; {} non lette (p. {}{}): passa quelle pagine direttamente all'AI",
+                        bad.len(),
+                        list.join(", "),
+                        if bad.len() > 12 { "…" } else { "" }
+                    ));
+                }
+                Ok((md, msg))
+            })();
+            let _ = slint::invoke_from_event_loop(move || {
+                with_ctrl(|c| {
+                    let res = res.and_then(|(md, msg)| {
+                        let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name).to_string();
+                        let where_ = c.save_outputs(&[(format!("{stem}.md"), md.into_bytes())], "text/markdown")?;
+                        Ok(format!(
+                            "{msg}. Testo in «{stem}.md»{where_} L'OCR sbaglia lettere accentate, formule e simboli: prima di usarlo fallo revisionare da un'AI con il prompt 8.5 della guida."
+                        ))
+                    });
+                    let ui = c.ui();
+                    let st = ui.global::<AppState>();
+                    st.set_pdf_busy(false);
+                    st.set_pdf_ocr_running(false);
+                    match res {
+                        Ok(m) => st.set_pdf_status(ss(m)),
+                        Err(e) => st.set_pdf_status(ss(format!("OCR non riuscito: {e}"))),
+                    }
+                })
+            });
+        });
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn ocr_start(&mut self, _name: String, _bytes: Vec<u8>) {
+        self.toast("L'OCR c'è nell'app per Android e per computer");
     }
 
     /// Pagine scelte nel campo «Pagine» (vuoto = tutte).
@@ -157,37 +274,35 @@ impl Ctrl {
 
     /// Salva i file prodotti: cartella scelta (Android), download (browser), Download (computer).
     /// Restituisce dove sono finiti, da aggiungere al messaggio.
+    #[cfg(target_os = "android")]
     fn save_outputs(&mut self, files: &[(String, Vec<u8>)], mime: &str) -> Result<String, String> {
-        #[cfg(target_os = "android")]
-        {
-            let dir = self.store.base.join("export");
-            let _ = vfs::create_dir_all(&dir);
-            let mut list = Vec::new();
-            for (i, (name, bytes)) in files.iter().enumerate() {
-                let p = dir.join(format!("out-{i}"));
-                vfs::write(&p, bytes).map_err(|e| e.to_string())?;
-                list.push((p, name.clone(), mime));
-            }
-            crate::android_save_files(&list)?;
-            return Ok(": scegli la cartella dove salvarli.".into());
+        let dir = self.store.base.join("export");
+        let _ = vfs::create_dir_all(&dir);
+        let mut list = Vec::new();
+        for (i, (name, bytes)) in files.iter().enumerate() {
+            let p = dir.join(format!("out-{i}"));
+            vfs::write(&p, bytes).map_err(|e| e.to_string())?;
+            list.push((p, name.clone(), mime));
         }
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = mime;
-            for (name, bytes) in files {
-                crate::web::download_file(name, bytes);
-            }
-            return Ok(", scaricati dal browser.".into());
+        crate::android_save_files(&list)?;
+        Ok(": scegli la cartella dove salvarli.".into())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn save_outputs(&mut self, files: &[(String, Vec<u8>)], _mime: &str) -> Result<String, String> {
+        for (name, bytes) in files {
+            crate::web::download_file(name, bytes);
         }
-        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-        {
-            let _ = mime;
-            let mut dir = None;
-            for (name, bytes) in files {
-                let p = crate::desktop_files::save_to_downloads(name, bytes)?;
-                dir = p.parent().map(|d| d.display().to_string());
-            }
-            Ok(format!(", salvati in {}.", dir.unwrap_or_default()))
+        Ok(", scaricati dal browser.".into())
+    }
+
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+    fn save_outputs(&mut self, files: &[(String, Vec<u8>)], _mime: &str) -> Result<String, String> {
+        let mut dir = None;
+        for (name, bytes) in files {
+            let p = crate::desktop_files::save_to_downloads(name, bytes)?;
+            dir = p.parent().map(|d| d.display().to_string());
         }
+        Ok(format!(", salvati in {}.", dir.unwrap_or_default()))
     }
 }

@@ -10,6 +10,7 @@ pub mod group;
 pub mod latex;
 pub mod markdown;
 pub mod model;
+pub mod ocr;
 pub mod p2p;
 pub mod pack;
 pub mod pdf;

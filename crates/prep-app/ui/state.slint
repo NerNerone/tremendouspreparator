@@ -558,6 +558,10 @@ export global AppState {
     callback cr-close();
     callback pdf-split();
     callback pdf-text();
+    callback pdf-ocr();
+    callback pdf-stop();
+    in property <bool> pdf-ocr-running;
+    in property <bool> ocr-available: true;
     in-out property <float> pdf-max-mb: 20;
     // pagine da usare («25-30, 40»; vuoto = tutte)
     in-out property <string> pdf-pages;
