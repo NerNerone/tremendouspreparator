@@ -114,6 +114,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 // registro delle simulazioni: simlog (apre), simopen:N (riapre la N-esima)
                 "simlog" => st.invoke_open_simlog(),
                 "updcheck" => st.invoke_update_check(),
+                "rmexam" => st.invoke_remove_exam(arg.into()),
                 "simopen" => {
                     if let Some(r) = slint::Model::row_data(&st.get_sim_rows(), arg.parse().unwrap_or(0)) {
                         st.invoke_simlog_open(r.id);
