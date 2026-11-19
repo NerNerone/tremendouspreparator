@@ -1,5 +1,5 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
-import { M3, Icons, Type, Shape } from "../theme.slint";
+import { M3, Icons, Type, Shape, Design } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
@@ -68,8 +68,9 @@ export component CardsPage inherits Page {
                     align: center;
                     Text {
                         text: AppState.c-front;
-                        font-size: 20px;
-                        font-weight: 600;
+                        // fronte senza risposta: più grande, la carta non resta vuota
+                        font-size: Design.v == 0 ? 20px : cv.show-back ? 20px : Design.v == 2 ? 30px : 26px;
+                        font-weight: Design.v == 2 ? 800 : 600;
                         wrap: word-wrap;
                         horizontal-alignment: center;
                         color: M3.on-surface;

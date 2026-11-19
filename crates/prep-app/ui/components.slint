@@ -601,7 +601,8 @@ export component TopBar inherits Rectangle {
     in property <bool> can-back;
     in property <color> bg: Design.canvas;
     callback back;
-    height: Design.top-height;
+    // con la freccia indietro (pagine interne, quiz) la barra resta compatta
+    height: root.can-back ? (Design.v == 2 ? 76px : 64px) : Design.top-height;
     background: root.bg;
     HorizontalLayout {
         padding-left: root.can-back ? 4px : (Design.v == 2 ? 20px : 16px);
