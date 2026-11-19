@@ -1,0 +1,207 @@
+// Traguardo: scheda «Tu». Profilo, registro delle simulazioni e Opzioni raccolte in quattro gruppi.
+import { M3, Icons, Type, Shape } from "../theme.slint";
+import { AppState } from "../state.slint";
+import { Page, Icon, Scroller, ListRow } from "../components.slint";
+import { Avatar } from "group.slint";
+
+// riquadro di un gruppo di Opzioni: simbolo, titolo, voci
+component OptGroup inherits Rectangle {
+    in property <image> icon;
+    in property <string> title;
+    in property <color> tone: M3.secondary-container;
+    in property <color> on-tone: M3.on-secondary-container;
+    border-radius: 28px;
+    background: M3.surface-container;
+    VerticalLayout {
+        padding: 6px;
+        padding-top: 14px;
+        spacing: 2px;
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-bottom: 6px;
+            spacing: 12px;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 14px;
+                background: root.tone;
+                Icon {
+                    source: root.icon;
+                    tint: root.on-tone;
+                }
+            }
+            Text {
+                text: root.title;
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+        }
+        @children
+    }
+}
+
+export component TuPage inherits Page {
+    Scroller {
+        pad: 16px;
+        pad-top: 18px;
+        gap: 14px;
+        align: start;
+
+        // profilo
+        HorizontalLayout {
+            spacing: 14px;
+            Avatar {
+                width: 64px;
+                photo: AppState.my-photo;
+                has-photo: AppState.my-has-photo;
+                initial: AppState.my-initial;
+            }
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 1;
+                Text {
+                    text: AppState.s-username != "" ? AppState.s-username : "Tu";
+                    font-size: 26px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    overflow: elide;
+                }
+                Text {
+                    text: AppState.total-time != "" ? AppState.total-time : "Profilo, statistiche e opzioni";
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+            }
+            Rectangle {
+                width: 48px;
+                height: 48px;
+                border-radius: 24px;
+                background: eta.pressed ? M3.on-surface.with-alpha(0.08) : transparent;
+                Icon {
+                    source: Icons.edit;
+                    tint: M3.on-surface-variant;
+                }
+                eta := TouchArea {
+                    clicked => {
+                        AppState.open-setting(0);
+                    }
+                }
+            }
+        }
+
+        // registro delle simulazioni (solo se il pacchetto prevede una prova o ce n'è già una)
+        if AppState.exam-rules != "" || AppState.sim-count > 0: ListRow {
+            title: "Registro simulazioni";
+            subtitle: AppState.sim-count > 0 ? AppState.sim-count + " fatte · media " + AppState.sim-avg : "Nessuna ancora: una simulazione pesa più di dieci quiz";
+            clicked => {
+                AppState.open-simlog();
+            }
+        }
+
+        Text {
+            text: "Opzioni";
+            font-size: Type.title;
+            font-weight: 700;
+            color: M3.primary;
+        }
+
+        OptGroup {
+            icon: Icons.palette;
+            title: "Tu e l'aspetto";
+            tone: M3.primary-container;
+            on-tone: M3.on-primary-container;
+            ListRow {
+                title: "Profilo";
+                subtitle: "Nome, foto e colore della monoposto";
+                clicked => {
+                    AppState.open-setting(0);
+                }
+            }
+            ListRow {
+                title: "Aspetto";
+                subtitle: "Tema e colore dell'app";
+                clicked => {
+                    AppState.open-setting(1);
+                }
+            }
+        }
+
+        OptGroup {
+            icon: Icons.devices;
+            title: "Dispositivi";
+            ListRow {
+                title: "I tuoi dispositivi";
+                subtitle: "Progressi ed esami tra telefono, computer e web";
+                clicked => {
+                    AppState.open-setting(2);
+                }
+            }
+            ListRow {
+                title: "Condividi con un'altra persona";
+                subtitle: "Manda o ricevi un esame con un codice";
+                clicked => {
+                    AppState.open-setting(3);
+                }
+            }
+        }
+
+        OptGroup {
+            icon: Icons.school;
+            title: "Studio";
+            tone: M3.tertiary-container;
+            on-tone: M3.on-tertiary-container;
+            ListRow {
+                title: "Esame e barra";
+                subtitle: "Regole della prova e come si calcola la preparazione";
+                clicked => {
+                    AppState.open-setting(6);
+                }
+            }
+            ListRow {
+                title: "Promemoria";
+                subtitle: "Notifiche per ripassare";
+                clicked => {
+                    AppState.open-setting(5);
+                }
+            }
+        }
+
+        OptGroup {
+            icon: Icons.update;
+            title: "App";
+            tone: M3.surface-container-high;
+            on-tone: M3.on-surface-variant;
+            ListRow {
+                title: "Pacchetto contenuti";
+                subtitle: "Importa, gestisci ed esporta quiz, flashcard e libri";
+                clicked => {
+                    AppState.open-setting(4);
+                }
+            }
+            ListRow {
+                title: "Novità";
+                subtitle: "Cosa è cambiato nelle ultime versioni";
+                clicked => {
+                    AppState.news-all();
+                }
+            }
+            ListRow {
+                title: "Note legali";
+                subtitle: "Nessuna garanzia; contenuti importati e servizi esterni a cura di chi li usa";
+                clicked => {
+                    AppState.legal-visible = true;
+                }
+            }
+            ListRow {
+                title: "Versione";
+                subtitle: AppState.app-version;
+                chevron: false;
+            }
+        }
+    }
+}

@@ -384,6 +384,10 @@ export global AppState {
     in property <string> total-time;
     in property <string> paused-title;
     in property <string> paused-info;
+    // barra della sessione (Traguardo, da Notturno): domanda a cui si è arrivati e frazione fatta
+    in property <int> paused-n;
+    in property <float> paused-frac;
+    in property <string> paused-short;
     in property <[ExamDateVM]> exam-dates;
     // obiettivi del giorno: proposta (confirmed = false) o obiettivi confermati con avanzamento
     in property <[GoalVM]> goals;
@@ -797,6 +801,11 @@ export global AppState {
     in property <string> dialog-alt;
 
     callback go-tab(int);
+    // Traguardo: pagine di Studia (quiz, flashcard) e sezioni delle Opzioni aperte da «Tu»
+    callback open-sub(int);
+    callback open-setting(int);
+    // menu del pulsante «Studia ora»
+    in-out property <bool> fab-open;
     callback back() -> bool;
     callback open-unit(string);
     callback select-subject(string);
@@ -895,5 +904,7 @@ export global AppState {
     callback pause-quiz();
     callback resume-quiz();
     callback discard-paused();
+    // l'app passa in secondo piano (Android): un quiz in corso va in pausa da solo
+    callback app-hidden();
     callback dialog-cancel();
 }

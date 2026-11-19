@@ -98,13 +98,14 @@ const P_CONTENTS: i32 = 14;
 const P_PDFTOOLS: i32 = 15;
 const P_CREATOR: i32 = 16;
 const P_SIMLOG: i32 = 17;
+const P_TU: i32 = 18;
 
+/// Pagina principale di ciascuna destinazione della barra (Traguardo: Oggi, Studia, Squadra, Tu).
 fn tab_page(tab: i32) -> i32 {
     match tab {
         1 => P_STUDY,
-        2 => P_DECKS,
-        3 => P_FLAGS,
-        4 => P_GROUP,
+        2 => P_GROUP,
+        3 => P_TU,
         _ => P_HOME,
     }
 }
@@ -366,6 +367,10 @@ pub struct Ctrl {
     /// strumento PDF in attesa del file scelto
     pdf_pick: Option<pdftools::PdfTool>,
     pdf_return: i32,
+    /// pagina di Studia aperta (quiz, flashcard) a cui tornare dopo una sessione
+    studia_sub: Option<i32>,
+    /// sezione delle Opzioni aperta da «Tu»: «indietro» torna a «Tu»
+    setting_from_tu: bool,
     /// OCR in corso: alzato da «Ferma»
     ocr_stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// mappe di calore: mesi indietro (la propria, del membro toccato, del profilo aperto)
@@ -752,7 +757,37 @@ impl Ctrl {
     fn go_tab(&mut self, tab: i32) {
         let ui = self.ui();
         ui.global::<AppState>().set_tab(tab);
+        ui.global::<AppState>().set_fab_open(false);
+        self.studia_sub = None;
         self.set_page(tab_page(tab));
+    }
+
+    /// Pagina a cui tornare finita una sessione: la pagina di Studia da cui si era partiti
+    /// (quiz, flashcard) o quella principale della destinazione.
+    fn tab_return(&self) -> i32 {
+        let tab = self.ui().global::<AppState>().get_tab();
+        match self.studia_sub {
+            Some(p) if tab == 1 => p,
+            _ => tab_page(tab),
+        }
+    }
+
+    /// Apre una pagina di Studia (quiz, flashcard) restando nella destinazione Studia.
+    fn open_sub(&mut self, page: i32) {
+        let ui = self.ui();
+        ui.global::<AppState>().set_tab(1);
+        ui.global::<AppState>().set_fab_open(false);
+        self.studia_sub = Some(page);
+        self.set_page(page);
+    }
+
+    /// Apre una sezione delle Opzioni dalla scheda «Tu».
+    fn open_setting(&mut self, sec: i32) {
+        let ui = self.ui();
+        ui.global::<AppState>().set_settings_sec(sec);
+        self.setting_from_tu = true;
+        self.refresh_settings_info();
+        self.set_page(P_SETTINGS);
     }
 
     fn back(&mut self) -> bool {
@@ -821,13 +856,24 @@ impl Ctrl {
                 true
             }
             P_SIMLOG => {
-                let tab = st.get_tab();
-                self.set_page(tab_page(tab));
+                self.set_page(self.tab_return());
                 true
             }
             P_PDFTOOLS => {
                 // si torna da dove si era venuti (guida o contenuti)
                 self.set_page(self.pdf_return);
+                true
+            }
+            // sezione aperta da «Tu»: si torna a «Tu»
+            P_SETTINGS if self.setting_from_tu => {
+                self.setting_from_tu = false;
+                st.set_settings_sec(-1);
+                self.go_tab(3);
+                true
+            }
+            // pagine di Studia: si torna a Studia
+            P_FLAGS | P_DECKS => {
+                self.go_tab(1);
                 true
             }
             // dentro una sezione delle Opzioni: si torna al menu
@@ -1060,6 +1106,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         profile_sel: None,
         pdf_pick: None,
         pdf_return: P_HOME,
+        studia_sub: None,
+        setting_from_tu: false,
         ocr_stop: Default::default(),
         results_from_log: false,
         groups_sig: String::new(),
@@ -1114,7 +1162,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         #[cfg(target_arch = "wasm32")]
         if let Some(inv) = crate::web::take_invite() {
             c.group_join(&inv);
-            c.go_tab(4);
+            c.go_tab(2);
         }
         // collegamento automatico tra dispositivi, se scelto
         if c.store.settings().p2p_auto && !c.store.settings().p2p_password.is_empty() {
@@ -1125,6 +1173,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
 
     let st = ui.global::<AppState>();
     st.on_go_tab(|t| with_ctrl(|c| c.go_tab(t)));
+    st.on_open_sub(|p| with_ctrl(|c| c.open_sub(p)));
+    st.on_open_setting(|s| with_ctrl(|c| c.open_setting(s)));
     st.on_back(|| {
         let mut r = false;
         with_ctrl(|c| r = c.back());
@@ -1536,6 +1586,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_dialog_alt_clicked(|| with_ctrl(|c| c.dialog_alt()));
     st.on_pause_quiz(|| with_ctrl(|c| c.pause_quiz()));
     st.on_resume_quiz(|| with_ctrl(|c| c.resume_quiz()));
+    st.on_app_hidden(|| with_ctrl(|c| c.app_hidden()));
     st.on_discard_paused(|| with_ctrl(|c| c.discard_paused()));
     st.on_dialog_cancel(|| with_ctrl(|c| c.close_dialog()));
 

@@ -1049,3 +1049,259 @@ export component LlmCopy inherits Rectangle {
         }
     }
 }
+
+// Traguardo: una voce del menu di «Studia ora» (pillola tonale con simbolo, titolo e riga sotto)
+component FabMenuItem inherits Rectangle {
+    in property <image> icon;
+    in property <string> title;
+    in property <string> sub;
+    callback clicked;
+    height: 56px;
+    border-radius: 28px;
+    background: ta.pressed ? M3.primary-container.darker(8%) : M3.primary-container;
+    drop-shadow-blur: 6px;
+    drop-shadow-offset-y: 2px;
+    drop-shadow-color: #00000030;
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 22px;
+        spacing: 12px;
+        alignment: start;
+        Icon {
+            source: root.icon;
+            tint: M3.on-primary-container;
+            y: (parent.height - self.height) / 2;
+        }
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.title;
+                font-size: 15px;
+                font-weight: 700;
+                color: M3.on-primary-container;
+            }
+            Text {
+                text: root.sub;
+                font-size: Type.label;
+                color: M3.on-primary-container;
+                visible: root.sub != "";
+            }
+        }
+    }
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// Traguardo: pulsante d'azione «Studia ora» con il suo menu (quiz, ripasso, simulazione,
+// concentrazione). Esteso nella Home, solo simbolo nelle altre schede.
+export component FabMenu inherits Rectangle {
+    in property <bool> extended: true;
+    VerticalLayout {
+        alignment: end;
+        spacing: 8px;
+        if AppState.fab-open: HorizontalLayout {
+            alignment: end;
+            FabMenuItem {
+                icon: Icons.quiz;
+                title: "Quiz";
+                sub: "scegli argomenti e quante domande";
+                clicked => {
+                    AppState.fab-open = false;
+                    AppState.open-sub(6);
+                }
+            }
+        }
+        if AppState.fab-open: HorizontalLayout {
+            alignment: end;
+            FabMenuItem {
+                icon: Icons.cards;
+                title: "Ripasso flashcard";
+                sub: AppState.due-count > 0 ? AppState.due-count + " da ripassare oggi" : "le carte da ripassare";
+                clicked => {
+                    AppState.fab-open = false;
+                    AppState.start-cards("all", "");
+                }
+            }
+        }
+        if AppState.fab-open && AppState.exam-rules != "": HorizontalLayout {
+            alignment: end;
+            FabMenuItem {
+                icon: Icons.timer;
+                title: "Simulazione d'esame";
+                sub: "come il giorno della prova";
+                clicked => {
+                    AppState.fab-open = false;
+                    AppState.start-exam(AppState.current-subject);
+                }
+            }
+        }
+        if AppState.fab-open: HorizontalLayout {
+            alignment: end;
+            FabMenuItem {
+                icon: Icons.focus;
+                title: "Concentrazione";
+                sub: "blocca le distrazioni";
+                clicked => {
+                    AppState.fab-open = false;
+                    AppState.focus-setup(true);
+                }
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            fab := Rectangle {
+                // misura della scritta, fuori dal layout (una scritta nascosta occupa comunque spazio)
+                measure := Text {
+                    visible: false;
+                    text: "Studia ora";
+                    font-size: 17px;
+                    font-weight: 700;
+                }
+                property <bool> wide: root.extended && !AppState.fab-open;
+                height: AppState.fab-open ? 56px : 64px;
+                width: AppState.fab-open ? 56px : self.wide ? measure.preferred-width + 20px + 28px + 12px + 24px : 64px;
+                border-radius: AppState.fab-open ? 28px : 20px;
+                background: fta.pressed ? M3.primary.darker(10%) : M3.primary;
+                drop-shadow-blur: 12px;
+                drop-shadow-offset-y: 4px;
+                drop-shadow-color: M3.primary.with-alpha(0.35);
+                animate width, height, border-radius {
+                    duration: Motion.fast-spatial;
+                    easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+                }
+                // chiuso nella Home: simbolo e scritta; aperto (o nelle altre schede): solo il
+                // simbolo, al centro esatto del cerchio
+                if !fab.wide: Icon {
+                    source: AppState.fab-open ? Icons.close : Icons.play-arrow;
+                    tint: M3.on-primary;
+                    width: AppState.fab-open ? 24px : 28px;
+                    height: self.width;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+                if fab.wide: HorizontalLayout {
+                    padding-left: 20px;
+                    padding-right: 24px;
+                    spacing: 12px;
+                    Icon {
+                        source: Icons.play-arrow;
+                        tint: M3.on-primary;
+                        width: 28px;
+                        height: 28px;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "Studia ora";
+                        font-size: 17px;
+                        font-weight: 700;
+                        color: M3.on-primary;
+                        vertical-alignment: center;
+                    }
+                }
+                fta := TouchArea {
+                    clicked => {
+                        AppState.fab-open = !AppState.fab-open;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Traguardo (da Notturno): barra della sessione in pausa, sopra la navigazione. Toccandola si
+// riprende il quiz da dove era rimasto; la X lo scarta.
+export component SessionBar inherits Rectangle {
+    height: 64px;
+    border-radius: 20px;
+    background: bta.pressed ? M3.tertiary-container.darker(6%) : M3.tertiary-container;
+    drop-shadow-blur: 14px;
+    drop-shadow-offset-y: 4px;
+    drop-shadow-color: #00000038;
+    bta := TouchArea {
+        clicked => {
+            AppState.resume-quiz();
+        }
+    }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 6px;
+        spacing: 12px;
+        Rectangle {
+            width: 44px;
+            height: 44px;
+            y: (parent.height - self.height) / 2;
+            RingProgress {
+                width: 44px;
+                height: 44px;
+                value: AppState.paused-frac;
+                thickness: 5px;
+                fill: M3.on-tertiary-container;
+                track: M3.on-tertiary-container.with-alpha(0.2);
+            }
+            Text {
+                text: AppState.paused-n;
+                font-size: 14px;
+                font-weight: 800;
+                color: M3.on-tertiary-container;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: "In pausa · " + AppState.paused-title;
+                font-size: 14.5px;
+                font-weight: 700;
+                color: M3.on-tertiary-container;
+                overflow: elide;
+            }
+            Text {
+                text: AppState.paused-short;
+                font-size: Type.label;
+                color: M3.on-tertiary-container;
+                overflow: elide;
+            }
+        }
+        Rectangle {
+            width: 48px;
+            height: 48px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 24px;
+            background: pta.pressed ? M3.on-tertiary-container.with-alpha(0.12) : transparent;
+            Icon {
+                source: Icons.play-arrow;
+                tint: M3.on-tertiary-container;
+                width: 28px;
+                height: 28px;
+            }
+            pta := TouchArea {
+                clicked => {
+                    AppState.resume-quiz();
+                }
+            }
+        }
+        Rectangle {
+            width: 48px;
+            height: 48px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 24px;
+            background: xta.pressed ? M3.on-tertiary-container.with-alpha(0.12) : transparent;
+            Icon {
+                source: Icons.close;
+                tint: M3.on-tertiary-container;
+                width: 22px;
+                height: 22px;
+            }
+            xta := TouchArea {
+                clicked => {
+                    AppState.discard-paused();
+                }
+            }
+        }
+    }
+}

@@ -6,8 +6,36 @@ import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, Ri
 export component StudyPage inherits Page {
     VerticalLayout {
         TopBar {
-            title: "Studio";
-            subtitle: "Allenamento per unità e simulazioni d'esame";
+            title: "Studia";
+            subtitle: "Materie, quiz, flashcard e simulazioni";
+        }
+
+        // Traguardo: quiz e flashcard sono pagine di Studia (prima erano voci della barra)
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-bottom: 10px;
+            spacing: 8px;
+            M3Button {
+                text: AppState.flagged-count > 0 ? "Quiz · " + AppState.flagged-count + " segnate" : "Quiz";
+                kind: 1;
+                has-icon: true;
+                icon: Icons.quiz;
+                horizontal-stretch: 1;
+                clicked => {
+                    AppState.open-sub(6);
+                }
+            }
+            M3Button {
+                text: AppState.due-count > 0 ? "Flashcard · " + AppState.due-count : "Flashcard";
+                kind: 1;
+                has-icon: true;
+                icon: Icons.cards;
+                horizontal-stretch: 1;
+                clicked => {
+                    AppState.open-sub(8);
+                }
+            }
         }
 
         if AppState.subjects.length > 0: HorizontalLayout {

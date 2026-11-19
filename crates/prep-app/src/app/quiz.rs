@@ -58,9 +58,16 @@ impl Ctrl {
         self.quiz = None;
         self.tick.stop();
         self.refresh_home();
-        let tab = self.ui().global::<AppState>().get_tab();
-        self.set_page(tab_page(tab));
-        self.toast("Quiz in pausa: lo riprendi dalla Home");
+        self.set_page(self.tab_return());
+        self.toast("Quiz in pausa: lo riprendi dalla barra in basso");
+    }
+
+    /// L'app passa in secondo piano durante un quiz: pausa automatica (si riprende dalla barra
+    /// della sessione). Solo su Android: sul computer una finestra perde il fuoco di continuo.
+    pub(super) fn app_hidden(&mut self) {
+        if cfg!(target_os = "android") && self.quiz.is_some() {
+            self.pause_quiz();
+        }
     }
 
     pub(super) fn resume_quiz(&mut self) {
@@ -147,10 +154,18 @@ impl Ctrl {
                 }
                 st.set_paused_title(ss(&sq.title));
                 st.set_paused_info(ss(info));
+                st.set_paused_n((sq.idx + 1) as i32);
+                st.set_paused_frac(answered as f32 / sq.ids.len().max(1) as f32);
+                let mut short = format!("{} di {} · {} risposte", sq.idx + 1, sq.ids.len(), answered);
+                if let Some(r) = sq.remaining_secs {
+                    short.push_str(&format!(" · {}:{:02}", r / 60, r % 60));
+                }
+                st.set_paused_short(ss(short));
             }
             _ => {
                 st.set_paused_title(ss(""));
                 st.set_paused_info(ss(""));
+                st.set_paused_short(ss(""));
             }
         }
     }
@@ -498,7 +513,7 @@ impl Ctrl {
             });
         }
         if items.is_empty() {
-            self.set_page(if q.unit.is_some() { P_UNIT } else { tab_page(self.ui().global::<AppState>().get_tab()) });
+            self.set_page(if q.unit.is_some() { P_UNIT } else { self.tab_return() });
             return;
         }
         let mut score = score_items(&items, rules.correct, rules.wrong, rules.omitted);
@@ -650,8 +665,7 @@ impl Ctrl {
             self.refresh_unit();
             self.set_page(P_UNIT);
         } else {
-            let tab = self.ui().global::<AppState>().get_tab();
-            self.set_page(tab_page(tab));
+            self.set_page(self.tab_return());
         }
     }
 

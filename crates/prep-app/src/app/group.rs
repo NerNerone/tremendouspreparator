@@ -1670,7 +1670,7 @@ impl Ctrl {
             let text = vfs::read_to_string(inv).unwrap_or_default();
             let _ = vfs::remove_file(inv);
             self.group_join(&text);
-            self.go_tab(4);
+            self.go_tab(2);
             return;
         }
         // file singoli scelti in «Contenuti» (`file-<ora>--<nome>`)

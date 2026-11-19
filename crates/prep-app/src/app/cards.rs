@@ -182,7 +182,6 @@ impl Ctrl {
     pub(super) fn cards_close(&mut self) {
         self.save_cards();
         self.cards = None;
-        let tab = self.ui().global::<AppState>().get_tab();
-        self.set_page(tab_page(tab));
+        self.set_page(self.tab_return());
     }
 }
