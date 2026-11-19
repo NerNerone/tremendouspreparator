@@ -21,6 +21,7 @@
   "official": [ { "tag": "a1", "label": "1° appello 2026" } ],
   "subjects": [
     { "id": "fis", "name": "Fisica", "short": "Fisica",
+      "icon": "bolt", "color": "#0B57D0",
       "tools": ["tavola-periodica"],
       "links": [ { "label": "Formulario", "book": "fis-dispense",
                    "file": "books/fisica/dispense/01-formulario.md", "section": "1.1" } ],
@@ -47,8 +48,13 @@
   - `tools` (facoltativo): strumenti dell'app da mostrare nella pagina della materia; oggi c'è `"tavola-periodica"`.
   - `links` (facoltativo): scorciatoie a capitoli dei libri (stessi campi di `ref`, capitolo 3.4).
   - `cfu`: crediti dell'unità; pesano le unità nella stima della preparazione.
+  - `icon` (facoltativo): il nome di un simbolo incluso nell'app, dalla lista qui sotto.
+  - `icon_svg` (facoltativo): un'icona tua, come tracciato SVG a una sola tinta nel riquadro 24×24 (solo il valore dell'attributo `d`, al massimo 2048 caratteri, es. `"M2 12h4l2.5-6 4 12 3-9 1.5 3H22"`). Ha la precedenza su `icon`.
+  - `color` (facoltativo): il colore della materia, `#RRGGBB`; l'app ne ricava i toni chiari e scuri.
 
-I colori delle materie seguono il loro ordine nel file.
+Sono tutti facoltativi e i pacchetti fatti prima restano validi: senza `icon` né `icon_svg` l'app mostra le iniziali del nome breve (es. «Cu» per Cultura generale), senza `color` i colori seguono l'ordine delle materie nel file. Un nome sconosciuto o un tracciato non valido non bloccano nulla: il controllo del pacchetto lo segnala e l'app usa le iniziali.
+
+Simboli disponibili per `icon`: `accessible`, `account-balance`, `agriculture`, `air`, `analytics`, `architecture`, `article`, `attach-money`, `auto-stories`, `balance`, `bar-chart`, `bedtime`, `biotech`, `bloodtype`, `bolt`, `book`, `brush`, `bug-report`, `business-center`, `calculate`, `campaign`, `cardiology`, `castle`, `category`, `chat`, `child-care`, `church`, `cloud`, `code`, `computer`, `construction`, `coronavirus`, `data-object`, `database`, `dentistry`, `dermatology`, `description`, `device-thermostat`, `directions-car`, `directions-run`, `diversity-3`, `draw`, `ecg-heart`, `eco`, `edit-note`, `egg`, `elderly`, `electric-bolt`, `emergency`, `emoji-nature`, `energy-savings-leaf`, `engineering`, `euro`, `experiment`, `explore`, `extension`, `factory`, `family-restroom`, `favorite`, `fitness-center`, `flag`, `flight`, `forest`, `forum`, `function`, `functions`, `gastroenterology`, `gavel`, `genetics`, `globe`, `grass`, `groups`, `handshake`, `healing`, `health-and-safety`, `help`, `hematology`, `history-edu`, `hub`, `immunology`, `interests`, `kitchen`, `labs`, `lan`, `landscape`, `language`, `leaderboard`, `library-books`, `lightbulb`, `local-hospital`, `map`, `medical-services`, `medication`, `memory`, `menu-book`, `microbiology`, `monitor-heart`, `mood`, `mosque`, `movie`, `museum`, `music-note`, `nature`, `nephrology`, `neurology`, `newspaper`, `nutrition`, `oncology`, `ophthalmology`, `orthopedics`, `palette`, `park`, `payments`, `person`, `pets`, `photo-camera`, `piano`, `pie-chart`, `pill`, `policy`, `precision-manufacturing`, `pregnant-woman`, `psychology`, `psychology-alt`, `public`, `pulmonology`, `query-stats`, `quiz`, `radar`, `restaurant`, `rocket-launch`, `router`, `sailing`, `satellite-alt`, `savings`, `school`, `science`, `self-improvement`, `sentiment-satisfied`, `shapes`, `shopping-cart`, `show-chart`, `skeleton`, `solar-power`, `sports-basketball`, `sports-soccer`, `square-foot`, `star`, `stethoscope`, `store`, `straighten`, `sunny`, `synagogue`, `target`, `temple-buddhist`, `terminal`, `theater-comedy`, `thermometer`, `thermostat`, `train`, `translate`, `travel-explore`, `trending-up`, `vaccines`, `water`, `water-drop`, `waves`, `wind-power`, `work`.
 
 ## 2.3 Consigli
 

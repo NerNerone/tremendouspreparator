@@ -231,6 +231,25 @@
                 }
               }
             }
+          },
+          "icon": {
+            "type": "string",
+            "description": "Nome di un simbolo incluso nell'app; se sconosciuto si usano le iniziali.",
+            "examples": [
+              "biotech",
+              "science",
+              "bolt"
+            ]
+          },
+          "icon_svg": {
+            "type": "string",
+            "maxLength": 2048,
+            "pattern": "^[MmLlHhVvCcSsQqTtAaZz0-9eE.,+\\-\\s]+$",
+            "description": "Tracciato SVG 24×24 a una tinta (valore di d)."
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
           }
         }
       }

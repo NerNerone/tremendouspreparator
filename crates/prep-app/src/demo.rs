@@ -94,6 +94,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 }
                 "qzstart" => st.invoke_qz_start(),
                 "exammenu" => st.set_exam_menu(true),
+                "nonews" => st.set_news_visible(false),
                 // sincronizzazione tra dispositivi: user:nome; p2prelay:ws://…; p2p:password; p2pget
                 "user" => st.invoke_save_username(arg.into()),
                 "p2prelay" => st.set_p2p_relays(arg.into()),

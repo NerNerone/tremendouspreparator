@@ -22,6 +22,7 @@ Ti do il programma ufficiale di un esame. Costruisci il file content/syllabus.js
             "dates": [ { "label": "1° appello", "date": "AAAA-MM-GG" } ] },
   "sections": [ { "title": "Regole d'esame", "summary": "<una riga>", "body": "<testo>" } ],
   "subjects": [ { "id": "<sigla>", "name": "<materia>", "short": "<nome breve>",
+                  "icon": "<simbolo>", "color": "#RRGGBB",
                   "units": [ { "id": "<sigla>-u1", "n": 1, "name": "<unità>", "cfu": N,
                                "topics": [ { "id": "<sigla>-u1-t1", "name": "<argomento>" } ] } ] } ] }
 
@@ -30,6 +31,7 @@ Regole:
 - Segui l'ordine e i titoli del programma; da 3 a 8 argomenti per unità, ciascuno abbastanza specifico da fare 5-15 domande.
 - "exam" vale per una materia: se non trovi numeri, punteggi o date nel programma, usa questi: [domande, minuti, punteggi, soglia, date].
 - "sections": riassumi le regole della prova che trovi nel testo; ometti la chiave se non ce ne sono.
+- "icon" e "color" sono facoltativi: per ogni materia scegli un simbolo adatto SOLO dalla lista del capitolo 2.2 (es. biotech, science, bolt, calculate, gavel, psychology) e un colore #RRGGBB ben distinto dalle altre materie. Se nessun simbolo va bene, ometti "icon": l'app mostrerà le iniziali. Non inventare nomi.
 
 Programma:
 [incolla qui il programma o l'indice del corso]

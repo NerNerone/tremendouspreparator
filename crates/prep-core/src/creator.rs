@@ -200,6 +200,7 @@ FORMATO (un solo blocco ```json):
             \"dates\": [ {{ \"label\": \"1° appello\", \"date\": \"AAAA-MM-GG\" }} ] }},
   \"sections\": [ {{ \"title\": \"Regole d'esame\", \"summary\": \"una riga\", \"body\": \"testo\" }} ],
   \"subjects\": [ {{ \"id\": \"sigla\", \"name\": \"Materia\", \"short\": \"Nome breve\",
+                  \"icon\": \"simbolo\", \"color\": \"#RRGGBB\",
                   \"units\": [ {{ \"id\": \"sigla-u1\", \"n\": 1, \"name\": \"Unità\", \"cfu\": N,
                                \"topics\": [ {{ \"id\": \"sigla-u1-t1\", \"name\": \"Argomento\" }} ] }} ] }} ] }}
 
@@ -210,8 +211,10 @@ ISTRUZIONI:
 - \"cfu\": i crediti dell'unità se il programma li indica, altrimenti 1.
 - \"exam\": SOLO se il programma descrive una prova scritta (numero di domande, minuti, punteggi). Se non c'è, togli del tutto la chiave \"exam\": l'app non proporrà simulazioni. Valori per UNA materia.
 - \"sections\": le regole della prova che trovi nel testo; se non ce ne sono togli la chiave.
+- \"icon\" e \"color\" (facoltativi): per ogni materia un simbolo adatto scelto SOLO da questo elenco: {icons}. Se nessuno va bene togli \"icon\" (l'app mostrerà le iniziali); non inventare nomi. \"color\": un colore #RRGGBB ben distinto da quello delle altre materie.
 
-PROGRAMMA: [allega o incolla qui il programma]"
+PROGRAMMA: [allega o incolla qui il programma]",
+        icons = crate::icons::names().collect::<Vec<_>>().join(", ")
     )
 }
 

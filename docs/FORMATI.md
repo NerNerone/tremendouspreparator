@@ -27,7 +27,7 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
 - `sections` (facoltativo): schede informative dell'esame mostrate nelle Opzioni, ciascuna con
   `title`, `summary` (una riga, sempre visibile) e `body` (testo completo, dietro il pulsante «i»):
   `"sections": [ { "title": "Regole d'esame", "summary": "Tre prove lo stesso giorno", "body": "…" } ]`.
-- in ogni materia, facoltativi: `short`, nome breve per i selettori (es. "Chimica"); `tools`, strumenti dell'app da mostrare nella scheda Studio
+- in ogni materia, facoltativi: `short`, nome breve per i selettori (es. "Chimica"); `tools`, strumenti dell'app da mostrare nella scheda Studio; `icon`, nome di un simbolo incluso nell'app (`biotech`, `science`, `bolt`, … elenco in `crates/prep-core/src/subject_icons.rs` e nella guida 2.2); `icon_svg`, tracciato SVG 24×24 a una tinta (solo comandi di tracciato, ≤ 2048 caratteri, ha la precedenza su `icon`); `color`, `#RRGGBB`. Senza icona l'app usa le iniziali del nome breve, senza colore l'ordine delle materie; i pacchetti precedenti restano validi
   (oggi `"tavola-periodica"`), e `links`, scorciatoie a capitoli dei libri con `label` e gli stessi
   campi di `ref` (vedi sotto):
   `"links": [ { "label": "Nomenclatura", "book": "chi-manuale", "file": "books/chimica/manuale/02-nomenclatura.md", "section": "2.1" } ]`.

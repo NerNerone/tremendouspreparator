@@ -50,6 +50,7 @@ pub fn check(c: &Content, read: &dyn Fn(&str) -> Option<String>) -> Report {
         if s.units.is_empty() {
             r.warnings.push(format!("materia {}: nessuna unità", s.id));
         }
+        r.warnings.extend(crate::icons::problems(s));
         for u in &s.units {
             if u.topics.is_empty() {
                 r.warnings.push(format!("unità {}: nessun argomento", u.id));

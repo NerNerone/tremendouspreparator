@@ -94,6 +94,15 @@ pub struct Subject {
     /// Scorciatoie a capitoli dei libri, mostrate accanto agli strumenti.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub links: Vec<SubjectLink>,
+    /// Icona: nome di un simbolo incluso nell'app (vedi [`crate::icons`]). Facoltativa.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub icon: String,
+    /// Icona come tracciato SVG 24×24 a una tinta; ha la precedenza su `icon`. Facoltativa.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub icon_svg: String,
+    /// Colore della materia, `#RRGGBB`. Se manca vale l'ordine delle materie. Facoltativo.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub color: String,
 }
 
 /// Strumento «tavola periodica» (vedi [`Subject::tools`]).
