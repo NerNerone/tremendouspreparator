@@ -647,69 +647,88 @@ export component NavItem inherits Rectangle {
     // «Energia»: l'attiva diventa una pillola orizzontale con icona ed etichetta affiancate
     property <bool> horiz: Design.nav-floating;
     property <bool> show-label: !root.horiz && (!Design.nav-labels-active-only || root.active);
-    horizontal-stretch: root.horiz && root.active ? 2.2 : 1;
+    horizontal-stretch: root.horiz && root.active ? 2.6 : 1;
     animate horizontal-stretch {
         duration: Motion.fast-spatial;
         easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
     }
-    measure := Text {
-        text: root.label;
-        font-size: Type.body;
-        font-weight: 700;
-        visible: false;
+    // pillola posizionata a mano (larghezza dalla cella, fuori dal calcolo del layout)
+    if root.horiz: Rectangle {
+        x: 3px;
+        width: root.width - 6px;
+        height: 48px;
+        y: (root.height - self.height) / 2;
+        border-radius: 24px;
+        background: root.active ? M3.primary : ta.pressed ? M3.on-surface.with-alpha(0.08) : transparent;
+        animate background { duration: Motion.effects; }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 6px;
+            VerticalLayout {
+                alignment: center;
+                Icon {
+                    source: root.icon;
+                    tint: root.active ? M3.on-primary : M3.on-surface-variant;
+                }
+            }
+            if root.active: Text {
+                text: root.label;
+                font-size: Type.label;
+                font-weight: 700;
+                color: M3.on-primary;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+        if root.badge > 0: Rectangle {
+            x: root.active ? parent.width - self.width - 6px : parent.width / 2 + 4px;
+            y: 4px;
+            height: 16px;
+            width: max(16px, hb.preferred-width + 8px);
+            border-radius: 8px;
+            background: M3.error;
+            hb := Text {
+                text: root.badge > 99 ? "99+" : root.badge;
+                color: M3.on-error;
+                font-size: 11px;
+                font-weight: 700;
+            }
+        }
     }
-    VerticalLayout {
+    if !root.horiz: VerticalLayout {
         alignment: center;
         spacing: 4px;
         Rectangle {
-            height: root.horiz ? 48px : 32px;
+            height: 32px;
             HorizontalLayout {
                 alignment: center;
                 Rectangle {
-                    width: root.horiz && root.active ? 40px + measure.preferred-width + 28px : 56px;
-                    animate width {
-                        duration: Motion.fast-spatial;
-                        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
-                    }
+                    width: 56px;
                     Rectangle {
-                        width: root.active ? parent.width : ta.pressed ? parent.width - 16px : 0px;
+                        width: root.active ? 56px : ta.pressed ? 40px : 0px;
                         x: (parent.width - self.width) / 2;
-                        border-radius: self.height / 2;
-                        background: root.active ? (root.horiz ? M3.primary : M3.secondary-container) : M3.on-surface.with-alpha(0.08);
+                        border-radius: 16px;
+                        background: root.active ? M3.secondary-container : M3.on-surface.with-alpha(0.08);
                         animate width {
                             duration: Motion.fast-spatial;
                             easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
                         }
                     }
 
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 8px;
-                        VerticalLayout {
-                            alignment: center;
-                            Icon {
-                                source: root.icon;
-                                tint: root.active ? (root.horiz ? M3.on-primary : M3.on-secondary-container) : M3.on-surface-variant;
-                                transform-scale-x: root.active ? 108% : 100%;
-                                transform-scale-y: root.active ? 108% : 100%;
-                                animate transform-scale-x, transform-scale-y {
-                                    duration: Motion.fast-spatial;
-                                    easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
-                                }
-                            }
-                        }
-                        if root.horiz && root.active: Text {
-                            text: root.label;
-                            font-size: Type.body;
-                            font-weight: 700;
-                            color: M3.on-primary;
-                            vertical-alignment: center;
+                    Icon {
+                        source: root.icon;
+                        tint: root.active ? M3.on-secondary-container : M3.on-surface-variant;
+                        transform-scale-x: root.active ? 108% : 100%;
+                        transform-scale-y: root.active ? 108% : 100%;
+                        animate transform-scale-x, transform-scale-y {
+                            duration: Motion.fast-spatial;
+                            easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
                         }
                     }
 
                     if root.badge > 0: Rectangle {
-                        x: root.horiz && root.active ? 26px : 38px;
-                        y: root.horiz ? 6px : 0px;
+                        x: 38px;
+                        y: 0px;
                         height: 16px;
                         width: max(16px, bt.preferred-width + 8px);
                         border-radius: 8px;
