@@ -121,18 +121,66 @@ export global Icons {
     out property <image> target: @image-url("icons/target.svg");
     out property <image> add: @image-url("icons/add.svg");
     out property <image> remove: @image-url("icons/remove.svg");
+    out property <image> person: @image-url("icons/person.svg");
+    out property <image> palette: @image-url("icons/palette.svg");
+    out property <image> devices: @image-url("icons/devices.svg");
+    out property <image> share: @image-url("icons/share.svg");
+    out property <image> package: @image-url("icons/inventory-2.svg");
+    out property <image> bell: @image-url("icons/notifications.svg");
+    out property <image> rule: @image-url("icons/rule.svg");
+    out property <image> update: @image-url("icons/update.svg");
+    out property <image> news: @image-url("icons/news.svg");
+    out property <image> gavel: @image-url("icons/gavel.svg");
+}
+
+// Proposte di stile (anteprima): 0 = attuale, 1 = «Focus», 2 = «Energia», 3 = «Chiarezza».
+// Stessi ruoli colore Material 3 (anche Material You), cambiano gerarchia, superfici, forme,
+// densità, barre e navigazione. Vedi docs/PROPOSTE_UI.md.
+export global Design {
+    in-out property <int> v: 0;
+    // fondo delle pagine
+    out property <color> canvas: v == 2 ? M3.surface-container-low : M3.surface;
+    // card: riempimento, bordo, ombra, angoli
+    out property <color> card-bg: v == 1 ? M3.surface-container : v == 2 ? M3.surface : v == 3 ? M3.surface : M3.surface-container-low;
+    out property <length> card-border: v == 3 ? 1px : 0px;
+    out property <color> card-border-color: M3.outline-variant;
+    out property <bool> card-shadow: v == 0 || v == 2;
+    out property <length> card-radius: v == 1 ? 20px : v == 2 ? 32px : v == 3 ? 24px : 28px;
+    out property <length> card-pad: v == 1 ? 14px : v == 2 ? 20px : v == 3 ? 20px : 16px;
+    out property <length> gap: v == 1 ? 8px : v == 2 ? 14px : v == 3 ? 16px : 12px;
+    // barra in alto: compatta (0, 1), grande (2), media (3)
+    out property <length> top-height: v == 2 ? 104px : v == 3 ? 84px : 64px;
+    out property <length> top-title: v == 2 ? 32px : v == 3 ? 28px : 22px;
+    out property <int> top-weight: v == 2 ? 800 : v == 1 ? 650 : 600;
+    // barra di navigazione: 0 standard, 1 compatta con solo l'attiva etichettata,
+    // 2 «flottante» staccata dal bordo, 3 standard con filo superiore
+    out property <bool> nav-floating: v == 2;
+    out property <bool> nav-hairline: v == 3;
+    out property <bool> nav-labels-active-only: v == 1;
+    out property <length> nav-height: v == 1 ? 64px : v == 2 ? 76px : 80px;
+    // righe di elenco (Opzioni, libri…): sfondo e divisori
+    out property <color> row-bg: v == 1 ? M3.surface-container : v == 2 ? M3.surface : transparent;
+    out property <bool> row-divider: v == 3;
+    out property <length> row-radius: v == 2 ? 24px : v == 1 ? 14px : 16px;
+    // pulsanti principali più alti nella proposta «Energia»
+    out property <length> button-height: v == 2 ? 56px : 48px;
+    // numeri in evidenza (preparazione, punteggi)
+    out property <int> display-weight: v == 2 ? 900 : v == 1 ? 600 : v == 3 ? 500 : 700;
+    out property <color> hero-bg: v == 2 ? M3.primary : v == 3 ? M3.surface : v == 1 ? M3.surface-container : M3.primary-container;
+    out property <color> on-hero: v == 2 ? M3.on-primary : v == 3 ? M3.on-surface : v == 1 ? M3.on-surface : M3.on-primary-container;
+    out property <color> hero-accent: v == 2 ? M3.on-primary : M3.primary;
 }
 
 export global Type {
     // Material 3 Expressive: scala "emphasized", display grande per i numeri in evidenza
-    out property <length> display-large: 64px;
-    out property <length> display: 36px;
-    out property <length> headline: 24px;
-    out property <length> title-large: 22px;
-    out property <length> title: 16px;
+    out property <length> display-large: Design.v == 2 ? 76px : Design.v == 1 ? 52px : 64px;
+    out property <length> display: Design.v == 2 ? 40px : 36px;
+    out property <length> headline: Design.v == 2 ? 26px : 24px;
+    out property <length> title-large: Design.v == 2 ? 24px : 22px;
+    out property <length> title: Design.v == 3 ? 17px : 16px;
     out property <length> body-large: 16px;
     out property <length> body: 14px;
-    out property <length> label: 12px;
+    out property <length> label: Design.v == 3 ? 13px : 12px;
 }
 
 // Material 3 Expressive — forme: angoli più ampi, pillole, forme che cambiano alla pressione.
@@ -140,10 +188,10 @@ export global Shape {
     out property <length> xs: 4px;
     out property <length> sm: 8px;
     out property <length> md: 12px;
-    out property <length> lg: 16px;
-    out property <length> lg-inc: 20px;
-    out property <length> xl: 28px;
-    out property <length> xl-inc: 32px;
+    out property <length> lg: Design.v == 1 ? 12px : 16px;
+    out property <length> lg-inc: Design.v == 1 ? 16px : 20px;
+    out property <length> xl: Design.v == 1 ? 20px : Design.v == 2 ? 32px : Design.v == 3 ? 24px : 28px;
+    out property <length> xl-inc: Design.v == 1 ? 24px : 32px;
     out property <length> xxl: 48px;
 }
 

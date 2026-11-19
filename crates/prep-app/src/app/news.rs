@@ -60,6 +60,20 @@ impl Ctrl {
         }
     }
 
+    /// Proposta di stile all'avvio: impostazione salvata, o `PREP_DESIGN` (screenshot).
+    pub(super) fn design_load(&mut self) {
+        let v = std::env::var("PREP_DESIGN").ok().and_then(|s| s.parse::<i32>().ok()).unwrap_or(self.store.settings().ui_style as i32);
+        self.ui().global::<crate::Design>().set_v(v.clamp(0, 3));
+    }
+
+    pub(super) fn design_set(&mut self, v: i32) {
+        let v = v.clamp(0, 3);
+        self.ui().global::<crate::Design>().set_v(v);
+        let mut s = self.store.settings();
+        s.ui_style = v as u32;
+        let _ = self.store.save_settings(&s);
+    }
+
     /// Tutte le novità (da Opzioni).
     pub(super) fn news_all(&mut self) {
         self.news_show(sections(), true);

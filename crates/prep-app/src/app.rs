@@ -1375,6 +1375,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
     st.on_update_check(|| with_ctrl(|c| c.updates_check_now()));
     st.on_news_all(|| with_ctrl(|c| c.news_all()));
+    st.on_design_set(|v| with_ctrl(|c| c.design_set(v)));
     st.set_update_can_check(updates::enabled());
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));
@@ -1545,6 +1546,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
 
     // errore nella sessione precedente: proposta di segnalazione, a interfaccia pronta
     slint::Timer::single_shot(Duration::from_millis(1200), || with_ctrl(|c| c.crash_check()));
+    // proposta di stile salvata (o PREP_DESIGN per gli screenshot)
+    with_ctrl(|c| c.design_load());
     // novità dell'aggiornamento appena installato
     slint::Timer::single_shot(Duration::from_millis(900), || with_ctrl(|c| c.news_check()));
 

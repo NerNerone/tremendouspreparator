@@ -639,6 +639,8 @@ export global AppState {
     in property <string> news-title;
     in property <[NewsVM]> news-rows;
     callback news-all();
+    // proposta di stile (anteprima): 0 attuale, 1 Focus, 2 Energia, 3 Chiarezza
+    callback design-set(int);
     // tempo che manca alla fine del blocco a tempo («23:41»; vuoto dopo la scadenza)
     in property <string> focus-left;
     in property <float> focus-left-frac;

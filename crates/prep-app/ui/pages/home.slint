@@ -1,5 +1,5 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
-import { M3, Icons, Type, Shape } from "../theme.slint";
+import { M3, Icons, Type, Shape, Design } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
@@ -7,7 +7,7 @@ component SubjectCard inherits Card {
     in property <SubjectVM> s;
     clickable: true;
     VerticalLayout {
-        padding: 16px;
+        padding: Design.card-pad;
         spacing: 10px;
         HorizontalLayout {
             spacing: 12px;
@@ -32,8 +32,8 @@ component SubjectCard inherits Card {
 
             Text {
                 text: round(root.s.mastery * 100) + "%";
-                font-size: Type.title;
-                font-weight: 700;
+                font-size: Design.v == 2 ? Type.headline : Type.title;
+                font-weight: Design.v == 2 ? 900 : 700;
                 color: M3.subject(root.s.n);
             }
         }
@@ -322,14 +322,16 @@ export component HomePage inherits Page {
         y: 0px;
         width: root.width;
         height: root.hero-h;
-        background: M3.surface;
+        background: Design.canvas;
         Rectangle {
             x: 12px;
             y: 56px;
             width: parent.width - 24px;
             height: parent.height - 64px;
-            border-radius: Shape.xl - 8px * root.t;
-            background: M3.primary-container;
+            border-radius: Design.card-radius + (Design.v == 2 ? 8px : 0px) - 8px * root.t;
+            background: Design.hero-bg;
+            border-width: Design.v == 3 ? 1px : 0px;
+            border-color: M3.outline-variant;
             clip: true;
             // percentuale: grande e a sinistra, poi piccola a destra; «Preparazione» resta sempre
             // allineato a sinistra (prima scivolava a destra accanto alla percentuale)
@@ -338,8 +340,8 @@ export component HomePage inherits Page {
                 y: 14px - 4px * root.t;
                 text: round(AppState.overall * 100) + "%";
                 font-size: Type.display-large * (1 - root.t) + 26px * root.t;
-                font-weight: 800;
-                color: M3.on-primary-container;
+                font-weight: Design.display-weight;
+                color: Design.v == 3 ? M3.primary : Design.on-hero;
             }
 
             Text {
@@ -349,7 +351,7 @@ export component HomePage inherits Page {
                 text: "Preparazione";
                 font-size: Type.title-large * (1 - root.t) + Type.title * root.t;
                 font-weight: 700;
-                color: M3.on-primary-container;
+                color: Design.on-hero;
                 overflow: elide;
             }
 
@@ -359,8 +361,8 @@ export component HomePage inherits Page {
                 width: parent.width - 40px;
                 text: AppState.overall-label + (AppState.total-time != "" ? "\n" + AppState.total-time : "");
                 font-size: Type.label;
-                color: M3.on-primary-container;
-                opacity: max(0, 1 - root.t * 2.2);
+                color: Design.on-hero;
+                opacity: max(0, 1 - root.t * 2.2) * (Design.v == 2 ? 0.85 : 1);
                 wrap: word-wrap;
             }
 
@@ -370,8 +372,8 @@ export component HomePage inherits Page {
                 y: parent.height - self.height - 18px + 4px * root.t;
                 width: parent.width - 40px;
                 value: AppState.overall;
-                fill: M3.primary;
-                track: M3.surface.with-alpha(0.7);
+                fill: Design.hero-accent;
+                track: Design.v == 2 ? M3.on-primary.with-alpha(0.3) : Design.v == 3 ? M3.surface-container-highest : M3.surface.with-alpha(0.7);
                 amp: 6px - 3px * root.t;
                 wavelength: 44px - 12px * root.t;
                 thickness: 7px - 2px * root.t;

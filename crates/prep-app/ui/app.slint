@@ -5,19 +5,19 @@ import "../fonts/Roboto-SemiBold.ttf";
 import "../fonts/Roboto-Bold.ttf";
 import "../fonts/DejaVuSans.ttf";
 import "../fonts/DejaVuSans-Bold.ttf";
-import { M3, Icons, Type } from "theme.slint";
+import { M3, Icons, Type, Design } from "theme.slint";
 import { AppState } from "state.slint";
 import { NavItem, M3Button, Scroller } from "components.slint";
 import { CropDialog } from "crop.slint";
 import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, GoalsPage, PeriodicPage, GroupPage, ContentsPage, PdfToolsPage, CreatorPage, SimLogPage } from "pages.slint";
 
-export { AppState, M3 }
+export { AppState, M3, Design }
 
 export component AppWindow inherits Window {
     title: "Tremendous Preparator";
     preferred-width: 412px;
     preferred-height: 900px;
-    background: M3.surface;
+    background: Design.canvas;
     default-font-size: 14px;
 
     // schermi larghi (desktop, browser): il contenuto sta in una colonna centrata, come su un
@@ -91,9 +91,29 @@ export component AppWindow inherits Window {
 
             // barra di navigazione flessibile (Material 3 Expressive)
             if root.show-nav && root.virtual-keyboard-size.height == 0: Rectangle {
-                height: 72px;
-                background: M3.surface-container;
+                height: Design.nav-floating ? Design.nav-height + 16px : Design.nav-height;
+                background: Design.nav-floating ? transparent : Design.nav-hairline ? M3.surface : M3.surface-container;
+                if Design.nav-hairline: Rectangle {
+                    y: 0px;
+                    height: 1px;
+                    background: M3.outline-variant;
+                }
+                if Design.nav-floating: Rectangle {
+                    x: 12px;
+                    y: 4px;
+                    width: parent.width - 24px;
+                    height: Design.nav-height;
+                    border-radius: self.height / 2;
+                    background: M3.surface-container-high;
+                    drop-shadow-blur: 14px;
+                    drop-shadow-offset-y: 4px;
+                    drop-shadow-color: M3.dark ? #0000 : #0000002a;
+                }
                 HorizontalLayout {
+                    padding-left: Design.nav-floating ? 20px : 0px;
+                    padding-right: Design.nav-floating ? 20px : 0px;
+                    padding-top: Design.nav-floating ? 4px : 0px;
+                    padding-bottom: Design.nav-floating ? 12px : 0px;
                     NavItem {
                         icon: Icons.home;
                         label: "Home";

@@ -1,19 +1,19 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
-import { M3, Icons, Type, Shape } from "../theme.slint";
+import { M3, Icons, Type, Shape, Design } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 import { Avatar } from "group.slint";
 
 export component SettingsPage inherits Page {
     // voci del menu (l'indice è il numero della sezione, vedi `settings-sec`)
-    property <[{id: int, title: string, sub: string}]> menu: [
-        { id: 0, title: "Profilo", sub: "Nome, foto e colore con cui ti vedono gli altri" },
-        { id: 1, title: "Aspetto", sub: "Colore dell'app" },
-        { id: 2, title: "Dispositivi", sub: "Progressi ed esami tra i tuoi dispositivi" },
-        { id: 3, title: "Condividi con un'altra persona", sub: "Manda o ricevi un esame con un codice" },
-        { id: 4, title: "Pacchetto contenuti", sub: "Importa, gestisci ed esporta quiz, flashcard e libri" },
-        { id: 5, title: "Promemoria", sub: "Notifiche per ripassare" },
-        { id: 6, title: "Esame e barra", sub: "Regole della prova e come si calcola la preparazione" },
+    property <[{id: int, title: string, sub: string, icon: image}]> menu: [
+        { id: 0, title: "Profilo", sub: "Nome, foto e colore con cui ti vedono gli altri", icon: Icons.person },
+        { id: 1, title: "Aspetto", sub: "Colore dell'app", icon: Icons.palette },
+        { id: 2, title: "Dispositivi", sub: "Progressi ed esami tra i tuoi dispositivi", icon: Icons.devices },
+        { id: 3, title: "Condividi con un'altra persona", sub: "Manda o ricevi un esame con un codice", icon: Icons.share },
+        { id: 4, title: "Pacchetto contenuti", sub: "Importa, gestisci ed esporta quiz, flashcard e libri", icon: Icons.package },
+        { id: 5, title: "Promemoria", sub: "Notifiche per ripassare", icon: Icons.bell },
+        { id: 6, title: "Esame e barra", sub: "Regole della prova e come si calcola la preparazione", icon: Icons.rule },
     ];
     VerticalLayout {
         TopBar {
@@ -33,15 +33,19 @@ export component SettingsPage inherits Page {
             gap: 12px;
             // menu: una voce per sezione, ognuna si apre a parte
             if AppState.settings-sec < 0: VerticalLayout {
-                spacing: 4px;
+                spacing: Design.v == 1 ? 2px : Design.v == 3 ? 0px : 4px;
                 for m in root.menu: ListRow {
                     title: m.title;
                     subtitle: m.sub;
+                    icon: m.icon;
+                    has-icon: Design.v != 0;
                     clicked => {
                         AppState.settings-sec = m.id;
                     }
                 }
                 ListRow {
+                    icon: Icons.news;
+                    has-icon: Design.v != 0;
                     title: "Novità";
                     subtitle: "Cosa è cambiato nelle ultime versioni";
                     clicked => {
@@ -49,6 +53,8 @@ export component SettingsPage inherits Page {
                     }
                 }
                 ListRow {
+                    icon: Icons.gavel;
+                    has-icon: Design.v != 0;
                     title: "Note legali";
                     subtitle: "Nessuna garanzia; contenuti importati e servizi esterni sono responsabilità di chi li usa";
                     clicked => {
@@ -79,6 +85,7 @@ export component SettingsPage inherits Page {
             }
             // profilo: il nome con cui ci si presenta agli altri dispositivi e nello studio di gruppo
             if AppState.settings-sec == 0: Section {
+                header: Design.v == 0;
                 title: "Profilo";
                 summary: "Nome, foto e colore con cui ti vedono gli altri";
                 info: "Il nome utente compare sugli altri tuoi dispositivi quando sincronizzi e su quelli di chi riceve un esame che condividi. Foto profilo (ritagliata a 256 × 256) e colore della monoposto li vedono i membri dei tuoi gruppi di studio. Il colore «A» è l'accento di sistema del telefono.";
@@ -181,6 +188,32 @@ export component SettingsPage inherits Page {
             }
 
             if AppState.settings-sec == 1: Section {
+                title: "Stile (anteprima)";
+                header: true;
+                summary: "Tre proposte di interfaccia da provare: cambiano subito, senza riavviare";
+                Flickable {
+                    height: 40px;
+                    interactive: true;
+                    content-width: max(self.width, style-row.preferred-width);
+                    content-height: 40px;
+                    style-row := HorizontalLayout {
+                        x: 0px;
+                        y: 0px;
+                        height: 36px;
+                        spacing: 8px;
+                        alignment: start;
+                        for st[i] in ["Attuale", "Focus", "Energia", "Chiarezza"]: Chip {
+                            text: st;
+                            selected: Design.v == i;
+                            clicked => {
+                                AppState.design-set(i);
+                            }
+                        }
+                    }
+                }
+            }
+            if AppState.settings-sec == 1: Section {
+                header: Design.v == 0;
                 title: "Aspetto";
                 summary: "Colore dell'app";
                 info: "Su Android 12 e successivi il primo colore («A») è quello del sistema (Material You); altrimenti l'app usa il blu. Chiaro o scuro segue l'impostazione del sistema.";
@@ -221,6 +254,7 @@ export component SettingsPage inherits Page {
 
             // sincronizzazione tra dispositivi (telefono, web app, computer)
             if AppState.settings-sec == 2: Section {
+                header: Design.v == 0;
                 title: "Dispositivi";
                 summary: "Progressi ed esami tra i tuoi dispositivi, cifrati; si trovano tramite relay pubblici di terzi";
                 info: "Sincronizza i progressi tra i tuoi dispositivi (app e web app) e passa gli esami installati da uno all'altro. Usa lo stesso nome utente e la stessa password su tutti, con l'app aperta. L'app non ha server: i dispositivi si trovano attraverso relay pubblici di terze parti (modificabili qui sotto), poi i dati viaggiano cifrati direttamente tra loro quando la rete lo permette, altrimenti attraverso i relay, che di norma li inoltrano senza conservarli (fanno eccezione gli avvisi dei gruppi di studio, cifrati, che scadono dopo 24 ore). Con «Solo collegamento diretto» i dati non passano mai dai relay, che servono solo a trovarsi: su alcune reti il diretto non riesce.";
@@ -232,7 +266,7 @@ export component SettingsPage inherits Page {
                     if !AppState.p2p-on: LineEdit {
                         text <=> AppState.p2p-password;
                         input-type: password;
-                        placeholder-text: "Password della stanza (almeno 8 caratteri)";
+                        placeholder-text: "Password (min. 8 caratteri)";
                     }
                     if !AppState.p2p-on: HorizontalLayout {
                         spacing: 8px;
@@ -318,6 +352,7 @@ export component SettingsPage inherits Page {
 
             // Bluetooth: telefoni vicini, anche senza Internet (solo Android)
             if AppState.settings-sec == 2 && AppState.bt-available: Section {
+                header: Design.v == 0;
                 title: "Vicino, via Bluetooth";
                 summary: "Telefoni Android vicini, anche senza Internet";
                 info: "Due telefoni Android vicini si scambiano progressi, esami e stato del gruppo anche senza Internet. Prima collega i Dispositivi (o apri la condivisione o il gruppo) su entrambi, poi: su uno «Rendimi visibile», sull'altro «Cerca» e scegli il primo.";
@@ -367,6 +402,7 @@ export component SettingsPage inherits Page {
 
             // condivisione di un esame con un'altra persona: codice usa e getta, solo contenuti
             if AppState.settings-sec == 3: Section {
+                header: Design.v == 0;
                 title: "Condividi con un'altra persona";
                 summary: "Un esame installato, con un codice usa e getta";
                 info: "Passa un esame installato a un'altra persona con un codice usa e getta: viaggiano solo i contenuti (libri, quiz, flashcard), mai i tuoi progressi. Il codice vale finché la condivisione resta aperta. Condividi solo materiale che hai il diritto di condividere (vedi Note legali).";
@@ -500,6 +536,7 @@ export component SettingsPage inherits Page {
             }
 
             if AppState.settings-sec == 4: Section {
+                header: Design.v == 0;
                 title: "Pacchetto contenuti";
                 summary: "Quiz, flashcard e libri da un unico file";
                 info: "Un pacchetto è un file .json.gz con quiz, flashcard e libri di un esame. Importandolo i contenuti si aggiornano senza reinstallare l'app; i tuoi progressi non vengono toccati. «Importa pacchetto» sostituisce i contenuti dell'esame; «Gestisci contenuti» aggiunge o toglie singoli file (quiz, flashcard, capitoli) ed esporta il pacchetto. Su Android il file si sceglie dal selettore (o si apre con «Apri con»), sul computer dalla finestra dei file. L'app non contiene contenuti: chi importa un pacchetto ne è responsabile (vedi Note legali).";
@@ -538,6 +575,7 @@ export component SettingsPage inherits Page {
             }
 
             if AppState.settings-sec == 5: Section {
+                header: Design.v == 0;
                 title: "Promemoria";
                 summary: "Notifiche per obiettivi, ripassi e sessioni in pausa";
                 info: "Quattro notifiche al giorno: obiettivi, sessione in pausa, flashcard da ripassare e giorni all'appello, con testi diversi a seconda dell'ora. Con gli obiettivi confermati, su Android resta anche una notifica fissa con l'avanzamento. Orari: mattina, dopo pranzo, pomeriggio, sera (separati da virgola); la prima fascia propone gli obiettivi, l'ultima ricorda quelli non finiti.";

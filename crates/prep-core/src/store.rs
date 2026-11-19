@@ -80,6 +80,9 @@ pub struct Settings {
     pub news_seen: Vec<String>,
     #[serde(default)]
     pub news_init: bool,
+    /// proposta di stile dell'interfaccia (anteprima): 0 attuale, 1 Focus, 2 Energia, 3 Chiarezza
+    #[serde(default)]
+    pub ui_style: u32,
 }
 
 fn d_times() -> Vec<String> {
@@ -120,6 +123,7 @@ impl Default for Settings {
             legal_accepted: 0,
             news_seen: vec![],
             news_init: false,
+            ui_style: 0,
         }
     }
 }

@@ -1,7 +1,7 @@
 // Componenti Material 3 Expressive riutilizzabili: forme ampie che cambiano alla pressione,
 // movimento a molla (curve "expressive spatial/effects"), indicatori ondulati.
 import { ScrollView } from "std-widgets.slint";
-import { M3, Icons, Type, Shape, Motion } from "theme.slint";
+import { M3, Icons, Type, Shape, Motion, Design } from "theme.slint";
 import { AppState } from "state.slint";
 
 export component Icon inherits Image {
@@ -131,7 +131,7 @@ export component M3Button inherits Rectangle {
     in property <bool> small: false;
     callback clicked;
     property <color> fg: !root.enabled ? M3.on-surface.with-alpha(0.38) : root.kind == 0 ? M3.on-primary : root.kind == 1 ? M3.on-secondary-container : root.kind == 4 ? M3.on-error : M3.primary;
-    min-height: root.small ? 34px : 48px;
+    min-height: root.small ? 34px : Design.button-height;
     min-width: root.small ? 0px : 64px;
     // pillola che alla pressione diventa un quadrato arrotondato (Expressive)
     border-radius: ta.pressed ? Shape.md : self.height / 2;
@@ -421,7 +421,7 @@ export component RingProgress inherits Rectangle {
 }
 
 export component Card inherits Rectangle {
-    in property <color> bg: M3.surface-container-low;
+    in property <color> bg: Design.card-bg;
     in property <bool> clickable: false;
     in property <int> stagger: 0;
     callback clicked;
@@ -439,10 +439,12 @@ export component Card inherits Rectangle {
     transform-scale-y: 92% + 8% * root.enter;
     background: root.bg;
     animate background { duration: Motion.effects; }
-    border-radius: Shape.xl;
-    drop-shadow-blur: 3px;
-    drop-shadow-offset-y: 1px;
-    drop-shadow-color: M3.dark ? #00000000 : #00000022;
+    border-radius: Design.card-radius;
+    border-width: Design.card-border;
+    border-color: Design.card-border-color;
+    drop-shadow-blur: Design.v == 2 ? 10px : 3px;
+    drop-shadow-offset-y: Design.v == 2 ? 3px : 1px;
+    drop-shadow-color: M3.dark || !Design.card-shadow ? #00000000 : Design.v == 2 ? #00000014 : #00000022;
     // sotto ai figli: i pulsanti interni (es. "Apri") ricevono il tocco
     ta := TouchArea {
         enabled: root.clickable;
@@ -532,10 +534,12 @@ export component Section inherits Card {
     in property <image> icon;
     in property <bool> has-icon: false;
     in property <bool> active: false;
+    /// false: senza titolo (è già nella barra in alto), restano riassunto e «i»
+    in property <bool> header: true;
     in-out property <bool> info-open: false;
     VerticalLayout {
-        padding: 16px;
-        spacing: 10px;
+        padding: Design.card-pad;
+        spacing: Design.v == 0 ? 10px : 12px;
         HorizontalLayout {
             spacing: 10px;
             if root.has-icon: VIcon {
@@ -546,7 +550,7 @@ export component Section inherits Card {
                 alignment: center;
                 horizontal-stretch: 1;
                 spacing: 2px;
-                Text {
+                if root.header: Text {
                     text: root.title;
                     font-size: Type.title;
                     font-weight: 700;
@@ -555,7 +559,7 @@ export component Section inherits Card {
                 }
                 if root.summary != "": Text {
                     text: root.summary;
-                    font-size: Type.label;
+                    font-size: root.header ? Type.label : Type.body;
                     color: M3.on-surface-variant;
                     wrap: word-wrap;
                 }
@@ -595,12 +599,12 @@ export component TopBar inherits Rectangle {
     in property <string> title;
     in property <string> subtitle;
     in property <bool> can-back;
-    in property <color> bg: M3.surface;
+    in property <color> bg: Design.canvas;
     callback back;
-    height: 64px;
+    height: Design.top-height;
     background: root.bg;
     HorizontalLayout {
-        padding-left: root.can-back ? 4px : 16px;
+        padding-left: root.can-back ? 4px : (Design.v == 2 ? 20px : 16px);
         padding-right: 4px;
         spacing: 4px;
         if root.can-back: IconButton {
@@ -615,15 +619,15 @@ export component TopBar inherits Rectangle {
             horizontal-stretch: 1;
             Text {
                 text: root.title;
-                font-size: Type.title-large;
-                font-weight: 600;
+                font-size: root.can-back && Design.v != 0 ? Type.title-large : Design.top-title;
+                font-weight: Design.top-weight;
                 color: M3.on-surface;
                 overflow: elide;
             }
 
             if root.subtitle != "": Text {
                 text: root.subtitle;
-                font-size: Type.label;
+                font-size: Design.v == 2 || Design.v == 3 ? Type.body : Type.label;
                 color: M3.on-surface-variant;
                 overflow: elide;
             }
@@ -639,47 +643,76 @@ export component NavItem inherits Rectangle {
     in property <bool> active;
     in property <int> badge: 0;
     callback clicked;
+    // «Energia»: l'attiva diventa una pillola orizzontale con icona ed etichetta affiancate
+    property <bool> horiz: Design.nav-floating;
+    property <bool> show-label: !root.horiz && (!Design.nav-labels-active-only || root.active);
+    horizontal-stretch: root.horiz && root.active ? 2.2 : 1;
+    animate horizontal-stretch {
+        duration: Motion.fast-spatial;
+        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+    }
+    measure := Text {
+        text: root.label;
+        font-size: Type.body;
+        font-weight: 700;
+        visible: false;
+    }
     VerticalLayout {
         alignment: center;
         spacing: 4px;
         Rectangle {
-            height: 32px;
+            height: root.horiz ? 48px : 32px;
             HorizontalLayout {
                 alignment: center;
                 Rectangle {
-                    width: 56px;
+                    width: root.horiz && root.active ? 40px + measure.preferred-width + 28px : 56px;
+                    animate width {
+                        duration: Motion.fast-spatial;
+                        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+                    }
                     Rectangle {
-                        width: root.active ? 56px : ta.pressed ? 40px : 0px;
+                        width: root.active ? parent.width : ta.pressed ? parent.width - 16px : 0px;
                         x: (parent.width - self.width) / 2;
-                        border-radius: 16px;
-                        background: root.active ? M3.secondary-container : M3.on-surface.with-alpha(0.08);
+                        border-radius: self.height / 2;
+                        background: root.active ? (root.horiz ? M3.primary : M3.secondary-container) : M3.on-surface.with-alpha(0.08);
                         animate width {
                             duration: Motion.fast-spatial;
                             easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
                         }
                     }
 
-                    Icon {
-                        source: root.icon;
-                        tint: root.active ? M3.on-secondary-container : M3.on-surface-variant;
-                        transform-scale-x: root.active ? 108% : 100%;
-                        transform-scale-y: root.active ? 108% : 100%;
-                        animate transform-scale-x, transform-scale-y {
-                            duration: Motion.fast-spatial;
-                            easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            Icon {
+                                source: root.icon;
+                                tint: root.active ? (root.horiz ? M3.on-primary : M3.on-secondary-container) : M3.on-surface-variant;
+                                transform-scale-x: root.active ? 108% : 100%;
+                                transform-scale-y: root.active ? 108% : 100%;
+                                animate transform-scale-x, transform-scale-y {
+                                    duration: Motion.fast-spatial;
+                                    easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+                                }
+                            }
+                        }
+                        if root.horiz && root.active: Text {
+                            text: root.label;
+                            font-size: Type.body;
+                            font-weight: 700;
+                            color: M3.on-primary;
+                            vertical-alignment: center;
                         }
                     }
 
                     if root.badge > 0: Rectangle {
-                        x: 38px;
-                        y: 0px;
+                        x: root.horiz && root.active ? 26px : 38px;
+                        y: root.horiz ? 6px : 0px;
                         height: 16px;
                         width: max(16px, bt.preferred-width + 8px);
                         border-radius: 8px;
                         background: M3.error;
-                        transform-scale-x: root.badge > 0 ? 100% : 0%;
-                        transform-scale-y: root.badge > 0 ? 100% : 0%;
-                        animate transform-scale-x, transform-scale-y { duration: 250ms; easing: ease-out-back; }
                         bt := Text {
                             text: root.badge > 99 ? "99+" : root.badge;
                             color: M3.on-error;
@@ -691,7 +724,7 @@ export component NavItem inherits Rectangle {
             }
         }
 
-        Text {
+        if root.show-label: Text {
             text: root.label;
             horizontal-alignment: center;
             font-size: Type.label;
@@ -714,10 +747,15 @@ export component ListRow inherits Rectangle {
     in property <float> value: -1;
     in property <color> accent: M3.primary;
     in property <bool> chevron: true;
+    in property <image> icon;
+    in property <bool> has-icon: false;
     callback clicked;
     // l'altezza segue il contenuto: titolo e sottotitolo possono andare a capo
-    min-height: max(64px, row.preferred-height);
-    border-radius: ta.pressed ? Shape.xl : Shape.lg;
+    min-height: max(Design.v == 1 ? 56px : 64px, row.preferred-height);
+    background: Design.row-bg;
+    border-width: Design.v == 2 ? 1px : 0px;
+    border-color: M3.outline-variant;
+    border-radius: ta.pressed ? Shape.xl : Design.row-radius;
     animate border-radius {
         duration: Motion.fast-spatial;
         easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
@@ -728,20 +766,41 @@ export component ListRow inherits Rectangle {
         px: ta.pressed-x;
         py: ta.pressed-y;
     }
+    if Design.row-divider: Rectangle {
+        y: parent.height - 1px;
+        x: root.has-icon ? 64px : 12px;
+        width: parent.width - self.x;
+        height: 1px;
+        background: M3.outline-variant;
+    }
     row := HorizontalLayout {
-        padding: 12px;
+        padding: Design.v == 2 ? 16px : 12px;
         spacing: 12px;
+        if root.has-icon: VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: Design.v == 2 ? 20px : 12px;
+                background: Design.v == 2 ? M3.primary-container : Design.v == 3 ? transparent : M3.secondary-container;
+                Icon {
+                    source: root.icon;
+                    tint: Design.v == 2 ? M3.on-primary-container : Design.v == 3 ? M3.primary : M3.on-secondary-container;
+                }
+            }
+        }
         VerticalLayout {
             horizontal-stretch: 1;
             // larghezza esplicita: Slint calcola l'altezza dei testi a capo dentro una riga
             // orizzontale come se avessero tutta la larghezza, e la riga risultava più bassa
-            width: root.width - 24px - (root.trailing != "" ? 60px : 0px) - (root.chevron ? 36px : 0px);
+            width: root.width - 2 * (Design.v == 2 ? 16px : 12px) - (root.trailing != "" ? 60px : 0px) - (root.chevron ? 36px : 0px) - (root.has-icon ? 52px : 0px);
             spacing: 4px;
             alignment: center;
             Text {
                 text: root.title;
                 color: M3.on-surface;
                 font-size: Type.body-large;
+                font-weight: Design.v == 2 ? 700 : Design.v == 1 ? 600 : 400;
                 wrap: word-wrap;
             }
 
