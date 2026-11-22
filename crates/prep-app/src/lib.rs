@@ -176,7 +176,7 @@ pub(crate) fn bt_send(data: &[u8]) {
 /// Eventi del collegamento Bluetooth da Java (BtLink.nativeBt).
 #[cfg(target_os = "android")]
 #[no_mangle]
-pub extern "system" fn Java_it_tremendouspreparator_app_BtLink_nativeBt<'l>(
+pub extern "system" fn Java_io_github_nernerone_tremendouspreparator_BtLink_nativeBt<'l>(
     mut env: jni::JNIEnv<'l>,
     _class: jni::objects::JClass<'l>,
     kind: jni::sys::jint,
@@ -217,6 +217,9 @@ pub(crate) fn system_tones() -> Option<Vec<u32>> {
 
 /// Apre un indirizzo nel browser di sistema.
 pub(crate) fn open_url(url: &str) -> bool {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return false;
+    }
     #[cfg(target_os = "android")]
     return android_call("openUrl", Some(url)).is_ok();
     #[cfg(target_arch = "wasm32")]
@@ -265,7 +268,7 @@ fn android_call_str(method: &str, arg: Option<&str>) -> Result<String, String> {
 pub(crate) mod focus {
     /// Disponibile su questo dispositivo.
     pub fn available() -> bool {
-        cfg!(target_os = "android") || std::env::var("PREP_FOCUS_FAKE").is_ok()
+        cfg!(target_os = "android") || (cfg!(debug_assertions) && std::env::var("PREP_FOCUS_FAKE").is_ok())
     }
 
     /// Permessi e stato in JSON (vedi `MainActivity.focusState`).
@@ -274,13 +277,17 @@ pub(crate) mod focus {
         return super::android_call_str("focusState", None).ok();
         #[cfg(not(target_os = "android"))]
         // PREP_FOCUS_FAKE=restricted: come un APK installato da file su Android 13+
-        std::env::var("PREP_FOCUS_FAKE").ok().map(|v| {
-            let r = v == "restricted";
-            format!(
-                r#"{{"usage":{},"restricted":{r},"overlay":false,"until":0,"armed":false,"session":0,"active":false,"allowed":[]}}"#,
-                !r
-            )
-        })
+        if cfg!(debug_assertions) {
+            std::env::var("PREP_FOCUS_FAKE").ok().map(|v| {
+                let r = v == "restricted";
+                format!(
+                    r#"{{"usage":{},"restricted":{r},"overlay":false,"until":0,"armed":false,"session":0,"active":false,"allowed":[]}}"#,
+                    !r
+                )
+            })
+        } else {
+            None
+        }
     }
 
     /// App avviabili con icona (JSON, vedi `MainActivity.focusApps`).
@@ -288,9 +295,13 @@ pub(crate) mod focus {
         #[cfg(target_os = "android")]
         return super::android_call_str("focusApps", None).ok();
         #[cfg(not(target_os = "android"))]
-        std::env::var("PREP_FOCUS_FAKE").ok().map(|_| {
-            r#"[{"p":"org.wikipedia","l":"Wikipedia"},{"p":"com.google.android.calculator","l":"Calcolatrice"},{"p":"com.instagram.android","l":"Instagram"},{"p":"com.spotify.music","l":"Spotify"},{"p":"org.mozilla.firefox","l":"Firefox"}]"#.to_string()
-        })
+        if cfg!(debug_assertions) {
+            std::env::var("PREP_FOCUS_FAKE").ok().map(|_| {
+                r#"[{"p":"org.wikipedia","l":"Wikipedia"},{"p":"com.google.android.calculator","l":"Calcolatrice"},{"p":"com.instagram.android","l":"Instagram"},{"p":"com.spotify.music","l":"Spotify"},{"p":"org.mozilla.firefox","l":"Firefox"}]"#.to_string()
+            })
+        } else {
+            None
+        }
     }
 
     fn call(method: &str, arg: Option<&str>) {

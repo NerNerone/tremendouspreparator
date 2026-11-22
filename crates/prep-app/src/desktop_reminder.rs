@@ -14,7 +14,6 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 const APP_ID: &str = "io.github.nernerone.TremendousPreparator";
-const LOCK: &[u8] = b"tremendous-preparator-promemoria";
 
 fn in_flatpak() -> bool {
     std::env::var_os("FLATPAK_ID").is_some()
@@ -32,13 +31,28 @@ fn autostart_file() -> Option<PathBuf> {
     Some(base.join("autostart").join(format!("{APP_ID}.promemoria.desktop")))
 }
 
+fn escape_desktop_exec(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '`' => out.push_str("\\`"),
+            '$' => out.push_str("\\$"),
+            '%' => out.push_str("%%"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 fn exec_line() -> String {
     if in_flatpak() {
         format!("flatpak run --command=tremendous-preparator {APP_ID} --promemoria")
     } else {
         let exe =
             std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_else(|_| "tremendous-preparator".into());
-        format!("\"{exe}\" --promemoria")
+        format!("\"{}\" --promemoria", escape_desktop_exec(&exe))
     }
 }
 
@@ -77,16 +91,30 @@ pub fn sync_autostart(enabled: bool) {
     }
 }
 
-fn single_instance() -> Option<std::os::unix::net::UnixListener> {
+fn lock_name(data_dir: &Path) -> String {
+    use sha2::{Digest, Sha256};
+    use std::os::unix::fs::MetadataExt;
+    let uid = std::fs::metadata("/proc/self").map(|m| m.uid()).unwrap_or(0);
+    let mut h = Sha256::new();
+    h.update(b"tp-promemoria-lock\0");
+    h.update(uid.to_le_bytes());
+    h.update(b"\0");
+    h.update(data_dir.as_os_str().as_encoded_bytes());
+    let sum: String = h.finalize().iter().take(8).map(|b| format!("{b:02x}")).collect();
+    format!("tremendous-preparator-promemoria-{uid}-{sum}")
+}
+
+fn single_instance(data_dir: &Path) -> Option<std::os::unix::net::UnixListener> {
     use std::os::linux::net::SocketAddrExt;
-    let addr = std::os::unix::net::SocketAddr::from_abstract_name(LOCK).ok()?;
+    let name = lock_name(data_dir);
+    let addr = std::os::unix::net::SocketAddr::from_abstract_name(name.as_bytes()).ok()?;
     std::os::unix::net::UnixListener::bind_addr(&addr).ok()
 }
 
 /// Corpo del processo `--promemoria`: ogni minuto controlla se è scattata una fascia
 /// (mattina, dopo pranzo, pomeriggio, sera) e la notifica una sola volta.
 pub fn run_daemon(data_dir: &Path) {
-    let Some(_lock) = single_instance() else {
+    let Some(_lock) = single_instance(data_dir) else {
         return;
     };
     // fasce già notificate ("AAAA-MM-GG HH:MM"), salvate: un nuovo accesso non ripete
@@ -150,7 +178,8 @@ fn notify(title: &str, body: &str) -> zbus::Result<()> {
     std::thread::spawn(move || {
         let rule = zbus::MatchRule::builder()
             .msg_type(zbus::message::Type::Signal)
-            .interface("org.freedesktop.Notifications")
+            .sender("org.freedesktop.Notifications")
+            .and_then(|b| b.interface("org.freedesktop.Notifications"))
             .and_then(|b| b.member("ActionInvoked"))
             .map(|b| b.build());
         let Ok(rule) = rule else { return };

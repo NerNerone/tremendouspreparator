@@ -106,14 +106,29 @@ pub fn downloads_dirs() -> Vec<PathBuf> {
     dirs
 }
 
+fn sanitize_filename(name: &str) -> String {
+    let base = std::path::Path::new(name).file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    let mut clean: String = base.chars().filter(|c| !c.is_control() && *c != '/' && *c != '\\').collect();
+    while clean.contains("..") {
+        clean = clean.replace("..", "_");
+    }
+    let clean = clean.trim_matches('.');
+    if clean.is_empty() || clean.chars().all(|c| c == '_') {
+        "file".to_string()
+    } else {
+        clean.to_string()
+    }
+}
+
 /// Salva `bytes` nella cartella Download (senza sovrascrivere: aggiunge un numero).
 pub fn save_to_downloads(name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
     let dir = downloads_dirs().into_iter().find(|d| d.is_dir()).ok_or("cartella Download non trovata")?;
-    let (stem, ext) = name.split_once('.').unwrap_or((name, ""));
-    let mut p = dir.join(name);
+    let safe = sanitize_filename(name);
+    let (stem, ext) = safe.split_once('.').unwrap_or((&safe, ""));
+    let mut p = dir.join(&safe);
     let mut n = 2;
     while p.exists() {
-        p = dir.join(format!("{stem}-{n}.{ext}"));
+        p = if ext.is_empty() { dir.join(format!("{stem}-{n}")) } else { dir.join(format!("{stem}-{n}.{ext}")) };
         n += 1;
     }
     std::fs::write(&p, bytes).map_err(|e| e.to_string())?;
@@ -127,5 +142,13 @@ mod tests {
         assert_eq!(super::decode("/home/a/Quiz%20nuovi.json"), "/home/a/Quiz nuovi.json");
         assert_eq!(super::decode("/x/caff%C3%A8.md"), "/x/caffè.md");
         assert_eq!(super::decode("/x/100%"), "/x/100%");
+    }
+
+    #[test]
+    fn sanitizes_filenames() {
+        assert_eq!(super::sanitize_filename("../../.bashrc"), "bashrc");
+        assert_eq!(super::sanitize_filename("a/b/..c.json"), "_c.json");
+        assert_eq!(super::sanitize_filename("..."), "file");
+        assert_eq!(super::sanitize_filename("esame.json.gz"), "esame.json.gz");
     }
 }

@@ -94,14 +94,22 @@ pub fn build(root: &Path, label: &str) -> Result<(Vec<u8>, PackInfo), String> {
     Ok((gz.finish().map_err(|e| e.to_string())?, info))
 }
 
+const MAX_PACK_JSON: usize = 128 << 20;
+
 fn parse(bytes: &[u8]) -> Result<Pack, String> {
     let mut json = Vec::new();
     if bytes.starts_with(&[0x1f, 0x8b]) {
         flate2::read::GzDecoder::new(bytes)
-            .take(512 << 20)
+            .take((MAX_PACK_JSON + 1) as u64)
             .read_to_end(&mut json)
             .map_err(|e| format!("file compresso non leggibile: {e}"))?;
+        if json.len() > MAX_PACK_JSON {
+            return Err("pacchetto troppo grande".into());
+        }
     } else {
+        if bytes.len() > MAX_PACK_JSON {
+            return Err("pacchetto troppo grande".into());
+        }
         json = bytes.to_vec();
     }
     let pack: Pack = serde_json::from_slice(&json)
@@ -204,15 +212,16 @@ fn import_with(store: &Store, bytes: &[u8], replace: bool) -> Result<PackInfo, S
 /// Impronta dei contenuti nel mirror (libri, quiz, flashcard): uguale su due dispositivi
 /// che hanno gli stessi file, comunque ci siano arrivati (pacchetto o altro dispositivo).
 pub fn content_version(store: &Store) -> String {
+    use sha2::{Digest, Sha256};
     let idx = store.index();
-    let mut h = sha1_smol::Sha1::new();
+    let mut h = Sha256::new();
     for (p, sha) in idx.files.iter().filter(|(p, _)| in_pack(p)) {
         h.update(p.as_bytes());
         h.update(b"\0");
         h.update(sha.as_bytes());
         h.update(b"\n");
     }
-    h.digest().to_string()
+    h.finalize().iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// Ultimo pacchetto importato, se c'è.

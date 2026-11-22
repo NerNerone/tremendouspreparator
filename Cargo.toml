@@ -17,6 +17,12 @@ strip = true
 # l'OCR in debug sarebbe lentissimo: le sue dipendenze si compilano sempre ottimizzate
 [profile.dev.package.rten]
 opt-level = 3
+[profile.dev.package.pbkdf2]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+[profile.dev.package.hmac]
+opt-level = 3
 [profile.dev.package.rten-tensor]
 opt-level = 3
 [profile.dev.package.rten-imageproc]

@@ -178,7 +178,13 @@ impl Ctrl {
         }
         let s = self.store.settings();
         let dev = self.device_id();
-        let derived = prep_core::group::user_id(&s.username, &s.p2p_password, &dev);
+        let derived = if let Some(seed) = p2p::Room::decode_seed(&s.p2p_room_key) {
+            p2p::Room::user_id_from_seed(&seed)
+        } else if !s.p2p_password.is_empty() {
+            prep_core::group::user_id(&s.username, &s.p2p_password, &dev)
+        } else {
+            dev
+        };
         let id = self.adopt_user_id(derived);
         self.uid_cache = Some((id.clone(), now));
         id
@@ -198,10 +204,18 @@ impl Ctrl {
             s.user_id = derived.clone();
             let _ = self.store.save_settings(&s);
             self.groups.rename_user(&dev, &derived);
+            let now = Self::now_secs();
+            for g in &mut self.groups.groups {
+                if g.admin == derived && !g.admin_sk.is_empty() {
+                    g.info_at = now.max(g.info_at + 1);
+                    g.sign_current_info();
+                }
+            }
             let _ = self.groups.save(&self.store.base);
             self.uid_cache = None;
-            // gli altri lo sanno dal prossimo stato (con l'id precedente in `prev`)
+            // gli altri lo sanno dal prossimo stato e dalle nuove impostazioni firmate
             self.group_send();
+            self.group_send_info();
         }
         s.user_id
     }
@@ -351,12 +365,14 @@ impl Ctrl {
         self.groups.join(&code, &name, Self::now_secs());
         let me = self.user_id();
         if let Some(g) = self.groups.active_mut() {
-            // chi crea il gruppo ne è l'amministratore
+            // chi crea il gruppo ne è l'amministratore e firma subito le impostazioni iniziali
             g.admin = me;
             g.info_at = Self::now_secs();
+            g.sign_current_info();
         }
         let _ = self.groups.save(&self.store.base);
         self.group_connect();
+        self.group_send_info_stored();
         self.group_invite();
     }
 
@@ -513,6 +529,7 @@ impl Ctrl {
         if let Some(g) = self.groups.active_mut() {
             if g.legacy() {
                 g.admin = me;
+                g.ensure_admin_keys();
             }
         }
     }
@@ -526,13 +543,26 @@ impl Ctrl {
     /// Impostazioni del gruppo da conservare sui relay (24 ore): arrivano anche a chi ora è
     /// offline, compreso chi è stato rimosso.
     fn group_send_info_stored(&mut self) {
+        if self.is_group_admin() {
+            if let Some(g) = self.groups.active_mut() {
+                if !g.admin_sk.is_empty() && (g.admin_pk.is_empty() || g.admin_sig.is_empty()) {
+                    g.sign_current_info();
+                    let _ = self.groups.save(&self.store.base);
+                }
+            }
+        }
         let Some(g) = self.groups.active() else { return };
+        if g.admin_pk.is_empty() || g.admin_sig.is_empty() {
+            return;
+        }
         let msg = prep_core::group::GroupMsg::Info {
             admin: g.admin.clone(),
             name: g.name.clone(),
             photo: g.photo.clone(),
             removed: g.removed.clone(),
             at: g.info_at,
+            pk: g.admin_pk.clone(),
+            sig: g.admin_sig.clone(),
         };
         self.with_engine(Sess::Group, move |e, _| vec![e.group_msg(msg, true)]);
     }
@@ -541,18 +571,28 @@ impl Ctrl {
     /// dispositivo appena arrivato, che altrimenti aspetterebbe l'amministratore).
     pub(super) fn group_send_info_as(&mut self, relay: bool) {
         self.info_sent = Self::now_secs();
-        if !self.is_group_admin()
-            && !(relay && self.groups.active().is_some_and(|g| !g.admin.is_empty() && g.info_at > 0))
-        {
-            return;
+        let is_admin = self.is_group_admin();
+        if is_admin {
+            if let Some(g) = self.groups.active_mut() {
+                if !g.admin_sk.is_empty() && (g.admin_pk.is_empty() || g.admin_sig.is_empty()) {
+                    g.sign_current_info();
+                    let _ = self.groups.save(&self.store.base);
+                }
+            }
         }
         let Some(g) = self.groups.active() else { return };
+        let signed = !g.admin.is_empty() && !g.admin_pk.is_empty() && !g.admin_sig.is_empty() && g.info_at > 0;
+        if !(is_admin && signed) && !(relay && signed) {
+            return;
+        }
         let msg = prep_core::group::GroupMsg::Info {
             admin: g.admin.clone(),
             name: g.name.clone(),
             photo: g.photo.clone(),
             removed: g.removed.clone(),
             at: g.info_at,
+            pk: g.admin_pk.clone(),
+            sig: g.admin_sig.clone(),
         };
         self.with_engine(Sess::Group, move |e, _| vec![e.group_msg(msg, false)]);
     }
@@ -602,8 +642,8 @@ impl Ctrl {
         let now = Self::now_secs();
         let me = self.user_id();
         match msg {
-            GroupMsg::Info { admin, name, photo, removed, at } => {
-                if !photo.is_empty() {
+            GroupMsg::Info { admin, name, photo, removed, at, pk, sig } => {
+                if !photo.is_empty() && crate::photo::valid_hash(&photo) {
                     self.photo_src.insert(photo.clone(), from.clone());
                 }
                 let Some(g) = self.groups.active_mut() else { return };
@@ -615,7 +655,7 @@ impl Ctrl {
                     .filter(|r| **r != me && !g.removed.contains(r))
                     .filter_map(|r| g.members.get(r).map(|m| m.status.name.clone()))
                     .collect();
-                match g.apply_info(&me, &admin, &name, &photo, &removed, at) {
+                match g.apply_info(&me, &admin, &name, &photo, &removed, at, &pk, &sig, now) {
                     InfoResult::Ignored => {}
                     InfoResult::Applied => {
                         let _ = self.groups.save(&self.store.base);
@@ -643,7 +683,7 @@ impl Ctrl {
                     if g.card_in(c, now) {
                         changed = true;
                         // la foto si chiede a chi ha mandato la scheda (se manca)
-                        if !photo.is_empty() {
+                        if !photo.is_empty() && crate::photo::valid_hash(&photo) {
                             self.photo_src.entry(photo).or_insert_with(|| from.clone());
                         }
                     }
@@ -692,6 +732,17 @@ impl Ctrl {
     /// Manda una foto a chi la chiede, direttamente (al massimo una volta ogni 3 s per foto e
     /// richiedente).
     pub(super) fn photo_send(&mut self, k: Sess, from: String, hash: String) {
+        if !crate::photo::valid_hash(&hash) {
+            return;
+        }
+        let known = self.store.settings().photo == hash
+            || self
+                .groups
+                .active()
+                .is_some_and(|g| g.photo == hash || g.members.values().any(|m| m.status.photo == hash));
+        if !known {
+            return;
+        }
         let now = Self::now_secs();
         let key = format!("{hash}>{from}");
         if self.photo_sent.get(&key).is_some_and(|t| now - t < 3) {
@@ -896,6 +947,7 @@ impl Ctrl {
         let Some(g) = self.groups.active_mut() else { return };
         g.name = name.clone();
         g.info_at = now.max(g.info_at + 1);
+        g.sign_current_info();
         let _ = self.groups.save(&self.store.base);
         self.group_send_info();
         self.toast(format!("Gruppo rinominato in «{name}»"));
@@ -922,6 +974,7 @@ impl Ctrl {
             }
             g.members.remove(uid);
             g.info_at = now.max(g.info_at + 1);
+            g.sign_current_info();
         }
         let _ = self.groups.save(&self.store.base);
         self.group_send_info();
@@ -1016,6 +1069,7 @@ impl Ctrl {
             if let Some(g) = self.groups.active_mut() {
                 g.photo = hash.clone();
                 g.info_at = now.max(g.info_at + 1);
+                g.sign_current_info();
             }
             let _ = self.groups.save(&self.store.base);
             self.group_send_info();
@@ -1044,6 +1098,7 @@ impl Ctrl {
             if let Some(g) = self.groups.active_mut() {
                 g.photo.clear();
                 g.info_at = now.max(g.info_at + 1);
+                g.sign_current_info();
             }
             let _ = self.groups.save(&self.store.base);
             self.group_send_info();

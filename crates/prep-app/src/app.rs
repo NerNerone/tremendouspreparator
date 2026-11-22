@@ -395,6 +395,9 @@ pub struct Ctrl {
     study_notified: (i64, i32),
     /// APK della versione più nuova trovata (vedi `updates`)
     update_url: String,
+    update_asset: String,
+    update_sha256: Option<String>,
+    update_sums_url: String,
     group_leave_armed: Option<(String, Instant)>,
     /// giri completati finora oggi (per festeggiare il giro nuovo)
     my_laps: u64,
@@ -1074,6 +1077,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         racing_others: 0,
         study_notified: (0, -1),
         update_url: String::new(),
+        update_asset: String::new(),
+        update_sha256: None,
+        update_sums_url: String::new(),
         group_leave_armed: None,
         my_laps: 0,
         bt: BtState::default(),
@@ -1117,7 +1123,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
             c.go_tab(4);
         }
         // collegamento automatico tra dispositivi, se scelto
-        if c.store.settings().p2p_auto && !c.store.settings().p2p_password.is_empty() {
+        if c.store.settings().p2p_auto
+            && (!c.store.settings().p2p_room_key.is_empty() || !c.store.settings().p2p_password.is_empty())
+        {
             c.p2p_connect();
         }
         c.import_timer.start(TimerMode::Repeated, Duration::from_millis(1500), || with_ctrl(|c| c.poll_import()));

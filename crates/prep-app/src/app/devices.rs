@@ -44,7 +44,13 @@ impl Ctrl {
             .get_p2p_relays()
             .split([',', '\n', ' '])
             .map(|x| x.trim().to_string())
-            .filter(|x| x.starts_with("ws://") || x.starts_with("wss://"))
+            .filter(|x| {
+                x.starts_with("wss://")
+                    || (cfg!(debug_assertions)
+                        && (x.starts_with("ws://localhost")
+                            || x.starts_with("ws://127.0.0.1")
+                            || x.starts_with("ws://[::1]")))
+            })
             .collect();
         let _ = self.store.save_settings(&s);
         if s.relays.is_empty() {
@@ -135,19 +141,34 @@ impl Ctrl {
             self.toast("Scegli prima un nome utente qui sopra, in Profilo");
             return;
         }
-        if password.chars().count() < 8 {
+        let seed = if !password.is_empty() {
+            if password.chars().count() < 8 {
+                self.toast("Serve una password di almeno 8 caratteri (meglio una frase lunga)");
+                return;
+            }
+            p2p::Room::derive_seed(&s.username, &password)
+        } else if let Some(seed) = p2p::Room::decode_seed(&s.p2p_room_key) {
+            seed
+        } else if !s.p2p_password.is_empty() {
+            if s.p2p_password.chars().count() < 8 {
+                self.toast("Serve una password di almeno 8 caratteri (meglio una frase lunga)");
+                return;
+            }
+            p2p::Room::derive_seed(&s.username, &s.p2p_password)
+        } else {
             self.toast("Serve una password di almeno 8 caratteri (meglio una frase lunga)");
             return;
-        }
+        };
         s.p2p_auto = st.get_p2p_auto();
         s.direct_only = st.get_p2p_direct_only();
-        s.p2p_password = if s.p2p_auto { password.clone() } else { String::new() };
+        s.p2p_password.clear();
+        s.p2p_room_key = if s.p2p_auto { p2p::Room::encode_seed(&seed) } else { String::new() };
         let _ = self.store.save_settings(&s);
         let device = self.device_id();
-        // anche se la password non resta salvata: stessi nome e password = stesso utente nei gruppi
-        let derived = prep_core::group::user_id(&s.username, &password, &device);
+        // anche se la chiave non resta salvata: stessi nome e password = stesso utente nei gruppi
+        let derived = p2p::Room::user_id_from_seed(&seed);
         self.adopt_user_id(derived);
-        let room = p2p::Room::derive(&s.username, &password);
+        let room = p2p::Room::from_seed(seed);
         let mut engine = p2p::Engine::new(
             &device,
             &format!("{} · {}", s.username.trim(), Self::device_label()),
@@ -211,10 +232,10 @@ impl Ctrl {
     pub(super) fn p2p_enqueue(&mut self, k: Sess, outs: Vec<p2p::Out>) {
         let direct_only = self.store.settings().direct_only;
         let Some(p) = self.sess_mut(k) else { return };
-        let Some(eng) = p.engine.as_ref() else { return };
+        let Some(eng) = p.engine.as_mut() else { return };
         let now = Self::now_secs();
         for o in outs {
-            let wire = eng.wire(&o);
+            let wire = eng.wire_at(&o, now);
             if o.stored {
                 // avvisi del gruppo: conservati dai relay per chi non è collegato ora
                 // le schede di sé: ne resta solo l'ultima per dispositivo (evento sostituibile)

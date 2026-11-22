@@ -548,8 +548,10 @@ mod shuffle_tests {
             remap_explanation(e2, &perm2, &opts).lines().find(|l| l.contains("gas")),
             Some("• C), D) e E): sono tutti gas nobili.")
         );
-        let fixed: Vec<String> =
-            ["ha carica nulla", "è priva di massa", "sono corrette sia la A che la B"].iter().map(|s| s.to_string()).collect();
+        let fixed: Vec<String> = ["ha carica nulla", "è priva di massa", "sono corrette sia la A che la B"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert_eq!(display_order(&fixed), vec![0, 1, 2]);
         let both: Vec<String> = ["A e B", "Vitamina C", "C"].iter().map(|s| s.to_string()).collect();
         assert_eq!(display_order(&both), vec![0, 1, 2]);

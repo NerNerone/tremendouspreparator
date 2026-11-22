@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
   <title>Tremendous Preparator</title>
   <meta name="description" content="App di studio: quiz, simulazioni d'esame e flashcard">
   <meta name="theme-color" content="#f8f9ff">
@@ -24,11 +26,6 @@
 <body>
   <div id="loading">Caricamento…</div>
   <canvas id="canvas"></canvas>
-  <script type="module">
-    import init from "./prepapp.js";
-    init().then(() => document.getElementById("loading").remove())
-          .catch((e) => { document.getElementById("loading").textContent = "Errore di avvio: " + e; });
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
-  </script>
+  <script type="module" src="boot.js"></script>
 </body>
 </html>

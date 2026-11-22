@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -12,14 +15,22 @@ jobs:
     steps:
       # niente avviso di git sul nome del ramo predefinito durante il checkout
       - run: git config --global init.defaultBranch main
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Rust stable
         run: |
           rustup toolchain install stable --profile minimal -c rustfmt,clippy
           rustup default stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+
+      - name: Audit dipendenze Rust
+        uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+        with:
+          token: ${{ github.token }}
+
+      - name: Audit dipendenze Node
+        run: npm --prefix tools audit --audit-level=moderate
 
       - name: Dipendenze di sistema
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libfontconfig1-dev libxkbcommon-dev libwayland-dev

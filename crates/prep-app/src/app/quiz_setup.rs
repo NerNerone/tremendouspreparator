@@ -170,7 +170,7 @@ impl Ctrl {
         st.set_s_username(ss(&s.username));
         st.set_p2p_auto(s.p2p_auto);
         st.set_p2p_direct_only(s.direct_only);
-        st.set_p2p_password(ss(&s.p2p_password));
+        st.set_p2p_password(ss(""));
         st.set_p2p_relays(ss(if s.relays.is_empty() { p2p::DEFAULT_RELAYS.join(", ") } else { s.relays.join(", ") }));
         st.set_s_rem_on(s.reminder_enabled);
         let times = if s.reminder_times.is_empty() {

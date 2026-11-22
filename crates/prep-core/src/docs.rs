@@ -50,10 +50,14 @@ pub fn to_markdown(bytes: &[u8], sel: &[u32]) -> Result<Doc, String> {
 
 // ---------- ZIP ----------
 
+const MAX_ZIP_ENTRIES: usize = 2048;
+const MAX_ZIP_ENTRY: usize = 32 * 1024 * 1024;
+const MAX_ZIP_TOTAL: usize = 128 * 1024 * 1024;
+
 /// Contenuto di un archivio ZIP (file non compressi o compressi con deflate).
 fn unzip(b: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, String> {
-    let u16le = |i: usize| b.get(i..i + 2).map(|s| u16::from_le_bytes([s[0], s[1]]) as usize);
-    let u32le = |i: usize| b.get(i..i + 4).map(|s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]) as usize);
+    let u16le = |i: usize| b.get(i..i.checked_add(2)?).map(|s| u16::from_le_bytes([s[0], s[1]]) as usize);
+    let u32le = |i: usize| b.get(i..i.checked_add(4)?).map(|s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]) as usize);
     // fine della directory centrale: in fondo, prima di un eventuale commento
     let eocd = (0..b.len().saturating_sub(21))
         .rev()
@@ -61,7 +65,11 @@ fn unzip(b: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, String> {
         .find(|&i| b[i..].starts_with(b"PK\x05\x06"))
         .ok_or("archivio ZIP non valido")?;
     let n = u16le(eocd + 10).ok_or("ZIP")?;
+    if n > MAX_ZIP_ENTRIES {
+        return Err("archivio ZIP troppo grande".into());
+    }
     let mut at = u32le(eocd + 16).ok_or("ZIP")?;
+    let mut total = 0usize;
     let mut out = BTreeMap::new();
     for _ in 0..n {
         if !b.get(at..).is_some_and(|s| s.starts_with(b"PK\x01\x02")) {
@@ -72,23 +80,40 @@ fn unzip(b: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, String> {
         let (nlen, xlen, clen) =
             (u16le(at + 28).ok_or("ZIP")?, u16le(at + 30).ok_or("ZIP")?, u16le(at + 32).ok_or("ZIP")?);
         let local = u32le(at + 42).ok_or("ZIP")?;
-        let name = String::from_utf8_lossy(b.get(at + 46..at + 46 + nlen).ok_or("ZIP")?).to_string();
-        at += 46 + nlen + xlen + clen;
-        let (ln, lx) = (u16le(local + 26).ok_or("ZIP")?, u16le(local + 28).ok_or("ZIP")?);
-        let start = local + 30 + ln + lx;
-        let Some(data) = b.get(start..start + csize) else { continue };
+        let name_start = at.checked_add(46).ok_or("ZIP")?;
+        let name_end = name_start.checked_add(nlen).ok_or("ZIP")?;
+        let name = String::from_utf8_lossy(b.get(name_start..name_end).ok_or("ZIP")?).to_string();
+        at = name_end.checked_add(xlen).and_then(|v| v.checked_add(clen)).ok_or("ZIP")?;
+        let (ln, lx) = (
+            u16le(local.checked_add(26).ok_or("ZIP")?).ok_or("ZIP")?,
+            u16le(local.checked_add(28).ok_or("ZIP")?).ok_or("ZIP")?,
+        );
+        let start =
+            local.checked_add(30).and_then(|v| v.checked_add(ln)).and_then(|v| v.checked_add(lx)).ok_or("ZIP")?;
+        let Some(end) = start.checked_add(csize) else { continue };
+        let Some(data) = b.get(start..end) else { continue };
+        let rem = (MAX_ZIP_TOTAL - total).min(MAX_ZIP_ENTRY);
         let bytes = match method {
-            0 => data.to_vec(),
+            0 => {
+                if data.len() > rem {
+                    return Err("archivio ZIP troppo grande".into());
+                }
+                data.to_vec()
+            }
             8 => {
                 let mut v = Vec::new();
                 flate2::read::DeflateDecoder::new(data)
-                    .take(64 * 1024 * 1024)
+                    .take(rem as u64 + 1)
                     .read_to_end(&mut v)
                     .map_err(|e| format!("ZIP: {e}"))?;
+                if v.len() > rem {
+                    return Err("archivio ZIP troppo grande".into());
+                }
                 v
             }
             _ => continue,
         };
+        total += bytes.len();
         out.insert(name, bytes);
     }
     Ok(out)

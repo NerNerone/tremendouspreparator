@@ -1,7 +1,7 @@
 // Funzionamento offline: i file dell'app restano in cache e vengono aggiornati in background
 // (prima la cache, poi la rete). I dati dell'utente stanno in IndexedDB, non qui.
 const CACHE = "tremendouspreparator-v1";
-const FILES = ["./", "index.html", "prepapp.js", "prepapp_bg.wasm", "manifest.webmanifest", "icon-128.png", "icon-256.png"];
+const FILES = ["./", "index.html", "boot.js", "prepapp.js", "prepapp_bg.wasm", "manifest.webmanifest", "icon-128.png", "icon-256.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -16,11 +16,13 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
   e.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(e.request);
       const fresh = fetch(e.request).then((r) => {
-        if (r.ok) cache.put(e.request, r.clone());
+        if (r.ok && r.type === "basic") cache.put(e.request, r.clone());
         return r;
       }).catch(() => cached);
       return cached || fresh;

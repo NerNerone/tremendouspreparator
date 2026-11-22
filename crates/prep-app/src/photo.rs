@@ -15,6 +15,10 @@ pub const MAX_BYTES: usize = prep_core::p2p::CHUNK - 1024;
 /// Lato massimo di un'immagine scelta dall'utente (oltre si rifiuta: memoria).
 const MAX_PICK_SIDE: u32 = 12_000;
 
+pub fn valid_hash(hash: &str) -> bool {
+    hash.len() == 16 && hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
 pub fn path(base: &Path, hash: &str) -> PathBuf {
     base.join("photos").join(format!("{hash}.jpg"))
 }
@@ -105,10 +109,10 @@ pub fn save(base: &Path, jpeg: &[u8]) -> Result<String, String> {
 }
 
 pub fn load(base: &Path, hash: &str) -> Option<Vec<u8>> {
-    if hash.is_empty() {
+    if !valid_hash(hash) {
         return None;
     }
-    vfs::read(&path(base, hash)).ok()
+    vfs::read(&path(base, hash)).ok().filter(|b| b.len() <= MAX_BYTES)
 }
 
 /// Immagine per l'interfaccia (solo foto piccole: quelle salvate sono già controllate).
@@ -222,5 +226,19 @@ mod tests {
         let bottom = back.get_pixel(128, 245);
         assert!(top[0] > 150 && top[2] < 100, "alto {top:?}");
         assert!(bottom[2] > 150 && bottom[0] < 100, "basso {bottom:?}");
+    }
+
+    #[test]
+    fn load_rejects_path_traversal() {
+        let dir = std::env::temp_dir().join("tp_test_photo_sec");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("secret.jpg"), b"\xff\xd8\xff").unwrap();
+        assert!(!super::valid_hash("../secret"));
+        assert!(!super::valid_hash("0123456789abcde"));
+        assert!(!super::valid_hash("0123456789ABCDE0"));
+        assert!(super::valid_hash("0123456789abcdef"));
+        assert!(super::load(&dir, "../secret").is_none());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

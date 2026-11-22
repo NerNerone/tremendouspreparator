@@ -209,20 +209,50 @@ impl ScanDoc {
     }
 
     fn decode(&self, img: &lopdf::xobject::PdfImage) -> Option<Scan> {
+        const MAX_SCAN_DIM: u32 = 16_000;
+        const MAX_SCAN_PIXELS: usize = 64_000_000;
+        const MAX_SCAN_STREAM: u64 = 128 * 1024 * 1024;
+        if img.width <= 0 || img.height <= 0 {
+            return None;
+        }
         let filters = img.filters.clone().unwrap_or_default();
         let (w, h) = (img.width as u32, img.height as u32);
+        if w > MAX_SCAN_DIM || h > MAX_SCAN_DIM {
+            return None;
+        }
+        let px = (w as usize).checked_mul(h as usize).filter(|&p| p <= MAX_SCAN_PIXELS)?;
         let last = filters.last().map(String::as_str);
         if filters.iter().any(|f| !matches!(f.as_str(), "DCTDecode" | "FlateDecode")) {
             return None; // JBIG2, CCITT, JPX…
         }
         let data = if filters.iter().any(|f| f == "FlateDecode") {
             let stream = self.doc.get_object(img.id).ok()?.as_stream().ok()?;
-            let mut s = stream.clone();
-            // si toglie solo la compressione: un eventuale JPEG resta tale
-            if last == Some("DCTDecode") {
-                s.dict.set("Filter", lopdf::Object::Name(b"FlateDecode".to_vec()));
+            if last != Some("DCTDecode") && filters.len() == 1 && stream.dict.get(b"DecodeParms").is_err() {
+                use std::io::Read as _;
+                let mut out = Vec::new();
+                flate2::read::ZlibDecoder::new(stream.content.as_slice())
+                    .take(MAX_SCAN_STREAM + 1)
+                    .read_to_end(&mut out)
+                    .ok()?;
+                if out.len() as u64 > MAX_SCAN_STREAM {
+                    return None;
+                }
+                out
+            } else {
+                if stream.content.len() as u64 > MAX_SCAN_STREAM {
+                    return None;
+                }
+                let mut s = stream.clone();
+                // si toglie solo la compressione: un eventuale JPEG resta tale
+                if last == Some("DCTDecode") {
+                    s.dict.set("Filter", lopdf::Object::Name(b"FlateDecode".to_vec()));
+                }
+                let out = s.decompressed_content().ok()?;
+                if out.len() as u64 > MAX_SCAN_STREAM {
+                    return None;
+                }
+                out
             }
-            s.decompressed_content().ok()?
         } else {
             img.content.to_vec()
         };
@@ -232,7 +262,6 @@ impl ScanDoc {
         if img.color_space.as_deref().is_some_and(|c| c == "Indexed" || c == "Separation") {
             return None;
         }
-        let px = (w as usize) * (h as usize);
         match img.bits_per_component.unwrap_or(8) {
             8 if px > 0 && data.len() >= px => {
                 let ch = (data.len() / px).min(4);

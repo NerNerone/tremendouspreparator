@@ -137,7 +137,7 @@ public final class BtLink {
         new Thread(() -> {
             try {
                 closeServer();
-                server = adapter().listenUsingInsecureRfcommWithServiceRecord("TremendousPreparator", SERVICE);
+                server = adapter().listenUsingRfcommWithServiceRecord("TremendousPreparator", SERVICE);
                 event(4, "Visibile: sull'altro telefono tocca «Cerca» e scegli questo", null);
                 BluetoothSocket s = server.accept();
                 closeServer();
@@ -172,7 +172,7 @@ public final class BtLink {
             try {
                 BluetoothAdapter a = adapter();
                 a.cancelDiscovery();
-                BluetoothSocket s = a.getRemoteDevice(address).createInsecureRfcommSocketToServiceRecord(SERVICE);
+                BluetoothSocket s = a.getRemoteDevice(address).createRfcommSocketToServiceRecord(SERVICE);
                 s.connect();
                 attach(s);
             } catch (IOException | SecurityException | IllegalArgumentException e) {
@@ -241,6 +241,14 @@ public final class BtLink {
 
     void close() {
         closeServer();
+        if (receiverOn) {
+            try {
+                act.unregisterReceiver(found);
+            } catch (IllegalArgumentException e) {
+                // già rimosso
+            }
+            receiverOn = false;
+        }
         try {
             if (sock != null) sock.close();
         } catch (IOException e) {
