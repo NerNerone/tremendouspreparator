@@ -3,6 +3,20 @@
 Le novità più recenti in alto. Ogni punto compare una volta sola, alla prima apertura dopo
 l'aggiornamento che lo porta.
 
+## 24 novembre 2026
+
+- Nuova interfaccia «Traguardo»: barra Oggi · Studia · Squadra · Tu, pulsante «Studia ora» con il menu delle attività, Opzioni dentro «Tu».
+- Oggi: barra ondulata con inizio e fine netti, icona e colore delle materie decisi dal pacchetto.
+- Barra della sessione in basso: un quiz lasciato a metà si riprende con un tocco (su Android va in pausa da solo quando esci dall'app).
+- Squadra: foto e nome del gruppo in alto, gara più grande, paddock flottante con chi non è in pista, scheda della concentrazione.
+- GitHub (spento di default): un repository con pacchetto, progressi e gruppi, un ramo per esame; «Sincronizza» in Oggi e «Da un ramo del repository» tra i modi per importare un pacchetto.
+- Concentrazione dal telefono mentre studi sul computer: il moltiplicatore vale per la sessione aperta. La monoposto ha il colore del dispositivo che ha avviato lo studio.
+- Quiz di unità e di argomento: scegli le fonti delle domande dalla pagina dell'unità.
+- Lettore: tabelle con le colonne allineate; cambio pagina istantaneo nel lettore, nei quiz e nelle flashcard.
+- Pit stop: la monoposto rientra in pista con il muso nel verso giusto anche in curva.
+- Sicurezza: firme verificate sui messaggi, limiti di dimensione, aggiornamenti controllati con SHA-256, solo relay cifrati (wss://).
+- Computer: niente più avvio automatico all'accesso.
+
 ## 18 novembre 2026
 
 - Novità all'avvio: dopo un aggiornamento l'app mostra cosa è cambiato (anche da Opzioni › Novità).
