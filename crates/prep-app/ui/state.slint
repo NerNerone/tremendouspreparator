@@ -205,6 +205,13 @@ export struct FocusAppVM {
 }
 
 // colore selezionabile (monoposto); auto = accento di sistema
+// un orario dei promemoria (Opzioni › Studio)
+export struct RemVM {
+    time: string,
+    label: string,
+    on: bool,
+}
+
 export struct SwatchVM {
     color: color,
     value: int,
@@ -430,6 +437,11 @@ export global AppState {
     in property <string> home-race-sub;
     in property <string> overall-label;
     in property <string> total-time;
+    // «Tu»: tempo di studio, risposte date, percentuale di giuste, ritmo
+    in property <string> tu-time;
+    in property <int> tu-answers;
+    in property <string> tu-acc;
+    in property <string> tu-pace;
     in property <string> paused-title;
     in property <string> paused-info;
     // barra della sessione (Traguardo, da Notturno): domanda a cui si è arrivati e frazione fatta
@@ -713,6 +725,8 @@ export global AppState {
     in property <string> news-title;
     in property <[NewsVM]> news-rows;
     callback news-all();
+    // le ultime novità (Opzioni › Novità e note legali)
+    in property <[NewsVM]> news-list;
     // tempo che manca alla fine del blocco a tempo («23:41»; vuoto dopo la scadenza)
     in property <string> focus-left;
     in property <float> focus-left-frac;
@@ -810,6 +824,9 @@ export global AppState {
     // colore del tema (Aspetto)
     in property <[SwatchVM]> theme-swatches;
     callback theme-color(int);
+    // chiaro o scuro: 0 sistema, 1 chiaro, 2 scuro
+    in property <int> theme-mode;
+    callback theme-set-mode(int);
     callback save-username(string);
 
     // sincronizzazione tra dispositivi
@@ -885,6 +902,9 @@ export global AppState {
     in-out property <string> s-token;
     in-out property <bool> s-rem-on: true;
     in-out property <string> s-rem-time: "18:30";
+    in property <[RemVM]> rem-slots;
+    callback rem-toggle(int, bool);
+    callback rem-set-time(int, string);
     in property <string> app-version;
     in property <string> exam-rules;
 

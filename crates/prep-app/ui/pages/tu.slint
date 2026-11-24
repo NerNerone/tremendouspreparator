@@ -1,46 +1,93 @@
-// Traguardo: scheda «Tu». Profilo, registro delle simulazioni e Opzioni raccolte in quattro gruppi.
+// Traguardo: scheda «Tu». Profilo, numeri, registro e statistiche, poi le Opzioni in quattro riquadri.
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState } from "../state.slint";
-import { Page, Icon, Scroller, ListRow } from "../components.slint";
+import { Page, Icon, Scroller, GRow, GroupLabel } from "../components.slint";
 import { Avatar } from "group.slint";
 
-// riquadro di un gruppo di Opzioni: simbolo, titolo, voci
-component OptGroup inherits Rectangle {
-    in property <image> icon;
-    in property <string> title;
-    in property <color> tone: M3.secondary-container;
-    in property <color> on-tone: M3.on-secondary-container;
-    border-radius: 28px;
+// numero grande con didascalia
+component TuStat inherits Rectangle {
+    in property <string> value;
+    in property <string> label;
+    horizontal-stretch: 1;
+    min-width: 0px;
+    height: 68px;
+    border-radius: 20px;
     background: M3.surface-container;
     VerticalLayout {
-        padding: 6px;
-        padding-top: 14px;
-        spacing: 2px;
+        padding-left: 12px;
+        padding-right: 8px;
+        alignment: center;
+        Text {
+            text: root.value;
+            font-size: 24px;
+            font-weight: 900;
+            color: M3.on-surface;
+            overflow: elide;
+        }
+        Text {
+            text: root.label;
+            font-size: 12px;
+            color: M3.on-surface-variant;
+            overflow: elide;
+        }
+    }
+}
+
+// riquadro colorato di un gruppo di Opzioni
+component OptTile inherits Rectangle {
+    in property <image> icon;
+    in property <string> title;
+    in property <string> sub;
+    in property <color> bg;
+    in property <color> box;
+    in property <color> on-box;
+    callback clicked;
+    height: max(128px, ot.preferred-height);
+    border-radius: ta.pressed ? 20px : 28px;
+    animate border-radius { duration: 150ms; }
+    background: root.bg;
+    ot := VerticalLayout {
+        padding: 16px;
+        spacing: 4px;
+        alignment: start;
         HorizontalLayout {
-            padding-left: 12px;
-            padding-right: 12px;
-            padding-bottom: 6px;
-            spacing: 12px;
+            alignment: start;
             Rectangle {
                 width: 40px;
                 height: 40px;
-                border-radius: 14px;
-                background: root.tone;
+                border-radius: 12px;
+                background: root.box;
                 Icon {
+                    x: 9px;
+                    y: 9px;
+                    width: 22px;
+                    height: 22px;
                     source: root.icon;
-                    tint: root.on-tone;
+                    tint: root.on-box;
                 }
             }
-            Text {
-                text: root.title;
-                font-size: Type.title;
-                font-weight: 700;
-                color: M3.on-surface;
-                vertical-alignment: center;
-                horizontal-stretch: 1;
-            }
         }
-        @children
+        Rectangle {
+            height: 8px;
+        }
+        Text {
+            text: root.title;
+            font-size: 17px;
+            font-weight: 800;
+            color: M3.on-surface;
+            wrap: word-wrap;
+        }
+        Text {
+            text: root.sub;
+            font-size: 12px;
+            color: M3.on-surface-variant;
+            wrap: word-wrap;
+        }
+    }
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
     }
 }
 
@@ -66,15 +113,16 @@ export component TuPage inherits Page {
                 Text {
                     text: AppState.s-username != "" ? AppState.s-username : "Tu";
                     font-size: 26px;
-                    font-weight: 800;
+                    font-weight: 900;
                     color: M3.on-surface;
                     overflow: elide;
                 }
                 Text {
-                    text: AppState.total-time != "" ? AppState.total-time : "Profilo, statistiche e opzioni";
-                    font-size: Type.label;
+                    text: (AppState.my-user-id != "" ? "id " + AppState.my-user-id : "Profilo, statistiche e opzioni")
+                        + (AppState.p2p-peers.length > 0 ? " · " + (AppState.p2p-peers.length + 1) + " dispositivi collegati" : "");
+                    font-size: 13px;
                     color: M3.on-surface-variant;
-                    wrap: word-wrap;
+                    overflow: elide;
                 }
             }
             Rectangle {
@@ -83,6 +131,10 @@ export component TuPage inherits Page {
                 border-radius: 24px;
                 background: eta.pressed ? M3.on-surface.with-alpha(0.08) : transparent;
                 Icon {
+                    x: 12px;
+                    y: 12px;
+                    width: 24px;
+                    height: 24px;
                     source: Icons.edit;
                     tint: M3.on-surface-variant;
                 }
@@ -94,140 +146,105 @@ export component TuPage inherits Page {
             }
         }
 
-        // registro delle simulazioni (solo se il pacchetto prevede una prova o ce n'è già una)
-        if AppState.exam-rules != "" || AppState.sim-count > 0: ListRow {
-            title: "Registro simulazioni";
-            subtitle: AppState.sim-count > 0 ? AppState.sim-count + " fatte · media " + AppState.sim-avg : "Nessuna ancora: una simulazione pesa più di dieci quiz";
-            clicked => {
-                AppState.open-simlog();
+        // tre numeri
+        HorizontalLayout {
+            spacing: 8px;
+            TuStat {
+                value: AppState.tu-time;
+                label: "studio";
+            }
+            TuStat {
+                value: AppState.tu-answers;
+                label: "risposte";
+            }
+            TuStat {
+                value: AppState.tu-acc;
+                label: "giuste";
             }
         }
 
-        Text {
-            text: "Opzioni";
-            font-size: Type.title;
-            font-weight: 700;
-            color: M3.primary;
+        // registro delle simulazioni (solo se il pacchetto prevede una prova o ce n'è già una) e tempi
+        VerticalLayout {
+            spacing: 3px;
+            property <bool> sim: AppState.exam-rules != "" || AppState.sim-count > 0;
+            if self.sim: GRow {
+                last: false;
+                icon: Icons.history;
+                title: "Registro simulazioni";
+                sub: AppState.sim-count > 0 ? AppState.sim-count + " fatte · media " + AppState.sim-avg : "Nessuna ancora · la prima vale più di 10 quiz";
+                trail: 1;
+                clicked => {
+                    AppState.open-simlog();
+                }
+            }
+            GRow {
+                first: !parent.sim;
+                icon: Icons.bar-chart;
+                title: "Statistiche e tempi";
+                sub: AppState.tu-pace;
+                trail: 1;
+                clicked => {
+                    AppState.go-tab(1);
+                }
+            }
         }
 
-        OptGroup {
-            icon: Icons.palette;
-            title: "Tu e l'aspetto";
-            tone: M3.primary-container;
-            on-tone: M3.on-primary-container;
-            ListRow {
-                title: "Profilo";
-                subtitle: "Nome, foto e colore della monoposto";
+        GroupLabel {
+            text: "Opzioni";
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            OptTile {
+                icon: Icons.palette;
+                width: (parent.width - 8px) / 2;
+                title: "Tu e l'aspetto";
+                sub: "Profilo, tema, colore";
+                bg: M3.primary-container;
+                box: M3.primary;
+                on-box: M3.on-primary;
                 clicked => {
                     AppState.open-setting(0);
                 }
             }
-            ListRow {
-                title: "Aspetto";
-                subtitle: "Tema e colore dell'app";
-                clicked => {
-                    AppState.open-setting(1);
-                }
-            }
-        }
-
-        OptGroup {
-            icon: Icons.devices;
-            title: "Dispositivi";
-            ListRow {
-                title: "I tuoi dispositivi";
-                subtitle: "Progressi ed esami tra telefono, computer e web";
+            OptTile {
+                icon: Icons.devices;
+                width: (parent.width - 8px) / 2;
+                title: "Dispositivi";
+                sub: "Sincronizza, condividi pacchetti";
+                bg: M3.tertiary-container;
+                box: M3.on-tertiary-container;
+                on-box: M3.tertiary-container;
                 clicked => {
                     AppState.open-setting(2);
                 }
             }
-            ListRow {
-                title: "GitHub";
-                subtitle: AppState.sync-configured ? "Acceso · " + AppState.sync-status : "Spento · repository con pacchetto, progressi e gruppi";
-                clicked => {
-                    AppState.open-setting(7);
-                }
-            }
-            ListRow {
-                title: "Condividi con un'altra persona";
-                subtitle: "Manda o ricevi un esame con un codice";
-                clicked => {
-                    AppState.open-setting(3);
-                }
-            }
         }
-
-        OptGroup {
-            icon: Icons.school;
-            title: "Studio";
-            tone: M3.tertiary-container;
-            on-tone: M3.on-tertiary-container;
-            ListRow {
-                title: "Esame e barra";
-                subtitle: "Regole della prova e come si calcola la preparazione";
+        HorizontalLayout {
+            spacing: 8px;
+            OptTile {
+                icon: Icons.school;
+                width: (parent.width - 8px) / 2;
+                title: "Studio";
+                sub: "Esame e barra, promemoria";
+                bg: M3.success-container;
+                box: M3.success;
+                on-box: M3.success-container;
                 clicked => {
                     AppState.open-setting(6);
                 }
             }
-            ListRow {
-                title: "Promemoria";
-                subtitle: "Notifiche per ripassare";
-                clicked => {
-                    AppState.open-setting(5);
-                }
-            }
-        }
-
-        OptGroup {
-            icon: Icons.update;
-            title: "App";
-            tone: M3.surface-container-high;
-            on-tone: M3.on-surface-variant;
-            ListRow {
-                title: "Pacchetto contenuti";
-                subtitle: "Importa, gestisci ed esporta quiz, flashcard e libri";
+            OptTile {
+                icon: Icons.update;
+                width: (parent.width - 8px) / 2;
+                title: "App";
+                sub: "Contenuti, aggiornamenti, novità, note legali";
+                bg: M3.surface-container-high;
+                box: M3.on-surface-variant;
+                on-box: M3.surface-container-high;
                 clicked => {
                     AppState.open-setting(4);
                 }
-            }
-            // segnalazioni nel repository GitHub (solo con GitHub acceso)
-            if AppState.sync-configured: ListRow {
-                title: "Feedback";
-                subtitle: "Segnalazioni e richieste, salvate nel repository";
-                clicked => {
-                    AppState.open-feedback();
-                }
-            }
-            ListRow {
-                title: "Novità";
-                subtitle: "Cosa è cambiato nelle ultime versioni";
-                clicked => {
-                    AppState.news-all();
-                }
-            }
-            // aggiornamenti dell'app (solo nelle build che si aggiornano da sole, non F-Droid)
-            if AppState.update-can-check: ListRow {
-                title: AppState.update-version != "" ? "Aggiorna alla versione " + AppState.update-version : "Cerca aggiornamenti";
-                subtitle: AppState.update-busy ? "Scarico l'aggiornamento…" : AppState.update-checking ? "Cerco…" : AppState.update-version != "" ? "Scarica e installa la versione nuova" : "Controlla se c'è una versione nuova dell'app";
-                clicked => {
-                    if (AppState.update-version != "") {
-                        AppState.update-install();
-                    } else {
-                        AppState.update-check();
-                    }
-                }
-            }
-            ListRow {
-                title: "Note legali";
-                subtitle: "Nessuna garanzia; contenuti importati e servizi esterni a cura di chi li usa";
-                clicked => {
-                    AppState.legal-visible = true;
-                }
-            }
-            ListRow {
-                title: "Versione";
-                subtitle: AppState.app-version;
-                chevron: false;
             }
         }
     }

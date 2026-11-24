@@ -354,6 +354,7 @@ impl Ctrl {
             exam_label: exam.map(|d| d.label.clone()).unwrap_or_default(),
             exam_date: exam.map(|d| d.date.clone()).unwrap_or_default(),
             times: vec![],
+            off: s.reminder_off.clone(),
             studied_today: 0,
             slots: vec![],
         };
@@ -406,6 +407,97 @@ impl Ctrl {
             }
             Err(e) => self.toast(format!("Errore: {e}")),
         }
+    }
+
+    /// Orari dei promemoria come righe di Opzioni › Studio, ognuno con il suo interruttore.
+    pub(super) fn refresh_rem_slots(&self) {
+        let s = self.store.settings();
+        let times: Vec<String> = if s.reminder_times.is_empty() {
+            prep_core::reminder::DEFAULT_TIMES.iter().map(|t| t.to_string()).collect()
+        } else {
+            s.reminder_times.clone()
+        };
+        let n = times.len();
+        let rows = times
+            .iter()
+            .enumerate()
+            .map(|(k, t)| {
+                let label = if k == 0 && n > 1 {
+                    "Mattina · obiettivi del giorno e flashcard"
+                } else if k + 1 == n {
+                    "Sera · cosa manca prima di chiudere"
+                } else if k == 1 {
+                    "Dopo pranzo · riprendi la sessione"
+                } else {
+                    "Pomeriggio · a che punto sei"
+                };
+                RemVM { time: ss(t), label: ss(label), on: s.reminder_enabled && !s.reminder_off.contains(t) }
+            })
+            .collect::<Vec<_>>();
+        self.ui().global::<AppState>().set_rem_slots(model(rows));
+    }
+
+    /// Accende o spegne un orario dei promemoria (spenti tutti = promemoria disattivati).
+    pub(super) fn rem_toggle(&mut self, i: usize, on: bool) {
+        let mut s = self.store.settings();
+        if s.reminder_times.is_empty() {
+            s.reminder_times = prep_core::reminder::DEFAULT_TIMES.iter().map(|t| t.to_string()).collect();
+        }
+        let Some(t) = s.reminder_times.get(i).cloned() else { return };
+        if !s.reminder_enabled {
+            // dai promemoria tutti spenti: si riaccende solo questo
+            s.reminder_off = s.reminder_times.iter().filter(|x| **x != t).cloned().collect();
+            s.reminder_enabled = on;
+        } else if on {
+            s.reminder_off.retain(|x| *x != t);
+        } else if !s.reminder_off.contains(&t) {
+            s.reminder_off.push(t);
+        }
+        if s.reminder_times.iter().all(|x| s.reminder_off.contains(x)) {
+            s.reminder_enabled = false;
+            s.reminder_off.clear();
+        }
+        self.store_reminder(s);
+    }
+
+    /// Cambia l'orario `i` dei promemoria ("HH:MM").
+    pub(super) fn rem_time(&mut self, i: usize, text: &str) {
+        let Some((h, m)) = prep_core::reminder::parse_time(text) else {
+            self.toast(format!("Orario non valido: \"{}\". Scrivilo come 08:30", text.trim()));
+            self.refresh_rem_slots();
+            return;
+        };
+        let mut s = self.store.settings();
+        if s.reminder_times.is_empty() {
+            s.reminder_times = prep_core::reminder::DEFAULT_TIMES.iter().map(|t| t.to_string()).collect();
+        }
+        let Some(old) = s.reminder_times.get(i).cloned() else { return };
+        let new = format!("{h:02}:{m:02}");
+        if s.reminder_times.iter().any(|x| *x == new && *x != old) {
+            self.toast(format!("C'è già un promemoria alle {new}"));
+            self.refresh_rem_slots();
+            return;
+        }
+        s.reminder_times[i] = new.clone();
+        for x in s.reminder_off.iter_mut() {
+            if *x == old {
+                *x = new.clone();
+            }
+        }
+        s.reminder_times.sort();
+        self.store_reminder(s);
+    }
+
+    fn store_reminder(&mut self, s: prep_core::store::Settings) {
+        let _ = self.store.save_settings(&s);
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_s_rem_on(s.reminder_enabled);
+        st.set_s_rem_time(ss(s.reminder_times.join(", ")));
+        self.write_reminder();
+        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+        crate::desktop_reminder::sync_autostart(s.reminder_enabled);
+        self.refresh_rem_slots();
     }
 
     pub(super) fn subject_vms(&self) -> Vec<SubjectVM> {
@@ -591,6 +683,34 @@ impl Ctrl {
             String::new()
         }));
         st.set_exam_dates(model(dates));
+        {
+            // «Tu»: tempo, risposte date e percentuale di giuste (domande, non flashcard)
+            let all: Vec<&prep_core::progress::Attempt> = self.history.questions.values().flatten().collect();
+            let right = all.iter().filter(|a| a.score >= 0.999).count();
+            let secs = self.progress.total_secs;
+            st.set_tu_time(ss(if secs >= 3600 {
+                format!("{} h {:02}", secs / 3600, (secs % 3600) / 60)
+            } else {
+                format!("{} min", (secs + 30) / 60)
+            }));
+            st.set_tu_answers(all.len() as i32);
+            st.set_tu_acc(ss(if all.is_empty() {
+                "–".to_string()
+            } else {
+                format!("{}%", (right as f64 * 100.0 / all.len() as f64).round())
+            }));
+            let rules = &self.content.syllabus().exam;
+            let pace = prep_core::progress::exam_pace(rules.minutes, rules.questions);
+            st.set_tu_pace(ss(if self.progress.avg_secs > 0.0 {
+                if rules.questions > 0 {
+                    format!("{}″ a domanda, esame {}″", self.progress.avg_secs.round(), pace.round())
+                } else {
+                    format!("{}″ a domanda", self.progress.avg_secs.round())
+                }
+            } else {
+                "Ancora nessuna domanda cronometrata".to_string()
+            }));
+        }
         st.set_total_time(ss(if self.progress.total_secs > 0 {
             format!(
                 "Studio cronometrato: {} · media {}/domanda",

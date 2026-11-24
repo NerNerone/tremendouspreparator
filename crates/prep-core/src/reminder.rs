@@ -101,6 +101,9 @@ pub struct ReminderState {
     /// orari delle fasce, "HH:MM", in ordine
     #[serde(default)]
     pub times: Vec<String>,
+    /// orari spenti: la fascia conta per i testi delle altre, ma non suona
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub off: Vec<String>,
     /// domande a cui hai risposto oggi (al momento della scrittura)
     #[serde(default)]
     pub studied_today: u32,
@@ -284,10 +287,14 @@ impl ReminderState {
 
     /// Prepara i testi di tutte le fasce per `today` e domani.
     pub fn compute_slots(&mut self, today: NaiveDate) {
+        let off: Vec<(u32, u32)> = self.off.iter().filter_map(|t| parse_time(t)).collect();
         let times: Vec<(u32, u32)> = self.times.iter().filter_map(|t| parse_time(t)).collect();
         let mut slots = Vec::new();
         for (d, studied) in [(today, self.studied_today), (today + chrono::Days::new(1), 0)] {
             for (k, &(h, m)) in times.iter().enumerate() {
+                if off.contains(&(h, m)) {
+                    continue;
+                }
                 let (title, text) = self.slot_message(d, k, times.len(), studied).unwrap_or_default();
                 slots.push(Slot { date: d.format("%Y-%m-%d").to_string(), hour: h, minute: m, title, text });
             }
@@ -346,6 +353,7 @@ mod tests {
             evening_minute: 30,
             goals: None,
             times: DEFAULT_TIMES.iter().map(|t| t.to_string()).collect(),
+            off: vec![],
             studied_today: 0,
             slots: vec![],
         }

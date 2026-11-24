@@ -71,6 +71,14 @@ impl Ctrl {
         self.refresh_group();
     }
 
+    /// Chiaro, scuro o come il sistema (0 sistema, 1 chiaro, 2 scuro).
+    pub(super) fn set_theme_mode(&mut self, mode: i32) {
+        let mut s = self.store.settings();
+        s.theme_mode = mode.clamp(0, 2) as u8;
+        let _ = self.store.save_settings(&s);
+        self.ui().global::<AppState>().set_theme_mode(s.theme_mode as i32);
+    }
+
     pub(super) fn set_car_color(&mut self, c: u32) {
         let mut s = self.store.settings();
         s.car_color = c;

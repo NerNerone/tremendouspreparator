@@ -65,6 +65,16 @@ impl Ctrl {
         self.news_show(sections(), true);
     }
 
+    /// Le ultime novità per la pagina «Novità e note legali» (le più recenti per prime).
+    pub(super) fn news_fill(&self) {
+        let rows: Vec<NewsVM> = sections()
+            .into_iter()
+            .take(1)
+            .map(|(date, items)| NewsVM { date: ss(date), items: model(items.into_iter().map(ss).collect::<Vec<_>>()) })
+            .collect();
+        self.ui().global::<AppState>().set_news_list(model(rows));
+    }
+
     fn news_show(&mut self, list: Vec<(String, Vec<String>)>, all: bool) {
         let rows: Vec<NewsVM> = list
             .into_iter()

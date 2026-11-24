@@ -1370,3 +1370,360 @@ export component SessionBar inherits Rectangle {
         }
     }
 }
+
+// ── Traguardo: pagine secondarie (Opzioni e simili) ─────────────────────────────────────────
+
+// intestazione grande: freccia indietro, titolo 34px/900 e sottotitolo
+export component BigHeader inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    callback back;
+    height: bh.preferred-height;
+    bh := HorizontalLayout {
+        padding-left: 4px;
+        padding-right: 16px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 4px;
+        VerticalLayout {
+            alignment: start;
+            padding-top: 2px;
+            IconButton {
+                icon: Icons.back;
+                tint: M3.on-surface;
+                clicked => {
+                    root.back();
+                }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.title;
+                font-size: 32px;
+                font-weight: 900;
+                color: M3.on-surface;
+                wrap: word-wrap;
+            }
+            if root.subtitle != "": Text {
+                text: root.subtitle;
+                font-size: 13px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
+
+// titoletto di un gruppo (colore primario)
+export component GroupLabel inherits Text {
+    font-size: 15px;
+    font-weight: 800;
+    color: M3.primary;
+}
+
+// elemento di una lista raggruppata: angoli grandi solo all'inizio e alla fine del gruppo
+export component GItem inherits Rectangle {
+    in property <bool> first: true;
+    in property <bool> last: true;
+    in property <length> pad: 16px;
+    background: M3.surface-container;
+    border-top-left-radius: root.first ? 24px : 6px;
+    border-top-right-radius: root.first ? 24px : 6px;
+    border-bottom-left-radius: root.last ? 24px : 6px;
+    border-bottom-right-radius: root.last ? 24px : 6px;
+    min-height: gi.preferred-height;
+    gi := VerticalLayout {
+        padding: root.pad;
+        spacing: 10px;
+        @children
+    }
+}
+
+// interruttore Material 3 con il segno di spunta nel cursore
+export component M3Switch inherits Rectangle {
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+    width: 52px;
+    height: 32px;
+    border-radius: 16px;
+    background: root.checked ? M3.primary : M3.surface-container-highest;
+    border-width: root.checked ? 0px : 2px;
+    border-color: M3.outline;
+    opacity: root.enabled ? 1 : 0.4;
+    animate background { duration: 150ms; }
+    Rectangle {
+        property <length> d: root.checked ? 24px : 16px;
+        width: self.d;
+        height: self.d;
+        border-radius: self.d / 2;
+        x: root.checked ? root.width - self.d - 4px : 8px;
+        y: (root.height - self.d) / 2;
+        background: root.checked ? M3.on-primary : M3.outline;
+        animate x, width, height { duration: 180ms; easing: ease-out; }
+        if root.checked: Icon {
+            x: 4px;
+            y: 4px;
+            width: 16px;
+            height: 16px;
+            source: Icons.check;
+            tint: M3.primary;
+        }
+    }
+    TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+// casella di spunta quadrata
+export component CheckBox inherits Rectangle {
+    in-out property <bool> checked;
+    callback toggled(bool);
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: root.checked ? M3.primary : transparent;
+    border-width: root.checked ? 0px : 2px;
+    border-color: M3.on-surface-variant;
+    if root.checked: Icon {
+        x: 3px;
+        y: 3px;
+        width: 18px;
+        height: 18px;
+        source: Icons.check;
+        tint: M3.on-primary;
+    }
+    TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+// riga di una lista raggruppata: simbolo tonale, titolo, dettaglio e un elemento in coda
+// trail: 0 niente, 1 freccia, 2 matita, 3 pulsante tonale (`action`), 4 interruttore, 5 testo (`action`)
+export component GRow inherits GItem {
+    in property <image> icon;
+    in property <bool> has-icon: true;
+    in property <color> tone: M3.secondary-container;
+    in property <color> on-tone: M3.on-secondary-container;
+    in property <string> title;
+    in property <string> sub;
+    in property <int> trail: 0;
+    in property <string> action;
+    in-out property <bool> checked;
+    callback clicked;
+    callback act();
+    callback toggled(bool);
+    pad: 14px;
+    Rectangle {
+        height: max(44px, gr.preferred-height);
+        TouchArea {
+            enabled: root.trail == 1 || root.trail == 2;
+            clicked => {
+                root.clicked();
+            }
+        }
+        gr := HorizontalLayout {
+            spacing: 14px;
+            if root.has-icon: VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 12px;
+                    background: root.tone;
+                    Icon {
+                        x: 9px;
+                        y: 9px;
+                        width: 22px;
+                        height: 22px;
+                        source: root.icon;
+                        tint: root.on-tone;
+                    }
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 1px;
+                Text {
+                    text: root.title;
+                    font-size: 16px;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+                if root.sub != "": Text {
+                    text: root.sub;
+                    font-size: 13px;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+            }
+            if root.trail == 1: VIcon {
+                source: Icons.chevron;
+                tint: M3.on-surface-variant;
+                size: 20px;
+            }
+            if root.trail == 2: VIcon {
+                source: Icons.edit;
+                tint: M3.on-surface-variant;
+                size: 22px;
+            }
+            if root.trail == 3: VerticalLayout {
+                alignment: center;
+                M3Button {
+                    text: root.action;
+                    kind: 1;
+                    small: true;
+                    min-height: 40px;
+                    clicked => {
+                        root.act();
+                    }
+                }
+            }
+            if root.trail == 4: VerticalLayout {
+                alignment: center;
+                M3Switch {
+                    checked <=> root.checked;
+                    toggled(v) => {
+                        root.toggled(v);
+                    }
+                }
+            }
+            if root.trail == 5: Text {
+                text: root.action;
+                font-size: 13px;
+                font-weight: 700;
+                color: M3.primary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// pulsanti collegati: uno scelto (pillola primaria), gli altri tonali
+export component SegButtons inherits HorizontalLayout {
+    in property <[{label: string, icon: image}]> items;
+    in property <int> selected;
+    callback picked(int);
+    spacing: 3px;
+    for it[i] in root.items: Rectangle {
+        horizontal-stretch: 1;
+        height: 44px;
+        property <bool> sel: i == root.selected;
+        border-top-left-radius: self.sel || i == 0 ? 22px : 8px;
+        border-bottom-left-radius: self.sel || i == 0 ? 22px : 8px;
+        border-top-right-radius: self.sel || i == root.items.length - 1 ? 22px : 8px;
+        border-bottom-right-radius: self.sel || i == root.items.length - 1 ? 22px : 8px;
+        background: self.sel ? M3.primary : M3.surface-container-highest;
+        HorizontalLayout {
+            alignment: center;
+            spacing: 8px;
+            VIcon {
+                source: it.icon;
+                tint: sel ? M3.on-primary : M3.on-surface;
+                size: 18px;
+            }
+            Text {
+                text: it.label;
+                font-size: 14px;
+                font-weight: sel ? 800 : 500;
+                color: sel ? M3.on-primary : M3.on-surface;
+                vertical-alignment: center;
+            }
+        }
+        TouchArea {
+            clicked => {
+                root.picked(i);
+            }
+        }
+    }
+}
+
+// campo di testo «outlined» con etichetta in alto e matita
+export component OutlinedField inherits Rectangle {
+    in property <string> label;
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <bool> password: false;
+    in property <bool> pencil: true;
+    // pulsante di testo in coda (es. «Salva») al posto della matita
+    in property <string> action;
+    callback accepted(string);
+    callback edited(string);
+    height: 52px;
+    border-radius: 12px;
+    border-width: fi.has-focus ? 2px : 1px;
+    border-color: fi.has-focus ? M3.primary : M3.outline;
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 12px;
+        spacing: 8px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.label;
+                font-size: 12px;
+                color: M3.primary;
+            }
+            Rectangle {
+                height: 22px;
+                min-width: 0px;
+                preferred-width: 0px;
+                horizontal-stretch: 1;
+                clip: true;
+                fi := TextInput {
+                    width: parent.width;
+                    height: parent.height;
+                    text <=> root.text;
+                    single-line: true;
+                    font-size: 16px;
+                    color: M3.on-surface;
+                    vertical-alignment: center;
+                    input-type: root.password ? InputType.password : InputType.text;
+                    accepted => {
+                        root.accepted(self.text);
+                    }
+                    edited => {
+                        root.edited(self.text);
+                    }
+                }
+                if fi.text == "" && root.placeholder != "": Text {
+                    width: parent.width;
+                    height: parent.height;
+                    text: root.placeholder;
+                    font-size: 16px;
+                    color: M3.on-surface-variant;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+        if root.pencil && root.action == "": VIcon {
+            source: Icons.edit;
+            tint: M3.on-surface-variant;
+            size: 20px;
+        }
+        if root.action != "": Text {
+            text: root.action;
+            font-size: 14px;
+            font-weight: 800;
+            color: M3.primary;
+            vertical-alignment: center;
+            TouchArea {
+                clicked => {
+                    root.accepted(fi.text);
+                }
+            }
+        }
+    }
+}

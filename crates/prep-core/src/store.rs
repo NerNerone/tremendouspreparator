@@ -54,6 +54,9 @@ pub struct Settings {
     /// orari dei promemoria del giorno (mattina, dopo pranzo, pomeriggio, sera)
     #[serde(default = "d_times")]
     pub reminder_times: Vec<String>,
+    /// orari tra `reminder_times` spenti uno per uno (la fascia resta, senza notifica)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reminder_off: Vec<String>,
     /// nome con cui ci si presenta agli altri dispositivi (sincronizzazione, studio di gruppo)
     #[serde(default)]
     pub username: String,
@@ -79,6 +82,9 @@ pub struct Settings {
     /// colore del tema (ARGB); 0 = quello di sistema se c'è, altrimenti il blu predefinito
     #[serde(default)]
     pub theme_color: u32,
+    /// chiaro o scuro: 0 = come il sistema, 1 = chiaro, 2 = scuro
+    #[serde(default)]
+    pub theme_mode: u8,
     /// foto profilo (hash del file in `photos/`), vuoto = nessuna
     #[serde(default)]
     pub photo: String,
@@ -154,6 +160,7 @@ impl Default for Settings {
             reminder_time: d_rem_time(),
             evening_time: d_eve_time(),
             reminder_times: d_times(),
+            reminder_off: vec![],
             username: String::new(),
             device_id: String::new(),
             p2p_auto: false,
@@ -163,6 +170,7 @@ impl Default for Settings {
             direct_only: false,
             car_color: 0,
             theme_color: 0,
+            theme_mode: 0,
             photo: String::new(),
             photo_at: 0,
             user_id: String::new(),

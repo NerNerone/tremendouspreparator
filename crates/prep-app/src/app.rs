@@ -4,7 +4,7 @@ use crate::periodic;
 use crate::{
     AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, CrewVM, ExamDateVM, ExamSectionVM, ExamVM, FeedbackVM,
     FlagVM, FocusAppVM, GoalVM, GroupVM, NavCellVM, NavRowVM, NewsVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM,
-    ResultItemVM, SimRowVM, SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
+    RemVM, ResultItemVM, SimRowVM, SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
@@ -897,6 +897,11 @@ impl Ctrl {
                 self.set_page(self.pdf_return);
                 true
             }
+            // «Novità e note legali» si apre da «App»: si torna lì
+            P_SETTINGS if st.get_settings_sec() == 8 => {
+                st.set_settings_sec(4);
+                true
+            }
             // sezione aperta da «Tu»: si torna a «Tu»
             P_SETTINGS if self.setting_from_tu => {
                 self.setting_from_tu = false;
@@ -1620,6 +1625,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_legal_accept(|| with_ctrl(|c| c.legal_accept()));
     st.on_car_color(|v| with_ctrl(|c| c.set_car_color(v as u32)));
     st.on_theme_color(|v| with_ctrl(|c| c.set_theme_color(v as u32)));
+    st.on_theme_set_mode(|v| with_ctrl(|c| c.set_theme_mode(v)));
+    st.on_rem_toggle(|i, on| with_ctrl(|c| c.rem_toggle(i.max(0) as usize, on)));
+    st.on_rem_set_time(|i, t| with_ctrl(|c| c.rem_time(i.max(0) as usize, &t)));
     st.on_open_goals(|| with_ctrl(|c| c.set_page(P_GOALS)));
     st.on_bt_listen(|| crate::bt_cmd("btListen", None));
     st.on_bt_scan(|| {

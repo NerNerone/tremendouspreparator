@@ -155,7 +155,7 @@ export component StudyPage inherits Page {
                     if AppState.subjects.length > 0: Flickable {
                         height: 76px;
                         interactive: tools-row.preferred-width > self.width;
-                        viewport-width: max(self.width, tools-row.preferred-width);
+                        content-width: max(self.width, tools-row.preferred-width);
                         tools-row := HorizontalLayout {
                             x: 0px;
                             height: 76px;

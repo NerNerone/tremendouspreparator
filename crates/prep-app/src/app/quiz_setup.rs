@@ -189,5 +189,8 @@ impl Ctrl {
             s.reminder_times.join(", ")
         };
         st.set_s_rem_time(ss(times));
+        st.set_theme_mode(s.theme_mode as i32);
+        self.refresh_rem_slots();
+        self.news_fill();
     }
 }
