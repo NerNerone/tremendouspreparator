@@ -250,6 +250,20 @@ export component SettingsPage inherits Page {
                             color: M3.on-surface;
                         }
                     }
+                    // passaggio dalla versione privata/precedente: stesso membro nei gruppi
+                    if !AppState.p2p-on && AppState.p2p-password != "": M3Button {
+                        text: "Usa il mio id della versione precedente";
+                        kind: 2;
+                        clicked => {
+                            AppState.adopt-legacy-id();
+                        }
+                    }
+                    if !AppState.p2p-on && AppState.p2p-password != "": Text {
+                        text: "Se arrivi dalla versione precedente: con lo stesso nome utente e la stessa password resti lo stesso membro nei tuoi gruppi (punti, storico, amministrazione).";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
                     Text {
                         text: AppState.p2p-status;
                         wrap: word-wrap;

@@ -390,6 +390,26 @@ pub fn user_id(username: &str, password: &str, device: &str) -> String {
     crate::p2p::Room::user_id_from_seed(&seed)
 }
 
+/// Identificativo con la formula delle versioni precedenti (hash veloce di nome utente e
+/// password), solo per riprendere la propria identità nei gruppi dopo il passaggio da quelle
+/// versioni: i membri dei gruppi lo conoscono già, quindi riusarlo non espone nulla di nuovo.
+/// I nuovi utenti usano [`user_id`].
+pub fn legacy_user_id(username: &str, password: &str) -> String {
+    let h = crate::p2p::sha256_hex(format!("tp-uid\n{}\n{}", username.trim().to_lowercase(), password).as_bytes());
+    format!("u{}", &h[..15])
+}
+
+/// Come [`pick_user_id`], ma tra due id ricavati dalla password resta il più vecchio (`since`,
+/// 0 = da prima che si registrasse): un dispositivo appena installato si allinea all'id che i
+/// gruppi già conoscono, così aggiornando nessuno perde gruppi e ruoli.
+pub fn pick_user_id_since<'a>(a: &'a str, a_since: i64, b: &'a str, b_since: i64) -> &'a str {
+    let derived = |x: &str| x.starts_with('u') && x.len() == 16;
+    if derived(a) && derived(b) && a_since != b_since {
+        return if a_since < b_since { a } else { b };
+    }
+    pick_user_id(a, b)
+}
+
 /// Tra due identificativi dello stesso utente (due suoi dispositivi) quello da tenere: uno
 /// ricavato da nome utente e password (`u…`) vince su quello di un dispositivo, e a parità il
 /// minore. Tutti i dispositivi arrivano così allo stesso, in qualunque ordine si incontrino.
@@ -2100,6 +2120,26 @@ mod tests {
             g.apply_info("me", "boss", "Nuovo", "", &["me".into()], now + 1, &pk, &kick_me, now + 1),
             InfoResult::Removed
         );
+    }
+
+    #[test]
+    fn oldest_user_id_wins_between_own_devices() {
+        // telefono aggiornato con l'id di sempre (0) e computer appena installato (adesso)
+        assert_eq!(pick_user_id_since("ufffffffffffffff", 0, "u000000000000000", 1_700_000_000), "ufffffffffffffff");
+        assert_eq!(pick_user_id_since("u000000000000000", 1_700_000_000, "ufffffffffffffff", 0), "ufffffffffffffff");
+        // id del dispositivo contro id ricavato: vince sempre quello ricavato
+        assert_eq!(pick_user_id_since("d1", 0, "u000000000000000", 9), "u000000000000000");
+        // stessa età: come prima, il minore
+        assert_eq!(pick_user_id_since("ub00000000000000", 5, "ua00000000000000", 5), "ua00000000000000");
+    }
+
+    #[test]
+    fn legacy_id_matches_previous_versions() {
+        // stessa formula delle versioni precedenti: maiuscole e spazi del nome non contano
+        let a = legacy_user_id("Gianni", "segreta123");
+        assert_eq!(a, legacy_user_id(" gianni ", "segreta123"));
+        assert!(a.starts_with('u') && a.len() == 16);
+        assert_ne!(a, user_id("Gianni", "segreta123", "d1"), "i nuovi id restano quelli rafforzati");
     }
 
     #[test]

@@ -622,6 +622,8 @@ impl p2p::Host for Ctrl {
             photo: s.photo,
             at,
             uid: s.user_id,
+            prev: s.prev_ids,
+            uid_since: s.user_id_since,
             groups: self.groups.refs(),
             left: self.groups.left.clone(),
             study: Some(self.study_log.own()),
@@ -1348,6 +1350,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_start_cards(|kind, id| with_ctrl(|c| c.start_cards(&kind, &id)));
     st.on_qz_toggle(|kind, id| with_ctrl(|c| c.qz_toggle(&kind, &id)));
     st.on_gh_toggle(|on| with_ctrl(|c| c.gh_toggle(on)));
+    st.on_adopt_legacy_id(|| with_ctrl(|c| c.adopt_legacy_id()));
     st.on_gh_load_branches(|| with_ctrl(|c| c.gh_load_branches()));
     st.on_gh_pick_branch(|b| with_ctrl(|c| c.gh_pick_branch(&b)));
     st.on_gh_add_exam(|b| with_ctrl(|c| c.gh_add_exam(&b)));

@@ -16,6 +16,7 @@ l'aggiornamento che lo porta.
 - Pit stop: la monoposto rientra in pista con il muso nel verso giusto anche in curva.
 - Sicurezza: firme verificate sui messaggi, limiti di dimensione, aggiornamenti controllati con SHA-256, solo relay cifrati (wss://).
 - Computer: niente più avvio automatico all'accesso.
+- Chi arriva dalla versione precedente resta lo stesso membro nei propri gruppi (punti e ruoli): l'id di prima si ritrova da solo; tra i propri dispositivi vale l'id più vecchio.
 
 ## 18 novembre 2026
 

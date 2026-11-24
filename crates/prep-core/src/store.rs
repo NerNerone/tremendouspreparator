@@ -92,6 +92,14 @@ pub struct Settings {
     pub user_id: String,
     #[serde(default)]
     pub prev_ids: Vec<String>,
+    /// da quando si usa `user_id` (0 = da prima che si registrasse, cioè il più vecchio):
+    /// tra i propri dispositivi resta l'id più vecchio, quello che i gruppi già conoscono
+    #[serde(default)]
+    pub user_id_since: i64,
+    /// id che si avrebbe con le versioni precedenti (ricavato dalla password quando la si
+    /// scrive, solo su questo dispositivo): se un proprio gruppo lo conosce già, lo si riprende
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub legacy_uid: String,
     /// modalità concentrazione: app permesse durante il blocco e durata scelta (minuti)
     #[serde(default)]
     pub focus_allowed: Vec<String>,
@@ -159,6 +167,8 @@ impl Default for Settings {
             photo_at: 0,
             user_id: String::new(),
             prev_ids: vec![],
+            user_id_since: 0,
+            legacy_uid: String::new(),
             focus_allowed: vec![],
             focus_minutes: 0,
             legal_accepted: 0,

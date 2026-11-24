@@ -820,6 +820,8 @@ export global AppState {
     in property <string> gh-branch-status;
     in property <string> gh-exam-branch;
     callback gh-toggle(bool);
+    callback adopt-legacy-id();
+    in property <string> my-user-id;
     callback gh-load-branches();
     callback gh-pick-branch(string);
     callback gh-add-exam(string);

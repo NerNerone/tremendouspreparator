@@ -199,10 +199,13 @@ impl Ctrl {
         let dev = self.device_id();
         if s.user_id.is_empty() {
             s.user_id = derived;
+            // installazione nuova: un id già usato dagli altri propri dispositivi avrà la meglio
+            s.user_id_since = Self::now_secs();
             let _ = self.store.save_settings(&s);
         } else if s.user_id == dev && derived != dev {
             s.prev_ids.push(dev.clone());
             s.user_id = derived.clone();
+            s.user_id_since = Self::now_secs();
             let _ = self.store.save_settings(&s);
             self.groups.rename_user(&dev, &derived);
             let now = Self::now_secs();
@@ -766,7 +769,7 @@ impl Ctrl {
     /// Profilo di un altro proprio dispositivo: se la sua foto è più recente diventa anche
     /// la nostra (o si toglie, se lì è stata tolta); se manca il file lo si chiede a lui.
     pub(super) fn profile_in(&mut self, from: String, p: p2p::Profile) {
-        self.unify_user_id(&p.uid);
+        self.unify_user_id(&p.uid, &p.prev, p.uid_since);
         // tempo di studio: si sommano quelli di tutti i propri dispositivi
         if let Some(l) = p.study.clone() {
             if self.study_log.set_other(&from, l) {
@@ -811,17 +814,82 @@ impl Ctrl {
     /// Un altro proprio dispositivo usa un altro identificativo utente (per esempio è entrato in
     /// un gruppo prima di collegarsi): tutti passano allo stesso (vedi `pick_user_id`), e il
     /// vecchio va in `prev_ids` così gli altri membri del gruppo uniscono le due voci.
-    pub(super) fn unify_user_id(&mut self, other: &str) {
+    pub(super) fn unify_user_id(&mut self, other: &str, other_prev: &[String], other_since: i64) {
         let mut s = self.store.settings();
         if s.user_id.is_empty() {
             let _ = self.user_id();
             s = self.store.settings();
         }
         let mine = s.user_id.clone();
-        let pick = prep_core::group::pick_user_id(&mine, other).to_string();
+        // un id lasciato apposta non torna; quello che l'altro ha lasciato per il suo, si segue
+        if other.is_empty() || other == mine || s.prev_ids.iter().any(|p| p == other) {
+            return;
+        }
+        let pick = if other_prev.contains(&mine) {
+            other.to_string()
+        } else {
+            prep_core::group::pick_user_id_since(&mine, s.user_id_since, other, other_since).to_string()
+        };
         if pick == mine || pick.is_empty() {
             return;
         }
+        self.switch_user_id(pick.clone());
+        if pick == other {
+            let mut s = self.store.settings();
+            s.user_id_since = other_since;
+            let _ = self.store.save_settings(&s);
+        }
+    }
+
+    /// «Usa il mio id della versione precedente»: dalla password scritta in Dispositivi si
+    /// ricalcola l'id della versione privata/precedente e lo si adotta su questo dispositivo (gli
+    /// altri propri dispositivi lo seguono).
+    pub(super) fn adopt_legacy_id(&mut self) {
+        let s = self.store.settings();
+        let password = self.ui().global::<AppState>().get_p2p_password().to_string();
+        if s.username.trim().is_empty() || password.chars().count() < 8 {
+            self.toast("Scrivi nome utente e password della sincronizzazione usati nella versione precedente");
+            return;
+        }
+        let legacy = prep_core::group::legacy_user_id(&s.username, &password);
+        if legacy == s.user_id {
+            self.toast("Stai già usando l'id della versione precedente");
+            return;
+        }
+        self.switch_user_id(legacy.clone());
+        let mut s = self.store.settings();
+        s.user_id_since = 0;
+        s.legacy_uid = legacy;
+        let _ = self.store.save_settings(&s);
+        self.toast("Id della versione precedente in uso: nei gruppi sei di nuovo tu");
+        self.refresh_profile_photo();
+    }
+
+    /// L'id delle versioni precedenti (vedi `Settings::legacy_uid`) è già noto in un proprio
+    /// gruppo (come membro o come amministratore): lo si riprende, con gruppi, punti e ruoli.
+    pub(super) fn reclaim_legacy_id(&mut self) {
+        let s = self.store.settings();
+        let legacy = s.legacy_uid.clone();
+        if legacy.is_empty() || legacy == s.user_id {
+            return;
+        }
+        let known = self.groups.groups.iter().any(|g| g.admin == legacy || g.members.contains_key(&legacy));
+        if !known {
+            return;
+        }
+        self.switch_user_id(legacy);
+        let mut s = self.store.settings();
+        s.user_id_since = 0;
+        let _ = self.store.save_settings(&s);
+        self.toast("Ritrovato il tuo id dei gruppi della versione precedente: punti e ruoli sono di nuovo tuoi");
+    }
+
+    /// Passa a un altro id utente: il vecchio va in `prev_ids` (gli altri membri uniscono le
+    /// voci), il nuovo ne esce.
+    fn switch_user_id(&mut self, pick: String) {
+        let mut s = self.store.settings();
+        let mine = s.user_id.clone();
+        s.prev_ids.retain(|p| *p != pick);
         if !mine.is_empty() && !s.prev_ids.contains(&mine) {
             s.prev_ids.push(mine.clone());
         }
@@ -1147,6 +1215,7 @@ impl Ctrl {
     }
 
     pub(super) fn refresh_group(&mut self) {
+        self.reclaim_legacy_id();
         use prep_core::group::{fmt_secs, live, standings, Period, State};
         use prep_core::score::LAP_PTS;
         let now = Self::now_secs();

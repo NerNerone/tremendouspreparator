@@ -328,6 +328,13 @@ pub struct Profile {
     /// (vedi [`crate::group::pick_user_id`]), così nessuno compare due volte
     #[serde(default)]
     pub uid: String,
+    /// identificativi lasciati da questo utente: un dispositivo che ha ancora uno di questi
+    /// passa a `uid` (per esempio dopo «Usa il mio id della versione precedente»)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prev: Vec<String>,
+    /// da quando il dispositivo usa `uid` (0 = da sempre / versioni precedenti)
+    #[serde(default)]
+    pub uid_since: i64,
     /// gruppi di studio, uguali su tutti i propri dispositivi (vedi
     /// [`crate::group::Groups::merge_own`])
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

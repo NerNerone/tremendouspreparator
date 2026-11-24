@@ -161,6 +161,11 @@ impl Ctrl {
         };
         s.p2p_auto = st.get_p2p_auto();
         s.direct_only = st.get_p2p_direct_only();
+        // id delle versioni precedenti: si riprende da solo se un proprio gruppo lo conosce
+        let typed = if !password.is_empty() { password.clone() } else { s.p2p_password.clone() };
+        if !typed.is_empty() {
+            s.legacy_uid = prep_core::group::legacy_user_id(&s.username, &typed);
+        }
         s.p2p_password.clear();
         s.p2p_room_key = if s.p2p_auto { p2p::Room::encode_seed(&seed) } else { String::new() };
         let _ = self.store.save_settings(&s);
