@@ -1527,7 +1527,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_cr_close(|| with_ctrl(|c| c.creator_close()));
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
     // build privata: si aggiorna dalle release del proprio repository GitHub (vedi github.rs)
-    st.on_update_check(|| with_ctrl(|c| if updates::enabled() { c.updates_check_now() } else { c.update_check_now() }));
+    st.on_update_check(|| with_ctrl(|c| c.updates_check_now()));
     st.set_update_can_check(
         updates::enabled() || cfg!(target_os = "android") || std::env::var_os("FLATPAK_ID").is_some(),
     );

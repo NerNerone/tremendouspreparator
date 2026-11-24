@@ -24,10 +24,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
 
+      # cargo audit diretto: l'azione pubblicava un «check» e con permessi in sola lettura falliva
+      # anche senza vulnerabilità; qui fallisce solo per vulnerabilità vere (le crate non più
+      # mantenute restano avvisi)
       - name: Audit dipendenze Rust
-        uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
-        with:
-          token: ${{ github.token }}
+        run: |
+          cargo install cargo-audit --locked --quiet
+          cargo audit
 
       - name: Audit dipendenze Node
         run: npm --prefix tools audit --audit-level=moderate

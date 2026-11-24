@@ -100,6 +100,48 @@ pub struct GitHub {
     agent: Agent,
 }
 
+/// Nel browser non c'è rete bloccante: lo stesso client risponde sempre «non disponibile»
+/// (la versione web si aggiorna con il pacchetto e tra i propri dispositivi).
+#[cfg(target_arch = "wasm32")]
+pub struct GitHub;
+
+#[cfg(target_arch = "wasm32")]
+impl GitHub {
+    fn off<T>() -> Result<T, GhError> {
+        Err(GhError::Network("GitHub non è disponibile nella versione web".into()))
+    }
+    pub fn new(_: RepoConfig) -> GitHub {
+        GitHub
+    }
+    pub fn default_branch(&self) -> Result<String, GhError> {
+        Self::off()
+    }
+    pub fn branches(&self) -> Result<Vec<String>, GhError> {
+        Self::off()
+    }
+    pub fn tree(&self, _: &str) -> Result<Vec<TreeEntry>, GhError> {
+        Self::off()
+    }
+    pub fn blob(&self, _: &str) -> Result<Vec<u8>, GhError> {
+        Self::off()
+    }
+    pub fn create_file(&self, _: &str, _: &[u8], _: &str, _: &str) -> Result<PutOutcome, GhError> {
+        Self::off()
+    }
+    pub fn create_issue(&self, _: &str, _: &str, _: &[&str]) -> Result<u64, GhError> {
+        Self::off()
+    }
+    pub fn releases(&self, _: u32) -> Result<Vec<Release>, GhError> {
+        Self::off()
+    }
+    pub fn latest_release(&self) -> Result<Release, GhError> {
+        Self::off()
+    }
+    pub fn download_asset(&self, _: u64, _: &std::path::Path) -> Result<(), GhError> {
+        Self::off()
+    }
+}
+
 /// sha di un blob git, per riconoscere i file che abbiamo già
 pub fn git_blob_sha(bytes: &[u8]) -> String {
     let mut h = sha1_smol::Sha1::new();

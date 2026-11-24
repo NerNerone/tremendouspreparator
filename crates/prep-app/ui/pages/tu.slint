@@ -205,6 +205,18 @@ export component TuPage inherits Page {
                     AppState.news-all();
                 }
             }
+            // aggiornamenti dell'app (solo nelle build che si aggiornano da sole, non F-Droid)
+            if AppState.update-can-check: ListRow {
+                title: AppState.update-version != "" ? "Aggiorna alla versione " + AppState.update-version : "Cerca aggiornamenti";
+                subtitle: AppState.update-busy ? "Scarico l'aggiornamento…" : AppState.update-checking ? "Cerco…" : AppState.update-version != "" ? "Scarica e installa la versione nuova" : "Controlla se c'è una versione nuova dell'app";
+                clicked => {
+                    if (AppState.update-version != "") {
+                        AppState.update-install();
+                    } else {
+                        AppState.update-check();
+                    }
+                }
+            }
             ListRow {
                 title: "Note legali";
                 subtitle: "Nessuna garanzia; contenuti importati e servizi esterni a cura di chi li usa";
