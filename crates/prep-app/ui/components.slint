@@ -1146,6 +1146,7 @@ export component FabMenu inherits Rectangle {
                 sub: "blocca le distrazioni";
                 clicked => {
                     AppState.fab-open = false;
+                    AppState.go-tab(2);
                     AppState.focus-setup(true);
                 }
             }

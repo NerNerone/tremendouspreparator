@@ -164,6 +164,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "focus" => st.invoke_focus_setup(true),
                 "focusapp" => st.invoke_focus_toggle(arg.into()),
                 "focusmin" => st.invoke_focus_set_minutes(arg.parse().unwrap_or(50)),
+                "focusstart" => st.invoke_focus_start(),
                 "gkickother" => {
                     // rimuove il primo membro che non sia io (due tocchi: conferma)
                     let r = st.get_ranking();

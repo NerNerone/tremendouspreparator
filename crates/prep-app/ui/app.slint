@@ -27,7 +27,8 @@ export component AppWindow inherits Window {
     // senza barra quando il foglio della concentrazione è aperto: arriva fino in fondo allo schermo
     property <bool> show-nav: !AppState.focus-open && (AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13 || AppState.page == 18);
     // «Studia ora»: esteso in Oggi, solo simbolo nelle altre schede principali
-    property <bool> show-fab: root.show-nav && AppState.page != 18;
+    // durante lo studio di gruppo i comandi della sessione stanno in basso: niente pulsante
+    property <bool> show-fab: root.show-nav && AppState.page != 18 && !(AppState.page == 13 && AppState.study-state != 0);
     property <bool> show-bar: root.show-nav && AppState.paused-title != "";
 
     fs := FocusScope {

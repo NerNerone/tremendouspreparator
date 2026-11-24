@@ -506,6 +506,10 @@ export global AppState {
     in property <[GroupVM]> groups;
     in property <bool> group-has;
     in property <string> group-name;
+    // fuori gara (paddock flottante sotto la finestra della gara)
+    in property <int> paddock-n;
+    // in concentrazione: chi ti precede («Marta 18 m davanti · la stai prendendo»)
+    in property <string> ahead-text;
     in property <string> group-id;
     in property <string> group-info;
     in property <[CarVM]> cars;

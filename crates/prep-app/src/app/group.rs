@@ -1206,6 +1206,8 @@ impl Ctrl {
         st.set_pad_w(pad_w as f32);
         let mut lane_i = 0usize;
         let mut cars: Vec<CarVM> = Vec::new();
+        // (nome, posizione, velocità, io, in gara): per «X m davanti» in concentrazione
+        let mut racers: Vec<(String, f32, f32, bool, bool)> = Vec::new();
         let frac = (Utc::now().timestamp_subsec_millis() as f64 / 1000.0).clamp(0.0, 0.999);
         let empty_crew: ModelRc<CrewVM> = ModelRc::default();
         // soste finite: via dalla cache
@@ -1292,6 +1294,9 @@ impl Ctrl {
                 mult: if racing { m as f32 } else { 1.0 },
                 level: s.level,
             });
+            if let Some(c) = cars.last() {
+                racers.push((s.name.clone(), c.f, c.v, c.me, c.racing));
+            }
         }
         // modalità dimostrativa degli effetti: altre monoposto attorno alla propria
         if self.fx_demo {
@@ -1598,6 +1603,23 @@ impl Ctrl {
         let _ = Period::Today;
         // aggiornamento riga per riga del modello persistente
         let n_cars = cars.len();
+        // chi ti precede in pista e di quanto (un giro vale circa 2 km, solo per dare l'idea)
+        let ahead = racers.iter().find(|r| r.3 && r.4).and_then(|me| {
+            racers
+                .iter()
+                .filter(|r| !r.3 && r.4)
+                .map(|r| ((r.1 - me.1).rem_euclid(1.0), r))
+                .filter(|(gap, _)| *gap > 0.0)
+                .min_by(|a, b| a.0.total_cmp(&b.0))
+                .map(|(gap, r)| {
+                    let m = (gap * 2000.0).round() as i32;
+                    let trend = if r.2 < me.2 { "la stai prendendo" } else if r.2 > me.2 { "si allontana" } else { "stesso passo" };
+                    let who = r.0.split_whitespace().next().unwrap_or("").to_string();
+                    format!("{who} {m} m davanti · {trend}")
+                })
+        });
+        st.set_ahead_text(ss(ahead.unwrap_or_default()));
+        st.set_paddock_n(cars.iter().filter(|c| c.parked).count() as i32);
         let m = &self.cars_model;
         for (i, c) in cars.into_iter().enumerate() {
             if i < m.row_count() {

@@ -157,18 +157,18 @@ component Car inherits Rectangle {
         opacity: 0.16 + 0.1 * (0.5 + 0.5 * sin(root.tk * 360deg));
     }
     if root.fx-focus: Rectangle {
-        x: -52px;
-        y: 3px;
-        width: 52px;
-        height: 14px;
-        border-radius: 7px;
+        x: -34px;
+        y: 4px;
+        width: 34px;
+        height: 12px;
+        border-radius: 6px;
         background: @linear-gradient(90deg, #2979ff00 0%, #448aff88 100%);
     }
     for i in (root.fx-focus ? 4 : 0): Rectangle {
         property <float> p: mod(root.tk * 2 + i / 4, 1);
-        x: -6px - 46px * self.p;
-        y: 4px + mod(i * 5, 13) * 1px;
-        width: 12px;
+        x: -4px - 28px * self.p;
+        y: 5px + mod(i * 5, 11) * 1px;
+        width: 8px;
         height: 1.5px;
         border-radius: 1px;
         background: #bbdefb;
@@ -216,26 +216,16 @@ component Car inherits Rectangle {
         background: #26c6da;
         opacity: 0.9 * (1 - self.p);
     }
-    // piazzola del box (poco più grande della macchina): fondo, stallo segnato agli angoli,
-    // linea d'arresto, muro del garage con la striscia della squadra
+    // piazzola del box: un fondo arrotondato poco più grande della monoposto, senza bordi né
+    // segni; compare quando la macchina si ferma e sparisce quando riparte
     if root.crew > 0.01: Rectangle {
-        x: -16px;
-        y: -3px;
-        width: 70px;
-        height: 42px;
+        x: -7px;
+        y: -4px;
+        width: 50px;
+        height: 28px;
+        border-radius: 9px;
+        background: root.road;
         opacity: root.crew;
-        Rectangle { width: 100%; height: 100%; border-radius: 8px; background: root.road; }
-        Rectangle { x: 13px; y: 1px; width: 7px; height: 1.5px; background: root.bg-line; }
-        Rectangle { x: 13px; y: 1px; width: 1.5px; height: 6px; background: root.bg-line; }
-        Rectangle { x: 47px; y: 1px; width: 7px; height: 1.5px; background: root.bg-line; }
-        Rectangle { x: 52.5px; y: 1px; width: 1.5px; height: 6px; background: root.bg-line; }
-        Rectangle { x: 13px; y: 24px; width: 7px; height: 1.5px; background: root.bg-line; }
-        Rectangle { x: 13px; y: 19.5px; width: 1.5px; height: 6px; background: root.bg-line; }
-        Rectangle { x: 47px; y: 24px; width: 7px; height: 1.5px; background: root.bg-line; }
-        Rectangle { x: 52.5px; y: 19.5px; width: 1.5px; height: 6px; background: root.bg-line; }
-        Rectangle { x: 55px; y: 6px; width: 2px; height: 14px; background: root.bg-line; }
-        Rectangle { x: 3px; y: parent.height - 6px; width: parent.width - 6px; height: 4px; border-radius: 2px; background: root.suit; }
-        Rectangle { x: 8px; y: parent.height - 5px; width: parent.width - 16px; height: 1.5px; background: root.c; }
     }
     // scia normale, solo in pista e senza effetti (un effetto la sostituisce)
     if root.car.racing && root.on-road && !root.fx-trail: Rectangle {
@@ -384,6 +374,8 @@ component RaceView inherits Rectangle {
     in property <float> pad-y: 0.65;
     // larghezza del paddock (frazione della larghezza del circuito): cresce con i membri
     in property <float> pad-w: 0.2;
+    // Traguardo: il paddock sta in un riquadro flottante fuori dalla pista, non sotto il circuito
+    in property <bool> paddock-float: true;
     // la strada: un solo colore, dal tema; la mezzeria nel colore dello sfondo
     property <color> road: M3.surface-container-highest;
     property <color> bg: M3.surface;
@@ -412,7 +404,7 @@ component RaceView inherits Rectangle {
     property <length> pit-off: root.sw / 2 + 30px * root.k;
     // monoposto in scala con la carreggiata: larghe circa 0,3 della strada, così tre stanno
     // affiancate nelle corsie a qualunque zoom (piazzola e meccanici seguono la stessa scala)
-    property <float> k: 0.3 * root.sw / 20px;
+    property <float> k: 0.24 * root.sw / 20px;
     property <float> phase: 0;
     // telecamera: la stessa animazione della propria macchina, così resta al centro
     in property <float> cam-v;
@@ -489,7 +481,7 @@ component RaceView inherits Rectangle {
         height: root.TH + 2 * root.P;
         // paddock sotto il circuito, fuori pista: corsia box, muretto e garage; chi ha
         // terminato la sessione o non è collegato aspetta qui nel suo box
-        Rectangle {
+        if !root.paddock-float: Rectangle {
             width: root.pad-w * root.TW;
             height: root.TH * 0.2;
             x: root.P + root.pad-x * root.TW - self.width / 2;
@@ -631,6 +623,7 @@ component RaceView inherits Rectangle {
             y: self.cy - self.height / 2;
             width: 48px;
             height: 48px;
+            visible: !(root.paddock-float && car.parked);
             // box del garage: due pareti e il fondo, aperto verso la corsia box
             if car.parked: Rectangle {
                 width: 30px * root.k;
@@ -1403,6 +1396,70 @@ component EditBadge inherits Rectangle {
     }
 }
 
+// Paddock flottante (Traguardo): chi non è in gara ha un posto fisso qui, a cavallo del bordo
+// basso della finestra della gara; i posti crescono e calano con le persone fuori gara.
+component Paddock inherits Rectangle {
+    in property <[CarVM]> cars;
+    height: 56px;
+    width: pl.preferred-width;
+    border-radius: 24px;
+    background: M3.surface;
+    drop-shadow-blur: 14px;
+    drop-shadow-offset-y: 4px;
+    drop-shadow-color: #00000030;
+    pl := HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 8px;
+        spacing: 8px;
+        alignment: start;
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: "Paddock";
+                font-size: 14px;
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            Text {
+                text: "fuori gara";
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+            }
+        }
+        for c in root.cars: Rectangle {
+            visible: c.parked;
+            width: c.parked ? 60px : 0px;
+            height: 40px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 12px;
+            background: M3.surface-container-high;
+            Car {
+                x: (parent.width - self.width) / 2;
+                y: 6px;
+                car: c;
+                road: M3.surface-container-highest;
+                phase: 0;
+                transform-scale-x: 0.7;
+                transform-scale-y: 0.7;
+                opacity: 0.6;
+            }
+            Rectangle {
+                x: 10px;
+                y: parent.height - 6px;
+                width: parent.width - 20px;
+                height: 3px;
+                border-radius: 1.5px;
+                background: c.color;
+            }
+            TouchArea {
+                clicked => {
+                    AppState.car-tap(c.id);
+                }
+            }
+        }
+    }
+}
+
 export component GroupPage inherits Page {
     property <bool> rename-open: false;
     property <bool> has-group: AppState.group-has && AppState.group-code != "";
@@ -1410,14 +1467,66 @@ export component GroupPage inherits Page {
     property <bool> cal-group: has-group && AppState.cal-ids[AppState.cal-index] == "*";
     property <bool> cal-member: has-group && AppState.cal-ids[AppState.cal-index] != "" && !cal-group;
     VerticalLayout {
-        TopBar {
-            title: "Studio di gruppo";
-            subtitle: AppState.group-has ? AppState.group-name : "Studia insieme ad altri, ognuno dal suo dispositivo";
+        // Traguardo: foto e nome del gruppo come testata (senza gruppo: «Squadra»)
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 8px;
+            padding-top: 12px;
+            padding-bottom: 8px;
+            spacing: 14px;
+            if AppState.group-has: Rectangle {
+                width: 56px;
+                height: 56px;
+                border-radius: 20px;
+                clip: true;
+                background: M3.primary-container;
+                if AppState.group-has-photo: Image {
+                    width: parent.width;
+                    height: parent.height;
+                    source: AppState.group-photo;
+                    image-fit: cover;
+                }
+                if !AppState.group-has-photo: Icon {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    source: Icons.groups;
+                    tint: M3.on-primary-container;
+                    width: 28px;
+                    height: 28px;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 1;
+                Text {
+                    text: AppState.group-has && AppState.group-name != "" ? AppState.group-name : "Squadra";
+                    font-size: 24px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    overflow: elide;
+                }
+                Text {
+                    text: AppState.group-has ? "La gara del gruppo" : "Studia insieme ad altri, ognuno dal suo dispositivo";
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    overflow: elide;
+                }
+            }
         }
 
-        // la gara: striscia a tutta larghezza che separa la pista dal resto
+        // la gara: finestra grande nei colori del tema, con il paddock flottante sul bordo basso
+        Rectangle {
+            height: min(360px, parent.height * 0.46) + (AppState.paddock-n > 0 ? 28px : 0px);
+            race-box := Rectangle {
+                x: 8px;
+                width: parent.width - 16px;
+                height: parent.height - (AppState.paddock-n > 0 ? 28px : 0px);
+                border-radius: 32px;
+                clip: true;
+                background: M3.surface-container;
         RaceView {
-            height: min(300px, parent.height * 0.4);
+            width: parent.width;
+            height: parent.height;
             cars: AppState.cars;
             cam-f: AppState.cam-f;
             cam-side: AppState.cam-side;
@@ -1436,6 +1545,13 @@ export component GroupPage inherits Page {
             hud: AppState.race-hud;
             flash: AppState.lap-flash;
         }
+            }
+            if AppState.paddock-n > 0: Paddock {
+                cars: AppState.cars;
+                x: (parent.width - self.width) / 2;
+                y: race-box.height - 28px;
+            }
+        }
 
         Scroller {
             vertical-stretch: 1;
@@ -1443,6 +1559,69 @@ export component GroupPage inherits Page {
             pad: 16px;
             pad-top: 4px;
             gap: 12px;
+
+            // Traguardo: concentrazione in corso. La finestra della gara qui sopra segue la propria
+            // monoposto (scia blu); qui il tempo che manca e chi ti precede.
+            if AppState.focus-active: Rectangle {
+                border-radius: 28px;
+                background: M3.primary-container;
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 16px;
+                    Rectangle {
+                        width: 120px;
+                        height: 120px;
+                        RingProgress {
+                            width: 120px;
+                            height: 120px;
+                            value: AppState.focus-left != "" ? AppState.focus-left-frac : 1;
+                            thickness: 11px;
+                            fill: M3.primary;
+                            track: M3.primary.with-alpha(0.18);
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: AppState.focus-left != "" ? AppState.focus-left : "∞";
+                                font-size: 28px;
+                                font-weight: 800;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: AppState.focus-left != "" ? "rimasti" : "fino a «Termina»";
+                                font-size: Type.label;
+                                color: M3.on-primary-container;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 6px;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: "Concentrazione · ×1,5";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-primary-container;
+                            wrap: word-wrap;
+                        }
+                        Text {
+                            text: AppState.ahead-text != "" ? AppState.ahead-text : "Scia blu in pista: le altre app sono bloccate";
+                            font-size: Type.label;
+                            color: M3.on-primary-container;
+                            wrap: word-wrap;
+                        }
+                        Text {
+                            text: "Se esci prima del tempo il bonus resta sospeso (bandiera gialla).";
+                            font-size: Type.label;
+                            color: M3.on-primary-container.with-alpha(0.75);
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
 
             // più gruppi: si sceglie quello attivo
             if AppState.groups.length > 1: Flickable {
