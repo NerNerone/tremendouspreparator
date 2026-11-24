@@ -472,10 +472,6 @@ impl Ctrl {
                 })
             })
             .collect();
-        // prossimo appello (per la fascia di Oggi): il primo da oggi in poi
-        let next = dates.iter().filter(|d| d.days >= 0).min_by_key(|d| d.days);
-        st.set_next_exam_days(next.map(|d| d.days).unwrap_or(-1));
-        st.set_next_exam_label(next.map(|d| d.label.clone()).unwrap_or_default());
         st.set_exam_dates(model(dates));
         st.set_total_time(ss(if self.progress.total_secs > 0 {
             format!(

@@ -310,30 +310,6 @@ export component HomePage inherits Page {
                 wrap: word-wrap;
             }
 
-            // giorni al prossimo appello, in alto a destra (spariscono comprimendo)
-            if AppState.next-exam-days >= 0: VerticalLayout {
-                x: parent.width - self.width - 20px;
-                y: 18px;
-                width: 120px;
-                height: self.preferred-height;
-                alignment: start;
-                opacity: max(0, 1 - root.t * 2.5);
-                Text {
-                    text: AppState.next-exam-days == 0 ? "Oggi" : AppState.next-exam-days;
-                    horizontal-alignment: right;
-                    font-size: 40px;
-                    font-weight: 900;
-                    color: M3.on-primary-container;
-                }
-                Text {
-                    text: AppState.next-exam-days == 0 ? AppState.next-exam-label : (AppState.next-exam-days == 1 ? "giorno al " : "giorni al ") + AppState.next-exam-label;
-                    horizontal-alignment: right;
-                    wrap: word-wrap;
-                    font-size: Type.label;
-                    color: M3.on-primary-container;
-                }
-            }
-
             // inizio e fine della barra
             Text {
                 x: 20px;
