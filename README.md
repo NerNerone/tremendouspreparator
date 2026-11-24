@@ -45,9 +45,27 @@ cargo run -q --manifest-path ../tp/Cargo.toml -p prep-core --bin prep -- validat
 
 Il pacchetto d'esempio (`esempio`) va sostituito con il tuo esame.
 
+## Creare il repository (privato)
+
+Il repository dei dati **deve essere privato**: contiene i progressi e l'elenco dei gruppi con i
+loro codici. L'app non sincronizza con un repository pubblico. Non usare «Fork» (il fork di un
+repository pubblico resta pubblico): crea un repository **privato vuoto** su GitHub, poi
+
+```bash
+git clone --branch modello-dati --single-branch https://github.com/NerNerone/tremendouspreparator dati
+cd dati
+git remote rename origin modello                      # il modello resta collegato per gli aggiornamenti
+git remote add origin https://github.com/<tu>/<repository-privato>.git
+git push -u origin HEAD:mio-esame                     # un ramo per esame
+```
+
+Per avere guida, strumenti e istruzioni aggiornati non si riparte da zero: si uniscono i commit
+del modello (`git fetch modello modello-dati && git merge modello/modello-dati`). Le istruzioni
+per l'AI (`CLAUDE.md`) lo fanno fare da sé all'inizio di ogni lavoro.
+
 ## Nell'app
 
-1. Repository (meglio privato) e token GitHub «fine-grained» limitato **solo** a quel
+1. Repository **privato** e token GitHub «fine-grained» limitato **solo** a quel
    repository, con il permesso *Contents: Read and write*.
 2. Tu › App › Repository dei progressi: accendi, scrivi proprietario, repository e token,
    «Salva e sincronizza».

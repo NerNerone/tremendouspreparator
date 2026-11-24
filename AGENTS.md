@@ -14,6 +14,12 @@ Il tuo compito di solito è uno di questi tre:
 
 ## Regole
 
+- **Il repository deve essere privato.** Dentro ci sono progressi ed elenco dei gruppi con i loro
+  codici: se è pubblico, fermati e chiedi all'utente di renderlo privato (Settings › General ›
+  Change visibility). L'app stessa non sincronizza con un repository pubblico.
+- **Aggiornati dal modello, non ricominciare da zero.** Guida, schemi, strumenti e queste
+  istruzioni arrivano dal ramo `modello-dati` del repository dell'app: non riclonarlo e non
+  ricreare il repository, unisci i suoi commit (vedi «Aggiornare dal modello» qui sotto).
 - Qui ci sono **solo dati**: niente codice dell'app, niente workflow (`.github/`).
 - **Non modificare né cancellare** i file in `progress/`: sono lo storico delle risposte e li
   scrive l'app. Le uniche eccezioni sono `progress/assessment.json` (revisione) e
@@ -100,3 +106,19 @@ Leggili prima di scrivere un file: i campi e i vincoli sono lì.
 2. Per ognuno correggi testo, risposta o spiegazione della domanda segnalata (stesso id se il
    senso non cambia), o aggiungi i contenuti richiesti.
 3. Aggiorna `progress/feedback_status.json` con `status` e una `reply` breve; commit e push.
+
+## Aggiornare dal modello
+
+All'inizio di ogni lavoro (e quando l'utente lo chiede) porta qui le novità del modello:
+
+```bash
+git remote get-url modello 2>/dev/null || git remote add modello https://github.com/NerNerone/tremendouspreparator
+git fetch modello modello-dati
+git merge modello/modello-dati            # la prima volta, se il ramo l'ha creato l'app: --allow-unrelated-histories
+```
+
+- In caso di conflitto, per `docs/`, `tools/`, `CLAUDE.md`, `AGENTS.md` e `README.md` tieni la
+  versione del modello (`git checkout --theirs <file>`); `content/`, `books/` e `progress/` sono
+  dell'esame: non vanno mai sostituiti con quelli del modello (il pacchetto d'esempio no).
+- Se il modello aggiunge `content/*/esempio.json` e l'esame ha già il suo syllabus, toglili.
+- Poi `git pull --rebase` e push, come sempre.
