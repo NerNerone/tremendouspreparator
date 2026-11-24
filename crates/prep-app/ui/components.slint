@@ -803,62 +803,104 @@ export component OptionTile inherits Rectangle {
     in property <string> letter;
     in property <string> text;
     in property <string> note;
+    // 0 libera, 1 scelta, 2 giusta, 3 sbagliata (la tua), 4 altre dopo la conferma
     in property <int> state;
+    // nella giusta, dopo la conferma: spiegazione e rimando al libro (Traguardo)
+    in property <string> detail;
+    in property <string> ref-label;
+    callback open-ref;
     callback clicked;
-    property <color> bg: root.state == 1 ? M3.secondary-container : root.state == 2 ? M3.success-container : root.state == 3 ? M3.error-container : M3.surface-container-low;
-    property <color> fg: root.state == 2 ? M3.on-success-container : root.state == 3 ? M3.on-error-container : root.state == 1 ? M3.on-secondary-container : M3.on-surface;
-    min-height: max(56px, opt-row.preferred-height);
-    border-radius: root.state == 1 || root.state == 2 || root.state == 3 ? Shape.xl : Shape.lg-inc;
-    animate border-radius {
-        duration: Motion.fast-spatial;
-        easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
-    }
+    property <color> bg: root.state == 1 ? M3.primary-container : root.state == 2 ? M3.success-container : root.state == 3 ? M3.error-container : M3.surface-container;
+    property <color> fg: root.state == 2 ? M3.on-success-container : root.state == 3 ? M3.on-error-container : root.state == 1 ? M3.on-primary-container : M3.on-surface;
+    min-height: max(60px, opt-row.preferred-height);
+    border-radius: 20px;
     background: root.bg;
-    border-width: root.state == 0 || root.state == 4 ? 1px : 2px;
-    border-color: root.state == 1 ? M3.primary : root.state == 2 ? M3.success : root.state == 3 ? M3.error : M3.outline-variant;
-    animate background, border-color { duration: 150ms; }
-    opt-row := HorizontalLayout {
+    animate background { duration: 150ms; }
+    opacity: root.state == 4 ? 0.6 : 1;
+    opt-row := VerticalLayout {
         padding: 12px;
-        spacing: 12px;
-        Rectangle {
-            width: 32px;
-            height: 32px;
-            // lettera: cerchio → quadrato arrotondato ruotato quando scelta
-            border-radius: root.state == 0 || root.state == 4 ? 16px : 10px;
-            transform-rotation: root.state == 1 ? 45deg : 0deg;
-            animate border-radius, transform-rotation {
-                duration: Motion.fast-spatial;
-                easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
-            }
-            background: root.state == 1 ? M3.primary : root.state == 2 ? M3.success : root.state == 3 ? M3.error : M3.surface-container-highest;
-            Text {
-                text: root.letter;
-                font-weight: 700;
-                transform-rotation: root.state == 1 ? -45deg : 0deg;
-                animate transform-rotation {
+        padding-left: 14px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 14px;
+            Rectangle {
+                width: 36px;
+                height: 36px;
+                border-radius: root.state == 2 || root.state == 3 ? 18px : 12px;
+                animate border-radius {
                     duration: Motion.fast-spatial;
                     easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
                 }
-                color: root.state == 1 ? M3.on-primary : root.state == 2 || root.state == 3 ? M3.surface : M3.on-surface-variant;
+                background: root.state == 1 ? M3.primary : root.state == 2 ? M3.success : root.state == 3 ? M3.error : M3.surface-container-highest;
+                if root.state != 2 && root.state != 3: Text {
+                    text: root.letter;
+                    font-size: 15px;
+                    font-weight: 800;
+                    color: root.state == 1 ? M3.on-primary : M3.on-surface;
+                }
+                if root.state == 2 || root.state == 3: Icon {
+                    x: 7px;
+                    y: 7px;
+                    width: 22px;
+                    height: 22px;
+                    source: root.state == 2 ? Icons.check : Icons.close;
+                    tint: M3.surface;
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 6px;
+                Text {
+                    text: root.text;
+                    color: root.fg;
+                    font-size: 17px;
+                    font-weight: root.state == 2 || root.state == 3 ? 700 : 400;
+                    wrap: word-wrap;
+                }
+                if root.note != "" && root.state != 2: Text {
+                    text: root.note;
+                    color: root.state == 4 ? M3.on-surface-variant : root.fg.with-alpha(0.85);
+                    font-size: Type.body;
+                    wrap: word-wrap;
+                }
+            }
+            if root.state == 2 || root.state == 3: VerticalLayout {
+                alignment: center;
+                Text {
+                    text: root.state == 2 ? "giusta" : "la tua";
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: root.fg;
+                }
             }
         }
-
-        VerticalLayout {
-            horizontal-stretch: 1;
-            alignment: center;
-            spacing: 6px;
-            Text {
-                text: root.text;
-                color: root.fg;
-                font-size: Type.body-large;
-                wrap: word-wrap;
+        if root.state == 2 && (root.detail != "" || root.note != ""): Text {
+            text: root.detail != "" ? root.detail : root.note;
+            color: root.fg;
+            font-size: 14.5px;
+            wrap: word-wrap;
+        }
+        if root.state == 2 && root.ref-label != "": TouchArea {
+            height: refl.preferred-height;
+            clicked => {
+                root.open-ref();
             }
-
-            if root.note != "": Text {
-                text: root.note;
-                color: root.state == 4 ? M3.on-surface-variant : root.fg.with-alpha(0.85);
-                font-size: Type.body;
-                wrap: word-wrap;
+            refl := HorizontalLayout {
+                spacing: 8px;
+                VIcon {
+                    source: Icons.book;
+                    tint: root.fg;
+                    size: 18px;
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    text: "Se vuoi approfondire: " + root.ref-label;
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: root.fg;
+                    wrap: word-wrap;
+                }
             }
         }
     }
@@ -884,8 +926,10 @@ export component OptionTile inherits Rectangle {
     transform-scale-x: pf == 0 ? 100% : 100% + 3% * sin(pf * 180deg);
     transform-scale-y: pf == 0 ? 100% : 100% + 3% * sin(pf * 180deg);
 
+    // dopo la conferma (giusta/sbagliata/altre) il riquadro non risponde più: resta attivo il
+    // rimando al libro dentro la giusta
     ta := TouchArea {
-        enabled: root.state != 4;
+        enabled: root.state <= 1;
         clicked => {
             root.clicked();
         }

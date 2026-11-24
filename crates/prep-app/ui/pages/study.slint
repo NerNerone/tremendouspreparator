@@ -4,57 +4,111 @@ import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM
 import { ChipStrip } from "hub.slint";
 import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
+// riquadro di uno strumento della materia (Traguardo: simbolo sopra, nome sotto)
+component ToolTile inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    callback clicked;
+    width: 88px;
+    height: 76px;
+    border-radius: 20px;
+    background: tta.pressed ? M3.surface-container-high : M3.surface-container;
+    VerticalLayout {
+        padding: 8px;
+        spacing: 6px;
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Icon {
+                width: 24px;
+                height: 24px;
+                source: root.icon;
+                tint: M3.primary;
+            }
+        }
+        Text {
+            text: root.label;
+            font-size: 12px;
+            font-weight: 600;
+            color: M3.on-surface;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+    tta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component StudyPage inherits Page {
     VerticalLayout {
-        TopBar {
-            title: "Studia";
-            subtitle: "Materie, quiz, flashcard e simulazioni";
-        }
-
-        // Traguardo: quiz e flashcard sono pagine di Studia (prima erano voci della barra)
-        HorizontalLayout {
-            padding-left: 16px;
-            padding-right: 16px;
+        // intestazione (Traguardo): titolo grande, esame e materie
+        VerticalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 12px;
             padding-bottom: 10px;
-            spacing: 8px;
-            M3Button {
-                text: AppState.flagged-count > 0 ? "Quiz · " + AppState.flagged-count + " segnate" : "Quiz";
-                kind: 1;
-                has-icon: true;
-                icon: Icons.quiz;
-                horizontal-stretch: 1;
-                clicked => {
-                    AppState.open-sub(6);
-                }
+            Text {
+                text: "Studia";
+                font-size: 34px;
+                font-weight: 900;
+                color: M3.on-surface;
             }
-            M3Button {
-                text: AppState.due-count > 0 ? "Flashcard · " + AppState.due-count : "Flashcard";
-                kind: 1;
-                has-icon: true;
-                icon: Icons.cards;
-                horizontal-stretch: 1;
-                clicked => {
-                    AppState.open-sub(8);
-                }
+            Text {
+                text: AppState.exam-name + (AppState.subjects.length > 0 ? " · " + AppState.subjects.length + (AppState.subjects.length == 1 ? " materia" : " materie") : "");
+                font-size: Type.label;
+                color: M3.on-surface-variant;
+                overflow: elide;
             }
         }
 
+        // materie: gruppo di pulsanti uniti, quella scelta piena
         if AppState.subjects.length > 0: HorizontalLayout {
             padding-left: 16px;
             padding-right: 16px;
-            padding-bottom: 8px;
-            spacing: 8px;
-            for s in AppState.subjects: Chip {
-                text: s.short;
-                selected: AppState.current-subject == s.id;
-                clicked => {
-                    AppState.select-subject(s.id);
-                }
-                VerticalLayout {
+            padding-bottom: 10px;
+            spacing: 3px;
+            for s[i] in AppState.subjects: seg := Rectangle {
+                property <bool> sel: AppState.current-subject == s.id;
+                property <bool> first: i == 0;
+                property <bool> last: i == AppState.subjects.length - 1;
+                horizontal-stretch: 1;
+                height: 48px;
+                border-top-left-radius: self.sel || self.first ? 24px : 8px;
+                border-bottom-left-radius: self.sel || self.first ? 24px : 8px;
+                border-top-right-radius: self.sel || self.last ? 24px : 8px;
+                border-bottom-right-radius: self.sel || self.last ? 24px : 8px;
+                background: self.sel ? M3.primary : M3.secondary-container;
+                animate background { duration: 160ms; }
+                HorizontalLayout {
                     alignment: center;
-                    SubjectIcon {
-                        s: s;
-                        width: 22px;
+                    spacing: 6px;
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    VerticalLayout {
+                        alignment: center;
+                        SubjectIcon {
+                            s: s;
+                            width: 22px;
+                            filled: false;
+                            tint: seg.sel ? M3.on-primary : M3.on-secondary-container;
+                            background: transparent;
+                        }
+                    }
+                    Text {
+                        text: s.short;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: seg.sel ? M3.on-primary : M3.on-secondary-container;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                }
+                TouchArea {
+                    clicked => {
+                        AppState.select-subject(s.id);
                     }
                 }
             }
@@ -90,36 +144,69 @@ export component StudyPage inherits Page {
                     padding: 16px;
                     padding-top: 4px;
                     spacing: 12px;
-                    if AppState.subject-periodic || AppState.subject-links.length > 0: Card {
-                        bg: M3.surface-container;
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 10px;
-                            Text {
-                                text: "Strumenti";
-                                font-size: Type.title;
-                                font-weight: 700;
-                                color: M3.on-surface;
-                            }
-                            VerticalLayout {
-                                spacing: 8px;
-                                if AppState.subject-periodic: M3Button {
-                                    text: "Tavola periodica";
-                                    kind: 1;
-                                    horizontal-stretch: 1;
-                                    clicked => {
-                                        AppState.open-periodic();
-                                    }
+                    // riga riassuntiva della materia
+                    if AppState.subjects.length > 0: Text {
+                        text: AppState.units.length + (AppState.units.length == 1 ? " unità" : " unità") + (AppState.flagged-count > 0 ? " · " + AppState.flagged-count + " domande segnate" : "");
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    // strumenti della materia: riquadri affiancati (scorrono se sono tanti)
+                    if AppState.subjects.length > 0: Flickable {
+                        height: 76px;
+                        interactive: tools-row.preferred-width > self.width;
+                        viewport-width: max(self.width, tools-row.preferred-width);
+                        tools-row := HorizontalLayout {
+                            x: 0px;
+                            height: 76px;
+                            spacing: 8px;
+                            ToolTile {
+                                icon: Icons.quiz;
+                                label: "Quiz";
+                                clicked => {
+                                    AppState.open-sub(6);
                                 }
-                                for label[i] in AppState.subject-links: M3Button {
-                                    text: label;
-                                    kind: 1;
-                                    has-icon: true;
-                                    icon: Icons.book;
-                                    horizontal-stretch: 1;
-                                    clicked => {
-                                        AppState.open-subject-link(i);
-                                    }
+                            }
+                            ToolTile {
+                                icon: Icons.cards;
+                                label: "Flashcard";
+                                clicked => {
+                                    AppState.open-sub(8);
+                                }
+                            }
+                            if AppState.exam-rules != "": ToolTile {
+                                icon: Icons.timer;
+                                label: "Simulazione";
+                                clicked => {
+                                    AppState.start-exam(AppState.current-subject);
+                                }
+                            }
+                            for t in AppState.official-tests: ToolTile {
+                                icon: Icons.flag-outline;
+                                label: t.name;
+                                clicked => {
+                                    AppState.start-official(AppState.current-subject, t.id);
+                                }
+                            }
+                            if AppState.subject-periodic: ToolTile {
+                                icon: Icons.apps;
+                                label: "Tavola";
+                                clicked => {
+                                    AppState.open-periodic();
+                                }
+                            }
+                            for label[i] in AppState.subject-links: ToolTile {
+                                icon: Icons.book;
+                                label: label;
+                                clicked => {
+                                    AppState.open-subject-link(i);
+                                }
+                            }
+                            ToolTile {
+                                icon: Icons.ai;
+                                label: "Crea con AI";
+                                clicked => {
+                                    AppState.open-creator(false);
                                 }
                             }
                         }
@@ -163,78 +250,86 @@ export component StudyPage inherits Page {
                         }
                     }
 
-                    // simulazione solo se il pacchetto ne definisce le regole; il quiz misto sempre
-                    if AppState.subjects.length > 0: Card {
-                        bg: M3.surface-container;
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 10px;
-                            Text {
-                                text: AppState.exam-rules != "" ? "Simulazione d'esame" : "Allenamento";
-                                font-size: Type.title;
-                                font-weight: 700;
-                                color: M3.on-surface;
-                            }
-
-                            if AppState.exam-rules != "": Text {
-                                text: AppState.exam-rules;
-                                wrap: word-wrap;
-                                font-size: Type.label;
-                                color: M3.on-surface-variant;
-                            }
-
-                            HorizontalLayout {
-                                spacing: 8px;
-                                if AppState.exam-rules != "": M3Button {
-                                    text: "Simula esame";
-                                    has-icon: true;
-                                    icon: Icons.timer;
-                                    horizontal-stretch: 1;
-                                    clicked => {
-                                        AppState.start-exam(AppState.current-subject);
+                    // unità: lista raggruppata, numero nel riquadro tonale, barretta ondulata
+                    if AppState.units.length > 0: Rectangle {
+                        border-radius: 28px;
+                        clip: true;
+                        height: ulist.preferred-height;
+                        ulist := VerticalLayout {
+                            spacing: 3px;
+                            for u[i] in AppState.units: Rectangle {
+                                background: uta.pressed ? M3.surface-container-high : M3.surface-container;
+                                height: urow.preferred-height;
+                                urow := HorizontalLayout {
+                                    padding: 14px;
+                                    spacing: 14px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 40px;
+                                            height: 40px;
+                                            border-radius: 12px;
+                                            background: M3.subject(AppState.current-subject-n).with-alpha(0.18);
+                                            Text {
+                                                text: u.n;
+                                                font-size: 16px;
+                                                font-weight: 800;
+                                                color: M3.subject(AppState.current-subject-n);
+                                            }
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        spacing: 4px;
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            Text {
+                                                horizontal-stretch: 1;
+                                                text: u.name;
+                                                font-size: 15px;
+                                                font-weight: 600;
+                                                color: M3.on-surface;
+                                                overflow: elide;
+                                            }
+                                            Text {
+                                                text: round(u.mastery * 100) + "%";
+                                                font-size: 14px;
+                                                font-weight: 800;
+                                                color: M3.on-surface;
+                                            }
+                                        }
+                                        WavyProgress {
+                                            value: u.mastery;
+                                            intro: false;
+                                            fill: M3.subject(AppState.current-subject-n);
+                                            track: M3.surface-container-highest;
+                                            amp: 3px;
+                                            wavelength: 24px;
+                                            thickness: 4px;
+                                        }
+                                        Text {
+                                            text: (u.questions == 0 && u.cards == 0 ? "nessun contenuto" : (u.flagged > 0 ? u.flagged + " insicure · " : "") + u.questions + " domande") + " · " + u.cfu + " CFU";
+                                            font-size: Type.label;
+                                            color: M3.on-surface-variant;
+                                            overflow: elide;
+                                        }
                                     }
                                 }
-
-                                M3Button {
-                                    text: "Quiz misto";
-                                    kind: AppState.exam-rules != "" ? 2 : 0;
-                                    horizontal-stretch: 1;
+                                uta := TouchArea {
                                     clicked => {
-                                        AppState.start-practice("subject", AppState.current-subject);
+                                        AppState.open-unit(u.id);
                                     }
                                 }
                             }
+                        }
+                    }
 
-                            // registro delle simulazioni fatte (media, andamento, da rivedere)
-                            if AppState.exam-rules != "" || AppState.sim-count > 0: M3Button {
-                                text: AppState.sim-count > 0 ? "Registro simulazioni · media " + AppState.sim-avg : "Registro simulazioni";
-                                kind: 3;
-                                small: true;
-                                has-icon: true;
-                                icon: Icons.insights;
-                                clicked => {
-                                    AppState.open-simlog();
-                                }
-                            }
-
-                            // prove ufficiali definite dal pacchetto (domande reali, ordine originale)
-                            if AppState.official-tests.length > 0: Text {
-                                text: "Prove ufficiali (domande reali, ordine originale):";
-                                font-size: Type.label;
-                                color: M3.on-surface-variant;
-                            }
-
-                            if AppState.official-tests.length > 0: HorizontalLayout {
-                                spacing: 8px;
-                                for t in AppState.official-tests: M3Button {
-                                    text: t.name;
-                                    kind: 1;
-                                    horizontal-stretch: 1;
-                                    clicked => {
-                                        AppState.start-official(AppState.current-subject, t.id);
-                                    }
-                                }
-                            }
+                    // registro delle simulazioni (media, andamento, da rivedere)
+                    if AppState.exam-rules != "" || AppState.sim-count > 0: ListRow {
+                        title: "Registro simulazioni";
+                        subtitle: AppState.sim-count > 0 ? AppState.sim-count + " fatte · media " + AppState.sim-avg : AppState.exam-rules;
+                        clicked => {
+                            AppState.open-simlog();
                         }
                     }
 
@@ -280,71 +375,6 @@ export component StudyPage inherits Page {
                         }
                     }
 
-                    if AppState.units.length > 0: SectionTitle {
-                        text: "Unità didattiche";
-                    }
-
-                    for u[i] in AppState.units: uc := Card {
-                        clickable: true;
-                        stagger: i + 1;
-                        clicked => {
-                            AppState.open-unit(u.id);
-                        }
-                        VerticalLayout {
-                            padding: 14px;
-                            spacing: 8px;
-                            HorizontalLayout {
-                                spacing: 10px;
-                                Rectangle {
-                                    width: 32px;
-                                    height: 32px;
-                                    border-radius: 10px;
-                                    background: M3.subject(AppState.current-subject-n).with-alpha(0.16);
-                                    Text {
-                                        text: u.n;
-                                        font-weight: 800;
-                                        color: M3.subject(AppState.current-subject-n);
-                                    }
-                                }
-
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    spacing: 2px;
-                                    // larghezza esplicita: così l'altezza del titolo a capo è calcolata
-                                    // sulla larghezza vera e la scheda non viene tagliata
-                                    width: uc.width - 28px - 32px - 20px - 48px;
-                                    Text {
-                                        text: u.name;
-                                        font-size: Type.body-large;
-                                        font-weight: 600;
-                                        color: M3.on-surface;
-                                        wrap: word-wrap;
-                                    }
-
-                                    Text {
-                                        text: "CFU " + u.cfu + " · " + u.questions + " domande · " + u.cards + " flashcard" + (u.flagged > 0 ? " · " + u.flagged + " insicure" : "") + (u.time != "" ? "\nTempo: " + u.time : "");
-                                        font-size: Type.label;
-                                        color: M3.on-surface-variant;
-                                        wrap: word-wrap;
-                                    }
-                                }
-
-                                Text {
-                                    text: round(u.mastery * 100) + "%";
-                                    font-weight: 700;
-                                    font-size: Type.title;
-                                    color: M3.level(u.mastery);
-                                    vertical-alignment: center;
-                                }
-                            }
-
-                            LinearProgress {
-                                value: u.mastery;
-                                fill: M3.subject(AppState.current-subject-n);
-                                height: 6px;
-                            }
-                        }
-                    }
                     content-end := Rectangle {
                         height: 0px;
                     }
@@ -354,133 +384,244 @@ export component StudyPage inherits Page {
     }
 }
 
+// pillola di stato di un argomento (Traguardo): mai visto, debole, in corso, buono
+component StatusPill inherits Rectangle {
+    in property <string> text;
+    in property <int> level;
+    height: 26px;
+    width: pt.preferred-width + 20px;
+    border-radius: 13px;
+    background: root.level == 3 ? M3.success-container : root.level == 2 ? #FFE08A : root.level == 1 ? M3.error-container : M3.surface-container-highest;
+    pt := Text {
+        text: root.text;
+        font-size: 12px;
+        font-weight: 700;
+        color: root.level == 3 ? M3.success : root.level == 2 ? #4A3800 : root.level == 1 ? M3.on-error-container : M3.on-surface-variant;
+    }
+}
+
 export component UnitPage inherits Page {
-    VerticalLayout {
-        TopBar {
-            title: "Unità " + AppState.unit.n;
-            subtitle: AppState.unit.name;
-            can-back: true;
-            back => {
-                AppState.back();
+    property <color> tone: M3.subject(AppState.current-subject-n);
+    Scroller {
+        width: 100%;
+        height: 100%;
+        align: start;
+        pad: 0px;
+        // fascia nel colore della materia
+        Rectangle {
+            background: root.tone.with-alpha(0.22);
+            border-bottom-left-radius: 32px;
+            border-bottom-right-radius: 32px;
+            height: uhead.preferred-height;
+            uhead := VerticalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 4px;
+                padding-bottom: 22px;
+                spacing: 8px;
+                HorizontalLayout {
+                    height: 52px;
+                    spacing: 8px;
+                    IconButton {
+                        icon: Icons.back;
+                        tint: M3.on-surface;
+                        clicked => {
+                            AppState.back();
+                        }
+                    }
+                    Text {
+                        horizontal-stretch: 1;
+                        text: (AppState.subjects.length > AppState.current-subject-n ? AppState.subjects[AppState.current-subject-n].short + " · " : "") + "unità " + AppState.unit.n;
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: AppState.unit.name;
+                    font-size: 30px;
+                    font-weight: 900;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    spacing: 14px;
+                    Text {
+                        text: round(AppState.unit.mastery * 100) + "%";
+                        font-size: 44px;
+                        font-weight: 900;
+                        color: M3.on-surface;
+                        vertical-alignment: center;
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        spacing: 6px;
+                        Text {
+                            text: AppState.topics.length + " argomenti · " + AppState.unit.cfu + " CFU" + (AppState.unit.flagged > 0 ? " · " + AppState.unit.flagged + " insicure" : "");
+                            font-size: 13px;
+                            color: M3.on-surface;
+                            overflow: elide;
+                        }
+                        WavyProgress {
+                            value: AppState.unit.mastery;
+                            intro: false;
+                            fill: root.tone;
+                            track: M3.surface.with-alpha(0.7);
+                            amp: 3px;
+                            wavelength: 26px;
+                            thickness: 4px;
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    M3Button {
+                        text: "Quiz sull'unità";
+                        has-icon: true;
+                        icon: Icons.play;
+                        enabled: AppState.unit.questions > 0;
+                        clicked => {
+                            AppState.start-practice("unit", AppState.unit.id);
+                        }
+                    }
+                    M3Button {
+                        text: "Flashcard";
+                        kind: 1;
+                        has-icon: true;
+                        icon: Icons.cards;
+                        enabled: AppState.unit.cards > 0;
+                        clicked => {
+                            AppState.start-cards("unit", AppState.unit.id);
+                        }
+                    }
+                }
+                if AppState.books.length > 0: HorizontalLayout {
+                    alignment: start;
+                    M3Button {
+                        text: "Leggi";
+                        kind: 2;
+                        has-icon: true;
+                        icon: Icons.book;
+                        clicked => {
+                            AppState.open-book(AppState.books[0].id);
+                        }
+                    }
+                }
+                if AppState.unit.note != "": Text {
+                    text: "AI: " + AppState.unit.note;
+                    font-size: Type.label;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
             }
         }
 
-        Scroller {
-            vertical-stretch: 1;
-            align: start;
-            pad: 16px;
-            pad-top: 4px;
-            gap: 12px;
-            Card {
-                bg: M3.surface-container;
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    HorizontalLayout {
-                        Text {
-                            text: AppState.unit.name;
-                            font-size: Type.title;
-                            font-weight: 700;
-                            color: M3.on-surface;
-                            wrap: word-wrap;
-                            horizontal-stretch: 1;
-                        }
-
-                        Text {
-                            text: round(AppState.unit.mastery * 100) + "%";
-                            font-size: Type.headline;
-                            font-weight: 800;
-                            color: M3.level(AppState.unit.mastery);
-                        }
-                    }
-
-                    LinearProgress {
-                        value: AppState.unit.mastery;
-                        fill: M3.subject(AppState.current-subject-n);
-                    }
-
-                    Text {
-                        text: "CFU " + AppState.unit.cfu + " · " + AppState.unit.questions + " domande · " + AppState.unit.cards + " flashcard · argomenti affrontati " + round(AppState.unit.touched * 100) + "%" + (AppState.unit.time != "" ? "\nTempo: " + AppState.unit.time : "");
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                        wrap: word-wrap;
-                    }
-
-                    if AppState.unit.note != "": Text {
-                        text: "AI: " + AppState.unit.note;
-                        font-size: Type.body;
-                        color: M3.on-surface;
-                        wrap: word-wrap;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        M3Button {
-                            text: "Quiz";
-                            has-icon: true;
-                            icon: Icons.play;
-                            horizontal-stretch: 1;
-                            enabled: AppState.unit.questions > 0;
-                            clicked => {
-                                AppState.start-practice("unit", AppState.unit.id);
-                            }
-                        }
-
-                        M3Button {
-                            text: "Flashcard";
-                            kind: 1;
-                            has-icon: true;
-                            icon: Icons.cards;
-                            horizontal-stretch: 1;
-                            enabled: AppState.unit.cards > 0;
-                            clicked => {
-                                AppState.start-cards("unit", AppState.unit.id);
-                            }
-                        }
-                    }
-
-                    // fonti delle domande: valgono per il quiz dell'unità e per quelli degli argomenti
-                    if AppState.unit-sources.length > 1: VerticalLayout {
-                        spacing: 4px;
-                        Text {
-                            text: "Fonti delle domande";
-                            font-size: Type.label;
-                            font-weight: 700;
-                            color: M3.on-surface-variant;
-                        }
-                        ChipStrip {
-                            opts: AppState.unit-sources;
-                            kind: "source";
-                        }
-                    }
-                }
-            }
-
-            SectionTitle {
-                text: "Argomenti del syllabus";
-            }
-
-            for t in AppState.topics: VerticalLayout {
-                ListRow {
-                    title: t.name;
-                    subtitle: t.detail + (t.has-ai ? " · " + t.ai-text : "");
-                    value: t.mastery;
-                    accent: M3.level(t.mastery);
-                    trailing: round(t.mastery * 100) + "%";
-                    chevron: t.questions > 0;
-                    clicked => {
-                        if (t.questions > 0) {
-                            AppState.start-practice("topic", t.id);
-                        }
-                    }
-                }
-
-                if t.note != "": Text {
-                    text: "AI: " + t.note;
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+            // fonti delle domande: valgono per il quiz dell'unità e per quelli degli argomenti
+            if AppState.unit-sources.length > 1: VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: "Fonti delle domande";
                     font-size: Type.label;
+                    font-weight: 700;
                     color: M3.on-surface-variant;
-                    wrap: word-wrap;
                 }
+                ChipStrip {
+                    opts: AppState.unit-sources;
+                    kind: "source";
+                }
+            }
+            HorizontalLayout {
+                Text {
+                    horizontal-stretch: 1;
+                    text: "Argomenti";
+                    font-size: 17px;
+                    font-weight: 700;
+                    color: M3.primary;
+                }
+                Text {
+                    text: "rosso = più lento dell'esame";
+                    font-size: 12px;
+                    color: M3.on-surface-variant;
+                    vertical-alignment: center;
+                }
+            }
+            Rectangle {
+                border-radius: 24px;
+                clip: true;
+                height: tlist.preferred-height;
+                tlist := VerticalLayout {
+                    spacing: 3px;
+                    for t in AppState.topics: Rectangle {
+                        background: tta.pressed ? M3.surface-container-high : M3.surface-container;
+                        height: trow.preferred-height;
+                        trow := HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 14px;
+                            padding-top: 11px;
+                            padding-bottom: 11px;
+                            spacing: 10px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: t.name;
+                                    font-size: 15px;
+                                    color: M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+                                HorizontalLayout {
+                                    alignment: start;
+                                    Text {
+                                        text: t.line;
+                                        font-size: 12px;
+                                        color: M3.on-surface-variant;
+                                    }
+                                    if t.secs != "": Text {
+                                        text: t.secs;
+                                        font-size: 12px;
+                                        font-weight: t.slow ? 800 : 400;
+                                        color: t.slow ? M3.error : M3.on-surface-variant;
+                                    }
+                                    if t.secs != "": Text {
+                                        text: " a domanda";
+                                        font-size: 12px;
+                                        color: M3.on-surface-variant;
+                                    }
+                                }
+                                if t.note != "": Text {
+                                    text: "AI: " + t.note;
+                                    font-size: 12px;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                StatusPill {
+                                    text: t.status;
+                                    level: t.level;
+                                }
+                            }
+                        }
+                        tta := TouchArea {
+                            clicked => {
+                                if (t.questions > 0) {
+                                    AppState.start-practice("topic", t.id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                height: 72px;
             }
         }
     }

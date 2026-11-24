@@ -60,33 +60,95 @@ export component QuizPage inherits Page {
         }
     }
     VerticalLayout {
-        TopBar {
-            title: AppState.quiz-title;
-            subtitle: "Domanda " + (AppState.q-index + 1) + " di " + AppState.q-total + (AppState.quiz-mode == 1 ? " · risposte " + AppState.answered-count : "");
-            can-back: true;
-            back => {
-                AppState.back();
+        // intestazione (Traguardo): chiudi, titolo, tempo in una pillola, pausa
+        HorizontalLayout {
+            padding-left: 4px;
+            padding-right: 8px;
+            height: 60px;
+            spacing: 6px;
+            IconButton {
+                icon: Icons.close;
+                tint: M3.on-surface;
+                clicked => {
+                    AppState.back();
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: AppState.quiz-title;
+                    font-size: 17px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    overflow: elide;
+                }
+                if AppState.quiz-mode == 1: Text {
+                    text: "risposte " + AppState.answered-count + " di " + AppState.q-total;
+                    font-size: 12px;
+                    color: M3.on-surface-variant;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 36px;
+                    width: tpill.preferred-width + 24px;
+                    border-radius: 18px;
+                    background: (AppState.quiz-mode == 1 && AppState.time-warning) || (AppState.quiz-mode != 1 && AppState.q-slow) ? M3.error-container : M3.surface-container-high;
+                    animate background { duration: 400ms; }
+                    tpill := HorizontalLayout {
+                        x: 12px;
+                        spacing: 6px;
+                        VIcon {
+                            source: Icons.timer;
+                            size: 18px;
+                            tint: M3.on-surface;
+                        }
+                        Text {
+                            text: AppState.quiz-mode == 1 ? AppState.time-left : AppState.q-elapsed;
+                            font-size: 14px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                            color: M3.on-surface;
+                        }
+                    }
+                }
             }
             IconButton {
                 icon: Icons.pause;
+                tint: M3.on-surface;
                 clicked => {
                     AppState.pause-quiz();
                 }
             }
-            if AppState.quiz-mode == 1: Rectangle {
-                width: 100px;
-                Pill {
-                    text: AppState.time-left;
-                    bg: AppState.time-warning ? M3.error-container : M3.secondary-container;
-                    fg: AppState.time-warning ? M3.on-error-container : M3.on-secondary-container;
-                }
-            }
         }
 
-        LinearProgress {
-            height: 4px;
-            border-radius: 0px;
-            value: AppState.q-total > 0 ? (AppState.q-index + 1) / AppState.q-total : 0;
+        // avanzamento: «7/20» e barra ondulata
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-bottom: 6px;
+            spacing: 12px;
+            Text {
+                text: (AppState.q-index + 1) + "/" + AppState.q-total;
+                font-size: 13px;
+                font-weight: 800;
+                color: M3.on-surface;
+                vertical-alignment: center;
+            }
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 1;
+                WavyProgress {
+                    intro: false;
+                    value: AppState.q-total > 0 ? (AppState.q-index + 1) / AppState.q-total : 0;
+                    amp: 3px;
+                    wavelength: 20px;
+                    thickness: 4px;
+                    moving: false;
+                }
+            }
         }
 
         Swap {
@@ -106,50 +168,20 @@ export component QuizPage inherits Page {
                 alignment: start;
                 padding: 16px;
                 spacing: 12px;
-                HorizontalLayout {
-                    spacing: 8px;
-                    Pill {
-                        text: AppState.q-is-mcq ? "Risposta multipla" : "Completamento";
-                    }
-
-                    Text {
-                        text: AppState.q-topic;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                        overflow: elide;
-                        vertical-alignment: center;
-                        horizontal-stretch: 1;
-                    }
-
-                    Rectangle {
-                        height: 24px;
-                        border-radius: 12px;
-                        background: AppState.q-slow ? M3.warn-container : M3.surface-container-high;
-                        animate background { duration: 400ms; }
-                        HorizontalLayout {
-                            padding-left: 8px;
-                            padding-right: 10px;
-                            spacing: 4px;
-                            VIcon {
-                                source: Icons.timer;
-                                size: 14px;
-                                tint: AppState.q-slow ? M3.on-warn-container : M3.on-surface-variant;
-                            }
-
-                            Text {
-                                text: AppState.q-elapsed;
-                                font-size: Type.label;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                                color: AppState.q-slow ? M3.on-warn-container : M3.on-surface-variant;
-                            }
-                        }
-                    }
+                // argomento in piccolo, nel colore della materia; poi la domanda grande
+                Text {
+                    text: AppState.q-topic + (AppState.q-is-mcq ? "" : " · completamento");
+                    font-size: 12px;
+                    font-weight: 800;
+                    letter-spacing: 0.6px;
+                    color: M3.success;
+                    wrap: word-wrap;
                 }
 
                 Text {
                     text: AppState.q-text;
-                    font-size: 18px;
+                    font-size: 22px;
+                    font-weight: 700;
                     color: M3.on-surface;
                     wrap: word-wrap;
                 }
@@ -166,6 +198,10 @@ export component QuizPage inherits Page {
                         text: o.text;
                         note: o.note;
                         state: o.state;
+                        ref-label: AppState.quiz-mode != 1 ? AppState.q-ref : "";
+                        open-ref => {
+                            AppState.open-ref-quiz();
+                        }
                         clicked => {
                             AppState.select-option(i);
                         }
@@ -189,7 +225,7 @@ export component QuizPage inherits Page {
                     }
                 }
 
-                if AppState.q-answered && AppState.quiz-mode != 1: Card {
+                if AppState.q-answered && AppState.quiz-mode != 1 && !AppState.q-is-mcq: Card {
                     bg: AppState.q-correct ? M3.success-container : M3.error-container;
                     VerticalLayout {
                         padding: 16px;
@@ -235,7 +271,7 @@ export component QuizPage inherits Page {
                     height: 0px;
                 }
 
-                if AppState.q-source != "": Text {
+                if AppState.q-source != "" && !(AppState.q-answered && AppState.quiz-mode != 1): Text {
                     text: "Fonte: " + AppState.q-source;
                     wrap: word-wrap;
                     font-size: Type.label;
@@ -274,65 +310,94 @@ export component QuizPage inherits Page {
         }
         }
 
-        Rectangle {
-            background: M3.surface-container;
-            HorizontalLayout {
-                padding: 12px;
-                spacing: 8px;
-                Chip {
-                    text: "Insicura";
-                    has-icon: true;
-                    icon: AppState.q-unsure ? Icons.flag : Icons.flag-outline;
-                    accent: M3.error;
-                    selected: AppState.q-unsure;
+        // barra in basso: «Non sono sicuro», Salta, Conferma (poi fonte, Avanti)
+        HorizontalLayout {
+            padding: 14px;
+            padding-top: 8px;
+            spacing: 10px;
+            if !AppState.q-answered || AppState.quiz-mode == 1: Rectangle {
+                height: 36px;
+                width: urow.preferred-width + 20px;
+                border-radius: 10px;
+                background: AppState.q-unsure ? M3.primary-container : M3.surface-container-high;
+                urow := HorizontalLayout {
+                    x: 10px;
+                    spacing: 6px;
+                    VIcon {
+                        source: AppState.q-unsure ? Icons.check : Icons.flag-outline;
+                        size: 16px;
+                        tint: AppState.q-unsure ? M3.on-primary-container : M3.on-surface;
+                    }
+                    Text {
+                        text: "Non sono sicuro";
+                        font-size: 13px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                        color: AppState.q-unsure ? M3.on-primary-container : M3.on-surface;
+                    }
+                }
+                TouchArea {
                     clicked => {
                         AppState.toggle-unsure();
                     }
                 }
+            }
+            if AppState.q-answered && AppState.quiz-mode != 1: Text {
+                text: AppState.q-source;
+                font-size: 12px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+                max-width: 170px;
+            }
 
-                Rectangle {
-                    horizontal-stretch: 1;
-                }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
 
-                if AppState.quiz-mode == 1: IconButton {
-                    icon: Icons.chevron-left;
-                    enabled: AppState.q-index > 0;
-                    clicked => {
-                        AppState.prev();
-                    }
+            if AppState.quiz-mode == 1: IconButton {
+                icon: Icons.chevron-left;
+                enabled: AppState.q-index > 0;
+                clicked => {
+                    AppState.prev();
                 }
-                if AppState.quiz-mode == 1 && AppState.q-index + 1 < AppState.q-total: IconButton {
-                    icon: Icons.chevron;
-                    filled: true;
-                    clicked => {
-                        AppState.next();
-                    }
+            }
+            if AppState.quiz-mode == 1 && AppState.q-index + 1 < AppState.q-total: IconButton {
+                icon: Icons.chevron;
+                filled: true;
+                clicked => {
+                    AppState.next();
                 }
-                if AppState.quiz-mode == 1: M3Button {
-                    text: "Consegna";
-                    clicked => {
-                        AppState.finish();
-                    }
+            }
+            if AppState.quiz-mode == 1: M3Button {
+                text: "Consegna";
+                clicked => {
+                    AppState.finish();
                 }
-                if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
-                    text: "Salta";
-                    kind: 3;
-                    clicked => {
-                        AppState.skip();
-                    }
+            }
+            if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
+                text: "Salta";
+                kind: 3;
+                clicked => {
+                    AppState.skip();
                 }
-                if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
-                    text: "Conferma";
-                    enabled: AppState.q-can-confirm;
-                    clicked => {
-                        AppState.confirm();
-                    }
+            }
+            if AppState.quiz-mode != 1 && !AppState.q-answered: M3Button {
+                text: "Conferma";
+                has-icon: true;
+                icon: Icons.check;
+                enabled: AppState.q-can-confirm;
+                clicked => {
+                    AppState.confirm();
                 }
-                if AppState.quiz-mode != 1 && AppState.q-answered: M3Button {
-                    text: AppState.q-index + 1 < AppState.q-total ? "Avanti" : "Fine";
-                    clicked => {
-                        AppState.next();
-                    }
+            }
+            if AppState.quiz-mode != 1 && AppState.q-answered: M3Button {
+                text: AppState.q-index + 1 < AppState.q-total ? "Avanti" : "Fine";
+                has-icon: true;
+                icon: Icons.chevron;
+                clicked => {
+                    AppState.next();
                 }
             }
         }

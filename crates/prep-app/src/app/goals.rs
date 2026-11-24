@@ -831,6 +831,43 @@ impl Ctrl {
                     ai_text: ss(t.ai.map(|a| format!("AI {}%", (a * 100.0).round())).unwrap_or_default()),
                     note: ss(&t.ai_note),
                     questions: t.questions as i32,
+                    line: ss(if t.attempts == 0 {
+                        if t.questions == 0 && t.cards == 0 {
+                            "nessun contenuto ancora".to_string()
+                        } else {
+                            format!("mai visto · {} domande", t.questions)
+                        }
+                    } else {
+                        let mut l = format!("{}% giuste", (t.accuracy * 100.0).round());
+                        if t.flagged > 0 {
+                            l.push_str(&format!(" · {} insicure", t.flagged));
+                        }
+                        if t.timed > 0 {
+                            l.push_str(" · ");
+                        }
+                        l
+                    }),
+                    secs: ss(if t.attempts > 0 && t.timed > 0 {
+                        format!("{}″", t.avg_secs.round())
+                    } else {
+                        String::new()
+                    }),
+                    slow: t.timed > 0 && t.avg_secs > pace,
+                    status: ss(match () {
+                        _ if t.attempts == 0 => "mai visto",
+                        _ if t.mastery >= 0.7 => "buono",
+                        _ if t.mastery >= 0.4 => "in corso",
+                        _ => "debole",
+                    }),
+                    level: if t.attempts == 0 {
+                        0
+                    } else if t.mastery >= 0.7 {
+                        3
+                    } else if t.mastery >= 0.4 {
+                        2
+                    } else {
+                        1
+                    },
                 }
             })
             .collect();

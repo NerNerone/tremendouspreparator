@@ -53,6 +53,13 @@ export struct TopicVM {
     ai-text: string,
     note: string,
     questions: int,
+    // Traguardo: riga breve («62% giuste · 3 insicure · »), secondi a domanda, stato a pillola
+    line: string,
+    secs: string,
+    slow: bool,
+    status: string,
+    // 0 mai visto, 1 debole, 2 in corso, 3 buono
+    level: int,
 }
 
 export struct OptionVM {
