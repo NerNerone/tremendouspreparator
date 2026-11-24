@@ -936,6 +936,11 @@ export global AppState {
     callback start-practice(string, string);
     callback start-exam(string);
     callback start-official(string, string);
+    // simulazione dalla pagina «Simulazioni»: materia ("" = tutte), con il tempo dell'esame
+    callback start-sim(string, bool);
+    in property <string> sim-hero;
+    in property <string> sim-timed-label;
+    in property <[QzOptVM]> sim-officials;
     callback start-review(string);
     callback qz-toggle(string, string);
     callback qz-set-n(int);

@@ -180,6 +180,36 @@ impl Ctrl {
         }
     }
 
+    /// Simulazione dalla pagina «Simulazioni»: una materia, o tutte una dopo l'altra (`sid`
+    /// vuoto) con il tempo di tutte; `timed` falso = senza limite di tempo.
+    pub(super) fn start_sim(&mut self, sid: &str, timed: bool) {
+        let rules = self.content.syllabus().exam.clone();
+        let subjects: Vec<String> = if sid.is_empty() {
+            self.content.syllabus().subjects.iter().map(|s| s.id.clone()).collect()
+        } else {
+            vec![sid.to_string()]
+        };
+        let mut ids: Vec<String> = Vec::new();
+        let mut short = false;
+        for s in &subjects {
+            let v = select::exam(&self.content, s, &rules);
+            short |= v.len() < rules.questions;
+            ids.extend(v);
+        }
+        if short {
+            self.toast("Banca domande ancora piccola: la simulazione ha meno quesiti della prova vera");
+        }
+        let title = if sid.is_empty() {
+            "Simulazione completa".to_string()
+        } else {
+            self.content.subject(sid).map(|s| s.name.clone()).unwrap_or_default()
+        };
+        self.exam_minutes = Some(if timed { rules.minutes as u64 * subjects.len().max(1) as u64 } else { 0 });
+        let subject = (!sid.is_empty()).then(|| sid.to_string());
+        self.start_quiz(SessionKind::Exam, ids, title, subject, None);
+        self.exam_minutes = None;
+    }
+
     pub(super) fn start_quiz(
         &mut self,
         kind: SessionKind,
@@ -198,8 +228,9 @@ impl Ctrl {
         }
         let questions: Vec<Question> = ids.iter().filter_map(|id| self.content.question(id).cloned()).collect();
         let n = questions.len();
-        let minutes = self.content.syllabus().exam.minutes as u64;
-        let deadline = (kind == SessionKind::Exam).then(|| Instant::now() + Duration::from_secs(minutes * 60));
+        let minutes = self.exam_minutes.take().unwrap_or(self.content.syllabus().exam.minutes as u64);
+        let deadline =
+            (kind == SessionKind::Exam && minutes > 0).then(|| Instant::now() + Duration::from_secs(minutes * 60));
         // opzioni mescolate a ogni presentazione: la risposta giusta non è mai "sempre la A"
         let perm = questions.iter().map(|q| prep_core::model::display_order(&q.options)).collect();
         self.quiz = Some(Quiz {

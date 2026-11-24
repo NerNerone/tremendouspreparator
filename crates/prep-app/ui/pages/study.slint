@@ -178,7 +178,7 @@ export component StudyPage inherits Page {
                                 icon: Icons.timer;
                                 label: "Simulazione";
                                 clicked => {
-                                    AppState.start-exam(AppState.current-subject);
+                                    AppState.open-simlog();
                                 }
                             }
                             for t in AppState.official-tests: ToolTile {

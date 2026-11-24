@@ -1,6 +1,6 @@
 import { M3, Icons, Type } from "../theme.slint";
 import { AppState, SimRowVM } from "../state.slint";
-import { Page, TopBar, Scroller, Card, Hint } from "../components.slint";
+import { Page, Icon, M3Button, Scroller, Card, BigHeader, GroupLabel, GRow, M3Switch } from "../components.slint";
 
 // una riga del registro: data, punteggio con barra, esito; si tocca per rivederla
 component SimRow inherits Rectangle {
@@ -71,13 +71,18 @@ component SimRow inherits Rectangle {
     }
 }
 
-// registro delle simulazioni: media, andamento e l'elenco da rivedere
+// Traguardo: «Simulazioni». Nuova prova (materia, tempo, concentrazione), prove ufficiali e
+// registro con media, andamento e l'elenco da rivedere.
 export component SimLogPage inherits Page {
+    // 0 = tutte le materie, poi una per materia
+    property <int> sel: 0;
+    property <bool> timed: true;
+    property <bool> with-focus: false;
+    property <string> sid: sel == 0 || AppState.subjects.length == 0 ? "" : AppState.subjects[sel - 1].id;
     VerticalLayout {
-        TopBar {
-            title: "Registro simulazioni";
-            subtitle: AppState.exam-name;
-            can-back: true;
+        BigHeader {
+            title: "Simulazioni";
+            subtitle: "Registro e nuova prova";
             back => {
                 AppState.back();
             }
@@ -88,14 +93,180 @@ export component SimLogPage inherits Page {
             pad: 16px;
             pad-top: 4px;
             gap: 10px;
-            Card {
+
+            // nuova simulazione
+            if AppState.subjects.length > 0: Rectangle {
+                border-radius: 28px;
+                background: M3.primary-container;
+                min-height: hero.preferred-height;
+                hero := VerticalLayout {
+                    padding: 18px;
+                    spacing: 12px;
+                    Text {
+                        text: "NUOVA SIMULAZIONE";
+                        font-size: 12px;
+                        font-weight: 800;
+                        letter-spacing: 0.8px;
+                        color: M3.on-primary-container;
+                    }
+                    Text {
+                        text: AppState.sim-hero;
+                        font-size: 26px;
+                        font-weight: 900;
+                        color: M3.on-primary-container;
+                        wrap: word-wrap;
+                    }
+                    // materia: tutte (una dopo l'altra) o una sola
+                    if AppState.subjects.length > 1: HorizontalLayout {
+                        spacing: 3px;
+                        for lab[i] in ["Tutte e " + AppState.subjects.length]: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 40px;
+                            border-top-left-radius: 20px;
+                            border-bottom-left-radius: 20px;
+                            border-top-right-radius: root.sel == 0 ? 20px : 6px;
+                            border-bottom-right-radius: root.sel == 0 ? 20px : 6px;
+                            background: root.sel == 0 ? M3.primary : M3.surface.with-alpha(0.6);
+                            Text {
+                                text: lab;
+                                font-size: 13px;
+                                font-weight: 800;
+                                color: root.sel == 0 ? M3.on-primary : M3.on-surface;
+                            }
+                            TouchArea {
+                                clicked => {
+                                    root.sel = 0;
+                                }
+                            }
+                        }
+                        for su[i] in AppState.subjects: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 40px;
+                            property <bool> on: root.sel == i + 1;
+                            property <bool> end: i == AppState.subjects.length - 1;
+                            border-top-left-radius: self.on ? 20px : 6px;
+                            border-bottom-left-radius: self.on ? 20px : 6px;
+                            border-top-right-radius: self.on || self.end ? 20px : 6px;
+                            border-bottom-right-radius: self.on || self.end ? 20px : 6px;
+                            background: self.on ? M3.primary : M3.surface.with-alpha(0.6);
+                            Text {
+                                text: su.short != "" ? su.short : su.name;
+                                font-size: 13px;
+                                font-weight: on ? 800 : 500;
+                                color: on ? M3.on-primary : M3.on-surface;
+                                overflow: elide;
+                            }
+                            TouchArea {
+                                clicked => {
+                                    root.sel = i + 1;
+                                }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            text: AppState.sim-timed-label;
+                            font-size: 14px;
+                            color: M3.on-primary-container;
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        M3Switch {
+                            checked <=> root.timed;
+                        }
+                    }
+                    // concentrazione: il telefono resta sull'app durante la prova (solo Android)
+                    if AppState.focus-available: HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            text: "Concentrazione durante la prova";
+                            font-size: 14px;
+                            color: M3.on-primary-container;
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        M3Switch {
+                            checked <=> root.with-focus;
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        M3Button {
+                            text: "Inizia la simulazione";
+                            has-icon: true;
+                            icon: Icons.play;
+                            clicked => {
+                                if (root.with-focus && !AppState.focus-active) {
+                                    AppState.focus-start();
+                                }
+                                AppState.start-sim(root.sid, root.timed);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // prove ufficiali intere (o della materia scelta)
+            if AppState.sim-officials.length > 0: GroupLabel {
+                text: "Prove ufficiali";
+            }
+            if AppState.sim-officials.length > 0: VerticalLayout {
+                spacing: 3px;
+                for t[i] in AppState.sim-officials: GRow {
+                    first: i == 0;
+                    last: i == AppState.sim-officials.length - 1;
+                    icon: Icons.gavel;
+                    tone: M3.success-container;
+                    on-tone: M3.on-success-container;
+                    title: t.name;
+                    sub: root.sel == 0 ? t.group : "solo " + AppState.subjects[root.sel - 1].name;
+                    trail: 1;
+                    clicked => {
+                        AppState.start-official(root.sid, t.id);
+                    }
+                }
+            }
+
+            GroupLabel {
+                text: "Registro";
+            }
+            if AppState.sim-count == 0: Rectangle {
+                border-radius: 24px;
+                border-width: 1px;
+                border-color: M3.outline;
+                min-height: empty.preferred-height;
+                empty := HorizontalLayout {
+                    padding: 18px;
+                    spacing: 14px;
+                    VerticalLayout {
+                        alignment: center;
+                        Icon {
+                            width: 24px;
+                            height: 24px;
+                            source: Icons.history;
+                            tint: M3.on-surface-variant;
+                        }
+                    }
+                    Text {
+                        horizontal-stretch: 1;
+                        text: "Qui compariranno media, migliore e andamento. Una simulazione pesa più di dieci quiz nella stima della preparazione.";
+                        font-size: 13px;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            if AppState.sim-count > 0: Card {
                 VerticalLayout {
                     padding: 16px;
                     spacing: 8px;
                     Text {
                         text: AppState.sim-summary;
                         font-size: Type.title;
-                        font-weight: 700;
+                        font-weight: 800;
                         color: M3.on-surface;
                         wrap: word-wrap;
                     }
@@ -129,10 +300,6 @@ export component SimLogPage inherits Page {
                         }
                     }
                 }
-            }
-            if AppState.sim-count == 0: Hint {
-                short: "Le simulazioni che fai finiscono qui.";
-                full: "Ogni simulazione d'esame completata (anche le prove ufficiali) finisce in questo registro con punteggio, esito e durata; toccala per rivedere domanda per domanda le risposte e le spiegazioni.";
             }
             for r in AppState.sim-rows: SimRow {
                 r: r;

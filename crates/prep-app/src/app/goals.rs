@@ -2,6 +2,21 @@
 
 use super::*;
 
+const MESI_IT: [&str; 12] = [
+    "gennaio",
+    "febbraio",
+    "marzo",
+    "aprile",
+    "maggio",
+    "giugno",
+    "luglio",
+    "agosto",
+    "settembre",
+    "ottobre",
+    "novembre",
+    "dicembre",
+];
+
 impl Ctrl {
     // ---------- obiettivi del giorno ----------
 
@@ -575,20 +590,6 @@ impl Ctrl {
             })
             .collect();
         // fascia di Oggi: giorni al prossimo appello (con la data) e quello dopo
-        const MESI: [&str; 12] = [
-            "gennaio",
-            "febbraio",
-            "marzo",
-            "aprile",
-            "maggio",
-            "giugno",
-            "luglio",
-            "agosto",
-            "settembre",
-            "ottobre",
-            "novembre",
-            "dicembre",
-        ];
         let upcoming: Vec<(i64, NaiveDate, String)> = {
             let mut v: Vec<(i64, NaiveDate, String)> = self
                 .content
@@ -613,7 +614,7 @@ impl Ctrl {
                     "{} al {} {}",
                     if *days == 1 { "giorno" } else { "giorni" },
                     nd.day(),
-                    MESI[nd.month0() as usize]
+                    MESI_IT[nd.month0() as usize]
                 )));
             }
             None => {
@@ -802,6 +803,57 @@ impl Ctrl {
             subject.map(|s| s.links.iter().map(|l| ss(&l.label)).collect()).unwrap_or_default(),
         ));
         st.set_official_tests(model(self.official_tests(&cur)));
+        // pagina «Simulazioni»: titolo della prova e prove ufficiali intere
+        {
+            use chrono::Datelike;
+            let rules = &self.content.syllabus().exam;
+            let today = Local::now().date_naive();
+            let next = rules
+                .dates
+                .iter()
+                .filter_map(|d| NaiveDate::parse_from_str(&d.date, "%Y-%m-%d").ok())
+                .find(|d| *d >= today);
+            let per = if subjects.len() > 1 { " a materia" } else { "" };
+            st.set_sim_hero(ss(match next {
+                Some(d) => {
+                    format!("{} domande{per}, come il {} {}", rules.questions, d.day(), MESI_IT[d.month0() as usize])
+                }
+                None => format!("{} domande{per}, come all'esame", rules.questions),
+            }));
+            st.set_sim_timed_label(ss(format!(
+                "Tempo come all'esame ({} min{})",
+                rules.minutes,
+                if subjects.len() > 1 { " a materia" } else { "" }
+            )));
+            let all: Vec<QzOptVM> = self
+                .content
+                .syllabus()
+                .official
+                .iter()
+                .filter_map(|t| {
+                    let mut n = 0;
+                    let mut parts = 0;
+                    for s in subjects {
+                        let prefix = format!("{}-{}-", s.id, t.tag);
+                        let k = self.content.questions.iter().filter(|q| q.id.starts_with(&prefix)).count();
+                        n += k;
+                        parts += usize::from(k > 0);
+                    }
+                    (n > 0).then(|| QzOptVM {
+                        id: ss(&t.tag),
+                        name: ss(&t.label),
+                        group: ss(if parts > 1 {
+                            format!("{n} domande vere · {parts} × {} min", rules.minutes)
+                        } else {
+                            format!("{n} domande vere · {} min", rules.minutes)
+                        }),
+                        count: n as i32,
+                        ..Default::default()
+                    })
+                })
+                .collect();
+            st.set_sim_officials(model(all));
+        }
         let Some(sp) = self.progress.subjects.iter().find(|s| s.id == cur) else {
             return;
         };

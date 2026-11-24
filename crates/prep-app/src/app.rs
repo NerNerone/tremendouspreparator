@@ -413,6 +413,8 @@ pub struct Ctrl {
     update_url: String,
     /// rami del repository GitHub (vedi `github::gh_load_branches`)
     gh_branches: Vec<String>,
+    /// minuti della prossima simulazione (Some(0) = senza tempo), al posto di quelli del pacchetto
+    exam_minutes: Option<u64>,
     update_asset: String,
     update_sha256: Option<String>,
     update_sums_url: String,
@@ -1173,6 +1175,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         study_notified: (0, -1),
         update_url: String::new(),
         gh_branches: Vec::new(),
+        exam_minutes: None,
         update_asset: String::new(),
         update_sha256: None,
         update_sums_url: String::new(),
@@ -1330,10 +1333,25 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     });
     st.on_start_official(|sid, tag| {
         with_ctrl(|c| {
-            let prefix = format!("{sid}-{tag}-");
-            let mut ids: Vec<String> =
-                c.content.questions.iter().filter(|q| q.id.starts_with(&prefix)).map(|q| q.id.clone()).collect();
-            ids.sort();
+            // materia vuota: la prova intera, una materia dopo l'altra, con il tempo di tutte
+            let subjects: Vec<String> = if sid.is_empty() {
+                c.content.syllabus().subjects.iter().map(|s| s.id.clone()).collect()
+            } else {
+                vec![sid.to_string()]
+            };
+            let mut ids: Vec<String> = Vec::new();
+            let mut parts = 0u64;
+            for s in &subjects {
+                let prefix = format!("{s}-{tag}-");
+                let mut v: Vec<String> =
+                    c.content.questions.iter().filter(|q| q.id.starts_with(&prefix)).map(|q| q.id.clone()).collect();
+                v.sort();
+                parts += u64::from(!v.is_empty());
+                ids.extend(v);
+            }
+            if sid.is_empty() {
+                c.exam_minutes = Some(c.content.syllabus().exam.minutes as u64 * parts.max(1));
+            }
             let name = c.content.subject(&sid).map(|s| s.name.clone()).unwrap_or_default();
             let label = c
                 .content
@@ -1343,9 +1361,12 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
                 .find(|t| t.tag == tag.as_str())
                 .map(|t| t.label.clone())
                 .unwrap_or_else(|| tag.to_string());
-            c.start_quiz(SessionKind::Exam, ids, format!("{name} · {label}"), Some(sid.to_string()), None);
+            let title = if sid.is_empty() { label } else { format!("{name} · {label}") };
+            let subject = (!sid.is_empty()).then(|| sid.to_string());
+            c.start_quiz(SessionKind::Exam, ids, title, subject, None);
         })
     });
+    st.on_start_sim(|sid, timed| with_ctrl(|c| c.start_sim(&sid, timed)));
     st.on_start_review(|sid| {
         with_ctrl(|c| {
             let scope = if sid.is_empty() { Scope::All } else { Scope::Subject(sid.to_string()) };
