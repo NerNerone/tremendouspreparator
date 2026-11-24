@@ -1,16 +1,76 @@
-import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
+// uno dei tre pulsanti uniti del voto (Traguardo)
+component GradeSeg inherits Rectangle {
+    in property <string> text;
+    in property <bool> first;
+    in property <bool> last;
+    in property <bool> hot;
+    callback clicked;
+    horizontal-stretch: 1;
+    height: 56px;
+    border-top-left-radius: root.first || root.hot ? 28px : 8px;
+    border-bottom-left-radius: root.first || root.hot ? 28px : 8px;
+    border-top-right-radius: root.last || root.hot ? 28px : 8px;
+    border-bottom-right-radius: root.last || root.hot ? 28px : 8px;
+    background: gta.pressed ? M3.secondary-container.darker(0.1) : root.hot ? #FFD98A : M3.secondary-container;
+    Text {
+        text: root.text;
+        font-size: 16px;
+        font-weight: 700;
+        color: root.hot ? #3B2A00 : M3.on-secondary-container;
+    }
+    gta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component CardsPage inherits Page {
     VerticalLayout {
-        TopBar {
-            title: "Flashcard";
-            subtitle: AppState.c-done ? "Sessione completata" : (AppState.c-index + 1) + " di " + AppState.c-total + " · " + AppState.c-topic;
-            can-back: true;
-            back => {
-                AppState.back();
+        // intestazione: chiudi, titolo e posizione, barra ondulata
+        HorizontalLayout {
+            padding-left: 4px;
+            padding-right: 12px;
+            height: 60px;
+            spacing: 6px;
+            IconButton {
+                icon: Icons.close;
+                tint: M3.on-surface;
+                clicked => {
+                    AppState.back();
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: "Ripasso flashcard";
+                    font-size: 17px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                }
+                Text {
+                    text: AppState.c-done ? "Sessione completata" : (AppState.c-index + 1) + " di " + AppState.c-total;
+                    font-size: 12px;
+                    color: M3.on-surface-variant;
+                }
+            }
+        }
+        if !AppState.c-done: HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-bottom: 8px;
+            WavyProgress {
+                intro: false;
+                moving: false;
+                value: AppState.c-total > 0 ? (AppState.c-index + 1) / AppState.c-total : 0;
+                amp: 3px;
+                wavelength: 20px;
+                thickness: 4px;
             }
         }
 
@@ -38,155 +98,205 @@ export component CardsPage inherits Page {
         if !AppState.c-done: cv := VerticalLayout {
             vertical-stretch: 1;
             padding: 16px;
-            spacing: 12px;
+            padding-top: 8px;
+            spacing: 14px;
             property <float> flip: AppState.c-flipped ? 1 : 0;
             animate flip {
                 duration: 420ms;
                 easing: ease-in-out;
             }
             property <bool> show-back: self.flip > 0.5;
-            LinearProgress {
-                value: AppState.c-total > 0 ? AppState.c-index / AppState.c-total : 0;
-                height: 4px;
-            }
 
             Swap {
                 key: "" + AppState.c-index;
                 vertical-stretch: 1;
-            Card {
-                width: parent.width;
-                height: parent.height;
-                bg: cv.show-back ? M3.surface-container-high : M3.surface-container-low;
-                transform-scale-x: max(0.02, abs(1 - 2 * cv.flip)) * 100%;
-                clickable: true;
-                clicked => {
-                    AppState.card-flip();
+                // mazzo: una carta sotto, appena più stretta
+                Rectangle {
+                    x: 18px;
+                    y: card.height + 16px - self.height;
+                    width: parent.width - 36px;
+                    height: 40px;
+                    border-radius: 0px;
+                    border-bottom-left-radius: 28px;
+                    border-bottom-right-radius: 28px;
+                    background: M3.surface-container-high;
                 }
-                Scroller {
-                    pad: 24px;
-                    gap: 16px;
-                    align: center;
-                    Text {
-                        text: AppState.c-front;
-                        font-size: 20px;
-                        font-weight: 600;
-                        wrap: word-wrap;
-                        horizontal-alignment: center;
-                        color: M3.on-surface;
-                    }
-
-                    if cv.show-back: Rectangle {
-                        height: 1px;
-                        background: M3.outline-variant;
-                    }
-                    if cv.show-back: Text {
-                        text: AppState.c-back;
-                        font-size: 17px;
-                        wrap: word-wrap;
-                        horizontal-alignment: center;
-                        color: M3.on-surface;
-                    }
-                    if cv.show-back && AppState.c-ref != "": RefBox {
-                        label: AppState.c-ref;
-                        open => {
-                            AppState.open-ref-card();
-                        }
-                    }
-                    if cv.show-back && AppState.c-note-shown != "": Rectangle {
-                        border-radius: 10px;
-                        background: M3.secondary-container;
-                        HorizontalLayout {
-                            padding: 10px;
-                            Text {
-                                text: "La tua spiegazione: " + AppState.c-note-shown;
-                                wrap: word-wrap;
-                                font-size: Type.body;
-                                color: M3.on-secondary-container;
+                card := Rectangle {
+                    y: 0;
+                    width: parent.width;
+                    height: min(parent.height - 16px, max(470px, inner.preferred-height));
+                    border-radius: 36px;
+                    background: cv.show-back ? M3.surface-container : M3.primary-container;
+                    border-width: cv.show-back ? 2px : 0px;
+                    border-color: M3.primary;
+                    transform-scale-x: max(0.02, abs(1 - 2 * cv.flip)) * 100%;
+                    clip: true;
+                    TouchArea {
+                        clicked => {
+                            if (!AppState.c-flipped) {
+                                AppState.card-flip();
                             }
                         }
                     }
-                    if !cv.show-back: Text {
-                        text: "Tocca per vedere la risposta";
-                        font-size: Type.label;
-                        horizontal-alignment: center;
-                        color: M3.on-surface-variant;
+                    inner := VerticalLayout {
+                        padding: 24px;
+                        spacing: 12px;
+                        Text {
+                            text: cv.show-back ? "RETRO" : "FRONTE" + (AppState.c-topic != "" ? " · " + AppState.c-topic : "");
+                            font-size: 12px;
+                            font-weight: 800;
+                            letter-spacing: 0.8px;
+                            color: cv.show-back ? M3.primary : M3.on-primary-container;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: AppState.c-front;
+                            font-size: cv.show-back ? 16px : 28px;
+                            font-weight: cv.show-back ? 700 : 900;
+                            color: cv.show-back ? M3.on-surface-variant : M3.on-primary-container;
+                            wrap: word-wrap;
+                        }
+                        if cv.show-back: Text {
+                            text: AppState.c-back;
+                            font-size: 20px;
+                            color: M3.on-surface;
+                            wrap: word-wrap;
+                        }
+                        if cv.show-back && AppState.c-ref != "": RefBox {
+                            label: AppState.c-ref;
+                            open => {
+                                AppState.open-ref-card();
+                            }
+                        }
+                        Rectangle {
+                            vertical-stretch: 1;
+                        }
+                        // fronte: spiegazione a parole proprie dentro la carta
+                        if !cv.show-back: Rectangle {
+                            border-radius: 24px;
+                            background: M3.surface;
+                            height: 150px;
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 4px;
+                                Text {
+                                    text: "Spiegalo a parole tue";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: M3.primary;
+                                }
+                                Rectangle {
+                                    vertical-stretch: 1;
+                                    clip: true;
+                                    note-in := TextInput {
+                                        y: 0;
+                                        width: parent.width;
+                                        text <=> AppState.c-note;
+                                        single-line: false;
+                                        wrap: word-wrap;
+                                        font-size: 15px;
+                                        color: M3.on-surface;
+                                    }
+                                    if note-in.text == "": Text {
+                                        y: 0;
+                                        width: parent.width;
+                                        text: AppState.sync-configured ? "Facoltativo: resta nel tuo storico e l'AI la rilegge alla revisione." : "Facoltativo: resta nel tuo storico.";
+                                        font-size: 15px;
+                                        color: M3.on-surface-variant;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+                        if cv.show-back && AppState.c-note-shown != "": Rectangle {
+                            border-radius: 20px;
+                            background: M3.surface-container-high;
+                            height: nl.preferred-height;
+                            nl := VerticalLayout {
+                                padding: 14px;
+                                spacing: 4px;
+                                Text {
+                                    text: "La tua spiegazione";
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                }
+                                Text {
+                                    text: AppState.c-note-shown;
+                                    font-size: 14px;
+                                    color: M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+                                if AppState.sync-configured: Text {
+                                    text: "La rilegge l'AI alla prossima revisione dei progressi";
+                                    font-size: 11px;
+                                    color: M3.on-surface-variant;
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            }
-
-            if !cv.show-back: TextEdit {
-                text <=> AppState.c-note;
-                placeholder-text: "Prima di girare: spiegala a parole tue (facoltativo, resta nel tuo storico)";
-                wrap: word-wrap;
-                min-height: 72px;
-                max-height: 120px;
-            }
-
-            HorizontalLayout {
-                alignment: center;
-                Chip {
-                    text: "Insicura";
+            // fronte: «Non lo so» e «Gira la carta»
+            if !AppState.c-flipped: HorizontalLayout {
+                spacing: 10px;
+                M3Button {
+                    text: "Non lo so";
+                    kind: 3;
+                    clicked => {
+                        if (!AppState.c-unsure) {
+                            AppState.card-toggle-unsure();
+                        }
+                        AppState.card-flip();
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+                M3Button {
+                    text: "Gira la carta";
                     has-icon: true;
-                    icon: AppState.c-unsure ? Icons.flag : Icons.flag-outline;
-                    accent: M3.error;
-                    selected: AppState.c-unsure;
+                    icon: Icons.sync;
                     clicked => {
-                        AppState.card-toggle-unsure();
+                        AppState.card-flip();
                     }
                 }
             }
-
-            if !AppState.c-flipped: M3Button {
-                text: "Mostra risposta";
-                clicked => {
-                    AppState.card-flip();
+            // retro: come è andata
+            if AppState.c-flipped: VerticalLayout {
+                spacing: 8px;
+                Text {
+                    text: "Come è andata?";
+                    font-size: 13px;
+                    color: M3.on-surface-variant;
+                    horizontal-alignment: center;
                 }
-            }
-            if AppState.c-flipped: HorizontalLayout {
-                spacing: 6px;
-                M3Button {
-                    text: "Ancora";
-                    compact: true;
-                    min-width: 0px;
-                    kind: 4;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.card-grade(0);
+                HorizontalLayout {
+                    spacing: 3px;
+                    GradeSeg {
+                        text: "Sbagliata";
+                        first: true;
+                        clicked => {
+                            AppState.card-grade(0);
+                        }
                     }
-                }
-
-                M3Button {
-                    text: "Difficile";
-                    compact: true;
-                    min-width: 0px;
-                    kind: 1;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.card-grade(1);
+                    GradeSeg {
+                        text: "Insicura";
+                        hot: AppState.c-unsure;
+                        clicked => {
+                            if (!AppState.c-unsure) {
+                                AppState.card-toggle-unsure();
+                            }
+                            AppState.card-grade(1);
+                        }
                     }
-                }
-
-                M3Button {
-                    text: "Bene";
-                    compact: true;
-                    min-width: 0px;
-                    kind: 1;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.card-grade(2);
-                    }
-                }
-
-                M3Button {
-                    text: "Facile";
-                    compact: true;
-                    min-width: 0px;
-                    kind: 0;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.card-grade(3);
+                    GradeSeg {
+                        text: "Giusta";
+                        last: true;
+                        clicked => {
+                            AppState.card-grade(2);
+                        }
                     }
                 }
             }

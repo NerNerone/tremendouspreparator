@@ -576,6 +576,21 @@ impl Ctrl {
             st.set_r_points(ss(format!("{}/{}", sc.correct, sc.correct + sc.wrong + sc.omitted)));
             st.set_r_summary(ss(format!("{} errate · {} insicure{time_line}", sc.wrong, sc.unsure)));
         }
+        // Traguardo: anello, quattro riquadri, piano e serie
+        let total = sc.correct + sc.wrong + sc.omitted;
+        st.set_r_right(sc.correct as i32);
+        st.set_r_wrong(sc.wrong as i32);
+        st.set_r_skipped(sc.omitted as i32);
+        st.set_r_avg(ss(if timed.is_empty() { "—".to_string() } else { format!("{}″", avg.round()) }));
+        if exam && sc.max > 0.0 {
+            st.set_r_big(ss(it1(sc.points)));
+            st.set_r_big_sub(ss(format!("punti su {}", it1(sc.max).trim_end_matches(",0"))));
+            st.set_r_frac((sc.points / sc.max).clamp(0.0, 1.0) as f32);
+        } else {
+            st.set_r_big(ss(sc.correct.to_string()));
+            st.set_r_big_sub(ss(format!("giuste su {total}")));
+            st.set_r_frac(if total > 0 { sc.correct as f32 / total as f32 } else { 0.0 });
+        }
         st.set_r_rating(0);
         st.set_r_feedback(ss(""));
         st.set_r_feedback_sent(false);

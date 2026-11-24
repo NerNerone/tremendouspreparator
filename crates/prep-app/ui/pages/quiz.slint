@@ -410,56 +410,64 @@ component ResultTile inherits Rectangle {
     callback open-ref;
     callback report;
     property <bool> expanded: false;
-    border-radius: 14px;
-    background: M3.surface-container-low;
-    TouchArea {
+    background: rta.pressed ? M3.surface-container-high : M3.surface-container;
+    height: rcol.preferred-height;
+    rta := TouchArea {
         clicked => {
             root.expanded = !root.expanded;
         }
     }
 
-    VerticalLayout {
-        padding: 12px;
-        spacing: 6px;
+    rcol := VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
         HorizontalLayout {
-            spacing: 10px;
-            Rectangle {
-                width: 28px;
-                height: 28px;
-                border-radius: 14px;
-                background: root.item.status == 0 ? M3.success : root.item.status == 1 ? M3.error : root.item.status == 2 ? M3.outline : M3.primary;
-                Text {
-                    text: root.item.n;
-                    color: M3.surface;
-                    font-weight: 700;
-                    font-size: Type.label;
+            spacing: 14px;
+            VerticalLayout {
+                alignment: start;
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 14px;
+                    background: root.item.status == 0 ? M3.success-container : root.item.status == 1 ? M3.error-container : M3.surface-container-highest;
+                    Icon {
+                        x: 9px;
+                        y: 9px;
+                        width: 22px;
+                        height: 22px;
+                        source: root.item.status == 0 ? Icons.check : root.item.status == 1 ? Icons.close : Icons.remove;
+                        tint: root.item.status == 0 ? M3.success : root.item.status == 1 ? M3.error : M3.on-surface-variant;
+                    }
                 }
             }
-
-            Text {
-                text: root.item.text;
-                color: M3.on-surface;
-                wrap: word-wrap;
-                overflow: elide;
-                // chiusa: al massimo tre righe circa, senza lasciare spazio vuoto sotto
-                height: root.expanded ? self.preferred-height : min(self.preferred-height, 60px);
+            VerticalLayout {
                 horizontal-stretch: 1;
-            }
-
-            IconButton {
-                icon: root.item.unsure ? Icons.flag : Icons.flag-outline;
-                tint: root.item.unsure ? M3.error : M3.on-surface-variant;
-                clicked => {
-                    root.toggle-flag();
+                spacing: 2px;
+                Text {
+                    text: root.item.text;
+                    color: M3.on-surface;
+                    font-size: 15px;
+                    wrap: word-wrap;
+                    overflow: elide;
+                    height: root.expanded ? self.preferred-height : min(self.preferred-height, 40px);
+                }
+                Text {
+                    text: (root.item.status == 3 ? "" : "tua: " + (root.item.given == "" ? "—" : root.item.given) + " · ") + "giusta: " + root.item.correct-text + (root.item.secs != "" ? " · " + root.item.secs : "");
+                    color: root.item.slow ? M3.error : M3.on-surface-variant;
+                    font-size: 12px;
+                    wrap: word-wrap;
                 }
             }
-        }
-
-        Text {
-            text: (root.item.status == 3 ? "" : "Tua: " + (root.item.given == "" ? "—" : root.item.given) + " · ") + "Corretta: " + root.item.correct-text + (root.item.secs != "" ? " · " + root.item.secs + (root.item.slow ? " (lenta)" : "") : "");
-            color: M3.on-surface-variant;
-            font-size: Type.label;
-            wrap: word-wrap;
+            VerticalLayout {
+                alignment: start;
+                IconButton {
+                    icon: root.item.unsure ? Icons.flag : Icons.flag-outline;
+                    tint: root.item.unsure ? M3.error : M3.on-surface-variant;
+                    clicked => {
+                        root.toggle-flag();
+                    }
+                }
+            }
         }
 
         if root.expanded && root.item.explanation != "": Text {
@@ -478,9 +486,9 @@ component ResultTile inherits Rectangle {
             alignment: end;
             M3Button {
                 kind: 3;
-                text: "Segnala un problema";
+                text: "Segnala";
                 has-icon: true;
-                icon: Icons.report;
+                icon: Icons.flag-outline;
                 clicked => {
                     root.report();
                 }
@@ -489,50 +497,175 @@ component ResultTile inherits Rectangle {
     }
 }
 
+// riquadro dei risultati: numero grande e didascalia, su un fondo tonale
+component StatBox inherits Rectangle {
+    in property <string> value;
+    in property <string> label;
+    in property <color> bg;
+    in property <color> fg;
+    horizontal-stretch: 1;
+    height: 72px;
+    border-radius: 20px;
+    background: root.bg;
+    VerticalLayout {
+        alignment: center;
+        Text {
+            text: root.value;
+            font-size: 26px;
+            font-weight: 900;
+            color: root.fg;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.label;
+            font-size: 12px;
+            color: root.fg;
+            horizontal-alignment: center;
+        }
+    }
+}
+
 export component ResultsPage inherits Page {
     VerticalLayout {
-        TopBar {
-            title: AppState.r-title;
-            subtitle: AppState.r-sync;
+        HorizontalLayout {
+            padding-left: 4px;
+            height: 56px;
+            IconButton {
+                icon: Icons.close;
+                tint: M3.on-surface;
+                clicked => {
+                    AppState.results-close();
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
         }
 
         Scroller {
             vertical-stretch: 1;
             align: start;
             pad: 16px;
-            pad-top: 4px;
-            gap: 10px;
-            Card {
-                bg: AppState.r-is-exam ? (AppState.r-passed ? M3.success-container : M3.error-container) : M3.primary-container;
-                VerticalLayout {
-                    padding: 20px;
-                    spacing: 6px;
-                    Text {
-                        text: AppState.r-points;
-                        font-size: Type.display;
-                        font-weight: 800;
-                        horizontal-alignment: center;
-                        color: M3.on-surface;
+            pad-top: 0px;
+            gap: 12px;
+            Text {
+                text: AppState.r-title + " · fatto";
+                font-size: 15px;
+                font-weight: 700;
+                color: M3.on-surface-variant;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+            // anello grande con il risultato al centro
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 210px;
+                    height: 210px;
+                    RingProgress {
+                        width: parent.width;
+                        height: parent.height;
+                        thickness: 18px;
+                        value: AppState.r-frac;
+                        fill: AppState.r-is-exam && !AppState.r-passed ? M3.error : M3.success;
+                        track: AppState.r-is-exam && !AppState.r-passed ? M3.error-container : M3.success-container;
                     }
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: AppState.r-big;
+                            font-size: 64px;
+                            font-weight: 900;
+                            color: M3.on-surface;
+                            horizontal-alignment: center;
+                        }
+                        Text {
+                            text: AppState.r-big-sub;
+                            font-size: 14px;
+                            color: M3.on-surface-variant;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+            if AppState.r-is-exam: Text {
+                text: AppState.r-passed ? "Prova superata" : "Sotto la soglia: riprova dopo un ripasso";
+                horizontal-alignment: center;
+                font-weight: 700;
+                color: AppState.r-passed ? M3.success : M3.error;
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                StatBox {
+                    value: AppState.r-right;
+                    label: "giuste";
+                    bg: M3.success-container;
+                    fg: M3.on-success-container;
+                }
+                StatBox {
+                    value: AppState.r-wrong;
+                    label: "sbagliate";
+                    bg: M3.error-container;
+                    fg: M3.on-error-container;
+                }
+                StatBox {
+                    value: AppState.r-skipped;
+                    label: "saltate";
+                    bg: M3.surface-container-high;
+                    fg: M3.on-surface;
+                }
+                StatBox {
+                    value: AppState.r-avg;
+                    label: "a domanda";
+                    bg: M3.primary-container;
+                    fg: M3.on-primary-container;
+                }
+            }
 
-                    if AppState.r-is-exam: Text {
-                        text: AppState.r-passed ? "Prova superata (≥ 18)" : "Sotto la soglia di 18";
-                        horizontal-alignment: center;
-                        font-weight: 700;
-                        color: M3.on-surface;
+            // piano di oggi e serie
+            if AppState.goals-confirmed: Rectangle {
+                border-radius: 24px;
+                background: M3.success-container;
+                height: gpl.preferred-height;
+                gpl := HorizontalLayout {
+                    padding: 16px;
+                    spacing: 14px;
+                    VIcon {
+                        source: Icons.today;
+                        tint: M3.success;
                     }
                     Text {
-                        text: AppState.r-summary;
-                        horizontal-alignment: center;
+                        horizontal-stretch: 1;
+                        text: "Piano di oggi: " + AppState.goals-status;
+                        font-size: 14px;
+                        color: M3.on-success-container;
                         wrap: word-wrap;
+                    }
+                }
+            }
+            if AppState.streak-days > 0: Rectangle {
+                border-radius: 24px;
+                background: M3.surface-container;
+                height: srl.preferred-height;
+                srl := HorizontalLayout {
+                    padding: 16px;
+                    spacing: 14px;
+                    VIcon {
+                        source: Icons.today;
+                        tint: M3.error;
+                    }
+                    Text {
+                        horizontal-stretch: 1;
+                        text: "Serie salva: " + AppState.streak-days + (AppState.streak-days == 1 ? " giorno" : " giorni") + "." + (AppState.home-race-sub != "" ? " " + AppState.home-race-sub + " in classifica." : "");
+                        font-size: 14px;
                         color: M3.on-surface;
+                        wrap: word-wrap;
                     }
                 }
             }
 
-            // feedback per Claude: solo con GitHub configurato (finisce nel repository)
+            // feedback (solo con GitHub acceso: finisce nel repository)
             if AppState.sync-configured: Card {
-                bg: M3.surface-container;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 8px;
@@ -542,7 +675,6 @@ export component ResultsPage inherits Page {
                         font-weight: 700;
                         color: M3.on-surface;
                     }
-
                     if !AppState.r-feedback-sent: StarRating {
                         value <=> AppState.r-rating;
                     }
@@ -568,37 +700,61 @@ export component ResultsPage inherits Page {
                 }
             }
 
-            Text {
-                text: "Tocca una domanda per la spiegazione; la bandierina segna/toglie \"insicura\".";
-                font-size: Type.label;
-                color: M3.on-surface-variant;
-                wrap: word-wrap;
+            if AppState.r-items.length > 0: Text {
+                text: AppState.r-wrong + AppState.r-skipped > 0 ? "Da rivedere" : "Le domande";
+                font-size: 17px;
+                font-weight: 700;
+                color: M3.primary;
             }
-
-            for it[i] in AppState.r-items: ResultTile {
-                item: it;
-                toggle-flag => {
-                    AppState.result-toggle-flag(i);
+            if AppState.r-items.length > 0: Rectangle {
+                border-radius: 24px;
+                clip: true;
+                height: rlist.preferred-height;
+                rlist := VerticalLayout {
+                    spacing: 3px;
+                    for it[i] in AppState.r-items: ResultTile {
+                        item: it;
+                        toggle-flag => {
+                            AppState.result-toggle-flag(i);
+                        }
+                        open-ref => {
+                            AppState.open-ref-result(i);
+                        }
+                        report => {
+                            AppState.report-result(i);
+                        }
+                    }
                 }
-                open-ref => {
-                    AppState.open-ref-result(i);
-                }
-                report => {
-                    AppState.report-result(i);
-                }
+            }
+            if AppState.r-sync != "" && AppState.sync-configured: Text {
+                text: AppState.r-sync;
+                font-size: 12px;
+                color: M3.on-surface-variant;
+                horizontal-alignment: center;
             }
         }
 
-        Rectangle {
-            background: M3.surface-container;
-            HorizontalLayout {
-                padding: 12px;
-                M3Button {
-                    text: "Fatto";
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.results-close();
-                    }
+        HorizontalLayout {
+            padding: 14px;
+            padding-top: 8px;
+            spacing: 10px;
+            if AppState.r-wrong > 0: M3Button {
+                text: "Rivedi gli errori";
+                kind: 1;
+                has-icon: true;
+                icon: Icons.history;
+                horizontal-stretch: 1;
+                clicked => {
+                    AppState.start-review("");
+                }
+            }
+            M3Button {
+                text: "Fatto";
+                has-icon: true;
+                icon: Icons.check;
+                horizontal-stretch: 1;
+                clicked => {
+                    AppState.results-close();
                 }
             }
         }
