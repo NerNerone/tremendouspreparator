@@ -1,7 +1,7 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, BigHeader } from "../components.slint";
 
 component PtProp inherits HorizontalLayout {
     in property <string> label;
@@ -45,6 +45,46 @@ component PtSection inherits VerticalLayout {
     @children
 }
 
+// scheda di uno strumento in alto: piena se è quello aperto
+component ToolChip inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> on;
+    callback clicked;
+    height: 36px;
+    width: tcr.preferred-width;
+    border-radius: 10px;
+    background: root.on ? M3.secondary-container : transparent;
+    border-width: root.on ? 0px : 1px;
+    border-color: M3.outline;
+    tcr := HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        VerticalLayout {
+            alignment: center;
+            Icon {
+                width: 18px;
+                height: 18px;
+                source: root.on ? Icons.check : root.icon;
+                tint: root.on ? M3.on-secondary-container : M3.on-surface;
+            }
+        }
+        Text {
+            text: root.text;
+            font-size: 14px;
+            font-weight: 600;
+            color: root.on ? M3.on-secondary-container : M3.on-surface;
+            vertical-alignment: center;
+        }
+    }
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component PeriodicPage inherits Page {
     // caselle più grandi quando c'è spazio (desktop); testi in proporzione
     property <length> cell: max(46px, min(68px, (root.width - root.lab - 16px) / 18 - root.gap));
@@ -64,18 +104,57 @@ export component PeriodicPage inherits Page {
         easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
     }
     VerticalLayout {
-        TopBar {
-            title: "Tavola periodica";
-            subtitle: "Tocca un elemento per le sue proprietà";
-            can-back: true;
-            back => {
-                AppState.back();
+        // testata «Strumenti»: questo e gli altri strumenti della materia in una fila di schede
+        HorizontalLayout {
+            padding-right: 4px;
+            BigHeader {
+                horizontal-stretch: 1;
+                title: "Strumenti";
+                subtitle: "Tavola periodica, testi e libri della materia";
+                back => {
+                    AppState.back();
+                }
             }
-            IconButton {
-                icon: Icons.book;
-                filled: root.info-open;
-                clicked => {
-                    root.info-open = !root.info-open;
+            VerticalLayout {
+                alignment: center;
+                IconButton {
+                    icon: Icons.info;
+                    filled: root.info-open;
+                    clicked => {
+                        root.info-open = !root.info-open;
+                    }
+                }
+            }
+        }
+        Flickable {
+            height: 44px;
+            interactive: true;
+            content-width: max(self.width, tools.preferred-width + 32px);
+            content-height: 44px;
+            tools := HorizontalLayout {
+                x: 16px;
+                y: 2px;
+                height: 36px;
+                spacing: 8px;
+                alignment: start;
+                ToolChip {
+                    text: "Tavola periodica";
+                    icon: Icons.apps;
+                    on: true;
+                }
+                for l[i] in AppState.subject-links: ToolChip {
+                    text: l;
+                    icon: Icons.description;
+                    clicked => {
+                        AppState.open-subject-link(i);
+                    }
+                }
+                ToolChip {
+                    text: "Estrai il testo";
+                    icon: Icons.description;
+                    clicked => {
+                        AppState.open-pdf-tools();
+                    }
                 }
             }
         }
