@@ -631,6 +631,8 @@ export global AppState {
     callback cal-pick(int);
     callback car-tap(string);
     in property <string> race-hud;
+    // qualcuno sta studiando adesso (bollino LIVE sulla gara)
+    in property <bool> race-live;
     // vista d'insieme del circuito (chi è in pausa o fermo) invece della telecamera ravvicinata
     in property <bool> race-overview: true;
     in property <[RankVM]> ranking;

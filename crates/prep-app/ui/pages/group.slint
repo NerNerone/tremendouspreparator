@@ -1504,22 +1504,24 @@ component Paddock inherits Rectangle {
 
 export component GroupPage inherits Page {
     property <bool> rename-open: false;
+    property <bool> groups-open: false;
+    property <bool> cal-open: false;
     property <bool> has-group: AppState.group-has && AppState.group-code != "";
     // calendario mostrato: quello del gruppo, di un altro membro, o il proprio
     property <bool> cal-group: has-group && AppState.cal-ids[AppState.cal-index] == "*";
     property <bool> cal-member: has-group && AppState.cal-ids[AppState.cal-index] != "" && !cal-group;
     VerticalLayout {
-        // Traguardo: foto e nome del gruppo come testata (senza gruppo: «Squadra»)
+        // Traguardo: foto e nome del gruppo come testata (senza gruppo: «Squadra»), calendario e invito
         HorizontalLayout {
             padding-left: 16px;
-            padding-right: 8px;
+            padding-right: 6px;
             padding-top: 12px;
             padding-bottom: 8px;
-            spacing: 14px;
+            spacing: 12px;
             if AppState.group-has: Rectangle {
                 width: 56px;
                 height: 56px;
-                border-radius: 20px;
+                border-radius: 18px;
                 clip: true;
                 background: M3.primary-container;
                 if AppState.group-has-photo: Image {
@@ -1528,7 +1530,7 @@ export component GroupPage inherits Page {
                     source: AppState.group-photo;
                     image-fit: cover;
                 }
-                if !AppState.group-has-photo: Icon {
+                if !AppState.group-has-photo && AppState.group-initial == "": Icon {
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                     source: Icons.groups;
@@ -1536,16 +1538,46 @@ export component GroupPage inherits Page {
                     width: 28px;
                     height: 28px;
                 }
+                if !AppState.group-has-photo && AppState.group-initial != "": Text {
+                    text: AppState.group-initial;
+                    font-size: 24px;
+                    font-weight: 900;
+                    color: M3.on-primary-container;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
             }
             VerticalLayout {
                 alignment: center;
                 horizontal-stretch: 1;
-                Text {
-                    text: AppState.group-has && AppState.group-name != "" ? AppState.group-name : "Squadra";
-                    font-size: 24px;
-                    font-weight: 800;
-                    color: M3.on-surface;
-                    overflow: elide;
+                HorizontalLayout {
+                    spacing: 2px;
+                    Text {
+                        text: AppState.group-has && AppState.group-name != "" ? AppState.group-name : "Squadra";
+                        font-size: 26px;
+                        font-weight: 900;
+                        color: M3.on-surface;
+                        overflow: elide;
+                        vertical-alignment: center;
+                    }
+                    // più gruppi: si sceglie quello attivo
+                    if AppState.groups.length > 1: Rectangle {
+                        width: 32px;
+                        Icon {
+                            x: 4px;
+                            y: (parent.height - 24px) / 2;
+                            width: 24px;
+                            height: 24px;
+                            source: Icons.chevron;
+                            tint: M3.on-surface-variant;
+                            transform-rotation: root.groups-open ? -90deg : 90deg;
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.groups-open = !root.groups-open;
+                            }
+                        }
+                    }
                 }
                 if !AppState.group-has: Text {
                     text: "Studia insieme ad altri, ognuno dal suo dispositivo";
@@ -1554,11 +1586,42 @@ export component GroupPage inherits Page {
                     overflow: elide;
                 }
             }
+            VerticalLayout {
+                alignment: center;
+                IconButton {
+                    icon: Icons.calendar-month;
+                    tint: root.cal-open ? M3.primary : M3.on-surface;
+                    clicked => {
+                        root.cal-open = !root.cal-open;
+                    }
+                }
+            }
+            if has-group: VerticalLayout {
+                alignment: center;
+                IconButton {
+                    icon: Icons.share;
+                    tint: M3.on-surface;
+                    clicked => {
+                        share-buf.select-all();
+                        share-buf.copy();
+                        share-buf.clear-selection();
+                        AppState.notify("Codice del gruppo copiato: incollalo a chi vuoi invitare");
+                    }
+                }
+            }
+        }
+        share-buf := TextInput {
+            width: 0px;
+            height: 0px;
+            text: AppState.group-code;
+            read-only: true;
+            enabled: false;
+            opacity: 0;
         }
 
-        // la gara: finestra grande nei colori del tema, con il paddock flottante sul bordo basso
+        // la gara: riquadro grande con titolo, stato e il paddock flottante sul bordo basso
         Rectangle {
-            height: min(360px, parent.height * 0.46) + (AppState.paddock-n > 0 ? 28px : 0px);
+            height: min(400px, parent.height * 0.52) + (AppState.paddock-n > 0 ? 28px : 0px);
             race-box := Rectangle {
                 x: 8px;
                 width: parent.width - 16px;
@@ -1566,27 +1629,81 @@ export component GroupPage inherits Page {
                 border-radius: 32px;
                 clip: true;
                 background: M3.surface-container;
-        RaceView {
-            width: parent.width;
-            height: parent.height;
-            cars: AppState.cars;
-            cam-f: AppState.cam-f;
-            cam-side: AppState.cam-side;
-            cam-stack: AppState.cam-stack;
-            cam-run: AppState.cam-run;
-            lap-v: AppState.lap-speed;
-            cam-pit: AppState.study-state == 2;
-            cam-v: AppState.study-state == 1 ? AppState.lap-speed : 0;
-            overview: AppState.race-overview;
-            commands: AppState.track-cmd;
-            aspect: AppState.track-aspect;
-            scale: AppState.track-scale;
-            pad-x: AppState.pad-x;
-            pad-y: AppState.pad-y;
-            pad-w: AppState.pad-w;
-            hud: AppState.race-hud;
-            flash: AppState.lap-flash;
-        }
+                VerticalLayout {
+                    HorizontalLayout {
+                        padding-left: 18px;
+                        padding-right: 14px;
+                        padding-top: 14px;
+                        padding-bottom: 2px;
+                        spacing: 8px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            Text {
+                                text: has-group ? "Gara di oggi" : "La tua gara";
+                                font-size: 18px;
+                                font-weight: 800;
+                                color: M3.on-surface;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: AppState.race-hud;
+                                font-size: 13px;
+                                color: M3.on-surface-variant;
+                                overflow: elide;
+                            }
+                        }
+                        if AppState.race-live: VerticalLayout {
+                            alignment: start;
+                            Rectangle {
+                                height: 26px;
+                                width: live-row.preferred-width + 20px;
+                                border-radius: 13px;
+                                background: M3.error;
+                                live-row := HorizontalLayout {
+                                    x: 10px;
+                                    spacing: 5px;
+                                    alignment: center;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 7px;
+                                            height: 7px;
+                                            border-radius: 3.5px;
+                                            background: M3.on-error;
+                                        }
+                                    }
+                                    Text {
+                                        text: "LIVE";
+                                        font-size: 12px;
+                                        font-weight: 900;
+                                        color: M3.on-error;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    RaceView {
+                        vertical-stretch: 1;
+                        cars: AppState.cars;
+                        cam-f: AppState.cam-f;
+                        cam-side: AppState.cam-side;
+                        cam-stack: AppState.cam-stack;
+                        cam-run: AppState.cam-run;
+                        lap-v: AppState.lap-speed;
+                        cam-pit: AppState.study-state == 2;
+                        cam-v: AppState.study-state == 1 ? AppState.lap-speed : 0;
+                        overview: AppState.race-overview;
+                        commands: AppState.track-cmd;
+                        aspect: AppState.track-aspect;
+                        scale: AppState.track-scale;
+                        pad-x: AppState.pad-x;
+                        pad-y: AppState.pad-y;
+                        pad-w: AppState.pad-w;
+                        hud: "";
+                        flash: AppState.lap-flash;
+                    }
+                }
             }
             if AppState.paddock-n > 0: Paddock {
                 cars: AppState.paddock-cars;
@@ -1666,425 +1783,8 @@ export component GroupPage inherits Page {
                 }
             }
 
-            // più gruppi: si sceglie quello attivo
-            if AppState.groups.length > 1: Flickable {
-                height: 40px;
-                interactive: true;
-                content-width: max(self.width, gstrip.preferred-width);
-                content-height: 40px;
-                gstrip := HorizontalLayout {
-                    x: 0px;
-                    y: 0px;
-                    height: 40px;
-                    spacing: 8px;
-                    alignment: start;
-                    for g in AppState.groups: Chip {
-                        text: g.name;
-                        selected: g.active;
-                        clicked => {
-                            AppState.group-select(g.id);
-                        }
-                    }
-                }
-            }
-
-            // intestazione del gruppo: foto, nome, codice, amministratore
-            if AppState.group-has && AppState.group-code != "": Card {
-                VerticalLayout {
-                    padding: 14px;
-                    spacing: 10px;
-                    HorizontalLayout {
-                        spacing: 12px;
-                        Rectangle {
-                            width: 56px;
-                            height: 60px;
-                            Avatar {
-                                x: 0;
-                                y: 0;
-                                width: 56px;
-                                photo: AppState.group-photo;
-                                has-photo: AppState.group-has-photo;
-                                initial: AppState.group-initial;
-                                ring: M3.primary;
-                                // tocco: la foto ingrandita
-                                TouchArea {
-                                    enabled: AppState.group-has-photo;
-                                    clicked => {
-                                        AppState.photo-view-img = AppState.group-photo;
-                                        AppState.photo-view-title = AppState.group-name;
-                                        AppState.photo-view-group = true;
-                                        AppState.photo-view = true;
-                                    }
-                                }
-                            }
-                            if AppState.group-admin: EditBadge {
-                                // in basso a destra, sul fondo del cerchio dell'avatar
-                                size: 24px;
-                                x: 32px;
-                                y: 36px;
-                                clicked => {
-                                    AppState.pick-photo("group");
-                                }
-                            }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            spacing: 2px;
-                            horizontal-stretch: 1;
-                            HorizontalLayout {
-                                spacing: 6px;
-                                Text {
-                                    text: AppState.group-name;
-                                    font-size: Type.title;
-                                    font-weight: 800;
-                                    color: M3.on-surface;
-                                    overflow: elide;
-                                    vertical-alignment: center;
-                                    horizontal-stretch: 0;
-                                }
-                                if AppState.group-can-rename && !rename-open: VerticalLayout {
-                                    alignment: center;
-                                    EditBadge {
-                                        clicked => {
-                                            rename-open = true;
-                                        }
-                                    }
-                                }
-                                Rectangle {
-                                    horizontal-stretch: 1;
-                                }
-                            }
-                            CodeCopy {
-                                code: AppState.group-code;
-                                code-size: Type.label + 1px;
-                            }
-                            Text {
-                                text: AppState.group-admin-name == "" ? "Nessun amministratore noto" : "Amministratore: " + AppState.group-admin-name;
-                                font-size: Type.label;
-                                color: M3.on-surface-variant;
-                            }
-                        }
-                    }
-                    Text {
-                        text: AppState.group-info;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                        wrap: word-wrap;
-                    }
-                    Hint {
-                        short: "Come si fanno i punti";
-                        full: "La classifica è per punti: ogni secondo di studio vale punti × il moltiplicatore (al massimo ×5), che è anche la velocità della monoposto (un giro = 60 punti). Ritmo: +0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3 (fiamma). Pit stop fino a 10 minuti dopo almeno 25 di studio: gomme nuove ×1,2 per 25 minuti (scintille); pausa tra 10 e 30 minuti: il ritmo si dimezza; oltre 30 minuti o «Termina»: riparte da ×1. Più di 2 pause in 30 minuti: ×0,8 per 15 minuti (fumo). Concentrazione attiva: ×1,5 (scia blu). Altri in pista con te: +0,1 ciascuno, fino a ×1,4 (vento). Oltre 10 ore al giorno resta ×1. Tocca una monoposto o un membro per i dettagli.";
-                    }
-                    if rename-open: HorizontalLayout {
-                        spacing: 8px;
-                        rename-edit := LineEdit {
-                            horizontal-stretch: 1;
-                            text: AppState.group-name;
-                            placeholder-text: "Nuovo nome del gruppo";
-                            accepted => {
-                                AppState.group-rename(self.text);
-                                rename-open = false;
-                            }
-                        }
-                        M3Button {
-                            text: "Salva";
-                            kind: 1;
-                            clicked => {
-                                AppState.group-rename(rename-edit.text);
-                                rename-open = false;
-                            }
-                        }
-                        IconButton {
-                            icon: Icons.close;
-                            clicked => {
-                                rename-open = false;
-                            }
-                        }
-                    }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        M3Button {
-                            text: "Avvisa tutti";
-                            kind: 1;
-                            small: true;
-                            clicked => {
-                                AppState.group-ping("");
-                            }
-                        }
-                    }
-                }
-            }
-
-            // cronometro personale
-            Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    Text {
-                        text: AppState.study-elsewhere ? "Stai studiando su un altro dispositivo" : AppState.study-state == 1 ? "Stai studiando" : AppState.study-state == 2 ? "Pit stop" : "Pronto a partire";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    Text {
-                        text: AppState.study-today;
-                        color: M3.on-surface-variant;
-                    }
-                    LinearProgress {
-                        value: AppState.study-lap;
-                    }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        if AppState.study-state != 1: M3Button {
-                            horizontal-stretch: 1;
-                            enabled: !AppState.study-elsewhere;
-                            text: AppState.study-elsewhere ? "Sessione aperta altrove" : AppState.study-state == 2 ? "Riparti" : "Inizia a studiare";
-                            has-icon: true;
-                            icon: Icons.play;
-                            clicked => {
-                                AppState.study-start();
-                            }
-                        }
-                        if AppState.study-state == 1: M3Button {
-                            horizontal-stretch: 1;
-                            text: "Pit stop (pausa)";
-                            kind: 1;
-                            has-icon: true;
-                            icon: Icons.pause;
-                            clicked => {
-                                AppState.study-pause();
-                            }
-                        }
-                        if AppState.study-state != 0: M3Button {
-                            text: "Termina";
-                            kind: 3;
-                            clicked => {
-                                AppState.study-stop();
-                            }
-                        }
-                    }
-                    // concentrazione (Android): impostazione, poi stato e lanciatore delle app permesse
-                    if AppState.focus-available && !AppState.focus-active: HorizontalLayout {
-                        spacing: 8px;
-                        Text {
-                            text: "Concentrazione: il telefono resta su Tremendous e sulle app che scegli, per il tempo che decidi";
-                            wrap: word-wrap;
-                            vertical-alignment: center;
-                            horizontal-stretch: 1;
-                            font-size: Type.label;
-                            color: M3.on-surface;
-                        }
-                        M3Button {
-                            text: "Imposta";
-                            kind: 2;
-                            clicked => {
-                                AppState.focus-setup(true);
-                            }
-                        }
-                    }
-                    if AppState.focus-active: VerticalLayout {
-                        spacing: 6px;
-                        // conto alla rovescia del blocco
-                        if AppState.focus-left != "": HorizontalLayout {
-                            spacing: 12px;
-                            Text {
-                                text: AppState.focus-left;
-                                font-size: 34px;
-                                font-weight: 800;
-                                color: M3.primary;
-                                vertical-alignment: center;
-                            }
-                            VerticalLayout {
-                                alignment: center;
-                                horizontal-stretch: 1;
-                                spacing: 4px;
-                                Text {
-                                    text: "alla fine della concentrazione";
-                                    font-size: Type.label;
-                                    color: M3.on-surface-variant;
-                                }
-                                LinearProgress {
-                                    value: AppState.focus-left-frac;
-                                }
-                            }
-                        }
-                        Text {
-                            text: AppState.focus-status;
-                            wrap: word-wrap;
-                            font-size: Type.label;
-                            font-weight: 700;
-                            color: M3.primary;
-                        }
-                        Flickable {
-                            height: 44px;
-                            interactive: true;
-                            content-width: max(self.width, launch-row.preferred-width);
-                            content-height: 44px;
-                            launch-row := HorizontalLayout {
-                                x: 0px;
-                                y: 0px;
-                                height: 44px;
-                                spacing: 8px;
-                                alignment: start;
-                                for a in AppState.focus-launcher: AppChip {
-                                    app: a;
-                                    clicked => {
-                                        AppState.focus-launch(a.pkg);
-                                    }
-                                }
-                                Chip {
-                                    text: "Telefono";
-                                    clicked => {
-                                        AppState.focus-dial();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // classifica
-            if AppState.group-has: Text {
-                text: "Classifica";
-                font-size: Type.title;
-                font-weight: 700;
-                color: M3.on-surface;
-            }
-            if AppState.group-has: HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
-                for p[i] in ["Oggi", "Settimana", "Mese", "Totale"]: Chip {
-                    text: p;
-                    selected: AppState.group-period == i;
-                    clicked => {
-                        AppState.group-period = i;
-                        AppState.group-set-period(i);
-                    }
-                }
-            }
-            if AppState.group-has: VerticalLayout {
-                spacing: 6px;
-                for r in AppState.ranking: Rectangle {
-                    border-radius: 12px;
-                    background: r.me ? M3.secondary-container : M3.surface-container-low;
-                    min-height: 52px;
-                    TouchArea {
-                        clicked => {
-                            AppState.member-sel = AppState.member-sel == r.id ? "" : r.id;
-                        }
-                    }
-                    VerticalLayout {
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        min-height: 52px;
-                        spacing: 10px;
-                        Text {
-                            text: r.pos + "°";
-                            font-weight: 800;
-                            font-size: Type.title;
-                            color: r.pos == 1 ? #c79100 : M3.on-surface-variant;
-                            vertical-alignment: center;
-                            min-width: 30px;
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            Avatar {
-                                width: 36px;
-                                photo: r.photo;
-                                has-photo: r.has-photo;
-                                initial: r.initial;
-                                ring: r.color;
-                                TouchArea {
-                                    enabled: r.has-photo;
-                                    clicked => {
-                                        AppState.photo-view-img = r.photo;
-                                        AppState.photo-view-title = r.name;
-                                        AppState.photo-view-group = false;
-                                        AppState.photo-view = true;
-                                    }
-                                }
-                            }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            horizontal-stretch: 1;
-                            Text {
-                                text: r.name;
-                                font-weight: 700;
-                                color: M3.on-surface;
-                                overflow: elide;
-                            }
-                            // si accorcia con «…» invece di spingere i punti fuori dallo schermo
-                            Text {
-                                text: r.status + " · " + r.time + (r.admin ? " · admin" : "");
-                                font-size: Type.label;
-                                color: M3.on-surface-variant;
-                                overflow: elide;
-                            }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            horizontal-stretch: 0;
-                            Text {
-                                text: r.value;
-                                font-weight: 700;
-                                color: M3.on-surface;
-                                horizontal-alignment: right;
-                                wrap: no-wrap;
-                            }
-                            if r.boost != "": Text {
-                                text: r.boost;
-                                font-size: Type.label;
-                                font-weight: 800;
-                                color: r.color;
-                                horizontal-alignment: right;
-                            }
-                        }
-                    }
-                    // azioni sul membro toccato
-                    if AppState.member-sel == r.id: HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        padding-bottom: 10px;
-                        spacing: 8px;
-                        alignment: end;
-                        M3Button {
-                            text: "Profilo";
-                            clicked => {
-                                AppState.open-profile(r.id);
-                            }
-                        }
-                        // la telecamera segue la sua monoposto (finché è in pista)
-                        if !r.me && r.racing: M3Button {
-                            text: "Segui";
-                            kind: 1;
-                            clicked => {
-                                AppState.show-in-circuit(r.id);
-                            }
-                        }
-                        if !r.me: M3Button {
-                            text: "Avvisa";
-                            kind: 1;
-                            clicked => {
-                                AppState.group-ping(r.id);
-                            }
-                        }
-                        if AppState.group-admin && !r.admin && !r.me: M3Button {
-                            text: "Rimuovi";
-                            kind: 3;
-                            clicked => {
-                                AppState.group-kick(r.id);
-                            }
-                        }
-                    }
-                    }
-                }
-            }
-
             // calendario: il proprio o quello del gruppo, scelto con il selettore a sinistra
-            Card {
+            if root.cal-open: Card {
                 VerticalLayout {
                     padding: 16px;
                     spacing: 8px;
@@ -2240,6 +1940,473 @@ export component GroupPage inherits Page {
                             text: "Tocca un giorno: chi ha studiato, quanto e su cosa.";
                             font-size: Type.label;
                             color: M3.on-surface-variant;
+                        }
+                    }
+                }
+            }
+
+            // più gruppi: si sceglie quello attivo (dalla freccia accanto al nome)
+            if AppState.groups.length > 1 && root.groups-open: Flickable {
+                height: 40px;
+                interactive: true;
+                content-width: max(self.width, gstrip.preferred-width);
+                content-height: 40px;
+                gstrip := HorizontalLayout {
+                    x: 0px;
+                    y: 0px;
+                    height: 40px;
+                    spacing: 8px;
+                    alignment: start;
+                    for g in AppState.groups: Chip {
+                        text: g.name;
+                        selected: g.active;
+                        clicked => {
+                            AppState.group-select(g.id);
+                        }
+                    }
+                }
+            }
+
+            // legenda degli effetti in pista
+            if has-group: Flickable {
+                height: 34px;
+                interactive: true;
+                content-width: max(self.width, legend.preferred-width);
+                content-height: 34px;
+                legend := HorizontalLayout {
+                    x: 0px;
+                    y: 0px;
+                    height: 34px;
+                    spacing: 6px;
+                    alignment: start;
+                    for l in [
+                        { c: #4F8DF5, t: "scia blu · concentrazione ×1,5" },
+                        { c: #F2853A, t: "fiamme · ritmo fino a ×3" },
+                        { c: #F2C94C, t: "scintille · gomme nuove ×1,2" },
+                        { c: #9E9E9E, t: "vento · altri in pista +0,1" },
+                        { c: #6D6D6D, t: "fumo · troppe pause ×0,8" },
+                    ]: Rectangle {
+                        height: 34px;
+                        width: lg.preferred-width + 24px;
+                        border-radius: 17px;
+                        background: M3.surface-container-high;
+                        lg := HorizontalLayout {
+                            x: 12px;
+                            spacing: 6px;
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 8px;
+                                    height: 8px;
+                                    border-radius: 4px;
+                                    background: l.c;
+                                }
+                            }
+                            Text {
+                                text: l.t;
+                                font-size: 12px;
+                                color: M3.on-surface;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+            // classifica
+            if has-group: Text {
+                text: "Classifica";
+                font-size: 15px;
+                font-weight: 800;
+                color: M3.primary;
+            }
+            if has-group: HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                for p[i] in ["Oggi", "Settimana", "Mese", "Totale"]: Chip {
+                    text: p;
+                    selected: AppState.group-period == i;
+                    clicked => {
+                        AppState.group-period = i;
+                        AppState.group-set-period(i);
+                    }
+                }
+            }
+            if has-group: VerticalLayout {
+                spacing: 3px;
+                for r[ri] in AppState.ranking: Rectangle {
+                    border-top-left-radius: ri == 0 ? 24px : 6px;
+                    border-top-right-radius: ri == 0 ? 24px : 6px;
+                    border-bottom-left-radius: ri == AppState.ranking.length - 1 ? 24px : 6px;
+                    border-bottom-right-radius: ri == AppState.ranking.length - 1 ? 24px : 6px;
+                    background: r.me ? M3.secondary-container : M3.surface-container;
+                    min-height: 64px;
+                    TouchArea {
+                        clicked => {
+                            AppState.member-sel = AppState.member-sel == r.id ? "" : r.id;
+                        }
+                    }
+                    VerticalLayout {
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        min-height: 64px;
+                        spacing: 12px;
+                        Text {
+                            text: r.pos;
+                            font-weight: 900;
+                            font-size: 18px;
+                            color: r.pos == 1 ? #c79100 : M3.on-surface-variant;
+                            vertical-alignment: center;
+                            min-width: 18px;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Avatar {
+                                width: 40px;
+                                photo: r.photo;
+                                has-photo: r.has-photo;
+                                initial: r.initial;
+                                ring: r.color;
+                                TouchArea {
+                                    enabled: r.has-photo;
+                                    clicked => {
+                                        AppState.photo-view-img = r.photo;
+                                        AppState.photo-view-title = r.name;
+                                        AppState.photo-view-group = false;
+                                        AppState.photo-view = true;
+                                    }
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: r.name;
+                                font-size: 16px;
+                                color: M3.on-surface;
+                                overflow: elide;
+                            }
+                            // si accorcia con «…» invece di spingere i punti fuori dallo schermo
+                            Text {
+                                text: r.status + " · " + r.time + (r.admin ? " · admin" : "");
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                                overflow: elide;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 0;
+                            Text {
+                                text: r.value;
+                                font-size: 18px;
+                                font-weight: 900;
+                                color: M3.on-surface;
+                                horizontal-alignment: right;
+                                wrap: no-wrap;
+                            }
+                            if r.boost != "": Text {
+                                text: r.boost;
+                                font-size: Type.label;
+                                font-weight: 800;
+                                color: r.color;
+                                horizontal-alignment: right;
+                            }
+                        }
+                    }
+                    // azioni sul membro toccato
+                    if AppState.member-sel == r.id: HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        padding-bottom: 10px;
+                        spacing: 8px;
+                        alignment: end;
+                        M3Button {
+                            text: "Profilo";
+                            clicked => {
+                                AppState.open-profile(r.id);
+                            }
+                        }
+                        // la telecamera segue la sua monoposto (finché è in pista)
+                        if !r.me && r.racing: M3Button {
+                            text: "Segui";
+                            kind: 1;
+                            clicked => {
+                                AppState.show-in-circuit(r.id);
+                            }
+                        }
+                        if !r.me: M3Button {
+                            text: "Avvisa";
+                            kind: 1;
+                            clicked => {
+                                AppState.group-ping(r.id);
+                            }
+                        }
+                        if AppState.group-admin && !r.admin && !r.me: M3Button {
+                            text: "Rimuovi";
+                            kind: 3;
+                            clicked => {
+                                AppState.group-kick(r.id);
+                            }
+                        }
+                    }
+                    }
+                }
+            }
+
+            // cronometro personale
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: AppState.study-elsewhere ? "Stai studiando su un altro dispositivo" : AppState.study-state == 1 ? "Stai studiando" : AppState.study-state == 2 ? "Pit stop" : "Pronto a partire";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        text: AppState.study-today;
+                        color: M3.on-surface-variant;
+                    }
+                    LinearProgress {
+                        value: AppState.study-lap;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        if AppState.study-state != 1: M3Button {
+                            horizontal-stretch: 1;
+                            enabled: !AppState.study-elsewhere;
+                            text: AppState.study-elsewhere ? "Sessione aperta altrove" : AppState.study-state == 2 ? "Riparti" : "Inizia a studiare";
+                            has-icon: true;
+                            icon: Icons.play;
+                            clicked => {
+                                AppState.study-start();
+                            }
+                        }
+                        if AppState.study-state == 1: M3Button {
+                            horizontal-stretch: 1;
+                            text: "Pit stop (pausa)";
+                            kind: 1;
+                            has-icon: true;
+                            icon: Icons.pause;
+                            clicked => {
+                                AppState.study-pause();
+                            }
+                        }
+                        if AppState.study-state != 0: M3Button {
+                            text: "Termina";
+                            kind: 3;
+                            clicked => {
+                                AppState.study-stop();
+                            }
+                        }
+                    }
+                    // concentrazione (Android): impostazione, poi stato e lanciatore delle app permesse
+                    if AppState.focus-available && !AppState.focus-active: HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Concentrazione: il telefono resta su Tremendous e sulle app che scegli, per il tempo che decidi";
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            font-size: Type.label;
+                            color: M3.on-surface;
+                        }
+                        M3Button {
+                            text: "Imposta";
+                            kind: 2;
+                            clicked => {
+                                AppState.focus-setup(true);
+                            }
+                        }
+                    }
+                    if AppState.focus-active: VerticalLayout {
+                        spacing: 6px;
+                        // conto alla rovescia del blocco
+                        if AppState.focus-left != "": HorizontalLayout {
+                            spacing: 12px;
+                            Text {
+                                text: AppState.focus-left;
+                                font-size: 34px;
+                                font-weight: 800;
+                                color: M3.primary;
+                                vertical-alignment: center;
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 1;
+                                spacing: 4px;
+                                Text {
+                                    text: "alla fine della concentrazione";
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                }
+                                LinearProgress {
+                                    value: AppState.focus-left-frac;
+                                }
+                            }
+                        }
+                        Text {
+                            text: AppState.focus-status;
+                            wrap: word-wrap;
+                            font-size: Type.label;
+                            font-weight: 700;
+                            color: M3.primary;
+                        }
+                        Flickable {
+                            height: 44px;
+                            interactive: true;
+                            content-width: max(self.width, launch-row.preferred-width);
+                            content-height: 44px;
+                            launch-row := HorizontalLayout {
+                                x: 0px;
+                                y: 0px;
+                                height: 44px;
+                                spacing: 8px;
+                                alignment: start;
+                                for a in AppState.focus-launcher: AppChip {
+                                    app: a;
+                                    clicked => {
+                                        AppState.focus-launch(a.pkg);
+                                    }
+                                }
+                                Chip {
+                                    text: "Telefono";
+                                    clicked => {
+                                        AppState.focus-dial();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // intestazione del gruppo: foto, nome, codice, amministratore
+            if AppState.group-has && AppState.group-code != "": Card {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Rectangle {
+                            width: 56px;
+                            height: 60px;
+                            Avatar {
+                                x: 0;
+                                y: 0;
+                                width: 56px;
+                                photo: AppState.group-photo;
+                                has-photo: AppState.group-has-photo;
+                                initial: AppState.group-initial;
+                                ring: M3.primary;
+                                // tocco: la foto ingrandita
+                                TouchArea {
+                                    enabled: AppState.group-has-photo;
+                                    clicked => {
+                                        AppState.photo-view-img = AppState.group-photo;
+                                        AppState.photo-view-title = AppState.group-name;
+                                        AppState.photo-view-group = true;
+                                        AppState.photo-view = true;
+                                    }
+                                }
+                            }
+                            if AppState.group-admin: EditBadge {
+                                // in basso a destra, sul fondo del cerchio dell'avatar
+                                size: 24px;
+                                x: 32px;
+                                y: 36px;
+                                clicked => {
+                                    AppState.pick-photo("group");
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: AppState.group-name;
+                                    font-size: Type.title;
+                                    font-weight: 800;
+                                    color: M3.on-surface;
+                                    overflow: elide;
+                                    vertical-alignment: center;
+                                    horizontal-stretch: 0;
+                                }
+                                if AppState.group-can-rename && !rename-open: VerticalLayout {
+                                    alignment: center;
+                                    EditBadge {
+                                        clicked => {
+                                            rename-open = true;
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    horizontal-stretch: 1;
+                                }
+                            }
+                            CodeCopy {
+                                code: AppState.group-code;
+                                code-size: Type.label + 1px;
+                            }
+                            Text {
+                                text: AppState.group-admin-name == "" ? "Nessun amministratore noto" : "Amministratore: " + AppState.group-admin-name;
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                            }
+                        }
+                    }
+                    Text {
+                        text: AppState.group-info;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                    Hint {
+                        short: "Come si fanno i punti";
+                        full: "La classifica è per punti: ogni secondo di studio vale punti × il moltiplicatore (al massimo ×5), che è anche la velocità della monoposto (un giro = 60 punti). Ritmo: +0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3 (fiamma). Pit stop fino a 10 minuti dopo almeno 25 di studio: gomme nuove ×1,2 per 25 minuti (scintille); pausa tra 10 e 30 minuti: il ritmo si dimezza; oltre 30 minuti o «Termina»: riparte da ×1. Più di 2 pause in 30 minuti: ×0,8 per 15 minuti (fumo). Concentrazione attiva: ×1,5 (scia blu). Altri in pista con te: +0,1 ciascuno, fino a ×1,4 (vento). Oltre 10 ore al giorno resta ×1. Tocca una monoposto o un membro per i dettagli.";
+                    }
+                    if rename-open: HorizontalLayout {
+                        spacing: 8px;
+                        rename-edit := LineEdit {
+                            horizontal-stretch: 1;
+                            text: AppState.group-name;
+                            placeholder-text: "Nuovo nome del gruppo";
+                            accepted => {
+                                AppState.group-rename(self.text);
+                                rename-open = false;
+                            }
+                        }
+                        M3Button {
+                            text: "Salva";
+                            kind: 1;
+                            clicked => {
+                                AppState.group-rename(rename-edit.text);
+                                rename-open = false;
+                            }
+                        }
+                        IconButton {
+                            icon: Icons.close;
+                            clicked => {
+                                rename-open = false;
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Avvisa tutti";
+                            kind: 1;
+                            small: true;
+                            clicked => {
+                                AppState.group-ping("");
+                            }
                         }
                     }
                 }

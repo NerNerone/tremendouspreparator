@@ -1756,10 +1756,11 @@ impl Ctrl {
             .map(|c| c.to_uppercase().to_string())
             .unwrap_or_default()));
         st.set_race_hud(ss(match self.study_state {
-            State::Idle => format!("Circuito {} · premi «Inizia a studiare»", circuit.name),
+            State::Idle => format!("Circuito {} · un giro = 60 punti", circuit.name),
             State::Pause => format!("Pit stop · giro {} · {}° su {}", laps + 1, my_pos, all.len()),
             State::Studying => format!("Giro {} · {}° su {} · {}", laps + 1, my_pos, all.len(), fmt_secs(t)),
         }));
+        st.set_race_live(on_track > 0);
         let others_online = all.iter().filter(|(i, _, on, _)| *on && *i != me_id).count();
         let link = self.group.as_ref().map(|p| p.open.iter().any(|o| *o)).unwrap_or(false);
         st.set_group_info(ss(format!(
