@@ -1,7 +1,7 @@
 import { LineEdit, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type } from "../theme.slint";
 import { AppState, CrFileVM, CrUnitVM, CrFigVM } from "../state.slint";
-import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip, IconButton, VIcon, LlmCopy } from "../components.slint";
+import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip, IconButton, VIcon, LlmCopy, BigHeader, OutlinedField, Icon } from "../components.slint";
 
 // una riga del creatore: un file dell'esame, da aprire per rifarlo o correggerlo
 component CrRow inherits Rectangle {
@@ -68,9 +68,16 @@ component CrGroup inherits Card {
             font-size: Type.label;
             color: M3.on-surface-variant;
         }
-        for f in AppState.cr-files: VerticalLayout {
-            if f.kind == root.kind: CrRow {
-                f: f;
+        // un contenitore senza spaziatura: i file degli altri gruppi non lasciano buchi
+        VerticalLayout {
+            spacing: 0px;
+            for f in AppState.cr-files: VerticalLayout {
+                if f.kind == root.kind: VerticalLayout {
+                    padding-bottom: 6px;
+                    CrRow {
+                        f: f;
+                    }
+                }
             }
         }
         if root.add != "": M3Button {
@@ -86,53 +93,112 @@ component CrGroup inherits Card {
     }
 }
 
+// un passo del percorso: cerchio numerato (o con il simbolo), titolo, dettaglio e una linea verso il successivo
+component CrStep inherits HorizontalLayout {
+    in property <int> n;
+    in property <string> title;
+    in property <string> sub;
+    in property <image> icon;
+    in property <int> state: 0; // 0 da fare, 1 adesso, 2 fatto
+    in property <bool> line: true;
+    spacing: 14px;
+    VerticalLayout {
+        spacing: 0px;
+        Rectangle {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: root.state == 2 ? M3.success : root.state == 1 ? M3.primary : M3.surface-container-high;
+            if root.state == 0: Text {
+                text: root.n;
+                font-size: 16px;
+                font-weight: 800;
+                color: M3.on-surface-variant;
+            }
+            if root.state > 0: Icon {
+                x: 9px;
+                y: 9px;
+                width: 22px;
+                height: 22px;
+                source: root.state == 2 ? Icons.check : root.icon;
+                tint: root.state == 2 ? M3.success-container : M3.on-primary;
+            }
+        }
+        if root.line: Rectangle {
+            width: 40px;
+            min-height: 14px;
+            vertical-stretch: 1;
+            Rectangle {
+                x: 19px;
+                width: 2px;
+                background: root.state == 2 ? M3.success : M3.outline-variant;
+            }
+        }
+    }
+    VerticalLayout {
+        horizontal-stretch: 1;
+        padding-top: 8px;
+        padding-bottom: 12px;
+        spacing: 2px;
+        Text {
+            text: root.n + ". " + root.title;
+            font-size: 17px;
+            font-weight: 600;
+            color: M3.on-surface;
+            wrap: word-wrap;
+        }
+        Text {
+            text: root.sub;
+            font-size: 13px;
+            color: M3.on-surface-variant;
+            wrap: word-wrap;
+        }
+        @children
+    }
+}
+
 // creatore di pacchetti guidato: ogni file con il suo prompt per l'AI e la risposta da incollare
 export component CreatorPage inherits Page {
+    property <string> new-name;
     property <bool> has-syl: AppState.cr-files.length > 0 && AppState.cr-has-syllabus;
     VerticalLayout {
-        TopBar {
-            title: "Crea pacchetto";
-            subtitle: AppState.cr-has-exam && !AppState.cr-new ? AppState.cr-exam : "Con l'aiuto di un'AI, passo passo";
-            can-back: true;
+        BigHeader {
+            title: "Crea con l'AI";
+            subtitle: AppState.cr-has-exam && !AppState.cr-new ? AppState.cr-exam : "Un pacchetto di quiz e flashcard dai tuoi materiali";
             back => {
                 AppState.back();
             }
         }
-
         Scroller {
             vertical-stretch: 1;
+            align: start;
             pad: 16px;
             pad-top: 4px;
             gap: 12px;
-            Card {
-                bg: M3.secondary-container;
-                VerticalLayout {
-                    padding: 14px;
-                    spacing: 6px;
-                    Text {
-                        text: "Come funziona";
-                        font-weight: 700;
-                        color: M3.on-secondary-container;
-                    }
-                    Text {
-                        text: "Per ogni file: 1) copia il prompt e dallo a un'AI (ChatGPT, Claude, Gemini…) insieme al tuo materiale; 2) copia TUTTA la sua risposta; 3) incollala qui e premi Salva. L'app capisce da sola cosa salvare e dove, e ti dice cosa correggere. Puoi riaprire ogni file quando vuoi.";
-                        wrap: word-wrap;
-                        font-size: Type.label;
-                        color: M3.on-secondary-container;
-                    }
+            // pacchetto nuovo (o nessun esame): si comincia dal nome
+            if !AppState.cr-has-exam || AppState.cr-new: OutlinedField {
+                label: "Nome del pacchetto";
+                text <=> root.new-name;
+                placeholder: "es. Chimica · cinetica ed equilibrio";
+                accepted(t) => {
+                    AppState.cr-create-exam(t);
+                }
+            }
+
+            // il percorso, sempre uguale per ogni file
+            VerticalLayout {
+                padding-top: 4px;
+                CrStep {
+                    n: 1;
+                    title: "Scegli il materiale";
+                    sub: "Appunti, PDF, slide, foto: il testo si estrae sul telefono (anche con l'OCR).";
+                    icon: Icons.description;
+                    state: 2;
                     HorizontalLayout {
-                        spacing: 8px;
-                        M3Button {
-                            text: "Guida";
-                            kind: 2;
-                            small: true;
-                            clicked => {
-                                AppState.open-guide();
-                            }
-                        }
+                        alignment: start;
                         M3Button {
                             text: "Strumenti PDF";
-                            kind: 2;
+                            kind: 3;
                             small: true;
                             clicked => {
                                 AppState.open-pdf-tools();
@@ -140,27 +206,66 @@ export component CreatorPage inherits Page {
                         }
                     }
                 }
+                CrStep {
+                    n: 2;
+                    title: "Copia il prompt";
+                    sub: "Già pronto, con i formati di quiz e flashcard e gli argomenti del tuo esame: dallo all'AI (ChatGPT, Claude, Gemini…) con il materiale.";
+                    icon: Icons.smart-toy;
+                    state: 1;
+                    HorizontalLayout {
+                        alignment: start;
+                        M3Button {
+                            text: "Guida";
+                            kind: 3;
+                            small: true;
+                            clicked => {
+                                AppState.open-guide();
+                            }
+                        }
+                    }
+                }
+                CrStep {
+                    n: 3;
+                    title: "Incolla la risposta";
+                    sub: "Copia TUTTA la risposta dell'AI e incollala: l'app controlla il file, lo salva al posto giusto e ti dice cosa correggere.";
+                    line: false;
+                }
             }
 
-            // pacchetto nuovo (o nessun esame): si comincia dal nome
-            if !AppState.cr-has-exam || AppState.cr-new: Card {
-                VerticalLayout {
+            if !AppState.cr-has-exam || AppState.cr-new: HorizontalLayout {
+                alignment: start;
+                M3Button {
+                    text: "Crea l'esame";
+                    has-icon: true;
+                    icon: Icons.add;
+                    enabled: root.new-name != "";
+                    clicked => {
+                        AppState.cr-create-exam(root.new-name);
+                    }
+                }
+            }
+            if !AppState.cr-has-exam || AppState.cr-new: Rectangle {
+                border-radius: 20px;
+                background: M3.surface-container-high;
+                min-height: tip.preferred-height;
+                tip := HorizontalLayout {
                     padding: 14px;
-                    spacing: 8px;
-                    Text {
-                        text: "Nome del nuovo esame";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    exam-name := LineEdit {
-                        placeholder-text: "es. Fisica I, Anatomia, Concorso…";
-                    }
-                    M3Button {
-                        text: "Crea l'esame";
-                        clicked => {
-                            AppState.cr-create-exam(exam-name.text);
+                    spacing: 10px;
+                    VerticalLayout {
+                        alignment: start;
+                        Icon {
+                            width: 18px;
+                            height: 18px;
+                            source: Icons.lightbulb;
+                            tint: M3.primary;
                         }
+                    }
+                    Text {
+                        horizontal-stretch: 1;
+                        text: "Il nuovo pacchetto parte vuoto e non tocca gli esami che hai già. Poi aggiungi un file alla volta: esame, capitoli, quiz, flashcard.";
+                        font-size: 13px;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
                     }
                 }
             }
