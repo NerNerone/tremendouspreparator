@@ -10,11 +10,35 @@ impl Ctrl {
 
     pub(super) fn focus_minutes(&self) -> u32 {
         let m = self.store.settings().focus_minutes;
-        if Self::FOCUS_CHOICES.contains(&m) {
+        // durate rapide o una scelta con il cursore («Altro»): da 5 minuti a 4 ore
+        if Self::FOCUS_CHOICES.contains(&m) || (5..=240).contains(&m) {
             m
         } else {
             50
         }
+    }
+
+    /// Durante il blocco: «+15′» lo allunga (accorciarlo no: non si annulla prima della scadenza).
+    pub(super) fn focus_extend(&mut self, minutes: i64) {
+        let Some(j) = crate::focus::state().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()) else {
+            return;
+        };
+        if !j["active"].as_bool().unwrap_or(false) {
+            return;
+        }
+        let now = Utc::now().timestamp_millis();
+        let until = j["until"].as_i64().unwrap_or(0).max(now) + minutes * 60_000;
+        if until - now > 4 * 3_600_000 {
+            self.toast("La concentrazione arriva al massimo a 4 ore da adesso");
+            return;
+        }
+        let allowed: Vec<String> = j["allowed"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
+            .unwrap_or_default();
+        crate::focus::start(&serde_json::json!({ "until": until, "allowed": allowed }).to_string());
+        self.toast(format!("Concentrazione allungata di {minutes} minuti"));
+        self.refresh_focus();
     }
 
     /// Permessi, stato del blocco e lanciatore delle app permesse.
@@ -99,6 +123,13 @@ impl Ctrl {
         let total = j["total"].as_i64().unwrap_or(0).max(minutes as i64 * 60);
         st.set_focus_left_frac(if total > 0 { (left as f32 / total as f32).clamp(0.0, 1.0) } else { 0.0 });
         st.set_focus_minutes(minutes as i32);
+        st.set_focus_until_label(ss(if active && until > now_ms {
+            format!("blocco fino alle {}", hm(until))
+        } else if active {
+            "blocco fino a «Termina»".to_string()
+        } else {
+            format!("fino alle {}", hm(now_ms + minutes as i64 * 60_000))
+        }));
         st.set_focus_confirm(confirm);
         st.set_focus_confirm_text(ss(format!(
             "Conferma: blocco fino alle {} (non si annulla)",
@@ -172,7 +203,7 @@ impl Ctrl {
 
     pub(super) fn focus_set_minutes(&mut self, m: i32) {
         let mut s = self.store.settings();
-        s.focus_minutes = m.max(0) as u32;
+        s.focus_minutes = (m.clamp(5, 240) as u32 / 5) * 5;
         let _ = self.store.save_settings(&s);
         self.focus_confirm = None;
         self.refresh_focus();

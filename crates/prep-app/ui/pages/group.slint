@@ -819,6 +819,8 @@ component PermRow inherits Rectangle {
 
 // impostazione della concentrazione: permessi, durata, app permesse, avvio
 component FocusSheet inherits Rectangle {
+    // durata scelta con il cursore («Altro»)
+    property <bool> custom: false;
     // campo di ricerca delle app aperto
     property <bool> app-search: false;
     background: #0007;
@@ -945,28 +947,97 @@ component FocusSheet inherits Rectangle {
             }
             Text {
                 text: "Durata del blocco";
-                font-weight: 700;
-                color: M3.on-surface;
+                font-size: 14px;
+                font-weight: 800;
+                color: M3.primary;
             }
-            // scorre col dito su schermi stretti
-            Flickable {
-                height: 40px;
-                interactive: true;
-                content-width: max(self.width, min-strip.preferred-width);
-                content-height: 40px;
-                min-strip := HorizontalLayout {
-                    x: 0px;
-                    y: 0px;
-                    height: 40px;
-                    spacing: 6px;
-                    alignment: start;
-                    padding-top: 2px;
-                    padding-bottom: 2px;
-                    for m in [25, 50, 90, 120, 180]: Chip {
-                        text: m < 120 ? m + " min" : (m / 60) + " ore";
-                        selected: AppState.focus-minutes == m;
+            // durate rapide a pulsanti uniti; «Altro» mostra il cursore a passi di 5 minuti
+            HorizontalLayout {
+                spacing: 3px;
+                for d[i] in [
+                    { m: 25, t: "25′" },
+                    { m: 50, t: "50′" },
+                    { m: 90, t: "90′" },
+                    { m: 120, t: "2 h" },
+                    { m: 0, t: "Altro" },
+                ]: Rectangle {
+                    property <bool> on: d.m == 0 ? root.custom || (AppState.focus-minutes != 25 && AppState.focus-minutes != 50 && AppState.focus-minutes != 90 && AppState.focus-minutes != 120) : !root.custom && AppState.focus-minutes == d.m;
+                    horizontal-stretch: 1;
+                    height: 44px;
+                    border-top-left-radius: self.on || i == 0 ? 22px : 8px;
+                    border-bottom-left-radius: self.on || i == 0 ? 22px : 8px;
+                    border-top-right-radius: self.on || i == 4 ? 22px : 8px;
+                    border-bottom-right-radius: self.on || i == 4 ? 22px : 8px;
+                    background: self.on ? M3.primary : M3.surface-container-highest;
+                    Text {
+                        text: d.t;
+                        font-size: 14px;
+                        font-weight: on ? 800 : 600;
+                        color: on ? M3.on-primary : M3.on-surface;
+                    }
+                    TouchArea {
                         clicked => {
-                            AppState.focus-set-minutes(m);
+                            if (d.m == 0) {
+                                root.custom = true;
+                            } else {
+                                root.custom = false;
+                                AppState.focus-set-minutes(d.m);
+                            }
+                        }
+                    }
+                }
+            }
+            Text {
+                text: AppState.focus-minutes >= 60 ? floor(AppState.focus-minutes / 60) + " h" + (Math.mod(AppState.focus-minutes, 60) > 0 ? " " + Math.mod(AppState.focus-minutes, 60) + " min" : "") : AppState.focus-minutes + " min";
+                font-size: 40px;
+                font-weight: 900;
+                color: M3.on-surface;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: AppState.focus-until-label + " · poi continui senza blocco finché non termini";
+                font-size: 12px;
+                color: M3.on-surface-variant;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+            }
+            if root.custom || (AppState.focus-minutes != 25 && AppState.focus-minutes != 50 && AppState.focus-minutes != 90 && AppState.focus-minutes != 120): Rectangle {
+                height: 40px;
+                // cursore: da 5 minuti a 4 ore, a passi di 5
+                property <float> frac: (AppState.focus-minutes - 5) / 235;
+                Rectangle {
+                    y: (parent.height - 16px) / 2;
+                    height: 16px;
+                    border-radius: 8px;
+                    background: M3.primary-container;
+                }
+                Rectangle {
+                    y: (parent.height - 16px) / 2;
+                    width: max(16px, parent.width * parent.frac);
+                    height: 16px;
+                    border-radius: 8px;
+                    background: M3.primary;
+                }
+                Rectangle {
+                    x: max(0px, parent.width * parent.frac - 3px);
+                    width: 6px;
+                    height: 36px;
+                    y: 2px;
+                    border-radius: 3px;
+                    background: M3.primary;
+                }
+                TouchArea {
+                    function pick(px: length) {
+                        AppState.focus-set-minutes(5 + round(clamp(px / self.width, 0, 1) * 47) * 5);
+                    }
+                    pointer-event(ev) => {
+                        if (ev.kind == PointerEventKind.down) {
+                            self.pick(self.mouse-x);
+                        }
+                    }
+                    moved => {
+                        if (self.pressed) {
+                            self.pick(self.mouse-x);
                         }
                     }
                 }
@@ -1058,7 +1129,7 @@ component FocusSheet inherits Rectangle {
                 }
             }
             M3Button {
-                text: AppState.focus-confirm ? AppState.focus-confirm-text : "Avvia concentrazione e sessione";
+                text: AppState.focus-confirm ? AppState.focus-confirm-text : "Scendi in pista con la concentrazione";
                 enabled: AppState.focus-usage-ok && AppState.focus-overlay-ok;
                 clicked => {
                     AppState.focus-start();
@@ -1464,22 +1535,6 @@ export component GroupPage inherits Page {
                         }
                     }
                 }
-                // matitina: l'amministratore cambia o toglie la foto
-                if AppState.group-admin && has-group: EditBadge {
-                    size: 22px;
-                    x: 38px;
-                    y: 38px;
-                    clicked => {
-                        if (AppState.group-has-photo) {
-                            AppState.photo-view-img = AppState.group-photo;
-                            AppState.photo-view-title = AppState.group-name;
-                            AppState.photo-view-group = true;
-                            AppState.photo-view = true;
-                        } else {
-                            AppState.pick-photo("group");
-                        }
-                    }
-                }
             }
             VerticalLayout {
                 alignment: center;
@@ -1720,6 +1775,98 @@ export component GroupPage inherits Page {
                         flash: AppState.lap-flash;
                     }
                 }
+                // piede della gara (Traguardo, proposta A): tempo, punti e giro; in pista il moltiplicatore e
+                // chi ti precede; con la concentrazione l'anello col tempo e «+15′». I comandi stanno
+                // nel pulsante in basso
+                if AppState.car-sel == "": Rectangle {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    height: foot.preferred-height;
+                    y: parent.height - self.height - (AppState.paddock-n > 0 ? 36px : 10px);
+                    border-radius: 22px;
+                    background: M3.surface;
+                    foot := HorizontalLayout {
+                        padding: 10px;
+                        padding-left: 14px;
+                        spacing: 12px;
+                        if AppState.focus-active: Rectangle {
+                            width: 58px;
+                            height: 58px;
+                            RingProgress {
+                                width: 58px;
+                                height: 58px;
+                                value: AppState.focus-left != "" ? AppState.focus-left-frac : 1;
+                                thickness: 6px;
+                                fill: M3.primary;
+                                track: M3.primary.with-alpha(0.18);
+                            }
+                            Text {
+                                text: AppState.focus-left != "" ? AppState.focus-left : "∞";
+                                font-size: self.text.character-count > 5 ? 10px : 13px;
+                                font-weight: 900;
+                                color: M3.on-surface;
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: AppState.focus-active ? "×1,5 · scia blu" : AppState.study-state == 2 ? "Pit stop" : AppState.study-today;
+                                font-size: 15px;
+                                font-weight: 800;
+                                color: M3.on-surface;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: AppState.study-elsewhere ? "Sessione aperta su un altro tuo dispositivo"
+                                    : AppState.focus-active ? (AppState.ahead-text != "" ? AppState.ahead-text : AppState.focus-until-label)
+                                    : AppState.study-state == 2 ? "gomme nuove ×1,2 se rientri entro 10′ · " + AppState.study-today
+                                    : AppState.study-state == 1 ? (AppState.ahead-text != "" ? AppState.ahead-text : "in pista")
+                                    : "al paddock · «Scendi in pista» col pulsante in basso";
+                                font-size: 12px;
+                                color: M3.on-surface-variant;
+                                wrap: word-wrap;
+                            }
+                            if AppState.focus-active && AppState.ahead-text != "": Text {
+                                text: AppState.focus-until-label;
+                                font-size: 12px;
+                                color: M3.on-surface-variant;
+                            }
+                            if !AppState.focus-active: Rectangle {
+                                height: 6px;
+                                border-radius: 3px;
+                                background: M3.surface-container-highest;
+                                Rectangle {
+                                    x: 0px;
+                                    width: parent.width * AppState.study-lap;
+                                    border-radius: 3px;
+                                    background: M3.primary;
+                                }
+                            }
+                        }
+                        if AppState.focus-active && AppState.focus-left != "": VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 52px;
+                                height: 32px;
+                                border-radius: 16px;
+                                background: ext.pressed ? M3.secondary-container.darker(0.08) : M3.secondary-container;
+                                Text {
+                                    text: "+15′";
+                                    font-size: 13px;
+                                    font-weight: 800;
+                                    color: M3.on-secondary-container;
+                                }
+                                ext := TouchArea {
+                                    clicked => {
+                                        AppState.focus-extend(15);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             if AppState.paddock-n > 0 && AppState.car-sel == "": Paddock {
                 cars: AppState.paddock-cars;
@@ -1738,199 +1885,28 @@ export component GroupPage inherits Page {
 
             // Traguardo: concentrazione in corso. La finestra della gara qui sopra segue la propria
             // monoposto (scia blu); qui il tempo che manca e chi ti precede.
-            if AppState.focus-active: Rectangle {
-                border-radius: 28px;
-                background: M3.primary-container;
-                min-height: fcol.preferred-height;
-                fcol := VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
-                    HorizontalLayout {
-                        spacing: 16px;
-                        Rectangle {
-                            width: 132px;
-                            height: 132px;
-                            RingProgress {
-                                width: 132px;
-                                height: 132px;
-                                value: AppState.focus-left != "" ? AppState.focus-left-frac : 1;
-                                thickness: 12px;
-                                fill: M3.primary;
-                                track: M3.primary.with-alpha(0.18);
-                            }
-                            VerticalLayout {
-                                alignment: center;
-                                // con più di un'ora («1:59:28») il testo si rimpicciolisce e resta nell'anello
-                                Text {
-                                    text: AppState.focus-left != "" ? AppState.focus-left : "∞";
-                                    font-size: self.text.character-count > 5 ? 23px : 32px;
-                                    font-weight: 900;
-                                    color: M3.on-primary-container;
-                                    horizontal-alignment: center;
-                                }
-                                Text {
-                                    text: AppState.focus-left != "" ? "rimasti" : "fino a «Termina»";
-                                    font-size: 12px;
-                                    color: M3.on-primary-container;
-                                    horizontal-alignment: center;
-                                }
-                            }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            spacing: 4px;
-                            horizontal-stretch: 1;
-                            Text {
-                                text: "×1,5";
-                                font-size: 28px;
-                                font-weight: 900;
-                                color: M3.primary;
-                            }
-                            Text {
-                                text: "Concentrazione · scia blu";
-                                font-size: 15px;
-                                font-weight: 700;
-                                color: M3.on-primary-container;
-                                wrap: word-wrap;
-                            }
-                            Text {
-                                text: AppState.ahead-text != "" ? AppState.ahead-text : "Le altre app sono bloccate fino alla fine";
-                                font-size: 13px;
-                                color: M3.on-primary-container;
-                                wrap: word-wrap;
-                            }
-                        }
-                    }
-                    // app permesse: si aprono da qui
-                    Flickable {
-                        height: 40px;
-                        interactive: true;
-                        content-width: max(self.width, flaunch.preferred-width);
-                        content-height: 40px;
-                        flaunch := HorizontalLayout {
-                            x: 0px;
-                            y: 0px;
-                            height: 40px;
-                            spacing: 8px;
-                            alignment: start;
-                            for a in AppState.focus-launcher: AppChip {
-                                app: a;
-                                clicked => {
-                                    AppState.focus-launch(a.pkg);
-                                }
-                            }
-                            Chip {
-                                text: "Telefono";
-                                clicked => {
-                                    AppState.focus-dial();
-                                }
-                            }
-                        }
-                    }
-                    Text {
-                        text: "Se esci prima del tempo il bonus resta sospeso: bandiera gialla in pista.";
-                        font-size: 12px;
-                        color: M3.on-primary-container.with-alpha(0.8);
-                        wrap: word-wrap;
-                    }
-                    HorizontalLayout {
-                        spacing: 3px;
-                        if AppState.study-state == 1: Rectangle {
-                            horizontal-stretch: 1;
-                            height: 52px;
-                            border-top-left-radius: 26px;
-                            border-bottom-left-radius: 26px;
-                            border-top-right-radius: 8px;
-                            border-bottom-right-radius: 8px;
-                            background: M3.surface;
-                            HorizontalLayout {
-                                alignment: center;
-                                spacing: 8px;
-                                VIcon {
-                                    source: Icons.pause;
-                                    tint: M3.on-surface;
-                                    size: 20px;
-                                }
-                                Text {
-                                    text: "Pit stop";
-                                    font-size: 15px;
-                                    font-weight: 800;
-                                    color: M3.on-surface;
-                                    vertical-alignment: center;
-                                }
-                            }
-                            TouchArea {
-                                clicked => {
-                                    AppState.study-pause();
-                                }
-                            }
-                        }
-                        if AppState.study-state != 1: Rectangle {
-                            horizontal-stretch: 1;
-                            height: 52px;
-                            border-top-left-radius: 26px;
-                            border-bottom-left-radius: 26px;
-                            border-top-right-radius: 8px;
-                            border-bottom-right-radius: 8px;
-                            background: M3.primary;
-                            HorizontalLayout {
-                                alignment: center;
-                                spacing: 8px;
-                                VIcon {
-                                    source: Icons.play;
-                                    tint: M3.on-primary;
-                                    size: 20px;
-                                }
-                                Text {
-                                    text: "Riparti";
-                                    font-size: 15px;
-                                    font-weight: 800;
-                                    color: M3.on-primary;
-                                    vertical-alignment: center;
-                                }
-                            }
-                            TouchArea {
-                                clicked => {
-                                    AppState.study-start();
-                                }
-                            }
-                        }
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            height: 52px;
-                            border-top-left-radius: 8px;
-                            border-bottom-left-radius: 8px;
-                            border-top-right-radius: 26px;
-                            border-bottom-right-radius: 26px;
-                            background: M3.error-container;
-                            HorizontalLayout {
-                                alignment: center;
-                                spacing: 8px;
-                                VIcon {
-                                    source: Icons.close;
-                                    tint: M3.on-error-container;
-                                    size: 20px;
-                                }
-                                Text {
-                                    text: "Termina";
-                                    font-size: 15px;
-                                    font-weight: 800;
-                                    color: M3.on-error-container;
-                                    vertical-alignment: center;
-                                }
-                            }
-                            TouchArea {
-                                clicked => {
-                                    AppState.study-stop();
-                                }
-                            }
+
+
+
+            // concentrazione attiva: le app permesse, da aprire
+            if AppState.focus-active: HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                for a[ai] in AppState.focus-launcher: HorizontalLayout {
+                    if ai < 3: AppChip {
+                        app: a;
+                        clicked => {
+                            AppState.focus-launch(a.pkg);
                         }
                     }
                 }
+                Chip {
+                    text: "Telefono";
+                    clicked => {
+                        AppState.focus-dial();
+                    }
+                }
             }
-
-
-
             // classifica: come si fanno i punti (pagina apposta) e «Avvisa tutti»
             if has-group: HorizontalLayout {
                 spacing: 8px;
@@ -2097,75 +2073,6 @@ export component GroupPage inherits Page {
                 }
             }
 
-            // cronometro personale (con la concentrazione attiva i comandi stanno nel riquadro in alto)
-            if !AppState.focus-active: Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    Text {
-                        text: AppState.study-elsewhere ? "Stai studiando su un altro dispositivo" : AppState.study-state == 1 ? "Stai studiando" : AppState.study-state == 2 ? "Pit stop" : "Pronto a partire";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    Text {
-                        text: AppState.study-today;
-                        color: M3.on-surface-variant;
-                    }
-                    LinearProgress {
-                        value: AppState.study-lap;
-                    }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        if AppState.study-state != 1: M3Button {
-                            horizontal-stretch: 1;
-                            enabled: !AppState.study-elsewhere;
-                            text: AppState.study-elsewhere ? "Sessione aperta altrove" : AppState.study-state == 2 ? "Riparti" : "Inizia a studiare";
-                            has-icon: true;
-                            icon: Icons.play;
-                            clicked => {
-                                AppState.study-start();
-                            }
-                        }
-                        if AppState.study-state == 1: M3Button {
-                            horizontal-stretch: 1;
-                            text: "Pit stop (pausa)";
-                            kind: 1;
-                            has-icon: true;
-                            icon: Icons.pause;
-                            clicked => {
-                                AppState.study-pause();
-                            }
-                        }
-                        if AppState.study-state != 0: M3Button {
-                            text: "Termina";
-                            kind: 3;
-                            clicked => {
-                                AppState.study-stop();
-                            }
-                        }
-                    }
-                    // concentrazione (Android): impostazione, poi stato e lanciatore delle app permesse
-                    if AppState.focus-available && !AppState.focus-active: HorizontalLayout {
-                        spacing: 8px;
-                        Text {
-                            text: "Concentrazione: il telefono resta su Tremendous e sulle app che scegli, per il tempo che decidi";
-                            wrap: word-wrap;
-                            vertical-alignment: center;
-                            horizontal-stretch: 1;
-                            font-size: Type.label;
-                            color: M3.on-surface;
-                        }
-                        M3Button {
-                            text: "Imposta";
-                            kind: 2;
-                            clicked => {
-                                AppState.focus-setup(true);
-                            }
-                        }
-                    }
-                }
-            }
 
 
 

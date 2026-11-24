@@ -21,4 +21,6 @@ fn main() {
     }
     prepapp::install_fonts(&data_dir());
     prepapp::run(data_dir()).expect("avvio UI");
+    // finestra chiusa: il processo termina subito, senza aspettare i thread di rete
+    std::process::exit(0);
 }

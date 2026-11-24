@@ -157,7 +157,9 @@ export component HomePage inherits Page {
         }
     }
     // la fascia compatta compare quando quella grande è uscita in alto
-    property <bool> compact: -sv.content-y > band.height - 96px;
+    // quanto della fascia grande è ancora in vista (scorrendo cala fino a 0)
+    property <length> band-left: band.height + sv.content-y;
+    property <bool> compact: root.band-left <= 84px;
 
     sv := Scroller {
         width: 100%;
@@ -771,24 +773,25 @@ export component HomePage inherits Page {
     }
 
     // fascia compatta, scorrendo (Traguardo: «Preparazione · 21 g · 38 %»)
+    // compare quando della fascia grande resta in vista meno della sua altezza: stesso colore,
+    // stessi angoli, attaccata alla barra di stato (colorata anche lei): la fascia grande sembra
+    // ridursi fino a questa, senza salti; il contenuto entra in dissolvenza
     Rectangle {
         x: 0px;
-        y: root.compact ? 0px : -self.height;
-        // nascosta del tutto: sopra la pagina c'è la barra di stato e la fascia si vedeva lì
-        visible: self.y > -self.height + 0.5px;
-        animate y {
-            duration: 180ms;
-            easing: ease-out;
-        }
+        y: 0px;
+        visible: root.compact;
         width: root.width;
-        height: 76px;
+        height: 84px;
         background: M3.primary-container;
-        border-bottom-left-radius: 24px;
-        border-bottom-right-radius: 24px;
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
         VerticalLayout {
-            padding-left: 20px;
-            padding-right: 20px;
-            padding-top: 10px;
+            opacity: clamp((84px - root.band-left) / 28px, 0, 1);
+            padding-bottom: 18px;
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-top: 8px;
+            alignment: center;
             spacing: 6px;
             HorizontalLayout {
                 spacing: 10px;

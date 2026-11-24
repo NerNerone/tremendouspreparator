@@ -29,7 +29,7 @@ export component AppWindow inherits Window {
     property <bool> show-nav: !AppState.focus-open && (AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13 || AppState.page == 18);
     // «Studia ora»: esteso in Oggi, solo simbolo nelle altre schede principali
     // durante lo studio di gruppo i comandi della sessione stanno in basso: niente pulsante
-    property <bool> show-fab: root.show-nav && AppState.page != 18 && !(AppState.page == 13 && AppState.study-state != 0) && AppState.car-sel == "";
+    property <bool> show-fab: root.show-nav && AppState.page != 18 && AppState.car-sel == "";
     property <bool> show-bar: root.show-nav && AppState.paused-title != "";
 
     fs := FocusScope {
@@ -46,6 +46,16 @@ export component AppWindow inherits Window {
                 }
             }
             return reject;
+        }
+
+        // Oggi: la barra di stato ha il colore della fascia della preparazione (più immersiva,
+        // e la fascia compatta scorrendo resta attaccata in alto senza stacchi)
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: root.width;
+            height: root.safe-area-insets.top;
+            background: AppState.page == 0 && !AppState.exam-menu ? M3.primary-container : M3.surface;
         }
 
         // colonna centrata con posizione e larghezza esplicite: con il margine come padding la
@@ -93,7 +103,8 @@ export component AppWindow inherits Window {
                 if root.show-fab: FabMenu {
                     x: parent.width - self.width - 16px;
                     y: parent.height - self.height - 16px - (root.show-bar ? 72px : 0px);
-                    extended: AppState.page == 0;
+                    extended: AppState.page == 0 || AppState.page == 13;
+                    race: AppState.page == 13;
                 }
             }
 

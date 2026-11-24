@@ -5,6 +5,11 @@ l'aggiornamento che lo porta.
 
 ## 24 novembre 2026
 
+- Squadra: niente più card «Pronto a partire». Il pulsante in basso è il comando della gara («Scendi in pista», poi «Pit stop» e «Riparti», con «Termina» sopra); tenuto premuto apre il menu, con la concentrazione.
+- Concentrazione: durata a scelta (25′, 50′, 90′, 2 h o «Altro» fino a 4 ore), tempo e «+15′» nel piede della gara, app permesse sotto.
+- Oggi: la fascia della preparazione arriva fin sotto la barra di stato e scorrendo si riduce senza stacchi.
+- GitHub: il repository dei dati deve essere privato (contiene progressi e codici dei gruppi).
+- Computer: chiudendo la finestra l'app termina del tutto.
 - Tema chiaro o scuro di nuovo come quello del telefono; niente più striscia della Home nella barra delle notifiche.
 - Studia: gli strumenti della materia (Tavola, Nomenclatura…) vanno a capo invece di scorrere di lato.
 - Squadra: nome del gruppo sempre intero; tocca la foto per cambiarla e il nome per la matita; «Come si fanno i punti» e «Avvisa tutti» accanto alla classifica; la scheda di chi tocchi in gara sale dal basso.

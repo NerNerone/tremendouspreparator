@@ -762,6 +762,10 @@ export global AppState {
     in property <string> focus-left;
     in property <float> focus-left-frac;
     callback focus-set-minutes(int);
+    // durante il blocco: allunga di N minuti
+    callback focus-extend(int);
+    // «blocco fino alle 22:41» (attivo) o l'ora di fine se partisse adesso (foglio)
+    in property <string> focus-until-label;
     callback focus-start();
     callback focus-perm(string);
     callback focus-launch(string);

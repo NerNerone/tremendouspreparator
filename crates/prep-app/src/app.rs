@@ -1662,6 +1662,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_car_color(|v| with_ctrl(|c| c.set_car_color(v as u32)));
     st.on_theme_color(|v| with_ctrl(|c| c.set_theme_color(v as u32)));
     st.on_theme_set_mode(|v| with_ctrl(|c| c.set_theme_mode(v)));
+    st.on_focus_extend(|m| with_ctrl(|c| c.focus_extend(m as i64)));
     st.on_gh_new_branch(|n| with_ctrl(|c| c.gh_new_branch(&n)));
     st.on_gh_save_branch(|n| with_ctrl(|c| c.gh_save_branch(&n)));
     st.on_rem_toggle(|i, on| with_ctrl(|c| c.rem_toggle(i.max(0) as usize, on)));
@@ -1759,6 +1760,9 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         c.autosave_quiz();
         c.flush_flags();
         c.save_cards();
+        // finestra chiusa: si chiude tutto, anche il promemoria in background
+        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+        crate::desktop_reminder::stop_daemon(&c.store.base);
     });
     r
 }

@@ -112,6 +112,8 @@ fn run(store: &Store, rep: &mut SyncReport, progress: &(dyn Fn(usize, usize) + S
         repo: s.repo.trim().to_string(),
         token: s.token.trim().to_string(),
     });
+    // progressi ed elenco dei gruppi (con i codici) solo in un repository privato
+    gh.ensure_private()?;
     let exam_branch = store.exam_branch();
     let branch = if !exam_branch.is_empty() {
         exam_branch

@@ -80,6 +80,10 @@ pub fn run_daemon(data_dir: &Path) {
     let Some(_lock) = single_instance(data_dir) else {
         return;
     };
+    // l'app chiusa lascia questo file: il promemoria esce con lei (chiudere la finestra termina
+    // tutto, niente processo che resta in background)
+    let quit_file = data_dir.join("reminder_quit");
+    let _ = std::fs::remove_file(&quit_file);
     // fasce già notificate ("AAAA-MM-GG HH:MM"), salvate: un nuovo accesso non ripete
     let fired_file = data_dir.join("reminder_fired.txt");
     let mut fired: Vec<String> = std::fs::read_to_string(&fired_file)
@@ -112,8 +116,19 @@ pub fn run_daemon(data_dir: &Path) {
                 }
             }
         }
-        std::thread::sleep(Duration::from_secs(60));
+        for _ in 0..60 {
+            if quit_file.exists() {
+                let _ = std::fs::remove_file(&quit_file);
+                return;
+            }
+            std::thread::sleep(Duration::from_secs(1));
+        }
     }
+}
+
+/// Chiusura dell'app: anche il processo dei promemoria termina.
+pub fn stop_daemon(data_dir: &Path) {
+    let _ = std::fs::write(data_dir.join("reminder_quit"), b"1");
 }
 
 fn open_app() {

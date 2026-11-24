@@ -61,7 +61,14 @@ struct Tree {
 #[derive(Debug, Deserialize)]
 struct RepoInfo {
     default_branch: String,
+    /// i dati (progressi, elenco dei gruppi con i loro codici) vanno solo in un repository privato
+    #[serde(default)]
+    private: bool,
 }
+
+/// Messaggio per un repository dei dati pubblico.
+pub const PUBLIC_REPO: &str = "il repository è pubblico: rendilo privato (Settings › General › Danger Zone › \
+Change visibility). Contiene progressi e codici dei gruppi, che non devono essere visibili a tutti";
 
 /// File allegato a una release.
 #[derive(Debug, Clone, Deserialize)]
@@ -135,6 +142,9 @@ impl GitHub {
         Self::off()
     }
     pub fn create_branch(&self, _: &str, _: &str) -> Result<(), GhError> {
+        Err(GhError::Network("non disponibile nel browser".into()))
+    }
+    pub fn ensure_private(&self) -> Result<(), GhError> {
         Err(GhError::Network("non disponibile nel browser".into()))
     }
     pub fn releases(&self, _: u32) -> Result<Vec<Release>, GhError> {
@@ -233,6 +243,28 @@ impl GitHub {
         let body = Self::check(st, String::from_utf8_lossy(&b).into_owned())?;
         let info: RepoInfo = serde_json::from_str(&body).map_err(|e| GhError::Parse(e.to_string()))?;
         Ok(info.default_branch)
+    }
+
+    /// Il repository dei dati deve essere privato: altrimenti errore (niente sincronizzazione).
+    pub fn ensure_private(&self) -> Result<(), GhError> {
+        let (st, b) = self.get(&self.url(""), "application/vnd.github+json")?;
+        if st == 404 {
+            return Err(GhError::Http(
+                404,
+                format!(
+                    "repository {}/{} non trovato: controlla proprietario e nome, e che il token \
+                     abbia accesso a questo repository (Repository access)",
+                    self.cfg.owner, self.cfg.repo
+                ),
+            ));
+        }
+        let body = Self::check(st, String::from_utf8_lossy(&b).into_owned())?;
+        let info: RepoInfo = serde_json::from_str(&body).map_err(|e| GhError::Parse(e.to_string()))?;
+        if info.private {
+            Ok(())
+        } else {
+            Err(GhError::Http(403, PUBLIC_REPO.into()))
+        }
     }
 
     /// Elenco ricorsivo dei file del branch. Repository vuoto → lista vuota.

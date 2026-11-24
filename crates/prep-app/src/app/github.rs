@@ -182,7 +182,9 @@ impl Ctrl {
         };
         self.toast(format!("Creo il ramo «{name}» dal modello…"));
         spawn_background(move || {
-            let r = gh.publish_branch(&name, &super::modello::files(true), "Nuovo esame dal modello", None);
+            let r = gh
+                .ensure_private()
+                .and_then(|_| gh.publish_branch(&name, &super::modello::files(true), "Nuovo esame dal modello", None));
             let _ = slint::invoke_from_event_loop(move || {
                 with_ctrl(|c| match r {
                     Ok(()) => {
@@ -228,7 +230,9 @@ impl Ctrl {
         self.toast(format!("Salvo «{exam}» nel ramo «{name}» ({n} file)…"));
         let root = self.store.root.clone();
         spawn_background(move || {
-            let r = gh.publish_branch(&name, &files, &format!("Esame «{exam}» dall'app"), None);
+            let r = gh
+                .ensure_private()
+                .and_then(|_| gh.publish_branch(&name, &files, &format!("Esame «{exam}» dall'app"), None));
             let _ = slint::invoke_from_event_loop(move || {
                 with_ctrl(|c| match r {
                     Ok(()) => {

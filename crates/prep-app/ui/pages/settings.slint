@@ -821,7 +821,7 @@ export component SettingsPage inherits Page {
                     }
                     ItemText {
                         text: AppState.s-github-on
-                            ? "Un repository (anche privato) con il pacchetto e i progressi: ogni quiz, simulazione, ripasso, obiettivo e l'elenco dei gruppi diventano file in progress/. Ogni esame usa un suo ramo. Serve un token «fine-grained» limitato a quel repository, con Contents: Read and write."
+                            ? "Un repository PRIVATO (obbligatorio: contiene progressi e codici dei gruppi) con il pacchetto e i progressi: ogni quiz, simulazione, ripasso, obiettivo e l'elenco dei gruppi diventano file in progress/. Ogni esame usa un suo ramo. Serve un token «fine-grained» limitato a quel repository, con Contents: Read and write."
                             : "Spento: progressi e gruppi viaggiano solo tra i tuoi dispositivi collegati, nessuna richiesta a GitHub.";
                     }
                     if AppState.s-github-on: OutlinedField {

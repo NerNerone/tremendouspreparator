@@ -1166,9 +1166,53 @@ component FabMenuItem inherits Rectangle {
 // concentrazione). Esteso nella Home, solo simbolo nelle altre schede.
 export component FabMenu inherits Rectangle {
     in property <bool> extended: true;
+    // Squadra (proposta A): il pulsante è il comando della gara. Tocco: «Scendi in pista»,
+    // «Pit stop» o «Riparti»; tenuto premuto: il menu delle attività (anche la concentrazione)
+    in property <bool> race: false;
+    property <int> rs: AppState.study-state;
+    property <string> label: !root.race ? "Studia ora" : AppState.study-elsewhere ? "Sessione altrove" : root.rs == 1 ? "Pit stop" : root.rs == 2 ? "Riparti" : "Scendi in pista";
+    property <bool> tonal: root.race && root.rs == 1;
+    property <bool> long-pressed: false;
     VerticalLayout {
         alignment: end;
         spacing: 8px;
+        // gara: sessione libera e concentrazione (durata dell'ultima volta, o da scegliere)
+        if AppState.fab-open && root.race && root.rs == 0 && !AppState.study-elsewhere: HorizontalLayout {
+            alignment: end;
+            FabMenuItem {
+                icon: Icons.play;
+                title: "Scendi in pista";
+                sub: "sessione libera, finché premi Termina";
+                clicked => {
+                    AppState.fab-open = false;
+                    AppState.study-start();
+                }
+            }
+        }
+        if AppState.fab-open && root.race && AppState.focus-available && !AppState.focus-active: HorizontalLayout {
+            alignment: end;
+            FabMenuItem {
+                icon: Icons.focus;
+                title: "Concentrazione " + (AppState.focus-minutes >= 60 && Math.mod(AppState.focus-minutes, 60) == 0 ? (AppState.focus-minutes / 60) + " h" : AppState.focus-minutes + " min");
+                sub: "come l'ultima volta · ×1,5";
+                clicked => {
+                    AppState.fab-open = false;
+                    AppState.focus-start();
+                }
+            }
+        }
+        if AppState.fab-open && root.race && AppState.focus-available && !AppState.focus-active: HorizontalLayout {
+            alignment: end;
+            FabMenuItem {
+                icon: Icons.tune;
+                title: "Scegli durata e app…";
+                sub: "concentrazione su misura";
+                clicked => {
+                    AppState.fab-open = false;
+                    AppState.focus-setup(true);
+                }
+            }
+        }
         if AppState.fab-open: HorizontalLayout {
             alignment: end;
             FabMenuItem {
@@ -1205,7 +1249,7 @@ export component FabMenu inherits Rectangle {
                 }
             }
         }
-        if AppState.fab-open: HorizontalLayout {
+        if AppState.fab-open && !root.race: HorizontalLayout {
             alignment: end;
             FabMenuItem {
                 icon: Icons.focus;
@@ -1218,13 +1262,36 @@ export component FabMenu inherits Rectangle {
                 }
             }
         }
+        // gara in corso: «Termina» piccolo e rosso sopra il pulsante
+        if root.race && root.rs != 0 && !AppState.fab-open: HorizontalLayout {
+            alignment: end;
+            Rectangle {
+                width: 48px;
+                height: 48px;
+                border-radius: 16px;
+                background: tta.pressed ? M3.error-container.darker(0.08) : M3.error-container;
+                Rectangle {
+                    x: 17px;
+                    y: 17px;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 3px;
+                    background: M3.error;
+                }
+                tta := TouchArea {
+                    clicked => {
+                        AppState.study-stop();
+                    }
+                }
+            }
+        }
         HorizontalLayout {
             alignment: end;
             fab := Rectangle {
                 // misura della scritta, fuori dal layout (una scritta nascosta occupa comunque spazio)
                 measure := Text {
                     visible: false;
-                    text: "Studia ora";
+                    text: root.label;
                     font-size: 17px;
                     font-weight: 700;
                 }
@@ -1232,7 +1299,7 @@ export component FabMenu inherits Rectangle {
                 height: AppState.fab-open ? 56px : 64px;
                 width: AppState.fab-open ? 56px : self.wide ? measure.preferred-width + 20px + 28px + 12px + 24px : 64px;
                 border-radius: AppState.fab-open ? 28px : 20px;
-                background: fta.pressed ? M3.primary.darker(10%) : M3.primary;
+                background: root.tonal ? (fta.pressed ? M3.primary-container.darker(8%) : M3.primary-container) : fta.pressed ? M3.primary.darker(10%) : M3.primary;
                 drop-shadow-blur: 12px;
                 drop-shadow-offset-y: 4px;
                 drop-shadow-color: M3.primary.with-alpha(0.35);
@@ -1244,7 +1311,7 @@ export component FabMenu inherits Rectangle {
                 // simbolo, al centro esatto del cerchio
                 if !fab.wide: Icon {
                     source: AppState.fab-open ? Icons.close : Icons.play-arrow;
-                    tint: M3.on-primary;
+                    tint: root.tonal && !AppState.fab-open ? M3.on-primary-container : M3.on-primary;
                     width: AppState.fab-open ? 24px : 28px;
                     height: self.width;
                     x: (parent.width - self.width) / 2;
@@ -1255,23 +1322,54 @@ export component FabMenu inherits Rectangle {
                     padding-right: 24px;
                     spacing: 12px;
                     Icon {
-                        source: Icons.play-arrow;
-                        tint: M3.on-primary;
+                        source: root.tonal ? Icons.pause : Icons.play-arrow;
+                        tint: root.tonal ? M3.on-primary-container : M3.on-primary;
                         width: 28px;
                         height: 28px;
                         y: (parent.height - self.height) / 2;
                     }
                     Text {
-                        text: "Studia ora";
+                        text: root.label;
                         font-size: 17px;
                         font-weight: 700;
-                        color: M3.on-primary;
+                        color: root.tonal ? M3.on-primary-container : M3.on-primary;
                         vertical-alignment: center;
                     }
                 }
+                // tenuto premuto (in Squadra): il menu delle attività invece del comando della gara
+                lp := Timer {
+                    interval: 450ms;
+                    running: false;
+                    triggered => {
+                        self.running = false;
+                        if (fta.pressed && root.race) {
+                            root.long-pressed = true;
+                            AppState.fab-open = true;
+                        }
+                    }
+                }
                 fta := TouchArea {
+                    pointer-event(ev) => {
+                        if (ev.kind == PointerEventKind.down) {
+                            root.long-pressed = false;
+                            lp.running = true;
+                        }
+                    }
                     clicked => {
-                        AppState.fab-open = !AppState.fab-open;
+                        lp.running = false;
+                        if (root.long-pressed) {
+                            root.long-pressed = false;
+                        } else if (root.race && !AppState.fab-open) {
+                            if (AppState.study-elsewhere) {
+                                AppState.fab-open = true;
+                            } else if (root.rs == 1) {
+                                AppState.study-pause();
+                            } else {
+                                AppState.study-start();
+                            }
+                        } else {
+                            AppState.fab-open = !AppState.fab-open;
+                        }
                     }
                 }
             }
