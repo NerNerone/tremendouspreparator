@@ -24,13 +24,45 @@ fn header() -> String {
     )
 }
 
+fn redact_home_prefix(line: &str, prefix: &str, sep: char) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(pos) = rest.find(prefix) {
+        out.push_str(&rest[..pos]);
+        let after = &rest[pos + prefix.len()..];
+        let user_end =
+            after.find(|c: char| c == '/' || c == '\\' || c.is_whitespace() || c == ':').unwrap_or(after.len());
+        if user_end > 0 {
+            out.push('~');
+            out.push(sep);
+            rest = &after[user_end..];
+            if let Some(stripped) = rest.strip_prefix(sep) {
+                rest = stripped;
+            }
+        } else {
+            out.push_str(prefix);
+            rest = after;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Rimuove i nomi utente dai percorsi locali nei backtrace / rapporti di errore.
+pub fn redact_paths(s: &str) -> String {
+    let mut t = redact_home_prefix(s, "/var/home/", '/');
+    t = redact_home_prefix(&t, "/home/", '/');
+    t = redact_home_prefix(&t, "/Users/", '/');
+    redact_home_prefix(&t, "C:\\Users\\", '\\')
+}
+
 /// Registra i panic nella cartella `crash/`, poi lascia proseguire il comportamento normale.
 pub fn install(base: &Path) {
     let d = dir(base);
     let prev = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let bt = std::backtrace::Backtrace::force_capture();
-        let text = format!("{}\n\n{info}\n\n{bt}", header());
+        let text = redact_paths(&format!("{}\n\n{info}\n\n{bt}", header()));
         let name = chrono::Utc::now().format("rust-%Y%m%dT%H%M%S.txt").to_string();
         let _ = vfs::create_dir_all(&d);
         let _ = vfs::write(&d.join(name), text.as_bytes());
@@ -81,14 +113,15 @@ pub fn issue_url(report: &str) -> String {
 /// Come [`issue_url`], per il repository all'indirizzo `repo`.
 pub fn issue_url_for(repo: &str, report: &str) -> String {
     let repo = repo.trim_end_matches('/');
-    let mut details: String = report.chars().take(MAX_BODY).collect();
-    if details.len() < report.len() {
+    let clean = redact_paths(report);
+    let mut details: String = clean.chars().take(MAX_BODY).collect();
+    if details.len() < clean.len() {
         details.push_str("\n…");
     }
     let body = format!(
         "**Cosa stavi facendo quando l'app si è chiusa?**\n\n\n\n**Dettagli** (scritti dall'app)\n\n```\n{details}\n```\n"
     );
-    format!("{repo}/issues/new?title={}&body={}", encode(&format!("Errore: {}", summary(report))), encode(&body))
+    format!("{repo}/issues/new?title={}&body={}", encode(&format!("Errore: {}", summary(&clean))), encode(&body))
 }
 
 /// Codifica percentuale per i parametri di un indirizzo.
@@ -117,5 +150,14 @@ mod tests {
         assert!(!u.contains(' ') && !u.contains('\n'));
         let long = format!("x\n\n{}", "y".repeat(20000));
         assert!(issue_url(&long).len() < 12000);
+    }
+
+    #[test]
+    fn redacts_home_paths() {
+        let s = "/var/home/alice/proj/src/app.rs\n/home/bob/x\n/Users/carol/y\nC:\\Users\\dave\\z";
+        let r = redact_paths(s);
+        assert!(!r.contains("alice") && !r.contains("bob") && !r.contains("carol") && !r.contains("dave"));
+        assert!(r.contains("~/proj/src/app.rs"));
+        assert!(r.contains("~\\z"));
     }
 }

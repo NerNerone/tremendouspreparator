@@ -68,7 +68,14 @@ pub fn pick_named_file(import_dir: PathBuf) {
             return;
         }
         let arr = js_sys::Array::from(&v);
-        let name = arr.get(0).as_string().unwrap_or_else(|| "file".into());
+        let raw_name = arr.get(0).as_string().unwrap_or_else(|| "file".into());
+        let base = std::path::Path::new(&raw_name).file_name().and_then(|s| s.to_str()).unwrap_or("file");
+        let mut name: String = base.chars().filter(|c| !c.is_control() && *c != '/' && *c != '\\').collect();
+        while name.contains("..") {
+            name = name.replace("..", "_");
+        }
+        let name = name.trim_matches('.');
+        let name = if name.is_empty() || name.chars().all(|c| c == '_') { "file" } else { name };
         let bytes = js_sys::Uint8Array::new(&arr.get(1)).to_vec();
         let stamp = js_sys::Date::now() as u64;
         let _ = vfs::write(&import_dir.join(format!("file-{stamp}--{name}")), &bytes);

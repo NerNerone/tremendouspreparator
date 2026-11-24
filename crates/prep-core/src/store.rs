@@ -37,11 +37,13 @@ pub struct Settings {
     /// identificativo casuale di questo dispositivo (sincronizzazione tra dispositivi)
     #[serde(default)]
     pub device_id: String,
-    /// collegarsi da soli all'avvio; la password resta salvata solo in questo caso
+    /// collegarsi da soli all'avvio; la chiave di stanza derivata resta salvata solo in questo caso
     #[serde(default)]
     pub p2p_auto: bool,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub p2p_password: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub p2p_room_key: String,
     /// relay Nostr da usare; vuoto = quelli predefiniti
     #[serde(default)]
     pub relays: Vec<String>,
@@ -107,6 +109,7 @@ impl Default for Settings {
             device_id: String::new(),
             p2p_auto: false,
             p2p_password: String::new(),
+            p2p_room_key: String::new(),
             relays: vec![],
             direct_only: false,
             car_color: 0,
@@ -145,13 +148,24 @@ fn read_json<T: for<'de> Deserialize<'de> + Default>(p: &Path) -> T {
     fs::read_to_string(p).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
 }
 
-fn write_atomic(p: &Path, bytes: &[u8]) -> io::Result<()> {
+fn write_atomic_mode(p: &Path, bytes: &[u8], private: bool) -> io::Result<()> {
     if let Some(dir) = p.parent() {
         fs::create_dir_all(dir)?;
     }
     let tmp = p.with_extension("tmp");
     fs::write(&tmp, bytes)?;
+    #[cfg(unix)]
+    if private {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(not(unix))]
+    let _ = private;
     fs::rename(&tmp, p)
+}
+
+fn write_atomic(p: &Path, bytes: &[u8]) -> io::Result<()> {
+    write_atomic_mode(p, bytes, false)
 }
 
 /// Impronta di un file (sha1 nel formato dei blob di git), per riconoscere i file già presenti.
@@ -188,7 +202,7 @@ impl Store {
     }
 
     pub fn save_settings(&self, s: &Settings) -> io::Result<()> {
-        write_atomic(&self.base.join("settings.json"), serde_json::to_string_pretty(s)?.as_bytes())
+        write_atomic_mode(&self.base.join("settings.json"), serde_json::to_string_pretty(s)?.as_bytes(), true)
     }
 
     pub fn index(&self) -> MirrorIndex {

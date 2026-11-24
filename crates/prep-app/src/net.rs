@@ -82,13 +82,24 @@ mod imp {
         } else if let Some(r) = url.strip_prefix("ws://") {
             (false, r)
         } else {
-            return Err("indirizzo non valido (serve ws:// o wss://)".into());
+            return Err("indirizzo non valido (serve wss://)".into());
         };
         let hostport = rest.split('/').next().unwrap_or(rest);
-        let (host, port) = match hostport.rsplit_once(':') {
-            Some((h, p)) => (h.to_string(), p.parse().map_err(|_| "porta non valida")?),
-            None => (hostport.to_string(), if tls { 443 } else { 80 }),
+        let (host, port) = if let Some(r) = hostport.strip_prefix('[') {
+            if let Some((h, p)) = r.split_once("]:") {
+                (h.to_string(), p.parse().map_err(|_| "porta non valida")?)
+            } else {
+                (r.trim_end_matches(']').to_string(), if tls { 443 } else { 80 })
+            }
+        } else {
+            match hostport.rsplit_once(':') {
+                Some((h, p)) => (h.to_string(), p.parse().map_err(|_| "porta non valida")?),
+                None => (hostport.to_string(), if tls { 443 } else { 80 }),
+            }
         };
+        if !tls && !(cfg!(debug_assertions) && matches!(host.as_str(), "localhost" | "127.0.0.1" | "::1")) {
+            return Err("richiesto collegamento cifrato wss://".into());
+        }
         let addr = (host.as_str(), port)
             .to_socket_addrs()
             .map_err(|e| e.to_string())?
@@ -104,7 +115,10 @@ mod imp {
         } else {
             Conn::Plain(tcp)
         };
-        let (ws, _) = tungstenite::client(url, conn).map_err(|e| e.to_string())?;
+        let cfg = tungstenite::protocol::WebSocketConfig::default()
+            .max_message_size(Some(256 * 1024))
+            .max_frame_size(Some(256 * 1024));
+        let (ws, _) = tungstenite::client::client_with_config(url, conn, Some(cfg)).map_err(|e| e.to_string())?;
         // da qui letture brevi: lo stesso thread spedisce e riceve
         ws.get_ref().tcp().set_read_timeout(Some(Duration::from_millis(120))).ok();
         Ok(ws)

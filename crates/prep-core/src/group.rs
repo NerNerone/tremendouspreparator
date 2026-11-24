@@ -374,8 +374,8 @@ pub fn user_id(username: &str, password: &str, device: &str) -> String {
     if username.trim().is_empty() || password.len() < 8 {
         return device.to_string();
     }
-    let h = crate::p2p::sha256_hex(format!("tp-uid\n{}\n{}", username.trim().to_lowercase(), password).as_bytes());
-    format!("u{}", &h[..15])
+    let seed = crate::p2p::Room::derive_seed(username, password);
+    crate::p2p::Room::user_id_from_seed(&seed)
 }
 
 /// Tra due identificativi dello stesso utente (due suoi dispositivi) quello da tenere: uno
@@ -401,13 +401,122 @@ pub fn photo_hash(bytes: &[u8]) -> String {
     crate::p2p::sha256_hex(bytes)[..16].to_string()
 }
 
+const MAX_INFO_SKEW: i64 = 300;
+
+fn hex_enc(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+fn hex_dec<const N: usize>(s: &str) -> Option<[u8; N]> {
+    if s.len() != N * 2 || !s.is_ascii() {
+        return None;
+    }
+    let mut out = [0u8; N];
+    for (i, slot) in out.iter_mut().enumerate() {
+        *slot = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(out)
+}
+
+/// Genera una coppia di chiavi BIP-340 Schnorr `(sk_hex, pk_hex)` per autenticare l'amministratore del gruppo.
+pub fn new_admin_keypair() -> (String, String) {
+    let mut b = [0u8; 32];
+    loop {
+        getrandom::getrandom(&mut b).expect("generatore casuale");
+        if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&b) {
+            let pk = hex_enc(&sk.verifying_key().to_bytes());
+            return (hex_enc(&b), pk);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn info_digest(code: &str, admin: &str, name: &str, photo: &str, removed: &[String], at: i64) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(b"tp-group-info-v1\0");
+    let push_str = |h: &mut Sha256, s: &str| {
+        h.update((s.len() as u32).to_be_bytes());
+        h.update(s.as_bytes());
+    };
+    push_str(&mut h, code);
+    push_str(&mut h, admin);
+    push_str(&mut h, name);
+    push_str(&mut h, photo);
+    h.update((removed.len() as u32).to_be_bytes());
+    for r in removed {
+        push_str(&mut h, r);
+    }
+    h.update(at.to_be_bytes());
+    h.finalize().into()
+}
+
+/// Firma un `GroupMsg::Info` con la chiave privata dell'amministratore.
+#[allow(clippy::too_many_arguments)]
+pub fn sign_info(
+    code: &str,
+    admin: &str,
+    name: &str,
+    photo: &str,
+    removed: &[String],
+    at: i64,
+    sk_hex: &str,
+) -> Option<String> {
+    let sk_bytes: [u8; 32] = hex_dec(sk_hex.trim())?;
+    let sk = k256::schnorr::SigningKey::from_bytes(&sk_bytes).ok()?;
+    let mut aux = [0u8; 32];
+    getrandom::getrandom(&mut aux).expect("generatore casuale");
+    let digest = info_digest(code, admin, name, photo, removed, at);
+    let sig = sk.sign_raw(&digest, &aux).ok()?;
+    Some(hex_enc(&sig.to_bytes()))
+}
+
+/// Verifica la firma di un `GroupMsg::Info` con la chiave pubblica dell'amministratore.
+#[allow(clippy::too_many_arguments)]
+pub fn verify_info_sig(
+    code: &str,
+    admin: &str,
+    name: &str,
+    photo: &str,
+    removed: &[String],
+    at: i64,
+    pk_hex: &str,
+    sig_hex: &str,
+) -> bool {
+    use k256::schnorr::signature::hazmat::PrehashVerifier;
+    let Some(pk_bytes) = hex_dec::<32>(pk_hex.trim()) else {
+        return false;
+    };
+    let Some(sig_bytes) = hex_dec::<64>(sig_hex.trim()) else {
+        return false;
+    };
+    let Ok(vk) = k256::schnorr::VerifyingKey::from_bytes(&pk_bytes) else {
+        return false;
+    };
+    let Ok(sig) = k256::schnorr::Signature::try_from(sig_bytes.as_slice()) else {
+        return false;
+    };
+    let digest = info_digest(code, admin, name, photo, removed, at);
+    vk.verify_prehash(&digest, &sig).is_ok()
+}
+
 /// Messaggi del gruppo oltre allo stato di ciascuno.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "g", rename_all = "snake_case")]
 pub enum GroupMsg {
     /// impostazioni decise dall'amministratore (chi ha creato il gruppo): nome, foto, membri
-    /// rimossi. `at` = quando sono state cambiate (vince la più recente).
-    Info { admin: String, name: String, photo: String, removed: Vec<String>, at: i64 },
+    /// rimossi. `at` = quando sono state cambiate (vince la più recente), firmate con `pk`/`sig`.
+    Info {
+        admin: String,
+        name: String,
+        photo: String,
+        removed: Vec<String>,
+        at: i64,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        pk: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        sig: String,
+    },
     /// richiesta di una foto che non si ha (la manda chi ce l'ha)
     PhotoGet { hash: String },
     /// una foto (JPEG in base64; le versioni nuove usano `p2p::Msg::GroupPhoto`)
@@ -459,6 +568,15 @@ pub struct Group {
     /// amministratore (id utente di chi ha creato il gruppo); vuoto finché non si sa
     #[serde(default)]
     pub admin: String,
+    /// chiave pubblica dell'amministratore del gruppo (BIP-340 hex)
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub admin_pk: String,
+    /// chiave privata dell'amministratore (solo su dispositivi dell'admin; sincronizzata via Sess::Sync)
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub admin_sk: String,
+    /// ultima firma valida delle impostazioni correnti (per poterle ripetere agli altri membri)
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub admin_sig: String,
     /// utenti rimossi dall'amministratore
     #[serde(default)]
     pub removed: Vec<String>,
@@ -501,6 +619,47 @@ impl Group {
         (!self.admin.is_empty() && self.admin == me) || self.legacy()
     }
 
+    pub fn ensure_admin_keys(&mut self) {
+        if self.admin_sk.is_empty() {
+            let (sk, pk) = new_admin_keypair();
+            self.admin_sk = sk;
+            self.admin_pk = pk;
+        } else if self.admin_pk.is_empty() {
+            if let Some(sk_bytes) = hex_dec::<32>(self.admin_sk.trim()) {
+                if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&sk_bytes) {
+                    self.admin_pk = hex_enc(&sk.verifying_key().to_bytes());
+                }
+            }
+        }
+    }
+
+    pub fn sign_current_info(&mut self) {
+        self.ensure_admin_keys();
+        if let Some(sig) =
+            sign_info(&self.code, &self.admin, &self.name, &self.photo, &self.removed, self.info_at, &self.admin_sk)
+        {
+            self.admin_sig = sig;
+        }
+    }
+
+    /// Sposta solo i dispositivi del membro sotto `new` in seguito a `status.prev`, senza mai
+    /// toccare privilegi amministrativi o lista rimossi.
+    fn merge_peer_member(&mut self, old: &str, new: &str) {
+        if old == self.admin || self.removed.contains(&old.to_string()) {
+            return;
+        }
+        if let Some(m) = self.members.remove(old) {
+            let e = self.members.entry(new.to_string()).or_default();
+            for (d, s) in m.devices {
+                e.devices.entry(d).or_insert(s);
+            }
+            if m.last_seen > e.last_seen {
+                e.status = m.status;
+                e.last_seen = m.last_seen;
+            }
+        }
+    }
+
     /// Stato (o membro) di un utente, che arrivi da un dispositivo nuovo o già noto. Le voci
     /// salvate con l'id del dispositivo (versioni precedenti) passano sotto l'id utente.
     pub fn status_in(&mut self, dev: &str, status: Status, now: i64) {
@@ -508,11 +667,15 @@ impl Group {
         // id precedenti dello stesso utente (e il dispositivo, per le versioni vecchie)
         let mut olds: Vec<String> = status.prev.clone();
         olds.push(dev.to_string());
-        for old in olds.iter().filter(|o| **o != uid) {
-            self.rename_user(old, &uid);
-        }
-        if self.removed.contains(&uid) {
+        if self.removed.contains(&uid) || olds.iter().any(|o| self.removed.contains(o)) {
+            if !self.removed.contains(&uid) {
+                self.removed.push(uid.clone());
+            }
+            self.members.remove(&uid);
             return;
+        }
+        for old in olds.iter().filter(|o| **o != uid) {
+            self.merge_peer_member(old, &uid);
         }
         // uno stato più vecchio di quello già noto (arrivato in ritardo per un'altra strada)
         // non deve annullare quello nuovo
@@ -595,8 +758,8 @@ impl Group {
         }
     }
 
-    /// Applica le impostazioni dell'amministratore. Il primo che si presenta come
-    /// amministratore resta tale (lo è chi ha creato il gruppo, che le manda per primo).
+    /// Applica le impostazioni dell'amministratore autenticate dalla sua firma Schnorr.
+    #[allow(clippy::too_many_arguments)]
     pub fn apply_info(
         &mut self,
         me: &str,
@@ -605,11 +768,32 @@ impl Group {
         photo: &str,
         removed: &[String],
         at: i64,
+        pk: &str,
+        sig: &str,
+        now: i64,
     ) -> InfoResult {
-        if admin.is_empty() || (!self.admin.is_empty() && self.admin != admin) || at <= self.info_at {
+        if admin.is_empty()
+            || pk.is_empty()
+            || sig.is_empty()
+            || at <= 0
+            || at <= self.info_at
+            || at > now + MAX_INFO_SKEW
+        {
+            return InfoResult::Ignored;
+        }
+        if !verify_info_sig(&self.code, admin, name, photo, removed, at, pk, sig) {
+            return InfoResult::Ignored;
+        }
+        if !self.admin_pk.is_empty() {
+            if self.admin_pk != pk {
+                return InfoResult::Ignored;
+            }
+        } else if !self.admin.is_empty() && self.admin != admin {
             return InfoResult::Ignored;
         }
         self.admin = admin.to_string();
+        self.admin_pk = pk.to_string();
+        self.admin_sig = sig.to_string();
         if !name.trim().is_empty() {
             self.name = name.trim().chars().take(60).collect();
         }
@@ -647,6 +831,12 @@ pub struct GroupRef {
     pub name: String,
     #[serde(default)]
     pub admin: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub admin_pk: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub admin_sk: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub admin_sig: String,
     #[serde(default)]
     pub photo: String,
     #[serde(default)]
@@ -717,6 +907,9 @@ impl Groups {
                 code: g.code.clone(),
                 name: g.name.clone(),
                 admin: g.admin.clone(),
+                admin_pk: g.admin_pk.clone(),
+                admin_sk: g.admin_sk.clone(),
+                admin_sig: g.admin_sig.clone(),
                 photo: g.photo.clone(),
                 info_at: g.info_at,
                 joined_at: g.joined_at,
@@ -746,6 +939,9 @@ impl Groups {
                     code: r.code.clone(),
                     name: r.name.clone(),
                     admin: r.admin.clone(),
+                    admin_pk: r.admin_pk.clone(),
+                    admin_sk: r.admin_sk.clone(),
+                    admin_sig: r.admin_sig.clone(),
                     photo: r.photo.clone(),
                     info_at: r.info_at,
                     joined_at: r.joined_at.max(1),
@@ -759,9 +955,21 @@ impl Groups {
                         if !r.admin.is_empty() {
                             g.admin = r.admin.clone();
                         }
+                        if !r.admin_pk.is_empty() {
+                            g.admin_pk = r.admin_pk.clone();
+                        }
+                        if !r.admin_sig.is_empty() {
+                            g.admin_sig = r.admin_sig.clone();
+                        }
                     }
                     if g.admin.is_empty() && !r.admin.is_empty() {
                         g.admin = r.admin.clone();
+                    }
+                    if g.admin_pk.is_empty() && !r.admin_pk.is_empty() {
+                        g.admin_pk = r.admin_pk.clone();
+                    }
+                    if g.admin_sk.is_empty() && !r.admin_sk.is_empty() {
+                        g.admin_sk = r.admin_sk.clone();
                     }
                 }
             }
@@ -1825,14 +2033,45 @@ mod tests {
         // un dispositivo che tace da troppo non è più in pista, ma il suo tempo resta
         let (c, on) = combine(&g.members[&uid].device_list(&ck(now + 100)), &ck(now + 100));
         assert!(!on && c.state == State::Idle && c.today >= 900);
-        // solo l'amministratore toglie membri, e solo con impostazioni più recenti
-        assert_eq!(g.apply_info("me", "altro", "N", "", std::slice::from_ref(&uid), now), InfoResult::Ignored);
-        assert_eq!(g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now), InfoResult::Applied);
+        // solo l'amministratore autenticato toglie membri, e solo con firma valida e tempo coerente
+        let (sk, pk) = new_admin_keypair();
+        let (other_sk, other_pk) = new_admin_keypair();
+        let sig = sign_info("X", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &sk).unwrap();
+        let other_sig = sign_info("X", "altro", "N", "", std::slice::from_ref(&uid), now, &other_sk).unwrap();
+        assert_eq!(
+            g.apply_info("me", "altro", "N", "", std::slice::from_ref(&uid), now, &other_pk, &other_sig, now),
+            InfoResult::Ignored
+        );
+        assert_eq!(
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, "", now),
+            InfoResult::Ignored
+        );
+        assert_eq!(
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now + 1000, &pk, &sig, now),
+            InfoResult::Ignored
+        );
+        assert_eq!(
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, &sig, now),
+            InfoResult::Applied
+        );
         assert!(g.members.is_empty() && g.name == "Nuovo");
+        // chiave diversa non può sostituirsi nemmeno conoscendo l'id dell'amministratore
+        let spoof_sig = sign_info("X", "boss", "Falso", "", &[], now + 1, &other_sk).unwrap();
+        assert_eq!(
+            g.apply_info("me", "boss", "Falso", "", &[], now + 1, &other_pk, &spoof_sig, now + 1),
+            InfoResult::Ignored
+        );
         g.status_in("d2", Status { uid: uid.clone(), ..Default::default() }, now);
         assert!(g.members.is_empty());
-        assert_eq!(g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now), InfoResult::Ignored);
-        assert_eq!(g.apply_info("me", "boss", "Nuovo", "", &["me".into()], now + 1), InfoResult::Removed);
+        assert_eq!(
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, &sig, now),
+            InfoResult::Ignored
+        );
+        let kick_me = sign_info("X", "boss", "Nuovo", "", &["me".into()], now + 1, &sk).unwrap();
+        assert_eq!(
+            g.apply_info("me", "boss", "Nuovo", "", &["me".into()], now + 1, &pk, &kick_me, now + 1),
+            InfoResult::Removed
+        );
     }
 
     #[test]
@@ -1857,11 +2096,18 @@ mod tests {
         let now = 1_000_000;
         let mut g = Group { code: "X".into(), admin: "d1".into(), removed: vec!["d9".into()], ..Default::default() };
         g.status_in("d1", Status { today: 100, day: "2026-11-12".into(), at: now, ..Default::default() }, now);
-        // l'amministratore imposta la password: nuovo id, che porta con sé quello vecchio
+        // status.prev remoto non può mai riassegnare g.admin né unire i dispositivi dell'admin
         let st = Status { uid: "u1".into(), prev: vec!["d1".into()], at: now + 1, ..Default::default() };
         g.status_in("d1", st, now + 1);
-        assert_eq!(g.admin, "u1");
-        assert!(g.members.contains_key("u1") && !g.members.contains_key("d1"));
+        assert_eq!(g.admin, "d1");
+        // anche un utente non amministratore mantiene la migrazione dispositivi in members
+        g.status_in("d2", Status { today: 50, day: "2026-11-12".into(), at: now, ..Default::default() }, now);
+        g.status_in(
+            "d2",
+            Status { uid: "u2".into(), prev: vec!["d2".into()], at: now + 1, ..Default::default() },
+            now + 1,
+        );
+        assert!(g.members.contains_key("u2") && !g.members.contains_key("d2"));
         // anche un rimosso resta rimosso sotto il nuovo id
         g.status_in("d9", Status { uid: "u9".into(), prev: vec!["d9".into()], ..Default::default() }, now);
         assert!(g.removed.contains(&"u9".to_string()) && !g.members.contains_key("u9"));

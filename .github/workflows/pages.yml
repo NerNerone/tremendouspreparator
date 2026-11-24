@@ -29,7 +29,7 @@ jobs:
     steps:
       # niente avviso di git sul nome del ramo predefinito durante il checkout
       - run: git config --global init.defaultBranch main
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Rust stable + target WebAssembly
         run: |
@@ -37,7 +37,7 @@ jobs:
           rustup default stable
           rustup target add wasm32-unknown-unknown
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: web
 
@@ -68,7 +68,7 @@ jobs:
       - name: Archivio per Pages
         run: tar --dereference --hard-dereference --directory site -cvf "$RUNNER_TEMP/artifact.tar" .
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: github-pages
           path: ${{ runner.temp }}/artifact.tar
@@ -83,4 +83,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

@@ -132,7 +132,13 @@ export function onResize(cb) {
 
 // Condivisione di un testo (inviti al gruppo): menu del sistema se c'è, altrimenti appunti.
 export function openUrl(url) {
-  return window.open(url, "_blank", "noopener") !== null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  } catch (e) {
+    return false;
+  }
+  return window.open(url, "_blank", "noopener,noreferrer") !== null;
 }
 
 export function shareText(text) {

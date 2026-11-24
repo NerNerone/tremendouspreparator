@@ -99,6 +99,12 @@ public class MainActivity extends NativeActivity {
         super.onPause();
     }
 
+    @Override
+    protected void onDestroy() {
+        if (bt != null) bt.close();
+        super.onDestroy();
+    }
+
     /** Apre il selettore di file di sistema (chiamato dal thread Rust). */
     public void pickContentPack() {
         runOnUiThread(() -> {
@@ -276,6 +282,7 @@ public class MainActivity extends NativeActivity {
     /** Condivisione di sistema di un testo (invito al gruppo), chiamata da Rust via JNI. */
     /** Apre un indirizzo nel browser (segnalazione di un errore). */
     public void openUrl(String url) {
+        if (url == null || (!url.startsWith("https://") && !url.startsWith("http://"))) return;
         runOnUiThread(() -> {
             try {
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -490,7 +497,8 @@ public class MainActivity extends NativeActivity {
         } catch (Exception e) {
             // nome non disponibile
         }
-        return name.replaceAll("[^\\p{L}\\p{N}._ -]", "_");
+        String clean = name.replaceAll("[^\\p{L}\\p{N}._ -]", "_").replace("..", "_").replaceAll("^\\.+", "");
+        return clean.isEmpty() ? "file" : clean;
     }
 
     /** Copia un file dell'app nel documento scelto dall'utente. */

@@ -38,14 +38,61 @@ pub(super) fn version_code(v: &str) -> Option<u32> {
     Some(1 << 24 | (a as u32) << 16 | (b as u32) << 8 | c as u32)
 }
 
+const RELEASE_DL_PREFIX: &str = "https://github.com/NerNerone/tremendouspreparator/releases/download/";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct UpdateInfo {
+    pub version: String,
+    pub url: String,
+    pub asset_name: String,
+    pub sha256: Option<String>,
+    pub sums_url: String,
+}
+
+pub(super) fn allowed_download_url(url: &str) -> bool {
+    url.starts_with(RELEASE_DL_PREFIX)
+        && !url.chars().any(|c| c.is_whitespace() || c.is_control())
+        && !url.contains("..")
+        && !url.contains('@')
+}
+
+fn valid_sha256_hex(s: &str) -> bool {
+    s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+fn parse_asset_digest(a: &serde_json::Value) -> Option<String> {
+    let d = a["digest"].as_str()?;
+    let hex = d.strip_prefix("sha256:").unwrap_or(d).trim();
+    valid_sha256_hex(hex).then(|| hex.to_ascii_lowercase())
+}
+
+pub(super) fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
+    for line in body.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        let Some(sum) = parts.next() else { continue };
+        let Some(file) = parts.next() else { continue };
+        let clean = file.trim_start_matches('*');
+        if clean == asset_name && valid_sha256_hex(sum) {
+            return Some(sum.to_ascii_lowercase());
+        }
+    }
+    None
+}
+
 /// Versione più nuova di quella installata (`mine`) nella release `r` (JSON di GitHub), con
-/// l'indirizzo del pacchetto adatto: l'APK per l'architettura `arch`, o il bundle Flatpak.
-pub(super) fn newer(r: &serde_json::Value, mine: &str, arch: &str, flatpak: bool) -> Option<(String, String)> {
+/// l'indirizzo verificato del pacchetto adatto e il digest atteso.
+pub(super) fn newer(r: &serde_json::Value, mine: &str, arch: &str, flatpak: bool) -> Option<UpdateInfo> {
     let assets = r["assets"].as_array()?;
-    let url_of = |ext: &str, want: &str| {
+    let asset_of = |ext: &str, want: &str| {
         assets.iter().find_map(|a| {
             let n = a["name"].as_str()?;
-            (n.ends_with(ext) && n.contains(want)).then(|| a["browser_download_url"].as_str().map(str::to_string))?
+            let url = a["browser_download_url"].as_str()?;
+            (n.ends_with(ext) && n.contains(want) && allowed_download_url(url))
+                .then(|| (n.to_string(), url.to_string(), parse_asset_digest(a)))
         })
     };
     let abi = match arch {
@@ -53,25 +100,34 @@ pub(super) fn newer(r: &serde_json::Value, mine: &str, arch: &str, flatpak: bool
         "arm" => "armeabi-v7a",
         _ => "",
     };
-    let url = if flatpak {
-        url_of(".flatpak", arch)?
+    let (asset_name, url, sha256) = if flatpak {
+        asset_of(".flatpak", arch)?
     } else {
-        (if abi.is_empty() { None } else { url_of(".apk", abi) })
-            .or_else(|| url_of(".apk", "TremendousPreparator.apk"))?
+        (if abi.is_empty() { None } else { asset_of(".apk", abi) })
+            .or_else(|| asset_of(".apk", "TremendousPreparator.apk"))?
     };
+    let sums_url = assets
+        .iter()
+        .find_map(|a| {
+            let n = a["name"].as_str()?;
+            let url = a["browser_download_url"].as_str()?;
+            (n == "SHA256SUMS" && allowed_download_url(url)).then(|| url.to_string())
+        })
+        .unwrap_or_default();
     let base = |v: &str| v.split('+').next().unwrap_or(v).to_string();
-    match build_number(mine) {
+    let version = match build_number(mine) {
         // beta: titolo «Beta 0.2.0+123-abc1234»
         Some(my_build) => {
             let remote = r["name"].as_str()?.trim_start_matches("Beta").trim().to_string();
             let rb = build_number(&remote)?;
-            (rb > my_build && version_code(&base(&remote))? >= version_code(&base(mine))?).then_some((remote, url))
+            (rb > my_build && version_code(&base(&remote))? >= version_code(&base(mine))?).then_some(remote)?
         }
         None => {
             let tag = r["tag_name"].as_str()?.trim_start_matches('v').to_string();
-            (version_code(&tag)? > version_code(mine)?).then_some((tag, url))
+            (version_code(&tag)? > version_code(mine)?).then_some(tag)?
         }
-    }
+    };
+    Some(UpdateInfo { version, url, asset_name, sha256, sums_url })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -84,7 +140,7 @@ fn get(url: &str) -> Result<ureq::http::Response<ureq::Body>, String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn latest() -> Result<Option<(String, String)>, String> {
+fn latest() -> Result<Option<UpdateInfo>, String> {
     let mine = crate::app::APP_VERSION;
     let url = if build_number(mine).is_some() {
         format!("{API}/releases/tags/beta")
@@ -113,12 +169,15 @@ impl Ctrl {
         }
         #[cfg(not(target_arch = "wasm32"))]
         spawn_background(move || {
-            if let Ok(Some((v, url))) = latest() {
+            if let Ok(Some(info)) = latest() {
                 let _ = slint::invoke_from_event_loop(move || {
                     with_ctrl(|c| {
-                        c.update_url = url;
-                        c.ui().global::<AppState>().set_update_version(ss(&v));
-                        c.toast(format!("È disponibile la versione {v}: Opzioni › Aggiorna"));
+                        c.update_url = info.url;
+                        c.update_asset = info.asset_name;
+                        c.update_sha256 = info.sha256;
+                        c.update_sums_url = info.sums_url;
+                        c.ui().global::<AppState>().set_update_version(ss(&info.version));
+                        c.toast(format!("È disponibile la versione {}: Opzioni › Aggiorna", info.version));
                     })
                 });
             }
@@ -140,10 +199,13 @@ impl Ctrl {
                 with_ctrl(|c| {
                     c.ui().global::<AppState>().set_update_checking(false);
                     match r {
-                        Ok(Some((v, url))) => {
-                            c.update_url = url;
-                            c.ui().global::<AppState>().set_update_version(ss(&v));
-                            c.toast(format!("È disponibile la versione {v}: tocca «Aggiorna»"));
+                        Ok(Some(info)) => {
+                            c.update_url = info.url;
+                            c.update_asset = info.asset_name;
+                            c.update_sha256 = info.sha256;
+                            c.update_sums_url = info.sums_url;
+                            c.ui().global::<AppState>().set_update_version(ss(&info.version));
+                            c.toast(format!("È disponibile la versione {}: tocca «Aggiorna»", info.version));
                         }
                         Ok(None) => c.toast(format!("Hai già l'ultima versione ({})", crate::app::APP_VERSION)),
                         Err(e) => c.toast(format!("Controllo non riuscito: {e}")),
@@ -153,16 +215,19 @@ impl Ctrl {
         });
     }
 
-    /// «Aggiorna»: scarica l'APK (o il bundle Flatpak) e lo installa.
+    /// «Aggiorna»: scarica l'APK (o il bundle Flatpak), ne verifica lo SHA-256 e lo installa.
     pub(super) fn updates_install(&mut self) {
         if self.quiz.is_some() || self.study_state != prep_core::group::State::Idle {
             self.toast("Prima termina il quiz o la sessione di studio: l'aggiornamento riavvia l'app");
             return;
         }
         let url = self.update_url.clone();
-        if url.is_empty() {
+        if url.is_empty() || !allowed_download_url(&url) {
             return;
         }
+        let asset_name = self.update_asset.clone();
+        let expected_sha = self.update_sha256.clone();
+        let sums_url = self.update_sums_url.clone();
         self.ui().global::<AppState>().set_update_busy(true);
         let dest = self.store.base.join("updates").join(if flatpak() {
             "TremendousPreparator-x86_64.flatpak"
@@ -171,14 +236,36 @@ impl Ctrl {
         });
         #[cfg(not(target_arch = "wasm32"))]
         spawn_background(move || {
-            let r = get(&url)
-                .and_then(|mut resp| {
-                    resp.body_mut().with_config().limit(200_000_000).read_to_vec().map_err(|e| e.to_string())
-                })
-                .and_then(|bytes| {
-                    let _ = vfs::create_dir_all(dest.parent().unwrap_or(&dest));
-                    vfs::write(&dest, &bytes).map_err(|e| e.to_string()).map(|_| dest)
-                });
+            let r = (|| -> Result<std::path::PathBuf, String> {
+                if !allowed_download_url(&url) {
+                    return Err("indirizzo di aggiornamento non consentito".into());
+                }
+                let mut resp = get(&url)?;
+                let bytes =
+                    resp.body_mut().with_config().limit(200_000_000).read_to_vec().map_err(|e| e.to_string())?;
+                use sha2::{Digest, Sha256};
+                let actual: String = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
+                let expected = if let Some(h) = expected_sha {
+                    Some(h)
+                } else if !sums_url.is_empty() && allowed_download_url(&sums_url) {
+                    let mut sresp = get(&sums_url)?;
+                    let body =
+                        sresp.body_mut().with_config().limit(262_144).read_to_vec().map_err(|e| e.to_string())?;
+                    let txt = String::from_utf8_lossy(&body);
+                    parse_sha256sums(&txt, &asset_name)
+                } else {
+                    None
+                };
+                let Some(exp) = expected else {
+                    return Err("verifica SHA-256 non riuscita: digest di rilascio assente".into());
+                };
+                if !exp.eq_ignore_ascii_case(&actual) {
+                    return Err("verifica SHA-256 non riuscita: pacchetto alterato".into());
+                }
+                let _ = vfs::create_dir_all(dest.parent().unwrap_or(&dest));
+                vfs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+                Ok(dest)
+            })();
             // Android: l'APK passa all'installatore di sistema dal thread dell'interfaccia
             #[cfg(target_os = "android")]
             let _ = slint::invoke_from_event_loop(move || {
@@ -205,7 +292,7 @@ impl Ctrl {
             }
         });
         #[cfg(target_arch = "wasm32")]
-        let _ = (url, dest);
+        let _ = (url, asset_name, expected_sha, sums_url, dest);
     }
 }
 
@@ -213,33 +300,64 @@ impl Ctrl {
 mod tests {
     use super::*;
 
+    const BASE: &str = "https://github.com/NerNerone/tremendouspreparator/releases/download/";
+
     #[test]
     fn picks_newer_builds_and_the_right_apk() {
         let rel = serde_json::json!({
             "name": "Beta 0.2.0+130-abc1234",
             "tag_name": "beta",
             "assets": [
-                {"name": "TremendousPreparator.apk", "browser_download_url": "u/uni"},
-                {"name": "TremendousPreparator-arm64-v8a.apk", "browser_download_url": "u/arm64"},
-                {"name": "TremendousPreparator-armeabi-v7a.apk", "browser_download_url": "u/v7"}
+                {"name": "TremendousPreparator.apk", "browser_download_url": format!("{BASE}beta/TremendousPreparator.apk")},
+                {"name": "TremendousPreparator-arm64-v8a.apk", "browser_download_url": format!("{BASE}beta/TremendousPreparator-arm64-v8a.apk"), "digest": format!("sha256:{}", "a".repeat(64))},
+                {"name": "TremendousPreparator-armeabi-v7a.apk", "browser_download_url": format!("{BASE}beta/TremendousPreparator-armeabi-v7a.apk")}
             ]
         });
+        let got = newer(&rel, "0.2.0+120-fff0000", "aarch64", false).unwrap();
+        assert_eq!(got.version, "0.2.0+130-abc1234");
+        assert_eq!(got.url, format!("{BASE}beta/TremendousPreparator-arm64-v8a.apk"));
+        assert_eq!(got.sha256.as_deref(), Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
         assert_eq!(
-            newer(&rel, "0.2.0+120-fff0000", "aarch64", false),
-            Some(("0.2.0+130-abc1234".into(), "u/arm64".into()))
+            newer(&rel, "0.2.0+120-fff0000", "arm", false).unwrap().url,
+            format!("{BASE}beta/TremendousPreparator-armeabi-v7a.apk")
         );
-        assert_eq!(newer(&rel, "0.2.0+120-fff0000", "arm", false).unwrap().1, "u/v7");
-        assert_eq!(newer(&rel, "0.2.0+120-fff0000", "x86_64", false).unwrap().1, "u/uni");
+        assert_eq!(
+            newer(&rel, "0.2.0+120-fff0000", "x86_64", false).unwrap().url,
+            format!("{BASE}beta/TremendousPreparator.apk")
+        );
         assert_eq!(newer(&rel, "0.2.0+130-abc1234", "aarch64", false), None);
-        let stable = serde_json::json!({"tag_name": "v0.3.0", "assets": [{"name": "TremendousPreparator.apk", "browser_download_url": "s"}]});
-        assert_eq!(newer(&stable, "0.2.0", "aarch64", false), Some(("0.3.0".into(), "s".into())));
+        let stable = serde_json::json!({
+            "tag_name": "v0.3.0",
+            "assets": [{"name": "TremendousPreparator.apk", "browser_download_url": format!("{BASE}v0.3.0/TremendousPreparator.apk")}]
+        });
+        assert_eq!(
+            newer(&stable, "0.2.0", "aarch64", false).unwrap().url,
+            format!("{BASE}v0.3.0/TremendousPreparator.apk")
+        );
         assert_eq!(newer(&stable, "0.3.0", "aarch64", false), None);
         assert_eq!(build_number("0.2.0"), None);
         // Flatpak: il bundle x86_64, solo se c'è nella release
         let fp = serde_json::json!({"tag_name": "v0.3.0", "assets": [
-            {"name": "TremendousPreparator.apk", "browser_download_url": "s"},
-            {"name": "TremendousPreparator-x86_64.flatpak", "browser_download_url": "f"}]});
-        assert_eq!(newer(&fp, "0.2.0", "x86_64", true), Some(("0.3.0".into(), "f".into())));
+            {"name": "TremendousPreparator.apk", "browser_download_url": format!("{BASE}v0.3.0/TremendousPreparator.apk")},
+            {"name": "TremendousPreparator-x86_64.flatpak", "browser_download_url": format!("{BASE}v0.3.0/TremendousPreparator-x86_64.flatpak")}]});
+        assert_eq!(
+            newer(&fp, "0.2.0", "x86_64", true).unwrap().url,
+            format!("{BASE}v0.3.0/TremendousPreparator-x86_64.flatpak")
+        );
         assert_eq!(newer(&stable, "0.2.0", "x86_64", true), None);
+        // URL fuori allowlist o con traversal sono rifiutati
+        assert!(!allowed_download_url("https://evil.example/TremendousPreparator.apk"));
+        assert!(!allowed_download_url("https://github.com/NerNerone/tremendouspreparator/releases/download/../x"));
+        assert!(!allowed_download_url("http://github.com/NerNerone/tremendouspreparator/releases/download/v1/a.apk"));
+        let evil = serde_json::json!({"tag_name": "v0.3.0", "assets": [
+            {"name": "TremendousPreparator.apk", "browser_download_url": "https://evil.example/app.apk"}
+        ]});
+        assert!(newer(&evil, "0.2.0", "aarch64", false).is_none());
+        let sums =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  TremendousPreparator-x86_64.flatpak\n";
+        assert_eq!(
+            parse_sha256sums(sums, "TremendousPreparator-x86_64.flatpak").as_deref(),
+            Some("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+        );
     }
 }

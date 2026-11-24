@@ -45,8 +45,10 @@ keytool -genkeypair -keystore "$W/tmp.jks" -storepass "$TMP_PASS" -keypass "$TMP
 B="${CARGO_TARGET_DIR:-$ROOT/target}/release/apk"
 
 python3 "$ROOT/android/patch_manifest.py" "$B/AndroidManifest.xml" "$W/AndroidManifest.xml"
-javac --release 17 -cp "$JAR" -d "$W/classes" $(find "$ROOT/android/java" -name '*.java')
-"$BT/d8" --release --min-api "$MIN_API" --lib "$JAR" --output "$W/dex" $(find "$W/classes" -name '*.class')
+mapfile -d '' -t JAVA_SRCS < <(find "$ROOT/android/java" -name '*.java' -print0)
+javac --release 17 -cp "$JAR" -d "$W/classes" "${JAVA_SRCS[@]}"
+mapfile -d '' -t CLASS_FILES < <(find "$W/classes" -name '*.class' -print0)
+"$BT/d8" --release --min-api "$MIN_API" --lib "$JAR" --output "$W/dex" "${CLASS_FILES[@]}"
 "$BT/aapt" package -f -F "$W/app.unaligned.apk" -M "$W/AndroidManifest.xml" -S "$ROOT/android/res" -I "$JAR"
 cp "$W/dex/classes.dex" "$W/apk/"
 cp -r "$B/lib" "$W/apk/"
@@ -58,7 +60,8 @@ make_apk() {
   local libs=()
   for abi in "$@"; do
     [ -d "$W/apk/lib/$abi" ] || { echo "manca la libreria per $abi"; exit 1; }
-    libs+=($(cd "$W/apk" && find "lib/$abi" -type f | sort))
+    mapfile -t abi_libs < <(cd "$W/apk" && find "lib/$abi" -type f | sort)
+    libs+=("${abi_libs[@]}")
   done
   cp "$W/app.unaligned.apk" "$W/one.apk"
   (cd "$W/apk" && "$BT/aapt" add "$W/one.apk" classes.dex "${libs[@]}" >/dev/null)
@@ -75,7 +78,7 @@ make_apk() {
   "$BT/aapt" dump badging "$out" | grep -E "^(package|sdkVersion|native-code)"
 }
 
-ABIS=($(ls "$W/apk/lib"))
+mapfile -t ABIS < <(ls -1 "$W/apk/lib")
 make_apk "$OUT" "${ABIS[@]}"
 if [ "${SPLIT:-0}" = 1 ] && [ "${#ABIS[@]}" -gt 1 ]; then
   for abi in "${ABIS[@]}"; do

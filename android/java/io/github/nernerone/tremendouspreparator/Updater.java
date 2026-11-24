@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.UUID;
 
 /**
  * Aggiornamento dell'app (solo APK distribuiti su GitHub): installa l'APK scaricato con l'installatore di
@@ -21,7 +22,10 @@ import java.io.OutputStream;
  */
 final class Updater {
     private static final String ACTION = "io.github.nernerone.tremendouspreparator.AGGIORNAMENTO";
+    private static final String PERM = "io.github.nernerone.tremendouspreparator.permission.INTERNAL_UPDATE";
+    private static final String EXTRA_TOKEN = "io.github.nernerone.tremendouspreparator.TOKEN";
     private static boolean registered = false;
+    private static volatile String activeToken = null;
 
     private Updater() {}
 
@@ -49,8 +53,10 @@ final class Updater {
                     while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
                     session.fsync(out);
                 }
+                String token = UUID.randomUUID().toString();
+                activeToken = token;
                 listen(a.getApplicationContext());
-                Intent result = new Intent(ACTION).setPackage(a.getPackageName());
+                Intent result = new Intent(ACTION).setPackage(a.getPackageName()).putExtra(EXTRA_TOKEN, token);
                 int flags = PendingIntent.FLAG_UPDATE_CURRENT
                     | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
                 PendingIntent pending = PendingIntent.getBroadcast(a, id, result, flags);
@@ -78,13 +84,19 @@ final class Updater {
         BroadcastReceiver r = new BroadcastReceiver() {
             @Override
             public void onReceive(Context ctx, Intent i) {
+                String tok = i.getStringExtra(EXTRA_TOKEN);
+                if (activeToken == null || !activeToken.equals(tok)) return;
                 int status = i.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
                 if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
                     Intent confirm = confirmIntent(i);
-                    if (confirm != null) {
+                    if (confirm != null
+                            && (confirm.getComponent() == null
+                                || !ctx.getPackageName().equals(confirm.getComponent().getPackageName()))) {
                         confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         ctx.startActivity(confirm);
                     }
+                } else {
+                    activeToken = null;
                 }
             }
         };
@@ -92,7 +104,7 @@ final class Updater {
         if (Build.VERSION.SDK_INT >= 33) {
             c.registerReceiver(r, f, Context.RECEIVER_NOT_EXPORTED);
         } else {
-            c.registerReceiver(r, f);
+            c.registerReceiver(r, f, PERM, null);
         }
     }
 }

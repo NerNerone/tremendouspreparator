@@ -2,7 +2,23 @@
 // Ci si ricollega da soli con attese crescenti finché wsClose non chiude il collegamento.
 const links = new Map();
 
+function allowedRelayUrl(url) {
+  try {
+    const u = new URL(url);
+    return (
+      u.protocol === "wss:" ||
+      (u.protocol === "ws:" && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(u.hostname))
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
 export function wsOpen(id, url, cb) {
+  if (!allowedRelayUrl(url)) {
+    cb(2, "richiesto collegamento cifrato wss://");
+    return;
+  }
   const link = { url, cb, ws: null, wait: 2000, closed: false, queue: [] };
   links.set(id, link);
   connect(link);

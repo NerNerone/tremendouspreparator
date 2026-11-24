@@ -39,11 +39,28 @@ const HELLO_EVERY: i64 = 20;
 const PEER_TTL: i64 = 75;
 const MAX_FILE: usize = 4 << 20;
 const MAX_PACK: u64 = 300 << 20;
+const MAX_PARTIAL_FILES: usize = 64;
+const MAX_EPHEMERAL_AGE: i64 = 600;
+const MAX_FUTURE_SKEW: i64 = 300;
+const REPLAY_WINDOW_SECS: i64 = 120;
+const MAX_PEER_SEQS: usize = 2048;
+const MAX_TRACKED_PEERS: usize = 512;
 /// Relay pubblici predefiniti (modificabili nelle impostazioni).
 pub const DEFAULT_RELAYS: &[&str] = &["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];
 
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+fn decode_hex<const N: usize>(s: &str) -> Option<[u8; N]> {
+    if s.len() != N * 2 || !s.is_ascii() {
+        return None;
+    }
+    let mut out = [0u8; N];
+    for (i, slot) in out.iter_mut().enumerate() {
+        *slot = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(out)
 }
 
 fn random<const N: usize>() -> [u8; N] {
@@ -90,15 +107,39 @@ pub struct Room {
 }
 
 impl Room {
-    /// Stessa coppia nome utente (senza distinzione di maiuscole) e password → stessa stanza.
-    pub fn derive(username: &str, password: &str) -> Room {
+    /// Ricava il seme segreto (32 byte) da nome utente (senza distinzione di maiuscole) e password.
+    pub fn derive_seed(username: &str, password: &str) -> [u8; 32] {
         let user = username.trim().to_lowercase();
         let salt = format!("tremendous-preparator/v1/{user}");
         let mut seed = [0u8; 32];
-        pbkdf2::pbkdf2_hmac::<Sha256>(password.as_bytes(), salt.as_bytes(), 60_000, &mut seed);
+        pbkdf2::pbkdf2_hmac::<Sha256>(password.as_bytes(), salt.as_bytes(), 600_000, &mut seed);
+        seed
+    }
+
+    /// Costruisce la stanza dal seme segreto già derivato.
+    pub fn from_seed(seed: [u8; 32]) -> Room {
         let tag = hex(&Sha256::digest([b"room:".as_slice(), &seed].concat()))[..32].to_string();
         let key: [u8; 32] = Sha256::digest([b"key:".as_slice(), &seed].concat()).into();
         Room { tag, key }
+    }
+
+    /// Stessa coppia nome utente (senza distinzione di maiuscole) e password → stessa stanza.
+    pub fn derive(username: &str, password: &str) -> Room {
+        Self::from_seed(Self::derive_seed(username, password))
+    }
+
+    /// Identificativo utente per i gruppi derivato dal seme già rafforzato da PBKDF2.
+    pub fn user_id_from_seed(seed: &[u8; 32]) -> String {
+        let h = hex(&Sha256::digest([b"uid:".as_slice(), seed.as_slice()].concat()));
+        format!("u{}", &h[..15])
+    }
+
+    pub fn encode_seed(seed: &[u8; 32]) -> String {
+        hex(seed)
+    }
+
+    pub fn decode_seed(s: &str) -> Option<[u8; 32]> {
+        decode_hex(s.trim())
     }
 
     /// Cifra: base64(nonce di 24 byte ‖ testo cifrato).
@@ -186,22 +227,44 @@ fn our_kind(k: u64) -> bool {
     k == KIND as u64 || k == KIND_STORED as u64 || k == KIND_CARD as u64
 }
 
-/// Evento ricevuto da un relay: (id, contenuto). Gli altri frame (EOSE, OK, NOTICE) → `None`.
+fn verify_nostr_event(ev: &serde_json::Value) -> Option<(String, String)> {
+    use k256::schnorr::signature::hazmat::PrehashVerifier;
+    let kind = ev.get("kind")?.as_u64()?;
+    if !our_kind(kind) {
+        return None;
+    }
+    let id_hex = ev.get("id")?.as_str()?;
+    let pk_hex = ev.get("pubkey")?.as_str()?;
+    let sig_hex = ev.get("sig")?.as_str()?;
+    let created_at = ev.get("created_at")?.as_i64()?;
+    let tags = ev.get("tags")?;
+    let content = ev.get("content")?.as_str()?;
+    let id_bytes: [u8; 32] = decode_hex(id_hex)?;
+    let pk_bytes: [u8; 32] = decode_hex(pk_hex)?;
+    let sig_bytes: [u8; 64] = decode_hex(sig_hex)?;
+    let ser = serde_json::to_string(&serde_json::json!([0, pk_hex, created_at, kind, tags, content])).ok()?;
+    let expect_id: [u8; 32] = Sha256::digest(ser.as_bytes()).into();
+    if expect_id != id_bytes {
+        return None;
+    }
+    let vk = k256::schnorr::VerifyingKey::from_bytes(&pk_bytes).ok()?;
+    let sig = k256::schnorr::Signature::try_from(sig_bytes.as_slice()).ok()?;
+    vk.verify_prehash(&id_bytes, &sig).ok()?;
+    Some((id_hex.to_string(), content.to_string()))
+}
+
+/// Evento ricevuto da un relay e verificato (NIP-01 + firma BIP-340). Gli altri frame → `None`.
 pub fn parse_relay(frame: &str) -> Option<(String, String)> {
     let v: serde_json::Value = serde_json::from_str(frame).ok()?;
     let a = v.as_array()?;
     if a.first()?.as_str()? != "EVENT" {
         return None;
     }
-    let ev = a.get(2)?;
-    if !our_kind(ev.get("kind")?.as_u64()?) {
-        return None;
-    }
-    Some((ev.get("id")?.as_str()?.to_string(), ev.get("content")?.as_str()?.to_string()))
+    verify_nostr_event(a.get(2)?)
 }
 
 /// Evento spedito da un dispositivo (`["EVENT", {...}]`, com'è mandato ai relay), arrivato per
-/// un'altra strada (Bluetooth): (id, tag della stanza, contenuto).
+/// un'altra strada (Bluetooth) e verificato: (id, tag della stanza, contenuto).
 pub fn parse_client_event(frame: &str) -> Option<(String, String, String)> {
     let v: serde_json::Value = serde_json::from_str(frame).ok()?;
     let a = v.as_array()?;
@@ -209,14 +272,12 @@ pub fn parse_client_event(frame: &str) -> Option<(String, String, String)> {
         return None;
     }
     let ev = &a[1];
-    if !our_kind(ev.get("kind")?.as_u64()?) {
-        return None;
-    }
+    let (id, content) = verify_nostr_event(ev)?;
     let tag = ev.get("tags")?.as_array()?.iter().find_map(|t| {
         let t = t.as_array()?;
         (t.first()?.as_str()? == "t").then(|| t.get(1)?.as_str().map(str::to_string))?
     })?;
-    Some((ev.get("id")?.as_str()?.to_string(), tag, ev.get("content")?.as_str()?.to_string()))
+    Some((id, tag, content))
 }
 
 /// Messaggi del relay da mostrare (es. rifiuto per limiti): `["OK", id, false, motivo]`, `NOTICE`.
@@ -335,6 +396,12 @@ struct Envelope {
     from: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     to: Option<String>,
+    #[serde(default)]
+    ts: i64,
+    #[serde(default)]
+    seq: u64,
+    #[serde(default)]
+    stored: bool,
     msg: Msg,
 }
 
@@ -365,8 +432,9 @@ fn encode(env: &Envelope, payload: &[u8]) -> Vec<u8> {
 
 fn decode(b: &[u8]) -> Option<(Envelope, Vec<u8>)> {
     let n = u32::from_be_bytes(b.get(..4)?.try_into().ok()?) as usize;
-    let head = b.get(4..4 + n)?;
-    Some((serde_json::from_slice(head).ok()?, b[4 + n..].to_vec()))
+    let end = 4usize.checked_add(n)?;
+    let head = b.get(4..end)?;
+    Some((serde_json::from_slice(head).ok()?, b[end..].to_vec()))
 }
 
 /// I file che si possono scambiare: solo progressi JSON, percorsi relativi puliti.
@@ -472,6 +540,13 @@ struct Download {
     started: i64,
 }
 
+#[derive(Default)]
+struct PeerSeq {
+    max_ts: i64,
+    recent: BTreeSet<(i64, u64)>,
+    stored_recent: BTreeSet<(i64, u64)>,
+}
+
 pub struct Engine {
     pub device: String,
     pub name: String,
@@ -494,6 +569,8 @@ pub struct Engine {
     /// id degli eventi già visti (gli stessi arrivano da più relay)
     seen: VecDeque<String>,
     seen_set: BTreeSet<String>,
+    next_seq: u64,
+    peer_seq: BTreeMap<String, PeerSeq>,
 }
 
 impl Engine {
@@ -513,12 +590,26 @@ impl Engine {
             dl: None,
             seen: VecDeque::new(),
             seen_set: BTreeSet::new(),
+            next_seq: 0,
+            peer_seq: BTreeMap::new(),
         }
     }
 
-    /// Testo in chiaro da cifrare e spedire.
-    pub fn wire(&self, out: &Out) -> Vec<u8> {
-        encode(&Envelope { v: 1, from: self.device.clone(), to: out.to.clone(), msg: out.msg.clone() }, &out.payload)
+    /// Testo in chiaro da cifrare e spedire con timestamp e sequenza anti-replay.
+    pub fn wire_at(&mut self, out: &Out, now: i64) -> Vec<u8> {
+        self.next_seq = self.next_seq.saturating_add(1);
+        encode(
+            &Envelope {
+                v: 1,
+                from: self.device.clone(),
+                to: out.to.clone(),
+                ts: now,
+                seq: self.next_seq,
+                stored: out.stored,
+                msg: out.msg.clone(),
+            },
+            &out.payload,
+        )
     }
 
     /// Modalità condivisione con un'altra persona: niente progressi, solo gli esami indicati
@@ -640,8 +731,55 @@ impl Engine {
             }
         }
         let Some((env, payload)) = decode(plain) else { return vec![] };
-        if env.from == self.device || env.to.as_deref().is_some_and(|t| t != self.device) {
+        if env.v != 1 || env.from == self.device || env.to.as_deref().is_some_and(|t| t != self.device) {
             return vec![];
+        }
+        let is_group_msg = matches!(env.msg, Msg::Group(_) | Msg::GroupMsg(_));
+        if env.stored && !is_group_msg {
+            return vec![];
+        }
+        if env.ts <= 0 || env.seq == 0 {
+            return vec![];
+        }
+        if now > 0 {
+            if env.ts > now + MAX_FUTURE_SKEW {
+                return vec![];
+            }
+            let max_age = if env.stored { STORED_TTL + MAX_FUTURE_SKEW } else { MAX_EPHEMERAL_AGE };
+            if now > max_age && env.ts < now - max_age {
+                return vec![];
+            }
+        }
+        if !self.peer_seq.contains_key(&env.from) && self.peer_seq.len() >= MAX_TRACKED_PEERS {
+            return vec![];
+        }
+        let ps = self.peer_seq.entry(env.from.clone()).or_default();
+        if env.stored {
+            if !ps.stored_recent.insert((env.ts, env.seq)) {
+                return vec![];
+            }
+            while ps.stored_recent.len() > MAX_PEER_SEQS {
+                if let Some(&first) = ps.stored_recent.iter().next() {
+                    ps.stored_recent.remove(&first);
+                }
+            }
+        } else {
+            if ps.max_ts > REPLAY_WINDOW_SECS && env.ts < ps.max_ts - REPLAY_WINDOW_SECS {
+                return vec![];
+            }
+            if !ps.recent.insert((env.ts, env.seq)) {
+                return vec![];
+            }
+            if env.ts > ps.max_ts {
+                ps.max_ts = env.ts;
+                let cutoff = ps.max_ts - REPLAY_WINDOW_SECS;
+                ps.recent.retain(|&(t, _)| t >= cutoff);
+            }
+            while ps.recent.len() > MAX_PEER_SEQS {
+                if let Some(&first) = ps.recent.iter().next() {
+                    ps.recent.remove(&first);
+                }
+            }
         }
         let from = env.from.clone();
         let mut out = Vec::new();
@@ -701,10 +839,18 @@ impl Engine {
                 }
             }
             Msg::File { exam, path, i, n } => {
-                if !shareable_path(&path) || n == 0 || i >= n || n as usize * CHUNK > MAX_FILE + CHUNK {
+                if !shareable_path(&path)
+                    || n == 0
+                    || i >= n
+                    || payload.len() > CHUNK
+                    || n as usize * CHUNK > MAX_FILE + CHUNK
+                {
                     return out;
                 }
                 let key = (from.clone(), exam.clone(), path.clone());
+                if !self.partial.contains_key(&key) && self.partial.len() >= MAX_PARTIAL_FILES {
+                    return out;
+                }
                 let parts = self.partial.entry(key.clone()).or_insert_with(|| vec![None; n as usize]);
                 if parts.len() != n as usize {
                     *parts = vec![None; n as usize];
@@ -713,7 +859,7 @@ impl Engine {
                 if parts.iter().all(|p| p.is_some()) {
                     let bytes: Vec<u8> =
                         self.partial.remove(&key).unwrap_or_default().into_iter().flatten().flatten().collect();
-                    if host.write_file(&exam, &path, &bytes) {
+                    if bytes.len() <= MAX_FILE && host.write_file(&exam, &path, &bytes) {
                         match self.events.iter_mut().rev().find_map(|e| match e {
                             Event::Files { exam: x, n } if *x == exam => Some(n),
                             _ => None,
@@ -756,7 +902,15 @@ impl Engine {
             }
             Msg::PackPart { exam, sha, size, i, n } => {
                 let Some(d) = &mut self.dl else { return out };
-                if d.exam != exam || d.from != from || size > MAX_PACK || n == 0 || i >= n {
+                let expected_n = size.div_ceil(CHUNK as u64).max(1);
+                if d.exam != exam
+                    || d.from != from
+                    || size > MAX_PACK
+                    || n == 0
+                    || n as u64 != expected_n
+                    || i >= n
+                    || payload.len() > CHUNK
+                {
                     return out;
                 }
                 if d.parts.is_empty() {
@@ -764,7 +918,7 @@ impl Engine {
                     d.size = size;
                     d.parts = vec![None; n as usize];
                     d.next = 1;
-                } else if d.sha != sha || d.parts.len() != n as usize {
+                } else if d.sha != sha || d.size != size || d.parts.len() != n as usize {
                     return out;
                 }
                 d.parts[i as usize] = Some(payload);
@@ -904,14 +1058,24 @@ mod tests {
     fn run(a: &mut (Engine, Mem), b: &mut (Engine, Mem), room: &Room, first: Vec<Out>, lose_every: usize) {
         let mut queue: VecDeque<(bool, Out)> = first.into_iter().map(|o| (true, o)).collect();
         let mut k = 0usize;
-        let mut now = 1000;
+        let mut now =
+            a.0.peers
+                .values()
+                .chain(b.0.peers.values())
+                .map(|p| p.last_seen)
+                .chain(a.0.dl.as_ref().map(|d| d.started))
+                .chain(b.0.dl.as_ref().map(|d| d.started))
+                .chain([a.0.last_hello, b.0.last_hello])
+                .filter(|&t| t > 0)
+                .max()
+                .unwrap_or(1000);
         let mut rounds = 0;
         while rounds < 200 {
             rounds += 1;
             while let Some((from_a, o)) = queue.pop_front() {
                 k += 1;
-                let (src, dst) = if from_a { (&*a, &mut *b) } else { (&*b, &mut *a) };
-                let sealed = room.seal(&src.0.wire(&o));
+                let (src, dst) = if from_a { (&mut *a, &mut *b) } else { (&mut *b, &mut *a) };
+                let sealed = room.seal(&src.0.wire_at(&o, now));
                 if lose_every > 0 && k.is_multiple_of(lose_every) {
                     continue; // messaggio perso
                 }
@@ -970,6 +1134,10 @@ mod tests {
         vk.verify_prehash(&hex_dec(ev["id"].as_str().unwrap()), &sig).unwrap();
         let relay = format!("[\"EVENT\",\"sub\",{}]", serde_json::to_string(ev).unwrap());
         assert_eq!(parse_relay(&relay).unwrap().1, "contenuto");
+        let mut forged = ev.clone();
+        forged["content"] = serde_json::json!("manomesso");
+        assert!(parse_relay(&format!("[\"EVENT\",\"sub\",{}]", serde_json::to_string(&forged).unwrap())).is_none());
+        assert!(parse_client_event(&serde_json::to_string(&serde_json::json!(["EVENT", forged])).unwrap()).is_none());
         assert!(parse_relay("[\"EOSE\",\"sub\"]").is_none());
         assert_eq!(relay_notice("[\"OK\",\"x\",false,\"rate-limited\"]").unwrap(), "rate-limited");
         assert!(subscribe("s", "abc", 5).contains("\"#t\":[\"abc\"]"));
@@ -1090,5 +1258,43 @@ mod tests {
         assert!(!shareable_path("content/syllabus.json"));
         assert!(!shareable_path("progress//a.json"));
         assert!(!shareable_path("progress/a.txt"));
+    }
+
+    #[test]
+    fn replay_rejected_after_seen_eviction() {
+        let mut src = Engine::new("A", "Tel", "android");
+        let mut dst = Engine::new("B", "PC", "linux");
+        let mut host = Mem::default();
+        let old = src.wire_at(&Out::new(None, Msg::Group(crate::group::Status::default())), 1000);
+        assert!(!dst.receive(&mut host, "ev-old", &old, 1000).is_empty() || dst.events.len() == 1);
+        dst.events.clear();
+        // oltre 4000 eventi per espellere "ev-old" da seen_set
+        for k in 1..=4050i64 {
+            let msg = src.wire_at(&Out::new(None, Msg::Group(crate::group::Status::default())), 1000 + k);
+            let _ = dst.receive(&mut host, &format!("ev-{k}"), &msg, 1000 + k);
+        }
+        dst.events.clear();
+        // il vecchio messaggio con id diverso viene comunque bloccato dalla finestra anti-replay
+        let _ = dst.receive(&mut host, "ev-replay", &old, 5050);
+        assert!(dst.events.is_empty());
+    }
+
+    #[test]
+    fn pack_part_rejects_oom_n() {
+        let mut src = Engine::new("A", "Tel", "android");
+        let mut dst = Engine::new("B", "PC", "linux");
+        let mut host = Mem::default();
+        let _ = dst.download("A", "anat", 1000);
+        let evil = src.wire_at(
+            &Out {
+                to: Some("B".into()),
+                msg: Msg::PackPart { exam: "anat".into(), sha: "00".into(), size: 1, i: 0, n: u32::MAX },
+                payload: vec![1],
+                stored: false,
+            },
+            1000,
+        );
+        let _ = dst.receive(&mut host, "ev-oom", &evil, 1000);
+        assert!(dst.events.is_empty());
     }
 }

@@ -76,15 +76,31 @@ xml = open(src, encoding="utf-8").read()
 for need in ('android:hasCode="true"', 'io.github.nernerone.tremendouspreparator.MainActivity', "POST_NOTIFICATIONS"):
     if need not in xml:
         sys.exit(f"manifest inatteso: manca {need}")
+if "android:allowBackup" in xml:
+    xml = re.sub(r'android:allowBackup="[^"]*"', 'android:allowBackup="false"', xml, count=1)
+else:
+    xml = re.sub(r"<application\b", '<application android:allowBackup="false"', xml, count=1)
+if "android:usesCleartextTraffic" in xml:
+    xml = re.sub(r'android:usesCleartextTraffic="[^"]*"', 'android:usesCleartextTraffic="false"', xml, count=1)
+else:
+    xml = re.sub(r"<application\b", '<application android:usesCleartextTraffic="false"', xml, count=1)
 if "BLUETOOTH_CONNECT" not in xml:
     assert xml.count("<application") == 1
     xml = xml.replace("<application", BT_PERMS + "<application", 1)
 # aggiornamenti dall'app: solo negli APK pubblicati su GitHub (la CI imposta TP_UPDATES=github;
 # le build di F-Droid ne restano senza, e senza permesso)
-if os.environ.get("TP_UPDATES") == "github" and "REQUEST_INSTALL_PACKAGES" not in xml:
-    xml = xml.replace(
-        "<application", '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/><application', 1
-    )
+INTERNAL_UPDATE_PERM = (
+    '<permission android:name="io.github.nernerone.tremendouspreparator.permission.INTERNAL_UPDATE" '
+    'android:protectionLevel="signature"/>'
+    '<uses-permission android:name="io.github.nernerone.tremendouspreparator.permission.INTERNAL_UPDATE"/>'
+)
+if os.environ.get("TP_UPDATES") == "github":
+    if "REQUEST_INSTALL_PACKAGES" not in xml:
+        xml = xml.replace(
+            "<application", '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/><application', 1
+        )
+    if "INTERNAL_UPDATE" not in xml:
+        xml = xml.replace("<application", INTERNAL_UPDATE_PERM + "<application", 1)
 if "PACKAGE_USAGE_STATS" not in xml:
     xml = xml.replace("<application", FOCUS_PERMS + QUERIES + "<application", 1)
 if "FocusService" not in xml:
@@ -102,7 +118,14 @@ if "android.intent.action.SEND" not in xml:
         xml = xml.replace(m.group(0), tag2, 1)
     end = xml.index("</activity>", xml.index("io.github.nernerone.tremendouspreparator.MainActivity"))
     xml = xml[:end] + PACK_FILTERS + INVITE_FILTER + xml[end:]
-for need in ("<queries>", 'foregroundServiceType="specialUse"', "PROPERTY_SPECIAL_USE_FGS_SUBTYPE", "SYSTEM_ALERT_WINDOW"):
+for need in (
+    "<queries>",
+    'android:allowBackup="false"',
+    'android:usesCleartextTraffic="false"',
+    'foregroundServiceType="specialUse"',
+    "PROPERTY_SPECIAL_USE_FGS_SUBTYPE",
+    "SYSTEM_ALERT_WINDOW",
+):
     assert need in xml, f"manifest: manca {need}"
 assert xml.index("<queries>") < xml.index("<application"), "<queries> va prima di <application>"
 open(dst, "w", encoding="utf-8").write(xml)

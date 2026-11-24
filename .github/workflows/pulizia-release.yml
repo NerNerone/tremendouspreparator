@@ -21,11 +21,13 @@ on:
         default: ""
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   pulizia:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Elimina release e tag vecchi
         env:
@@ -60,4 +62,10 @@ jobs:
             last="$(tail -1 <<<"$packs")"
             for t in $packs; do [ "$t" = "$last" ] || del "$t"; done
           fi
-          for t in $EXTRA; do del "$t"; done
+          if [ -n "$EXTRA" ]; then
+            read -r -a extra_tags <<< "$EXTRA"
+            for t in "${extra_tags[@]}"; do
+              [[ "$t" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "tag non valido: $t"; exit 1; }
+              del "$t"
+            done
+          fi

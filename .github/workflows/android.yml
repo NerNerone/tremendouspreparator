@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: apk-${{ github.ref }}
@@ -29,14 +29,16 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
     outputs:
       tag: ${{ steps.ver.outputs.tag }}
     steps:
       # niente avviso di git sul nome del ramo predefinito durante il checkout
       - run: git config --global init.defaultBranch main
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           distribution: temurin
           java-version: "17"
@@ -47,7 +49,7 @@ jobs:
           rustup default stable
           rustup target add aarch64-linux-android armv7-linux-androideabi
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
 
       - name: Test e validazione dell'esempio
         run: |
@@ -56,6 +58,8 @@ jobs:
 
       - name: Versione
         id: ver
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           V="$(python3 tools/version_code.py --name)"
           if [ "$GITHUB_REF_TYPE" = tag ]; then
@@ -66,7 +70,7 @@ jobs:
           else
             echo "tag=beta" >> "$GITHUB_OUTPUT"
             # solo le beta portano numero di build e commit nella versione
-            echo "APP_BUILD=${{ github.run_number }}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+            echo "APP_BUILD=${RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
@@ -101,7 +105,7 @@ jobs:
 
       # copia di comodo: il file vero è nella release; se il servizio artifact di GitHub
       # non risponde non deve bloccare la pubblicazione
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         continue-on-error: true
         timeout-minutes: 4
         with:
@@ -114,16 +118,17 @@ jobs:
           TAG: ${{ steps.ver.outputs.tag }}
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
+          sha256sum TremendousPreparator*.apk > SHA256SUMS
           if [ "$TAG" = beta ]; then
             gh release delete beta --cleanup-tag --yes 2>/dev/null || true
-            gh release create beta TremendousPreparator*.apk --target "$GITHUB_SHA" --prerelease \
+            gh release create beta TremendousPreparator*.apk SHA256SUMS --target "$GITHUB_SHA" --prerelease \
               --title "Beta $VERSION+$APP_BUILD" \
               --notes "Build automatica dell'ultimo commit (${GITHUB_SHA::7}), non ancora rilasciata: firmata con la stessa chiave delle release, si installa sopra la versione precedente. APK Android: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri, per telefoni a 64 o 32 bit. Flatpak x86_64. Certificato SHA-256: ${CERT_SHA256}"
           else
             NOTES="$RUNNER_TEMP/note.md"
             cp "fastlane/metadata/android/it-IT/changelogs/$(python3 tools/version_code.py).txt" "$NOTES"
             printf '\n\nAPK: TremendousPreparator.apk è universale (se non sai quale scegliere, prendi questo); -arm64-v8a e -armeabi-v7a sono più leggeri.\nCertificato SHA-256: %s\n' "$CERT_SHA256" >> "$NOTES"
-            gh release create "$TAG" TremendousPreparator*.apk --verify-tag --latest \
+            gh release create "$TAG" TremendousPreparator*.apk SHA256SUMS --verify-tag --latest \
               --title "Tremendous Preparator $VERSION" --notes-file "$NOTES"
           fi
 
@@ -132,17 +137,19 @@ jobs:
     needs: apk
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       # niente avviso di git sul nome del ramo predefinito durante il checkout
       - run: git config --global init.defaultBranch main
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Rust stable
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: desktop
 
@@ -150,8 +157,8 @@ jobs:
         run: |
           # risoluzione DNS robusta (bypass systemd-resolved) e bypass mirror Azure su runner noble
           echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" | sudo tee /etc/resolv.conf
-          sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true
-          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list /etc/apt/apt-mirrors.txt 2>/dev/null || true
+          sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|https://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true
+          sudo sed -i 's|http://azure.archive.ubuntu.com|https://archive.ubuntu.com|g; s|http://archive.ubuntu.com|https://archive.ubuntu.com|g; s|http://security.ubuntu.com|https://security.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list /etc/apt/apt-mirrors.txt 2>/dev/null || true
           for i in 1 2 3; do sudo apt-get update -qq && break || sleep 5; done
           sudo apt-get install -y -qq libfontconfig1-dev libxkbcommon-dev libwayland-dev flatpak flatpak-builder
           # bubblewrap (flatpak-builder) ha bisogno degli user namespace non privilegiati
@@ -161,8 +168,10 @@ jobs:
         env:
           # Flatpak distribuito qui: si aggiorna da solo dalle release (beta o stabili)
           TP_UPDATES: github
+          REL_TAG: ${{ needs.apk.outputs.tag }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
-          if [ "${{ needs.apk.outputs.tag }}" = beta ]; then export APP_BUILD="${{ github.run_number }}-${GITHUB_SHA::7}"; fi
+          if [ "$REL_TAG" = beta ]; then export APP_BUILD="${RUN_NUMBER}-${GITHUB_SHA::7}"; fi
           cargo build --release -p tremendouspreparator --bin prepapp-desktop
           cp target/release/prepapp-desktop flatpak/tremendous-preparator
           ldd flatpak/tremendous-preparator
@@ -182,7 +191,7 @@ jobs:
 
       # copia di comodo: il file vero è nella release; se il servizio artifact di GitHub
       # non risponde non deve bloccare la pubblicazione
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         continue-on-error: true
         timeout-minutes: 4
         with:
@@ -192,4 +201,10 @@ jobs:
       - name: Allega alla release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ needs.apk.outputs.tag }}" TremendousPreparator-x86_64.flatpak --clobber
+          TAG: ${{ needs.apk.outputs.tag }}
+        run: |
+          gh release download "$TAG" -p SHA256SUMS --clobber 2>/dev/null || touch SHA256SUMS
+          grep -v 'TremendousPreparator-x86_64.flatpak$' SHA256SUMS > SHA256SUMS.tmp || true
+          sha256sum TremendousPreparator-x86_64.flatpak >> SHA256SUMS.tmp
+          mv SHA256SUMS.tmp SHA256SUMS
+          gh release upload "$TAG" TremendousPreparator-x86_64.flatpak SHA256SUMS --clobber
