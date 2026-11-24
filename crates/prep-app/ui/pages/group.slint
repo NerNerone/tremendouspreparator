@@ -1871,6 +1871,41 @@ export component GroupPage inherits Page {
                                 }
                             }
                         }
+                        // in pista senza concentrazione: si attiva da qui, senza fermarsi
+                        if !AppState.focus-active && AppState.focus-available && AppState.study-state != 0: VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: fcr.preferred-width + 20px;
+                                height: 32px;
+                                border-radius: 16px;
+                                background: fca.pressed ? M3.secondary-container.darker(0.08) : M3.secondary-container;
+                                fcr := HorizontalLayout {
+                                    x: 10px;
+                                    spacing: 4px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Icon {
+                                            width: 16px;
+                                            height: 16px;
+                                            source: Icons.focus;
+                                            tint: M3.on-secondary-container;
+                                        }
+                                    }
+                                    Text {
+                                        text: "Concentrazione";
+                                        font-size: 12px;
+                                        font-weight: 800;
+                                        color: M3.on-secondary-container;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                fca := TouchArea {
+                                    clicked => {
+                                        AppState.focus-setup(true);
+                                    }
+                                }
+                            }
+                        }
                         if AppState.focus-active && AppState.focus-left != "": VerticalLayout {
                             alignment: center;
                             Rectangle {

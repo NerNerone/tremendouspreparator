@@ -1211,7 +1211,7 @@ export component FabMenu inherits Rectangle {
             FabMenuItem {
                 icon: Icons.play;
                 title: "Scendi in pista";
-                sub: "sessione libera, finché premi Termina";
+                sub: "senza concentrazione, finché premi Termina";
                 clicked => {
                     AppState.fab-open = false;
                     AppState.study-start();
@@ -1393,6 +1393,11 @@ export component FabMenu inherits Rectangle {
                                 AppState.fab-open = true;
                             } else if (root.rs == 1) {
                                 AppState.study-pause();
+                            } else if (root.rs == 2) {
+                                AppState.study-start();
+                            } else if (AppState.focus-available) {
+                                // partenza: si sceglie tra sessione libera e concentrazione
+                                AppState.fab-open = true;
                             } else {
                                 AppState.study-start();
                             }
