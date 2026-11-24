@@ -250,19 +250,30 @@ export component SettingsPage inherits Page {
                             color: M3.on-surface;
                         }
                     }
-                    // passaggio dalla versione privata/precedente: stesso membro nei gruppi
-                    if !AppState.p2p-on && AppState.p2p-password != "": M3Button {
-                        text: "Usa il mio id della versione precedente";
-                        kind: 2;
-                        clicked => {
-                            AppState.adopt-legacy-id();
-                        }
-                    }
-                    if !AppState.p2p-on && AppState.p2p-password != "": Text {
-                        text: "Se arrivi dalla versione precedente: con lo stesso nome utente e la stessa password resti lo stesso membro nei tuoi gruppi (punti, storico, amministrazione).";
+                    // passaggio dalla versione privata/precedente: stesso membro nei gruppi (anche
+                    // da collegati: la password non resta salvata)
+                    Text {
+                        text: "Arrivi dalla versione precedente (o dalla privata)? Scrivi la password che usavi lì: riprendi il tuo id nei gruppi, con punti e ruoli di amministratore.";
                         wrap: word-wrap;
                         font-size: Type.label;
                         color: M3.on-surface-variant;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        LineEdit {
+                            horizontal-stretch: 1;
+                            text <=> AppState.legacy-password;
+                            input-type: password;
+                            placeholder-text: "Password della versione precedente";
+                        }
+                        M3Button {
+                            text: "Riprendi";
+                            kind: 1;
+                            enabled: AppState.legacy-password != "" || AppState.p2p-password != "";
+                            clicked => {
+                                AppState.adopt-legacy-id();
+                            }
+                        }
                     }
                     Text {
                         text: AppState.p2p-status;

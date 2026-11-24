@@ -846,7 +846,11 @@ impl Ctrl {
     /// altri propri dispositivi lo seguono).
     pub(super) fn adopt_legacy_id(&mut self) {
         let s = self.store.settings();
-        let password = self.ui().global::<AppState>().get_p2p_password().to_string();
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let typed = st.get_legacy_password().to_string();
+        let password = if typed.is_empty() { st.get_p2p_password().to_string() } else { typed };
+        st.set_legacy_password(ss(""));
         if s.username.trim().is_empty() || password.chars().count() < 8 {
             self.toast("Scrivi nome utente e password della sincronizzazione usati nella versione precedente");
             return;

@@ -820,6 +820,24 @@ impl Group {
         sig: &str,
         now: i64,
     ) -> InfoResult {
+        // impostazioni senza firma (versioni precedenti, compresa la privata): valgono solo nei
+        // gruppi nati prima delle firme e solo per chi è l'amministratore, nome e foto, come
+        // allora; mai per togliere membri
+        if pk.is_empty() && sig.is_empty() {
+            if admin.is_empty() || !self.admin_pk.is_empty() || at <= self.info_at || at > now + MAX_INFO_SKEW {
+                return InfoResult::Ignored;
+            }
+            if !self.admin.is_empty() && self.admin != admin {
+                return InfoResult::Ignored;
+            }
+            self.admin = admin.to_string();
+            if !name.trim().is_empty() {
+                self.name = name.trim().chars().take(60).collect();
+            }
+            self.photo = photo.to_string();
+            self.info_at = at;
+            return InfoResult::Applied;
+        }
         if admin.is_empty()
             || pk.is_empty()
             || sig.is_empty()
@@ -2131,6 +2149,30 @@ mod tests {
         assert_eq!(pick_user_id_since("d1", 0, "u000000000000000", 9), "u000000000000000");
         // stessa età: come prima, il minore
         assert_eq!(pick_user_id_since("ub00000000000000", 5, "ua00000000000000", 5), "ua00000000000000");
+    }
+
+    #[test]
+    fn unsigned_info_only_names_the_admin_of_legacy_groups() {
+        let now = 3_000_000;
+        // gruppo nato nella versione privata: l'amministratore si sa dalle impostazioni senza firma
+        let mut g = Group { code: "L".into(), ..Default::default() };
+        assert_eq!(
+            g.apply_info("me", "uold", "Serali", "", &["uvittima".into()], now, "", "", now),
+            InfoResult::Applied
+        );
+        assert_eq!(g.admin, "uold");
+        assert_eq!(g.name, "Serali");
+        assert!(g.removed.is_empty(), "senza firma non si toglie nessuno");
+        // un altro non può prendersi l'amministrazione
+        assert_eq!(g.apply_info("me", "uevil", "X", "", &[], now + 1, "", "", now + 1), InfoResult::Ignored);
+        // gruppo già firmato: le impostazioni senza firma non valgono più
+        let mut adm = Group { code: "L".into(), admin: "uold".into(), info_at: now + 2, ..Default::default() };
+        adm.sign_current_info();
+        assert_eq!(
+            g.apply_info("me", "uold", &adm.name, "", &[], now + 2, &adm.admin_pk, &adm.admin_sig, now + 2),
+            InfoResult::Applied
+        );
+        assert_eq!(g.apply_info("me", "uold", "Falso", "", &[], now + 3, "", "", now + 3), InfoResult::Ignored);
     }
 
     #[test]
