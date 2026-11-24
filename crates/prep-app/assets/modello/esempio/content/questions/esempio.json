@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "questions": [
+    {
+      "id": "es-mat-q001",
+      "topic": "mat-u1-t1",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "esempio",
+      "text": "Quanto vale il 20% di 150?",
+      "options": [
+        "15",
+        "20",
+        "30",
+        "35",
+        "45"
+      ],
+      "answer": 2,
+      "explanation": "Il 20% è un quinto: 150 / 5 = 30."
+    },
+    {
+      "id": "es-mat-q002",
+      "topic": "mat-u1-t1",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "esempio",
+      "text": "Quale frazione è equivalente a 0,75?",
+      "options": [
+        "1/4",
+        "2/3",
+        "3/4",
+        "4/5",
+        "7/10"
+      ],
+      "answer": 2,
+      "explanation": "0,75 = 75/100 = 3/4."
+    },
+    {
+      "id": "es-mat-q003",
+      "topic": "mat-u1-t2",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "esempio",
+      "text": "Quanto vale 2 elevato alla 10? (scrivi il numero)",
+      "numeric": {
+        "value": 1024,
+        "tolerance": 0.0
+      },
+      "explanation": "2¹⁰ = 1024."
+    },
+    {
+      "id": "es-sci-q001",
+      "topic": "sci-u1-t1",
+      "type": "mcq",
+      "difficulty": 1,
+      "source": "esempio",
+      "text": "Qual è l'unità di misura della forza nel Sistema Internazionale?",
+      "options": [
+        "joule",
+        "watt",
+        "newton",
+        "pascal",
+        "coulomb"
+      ],
+      "answer": 2,
+      "explanation": "La forza si misura in newton (N = kg·m/s²)."
+    },
+    {
+      "id": "es-sci-q002",
+      "topic": "sci-u1-t2",
+      "type": "mcq",
+      "difficulty": 2,
+      "source": "esempio",
+      "text": "Un'auto percorre 120 km in 1 ora e 30 minuti. Qual è la sua velocità media?",
+      "options": [
+        "60 km/h",
+        "72 km/h",
+        "80 km/h",
+        "90 km/h",
+        "100 km/h"
+      ],
+      "answer": 2,
+      "explanation": "120 km / 1,5 h = 80 km/h."
+    },
+    {
+      "id": "es-sci-q003",
+      "topic": "sci-u1-t1",
+      "type": "fill",
+      "difficulty": 1,
+      "source": "esempio",
+      "text": "Quanti millimetri ci sono in un metro? (scrivi il numero)",
+      "numeric": {
+        "value": 1000,
+        "tolerance": 0.0
+      },
+      "explanation": "1 m = 1000 mm."
+    }
+  ]
+}

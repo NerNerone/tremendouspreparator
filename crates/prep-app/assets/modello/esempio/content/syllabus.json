@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "id": "esempio",
+  "title": "Esempio: scienze di base",
+  "exam": {
+    "questions": 6,
+    "mcq": 4,
+    "fill": 2,
+    "options": 5,
+    "minutes": 10,
+    "correct": 1.0,
+    "wrong": -0.1,
+    "omitted": 0.0,
+    "pass": 3.0,
+    "dates": []
+  },
+  "subjects": [
+    {
+      "id": "mat",
+      "name": "Matematica",
+      "units": [
+        {
+          "id": "mat-u1",
+          "n": 1,
+          "name": "Aritmetica",
+          "cfu": 1.0,
+          "topics": [
+            {
+              "id": "mat-u1-t1",
+              "name": "Frazioni e percentuali"
+            },
+            {
+              "id": "mat-u1-t2",
+              "name": "Potenze"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sci",
+      "name": "Scienze",
+      "tools": [
+        "tavola-periodica"
+      ],
+      "units": [
+        {
+          "id": "sci-u1",
+          "n": 1,
+          "name": "Fisica di base",
+          "cfu": 1.0,
+          "topics": [
+            {
+              "id": "sci-u1-t1",
+              "name": "Unità di misura"
+            },
+            {
+              "id": "sci-u1-t2",
+              "name": "Moto"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "title": "Come studiare con l'esempio",
+      "summary": "Un pacchetto minimo da copiare per crearne uno tuo",
+      "body": "Ogni pacchetto descrive un esame: materie, unità e argomenti in content/syllabus.json, domande in content/questions/, flashcard in content/flashcards/ e, se vuoi, libri in books/. Le schede come questa si scrivono in \"sections\" del syllabus e compaiono nelle Opzioni. Il formato completo è in docs/FORMATI.md."
+    }
+  ]
+}

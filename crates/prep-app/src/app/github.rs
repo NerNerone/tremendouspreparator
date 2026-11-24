@@ -2,9 +2,6 @@
 
 use super::*;
 
-/// Ramo modello del repository dei dati: guida, schema, strumenti e direttive per l'AI.
-const TEMPLATE_BRANCH: &str = "modello-dati";
-
 impl Ctrl {
     // ---------- sync ----------
 
@@ -171,8 +168,8 @@ impl Ctrl {
         out.trim_matches(|c| c == '-' || c == '/' || c == '.').to_string()
     }
 
-    /// Nuovo ramo nel repository, a partire dal ramo modello (guida, schema, strumenti per
-    /// estrarre il testo e l'OCR, direttive per l'AI): lì si prepara il pacchetto di un esame.
+    /// Nuovo ramo nel repository con il modello (guida, schema, strumenti per estrarre il
+    /// testo e l'OCR, direttive per l'AI) e il pacchetto d'esempio: lì si prepara un esame.
     pub(super) fn gh_new_branch(&mut self, raw: &str) {
         let name = Self::branch_name(raw);
         if name.is_empty() {
@@ -185,7 +182,7 @@ impl Ctrl {
         };
         self.toast(format!("Creo il ramo «{name}» dal modello…"));
         spawn_background(move || {
-            let r = gh.create_branch(&name, TEMPLATE_BRANCH);
+            let r = gh.publish_branch(&name, &super::modello::files(true), "Nuovo esame dal modello", None);
             let _ = slint::invoke_from_event_loop(move || {
                 with_ctrl(|c| match r {
                     Ok(()) => {
@@ -217,17 +214,21 @@ impl Ctrl {
             self.toast("Nessun esame da salvare");
             return;
         }
-        let files = self.store.mirror_files();
-        if !files.iter().any(|(p, _)| p == "content/syllabus.json") {
+        let mine = self.store.mirror_files();
+        if !mine.iter().any(|(p, _)| p == "content/syllabus.json") {
             self.toast("Questo esame non ha ancora contenuti da salvare");
             return;
         }
         let exam = self.exams.get(&self.exams.active).map(|e| e.name.clone()).unwrap_or_default();
-        let n = files.len();
+        let n = mine.len();
+        // il modello (guida, strumenti, direttive per l'AI) più i file dell'esame
+        let mut files = super::modello::files(false);
+        files.retain(|(p, _)| !mine.iter().any(|(m, _)| m == p));
+        files.extend(mine);
         self.toast(format!("Salvo «{exam}» nel ramo «{name}» ({n} file)…"));
         let root = self.store.root.clone();
         spawn_background(move || {
-            let r = gh.publish_branch(&name, &files, &format!("Esame «{exam}» dall'app"), Some(TEMPLATE_BRANCH));
+            let r = gh.publish_branch(&name, &files, &format!("Esame «{exam}» dall'app"), None);
             let _ = slint::invoke_from_event_loop(move || {
                 with_ctrl(|c| match r {
                     Ok(()) => {

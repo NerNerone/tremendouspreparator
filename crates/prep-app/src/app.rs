@@ -42,6 +42,7 @@ mod focus;
 mod github;
 mod goals;
 mod group;
+mod modello;
 mod news;
 mod pdftools;
 mod quiz;
