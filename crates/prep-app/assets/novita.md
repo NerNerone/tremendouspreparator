@@ -5,6 +5,10 @@ l'aggiornamento che lo porta.
 
 ## 24 novembre 2026
 
+- Tema chiaro o scuro di nuovo come quello del telefono; niente più striscia della Home nella barra delle notifiche.
+- Studia: gli strumenti della materia (Tavola, Nomenclatura…) vanno a capo invece di scorrere di lato.
+- Squadra: nome del gruppo sempre intero; tocca la foto per cambiarla e il nome per la matita; «Come si fanno i punti» e «Avvisa tutti» accanto alla classifica; la scheda di chi tocchi in gara sale dal basso.
+- Niente barre di scorrimento visibili.
 - Tutta l'app nello stile «Traguardo»: Oggi con gli appelli nella fascia della preparazione, Studia, unità, quiz, risultati, flashcard, lettore, Squadra e Tu.
 - Tu: tempo, risposte e giuste in alto; Opzioni in quattro riquadri (Tu e l'aspetto, Dispositivi, Studio, App) e la pagina Novità e note legali.
 - Aspetto: tema chiaro, scuro o come il sistema. Promemoria: ogni orario si accende e si spegne da solo.

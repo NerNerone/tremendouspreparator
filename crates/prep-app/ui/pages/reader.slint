@@ -246,6 +246,7 @@ export component ReaderPage inherits Page {
             // ScrollView con altezza presa dalla fine reale del contenuto: con le tabelle (testo a capo
             // in righe orizzontali) Slint sottostima l'altezza preferita e lo scroll col dito si fermava
             rsv := ScrollView {
+                vertical-scrollbar-policy: ScrollBarPolicy.always-off;
                 mouse-drag-pan-enabled: AppState.drag-pan;
                 width: parent.width;
                 height: parent.height;

@@ -4,7 +4,7 @@ use crate::periodic;
 use crate::{
     AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, CrewVM, ExamDateVM, ExamSectionVM, ExamVM, FeedbackVM,
     FlagVM, FocusAppVM, GoalVM, GroupVM, NavCellVM, NavRowVM, NewsVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM,
-    RemVM, ResultItemVM, SimRowVM, SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
+    RemVM, ResultItemVM, SimRowVM, SubjectVM, SwatchVM, TocVM, ToolVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};

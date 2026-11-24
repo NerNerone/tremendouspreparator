@@ -1028,6 +1028,9 @@ export component Scroller inherits ScrollView {
     in property <length> gap: 0px;
     in property <LayoutAlignment> align: LayoutAlignment.start;
     mouse-drag-pan-enabled: AppState.drag-pan;
+    // niente barra di scorrimento visibile, in tutte le schede
+    vertical-scrollbar-policy: ScrollBarPolicy.always-off;
+    horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
     content-width: self.visible-width;
     // + margine di sicurezza: se un testo a capo resta comunque sottostimato, il fondo è raggiungibile
     content-height: max(self.visible-height, scroller-end.y + root.pad-bottom + 32px);

@@ -29,7 +29,7 @@ export component AppWindow inherits Window {
     property <bool> show-nav: !AppState.focus-open && (AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13 || AppState.page == 18);
     // «Studia ora»: esteso in Oggi, solo simbolo nelle altre schede principali
     // durante lo studio di gruppo i comandi della sessione stanno in basso: niente pulsante
-    property <bool> show-fab: root.show-nav && AppState.page != 18 && !(AppState.page == 13 && AppState.study-state != 0);
+    property <bool> show-fab: root.show-nav && AppState.page != 18 && !(AppState.page == 13 && AppState.study-state != 0) && AppState.car-sel == "";
     property <bool> show-bar: root.show-nav && AppState.paused-title != "";
 
     fs := FocusScope {
@@ -407,17 +407,32 @@ export component AppWindow inherits Window {
         }
     }
 
-    // chiaro / scuro scelto in Opzioni › Tu e l'aspetto (0 = come il sistema)
+    // chiaro / scuro scelto in Opzioni › Tu e l'aspetto (0 = come il sistema). Con «sistema» lo
+    // schema non si tocca: assegnarlo, anche a «unknown», smette di seguire il telefono (che
+    // restava chiaro); tornando a «sistema» si rimette quello letto all'avvio
     property <int> theme-mode: AppState.theme-mode;
+    property <ColorScheme> sys-scheme;
+    property <bool> mode-touched: false;
     changed theme-mode => {
         root.apply-mode();
     }
     function apply-mode() {
-        Palette.color-scheme = root.theme-mode == 1 ? ColorScheme.light : root.theme-mode == 2 ? ColorScheme.dark : ColorScheme.unknown;
+        if (root.theme-mode == 1) {
+            Palette.color-scheme = ColorScheme.light;
+            root.mode-touched = true;
+        } else if (root.theme-mode == 2) {
+            Palette.color-scheme = ColorScheme.dark;
+            root.mode-touched = true;
+        } else if (root.mode-touched) {
+            Palette.color-scheme = root.sys-scheme;
+        }
     }
 
     init => {
         fs.focus();
-        root.apply-mode();
+        root.sys-scheme = Palette.color-scheme;
+        if (root.theme-mode != 0) {
+            root.apply-mode();
+        }
     }
 }

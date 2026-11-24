@@ -155,6 +155,7 @@ export component QuizPage inherits Page {
             key: "" + AppState.q-index;
             vertical-stretch: 1;
         qsv := ScrollView {
+            vertical-scrollbar-policy: ScrollBarPolicy.always-off;
             mouse-drag-pan-enabled: AppState.drag-pan;
             // il layout stima un'altezza minore del reale con testo a capo (spiegazioni lunghe su
             // schermi stretti): l'area scorrevole arriva fino all'ultimo elemento effettivo

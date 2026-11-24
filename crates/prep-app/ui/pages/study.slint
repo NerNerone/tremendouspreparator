@@ -151,61 +151,31 @@ export component StudyPage inherits Page {
                         color: M3.on-surface-variant;
                     }
 
-                    // strumenti della materia: riquadri affiancati (scorrono se sono tanti)
-                    if AppState.subjects.length > 0: Flickable {
-                        height: 76px;
-                        interactive: tools-row.preferred-width > self.width;
-                        content-width: max(self.width, tools-row.preferred-width);
-                        tools-row := HorizontalLayout {
-                            x: 0px;
-                            height: 76px;
-                            spacing: 8px;
-                            ToolTile {
-                                icon: Icons.quiz;
-                                label: "Quiz";
-                                clicked => {
+                    // strumenti della materia: riquadri in una griglia che va a capo
+                    if AppState.subjects.length > 0: Rectangle {
+                        property <int> cols: max(3, floor((self.width + 8px) / 96px));
+                        property <length> tw: (self.width - 8px * (self.cols - 1)) / self.cols;
+                        height: ceil(AppState.study-tools.length / self.cols) * (76px + 8px) - 8px;
+                        for t[i] in AppState.study-tools: ToolTile {
+                            x: Math.mod(i, parent.cols) * (parent.tw + 8px);
+                            y: floor(i / parent.cols) * (76px + 8px);
+                            width: parent.tw;
+                            icon: t.kind == 0 ? Icons.quiz : t.kind == 1 ? Icons.cards : t.kind == 2 ? Icons.timer : t.kind == 3 ? Icons.flag-outline : t.kind == 4 ? Icons.apps : t.kind == 5 ? Icons.book : Icons.ai;
+                            label: t.label;
+                            clicked => {
+                                if (t.kind == 0) {
                                     AppState.open-sub(6);
-                                }
-                            }
-                            ToolTile {
-                                icon: Icons.cards;
-                                label: "Flashcard";
-                                clicked => {
+                                } else if (t.kind == 1) {
                                     AppState.open-sub(8);
-                                }
-                            }
-                            if AppState.exam-rules != "": ToolTile {
-                                icon: Icons.timer;
-                                label: "Simulazione";
-                                clicked => {
+                                } else if (t.kind == 2) {
                                     AppState.open-simlog();
-                                }
-                            }
-                            for t in AppState.official-tests: ToolTile {
-                                icon: Icons.flag-outline;
-                                label: t.name;
-                                clicked => {
+                                } else if (t.kind == 3) {
                                     AppState.start-official(AppState.current-subject, t.id);
-                                }
-                            }
-                            if AppState.subject-periodic: ToolTile {
-                                icon: Icons.apps;
-                                label: "Tavola";
-                                clicked => {
+                                } else if (t.kind == 4) {
                                     AppState.open-periodic();
-                                }
-                            }
-                            for label[i] in AppState.subject-links: ToolTile {
-                                icon: Icons.book;
-                                label: label;
-                                clicked => {
-                                    AppState.open-subject-link(i);
-                                }
-                            }
-                            ToolTile {
-                                icon: Icons.ai;
-                                label: "Crea con AI";
-                                clicked => {
+                                } else if (t.kind == 5) {
+                                    AppState.open-subject-link(t.id.to-float());
+                                } else {
                                     AppState.open-creator(false);
                                 }
                             }

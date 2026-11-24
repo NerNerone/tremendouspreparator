@@ -47,14 +47,15 @@ component SwitchLine inherits HorizontalLayout {
 
 // proposte di colore: tonda, quella scelta diventa un quadrato arrotondato con la spunta
 component Swatch inherits Rectangle {
+    in property <length> d: 40px;
     in property <color> c;
     in property <bool> sel;
     in property <bool> auto;
     in property <bool> ring: false;
     callback clicked;
-    width: 40px;
-    height: 40px;
-    border-radius: root.sel && !root.ring ? 12px : 20px;
+    width: root.d;
+    height: root.d;
+    border-radius: root.sel && !root.ring ? root.d * 0.3 : root.d / 2;
     animate border-radius { duration: 150ms; }
     background: root.c;
     border-width: root.sel && root.ring ? 3px : 0px;
@@ -67,10 +68,10 @@ component Swatch inherits Rectangle {
         vertical-alignment: center;
     }
     if root.sel && !root.ring: Icon {
-        x: 10px;
-        y: 10px;
-        width: 20px;
-        height: 20px;
+        x: root.d / 4;
+        y: root.d / 4;
+        width: root.d / 2;
+        height: root.d / 2;
         source: Icons.check;
         tint: white;
     }
@@ -179,18 +180,16 @@ export component SettingsPage inherits Page {
                     ItemTitle {
                         text: "Colore della monoposto";
                     }
-                    Flickable {
+                    // tutti i colori nella larghezza dello schermo (una fila che scorre di lato non si
+                    // muove sul telefono dentro la pagina)
+                    car-row := HorizontalLayout {
                         height: 44px;
-                        interactive: true;
-                        content-width: max(self.width, car-row.preferred-width);
-                        content-height: 44px;
-                        car-row := HorizontalLayout {
-                            x: 0px;
-                            y: 2px;
-                            height: 40px;
-                            spacing: 10px;
-                            alignment: start;
-                            for c in AppState.car-swatches: Swatch {
+                        spacing: 10px;
+                        alignment: start;
+                        for c in AppState.car-swatches: VerticalLayout {
+                            alignment: center;
+                            Swatch {
+                                d: min(40px, (car-row.width - 10px * (AppState.car-swatches.length - 1)) / max(1, AppState.car-swatches.length));
                                 c: c.color;
                                 sel: c.sel;
                                 auto: c.auto;
@@ -229,18 +228,16 @@ export component SettingsPage inherits Page {
                     ItemTitle {
                         text: "Colore dell'app";
                     }
-                    Flickable {
+                    // tutti i colori nella larghezza dello schermo (una fila che scorre di lato non si
+                    // muove sul telefono dentro la pagina)
+                    theme-row := HorizontalLayout {
                         height: 44px;
-                        interactive: true;
-                        content-width: max(self.width, theme-row.preferred-width);
-                        content-height: 44px;
-                        theme-row := HorizontalLayout {
-                            x: 0px;
-                            y: 2px;
-                            height: 40px;
-                            spacing: 10px;
-                            alignment: start;
-                            for c in AppState.theme-swatches: Swatch {
+                        spacing: 10px;
+                        alignment: start;
+                        for c in AppState.theme-swatches: VerticalLayout {
+                            alignment: center;
+                            Swatch {
+                                d: min(40px, (theme-row.width - 10px * (AppState.theme-swatches.length - 1)) / max(1, AppState.theme-swatches.length));
                                 c: c.color;
                                 sel: c.sel;
                                 auto: c.auto;

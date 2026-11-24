@@ -213,6 +213,14 @@ export struct FocusAppVM {
 }
 
 // colore selezionabile (monoposto); auto = accento di sistema
+// uno strumento della materia in Studia: 0 quiz, 1 flashcard, 2 simulazioni, 3 prova ufficiale
+// (id = tag), 4 tavola periodica, 5 collegamento del pacchetto (id = indice), 6 crea con l'AI
+export struct ToolVM {
+    kind: int,
+    id: string,
+    label: string,
+}
+
 // un orario dei promemoria (Opzioni › Studio)
 export struct RemVM {
     time: string,
@@ -494,6 +502,8 @@ export global AppState {
     in property <[ExamSectionVM]> exam-sections;
     // prove ufficiali della materia scelta (tag, etichetta)
     in property <[QzOptVM]> official-tests;
+    // strumenti della materia in Studia, in una griglia che va a capo
+    in property <[ToolVM]> study-tools;
     in-out property <string> toast;
 
     // studio

@@ -1,7 +1,7 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, M3Switch } from "../components.slint";
 
 export component GoalsPage inherits Page {
     VerticalLayout {
@@ -62,10 +62,13 @@ export component GoalsPage inherits Page {
                         spacing: 6px;
                         HorizontalLayout {
                             spacing: 8px;
-                            if !AppState.goals-confirmed: Switch {
-                                checked: g.selected;
-                                toggled => {
-                                    AppState.goals-toggle(i);
+                            if !AppState.goals-confirmed: VerticalLayout {
+                                alignment: center;
+                                M3Switch {
+                                    checked: g.selected;
+                                    toggled => {
+                                        AppState.goals-toggle(i);
+                                    }
                                 }
                             }
                             VerticalLayout {

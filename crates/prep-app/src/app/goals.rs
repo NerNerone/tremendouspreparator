@@ -802,7 +802,26 @@ impl Ctrl {
         st.set_subject_links(model(
             subject.map(|s| s.links.iter().map(|l| ss(&l.label)).collect()).unwrap_or_default(),
         ));
-        st.set_official_tests(model(self.official_tests(&cur)));
+        let officials = self.official_tests(&cur);
+        {
+            // strumenti della materia: in Studia vanno a capo (una fila che scorre di lato non si
+            // muove sul telefono dentro la pagina che scorre in verticale)
+            let t = |kind: i32, id: &str, label: &str| ToolVM { kind, id: ss(id), label: ss(label) };
+            let mut tools = vec![t(0, "", "Quiz"), t(1, "", "Flashcard")];
+            if self.content.syllabus().exam.questions > 0 {
+                tools.push(t(2, "", "Simulazione"));
+            }
+            tools.extend(officials.iter().map(|o| t(3, &o.id, &o.name)));
+            if subject.is_some_and(|s| s.tools.iter().any(|x| x == TOOL_PERIODIC_TABLE)) {
+                tools.push(t(4, "", "Tavola"));
+            }
+            if let Some(s) = subject {
+                tools.extend(s.links.iter().enumerate().map(|(i, l)| t(5, &i.to_string(), &l.label)));
+            }
+            tools.push(t(6, "", "Crea con AI"));
+            st.set_study_tools(model(tools));
+        }
+        st.set_official_tests(model(officials));
         // pagina «Simulazioni»: titolo della prova e prove ufficiali intere
         {
             use chrono::Datelike;
