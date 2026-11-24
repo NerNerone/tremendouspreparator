@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "cards": [
+    {
+      "id": "es-mat-c001",
+      "topic": "mat-u1-t2",
+      "front": "Quanto vale qualsiasi numero (diverso da zero) elevato a 0?",
+      "back": "1: a⁰ = 1 per ogni a ≠ 0.",
+      "source": "esempio"
+    },
+    {
+      "id": "es-sci-c001",
+      "topic": "sci-u1-t1",
+      "front": "Grandezze fondamentali del Sistema Internazionale?",
+      "back": "Lunghezza (m), massa (kg), tempo (s), corrente (A), temperatura (K), quantità di sostanza (mol), intensità luminosa (cd).",
+      "source": "esempio"
+    },
+    {
+      "id": "es-sci-c002",
+      "topic": "sci-u1-t2",
+      "front": "Definizione di velocità media?",
+      "back": "Spazio percorso diviso il tempo impiegato: v = Δs / Δt.",
+      "source": "esempio"
+    }
+  ]
+}
