@@ -635,6 +635,11 @@ impl Group {
 
     pub fn sign_current_info(&mut self) {
         self.ensure_admin_keys();
+        // si firma il nome come lo salveranno gli altri, così chi lo ripete lo ripete uguale
+        let name: String = self.name.trim().chars().take(60).collect();
+        if !name.is_empty() {
+            self.name = name;
+        }
         if let Some(sig) =
             sign_info(&self.code, &self.admin, &self.name, &self.photo, &self.removed, self.info_at, &self.admin_sk)
         {
@@ -645,8 +650,16 @@ impl Group {
     /// Sposta solo i dispositivi del membro sotto `new` in seguito a `status.prev`, senza mai
     /// toccare privilegi amministrativi o lista rimossi.
     fn merge_peer_member(&mut self, old: &str, new: &str) {
-        if old == self.admin || self.removed.contains(&old.to_string()) {
+        if self.removed.contains(&old.to_string()) {
             return;
+        }
+        if old == self.admin {
+            // gruppo firmato: l'amministratore è la sua chiave e cambia id solo con impostazioni
+            // firmate; gruppo di prima delle firme: come nelle versioni precedenti
+            if !self.admin_pk.is_empty() {
+                return;
+            }
+            self.admin = new.to_string();
         }
         if let Some(m) = self.members.remove(old) {
             let e = self.members.entry(new.to_string()).or_default();
@@ -668,9 +681,7 @@ impl Group {
         let mut olds: Vec<String> = status.prev.clone();
         olds.push(dev.to_string());
         if self.removed.contains(&uid) || olds.iter().any(|o| self.removed.contains(o)) {
-            if !self.removed.contains(&uid) {
-                self.removed.push(uid.clone());
-            }
+            // `removed` resta quello firmato dall'amministratore (si ripete agli altri così com'è)
             self.members.remove(&uid);
             return;
         }
@@ -711,7 +722,12 @@ impl Group {
     pub fn card_in(&mut self, card: Card, now: i64) -> bool {
         let Card { dev, seen, mut status } = card;
         let uid = if status.uid.is_empty() { dev.clone() } else { status.uid.clone() };
-        if dev.is_empty() || uid.is_empty() || self.removed.contains(&uid) {
+        if dev.is_empty()
+            || uid.is_empty()
+            || self.removed.contains(&uid)
+            || self.removed.contains(&dev)
+            || status.prev.iter().any(|p| self.removed.contains(p))
+        {
             return false;
         }
         let seen = seen.min(now - ONLINE_SECS);
@@ -999,7 +1015,7 @@ pub fn normalize(code: &str) -> String {
 
 /// Stanza dei membri di un gruppo.
 pub fn room(code: &str) -> crate::p2p::Room {
-    crate::p2p::Room::derive("gruppo", &normalize(code).replace('-', ""))
+    crate::p2p::Room::derive_code("gruppo", &normalize(code).replace('-', ""))
 }
 
 fn enc(s: &str) -> String {
@@ -2075,6 +2091,49 @@ mod tests {
     }
 
     #[test]
+    fn signed_info_survives_relay_and_legacy_admin_moves() {
+        let now = 2_000_000;
+        // A (amministratore) firma, B applica e ripete, C applica la copia di B
+        let mut a =
+            Group { code: "Q".into(), admin: "ua".into(), name: "  Studio serale  ".into(), ..Default::default() };
+        a.removed.push("ux".into());
+        a.info_at = now;
+        a.sign_current_info();
+        assert_eq!(a.name, "Studio serale");
+        let mut b = Group { code: "Q".into(), admin: "ua".into(), ..Default::default() };
+        assert_eq!(
+            b.apply_info("ub", &a.admin, &a.name, &a.photo, &a.removed, a.info_at, &a.admin_pk, &a.admin_sig, now),
+            InfoResult::Applied
+        );
+        // chi era stato rimosso torna con un id nuovo: resta fuori, e `removed` non cambia
+        b.status_in("dx", Status { uid: "ux2".into(), prev: vec!["ux".into()], ..Default::default() }, now);
+        assert!(!b.members.contains_key("ux2") && b.removed == vec!["ux".to_string()]);
+        let mut c = Group { code: "Q".into(), ..Default::default() };
+        assert_eq!(
+            c.apply_info("uc", &b.admin, &b.name, &b.photo, &b.removed, b.info_at, &b.admin_pk, &b.admin_sig, now),
+            InfoResult::Applied
+        );
+        // gruppo di prima delle firme: l'amministratore che cambia id resta amministratore
+        let mut old = Group { code: "Q".into(), admin: "uold".into(), ..Default::default() };
+        old.status_in("dA", Status { uid: "unew".into(), prev: vec!["uold".into()], ..Default::default() }, now);
+        assert_eq!(old.admin, "unew");
+        let mut adm = Group { code: "Q".into(), admin: "unew".into(), info_at: now, ..Default::default() };
+        adm.sign_current_info();
+        assert_eq!(
+            old.apply_info("uz", "unew", "N", "", &[], now, &adm.admin_pk, &adm.admin_sig, now),
+            InfoResult::Ignored,
+            "firma su un nome diverso"
+        );
+        assert_eq!(
+            old.apply_info("uz", &adm.admin, &adm.name, "", &[], now, &adm.admin_pk, &adm.admin_sig, now),
+            InfoResult::Applied
+        );
+        // da firmato, un «prev» non basta più a prendersi l'amministrazione
+        old.status_in("dE", Status { uid: "uevil".into(), prev: vec!["unew".into()], ..Default::default() }, now);
+        assert_eq!(old.admin, "unew");
+    }
+
+    #[test]
     fn pit_stops_stay_off_track_and_apart() {
         // sul rettilineo in basso dell'ovale: fuori, prima fila
         assert_eq!(pit_places(0, 2, &[0.0]), vec![(1.0, 0)]);
@@ -2096,10 +2155,16 @@ mod tests {
         let now = 1_000_000;
         let mut g = Group { code: "X".into(), admin: "d1".into(), removed: vec!["d9".into()], ..Default::default() };
         g.status_in("d1", Status { today: 100, day: "2026-11-12".into(), at: now, ..Default::default() }, now);
-        // status.prev remoto non può mai riassegnare g.admin né unire i dispositivi dell'admin
+        // gruppo firmato: status.prev remoto non può riassegnare g.admin
+        let mut signed = g.clone();
+        signed.admin_pk = "00".repeat(32);
         let st = Status { uid: "u1".into(), prev: vec!["d1".into()], at: now + 1, ..Default::default() };
+        signed.status_in("d1", st.clone(), now + 1);
+        assert_eq!(signed.admin, "d1");
+        // gruppo di prima delle firme: l'amministratore passa dall'id del dispositivo a quello
+        // dell'utente come nelle versioni precedenti (altrimenti perderebbe il gruppo)
         g.status_in("d1", st, now + 1);
-        assert_eq!(g.admin, "d1");
+        assert_eq!(g.admin, "u1");
         // anche un utente non amministratore mantiene la migrazione dispositivi in members
         g.status_in("d2", Status { today: 50, day: "2026-11-12".into(), at: now, ..Default::default() }, now);
         g.status_in(
@@ -2110,7 +2175,15 @@ mod tests {
         assert!(g.members.contains_key("u2") && !g.members.contains_key("d2"));
         // anche un rimosso resta rimosso sotto il nuovo id
         g.status_in("d9", Status { uid: "u9".into(), prev: vec!["d9".into()], ..Default::default() }, now);
-        assert!(g.removed.contains(&"u9".to_string()) && !g.members.contains_key("u9"));
+        assert!(!g.members.contains_key("u9"));
+        // anche quando la sua scheda arriva ripetuta da un altro
+        let card = Card {
+            dev: "d9".into(),
+            seen: now,
+            status: Status { uid: "u9".into(), prev: vec!["d9".into()], ..Default::default() },
+        };
+        assert!(!g.card_in(card, now + 100));
+        assert!(!g.members.contains_key("u9"));
         // uno stato vecchio arrivato in ritardo non annulla quello nuovo
         g.status_in(
             "d1",

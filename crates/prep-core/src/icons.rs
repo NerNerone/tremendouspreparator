@@ -164,7 +164,8 @@ pub fn parse_color(s: &str) -> Option<u32> {
 /// privato» → «Dp».
 pub fn monogram(subject: &Subject) -> String {
     let name = if subject.short.trim().is_empty() { &subject.name } else { &subject.short };
-    let words: Vec<&str> = name.split_whitespace().filter(|w| w.chars().next().is_some_and(char::is_alphanumeric)).collect();
+    let words: Vec<&str> =
+        name.split_whitespace().filter(|w| w.chars().next().is_some_and(char::is_alphanumeric)).collect();
     let mut out = String::new();
     match words.as_slice() {
         [] => out.push('?'),
@@ -255,8 +256,12 @@ mod tests {
 
     #[test]
     fn glyph_falls_back_to_monogram() {
-        assert!(matches!(glyph(&subj("Biologia", "", "biotech", "")), Glyph::Path { viewbox: (_, y, _, _), .. } if y == -960.0));
-        assert!(matches!(glyph(&subj("Logica", "", "", "M2 12h4")), Glyph::Path { viewbox: (_, y, _, _), .. } if y == 0.0));
+        assert!(
+            matches!(glyph(&subj("Biologia", "", "biotech", "")), Glyph::Path { viewbox: (_, y, _, _), .. } if y == -960.0)
+        );
+        assert!(
+            matches!(glyph(&subj("Logica", "", "", "M2 12h4")), Glyph::Path { viewbox: (_, y, _, _), .. } if y == 0.0)
+        );
         // tracciato rotto e nome sconosciuto: monogramma, senza errori
         assert_eq!(glyph(&subj("Cultura generale", "", "boh", "M1")), Glyph::Monogram("Cg".into()));
         assert_eq!(glyph(&subj("Chimica e propedeutica", "Chimica", "", "")), Glyph::Monogram("Ch".into()));

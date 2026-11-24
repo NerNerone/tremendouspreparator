@@ -12,8 +12,9 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri
-  # promemoria giornaliero: notifiche e avvio automatico all'accesso
+  # promemoria giornaliero: notifiche
   - --talk-name=org.freedesktop.Notifications
+  # solo per cancellare l'avvio automatico creato dalle versioni precedenti; da togliere più avanti
   - --filesystem=xdg-config/autostart:create
   # importazione del pacchetto contenuti (.json.gz) da Download
   - --filesystem=xdg-download:ro

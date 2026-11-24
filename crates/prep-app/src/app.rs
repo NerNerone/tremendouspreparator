@@ -1598,7 +1598,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_discard_paused(|| with_ctrl(|c| c.discard_paused()));
     st.on_dialog_cancel(|| with_ctrl(|c| c.close_dialog()));
 
-    // promemoria desktop: avvio automatico + processo in background
+    // promemoria desktop: processo in background (e via l'avvio automatico delle versioni vecchie)
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     crate::desktop_reminder::sync_autostart(ctrl.borrow().store.settings().reminder_enabled);
 

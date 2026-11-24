@@ -554,7 +554,7 @@ component RaceView inherits Rectangle {
                 background: mod(i + floor(i / 2), 2) == 0 ? root.bg : root.road.darker(0.35);
             }
         }
-        for car in root.cars: Rectangle {
+        for car in root.cars: slot := Rectangle {
             // moto continuo: ultimo valore ricevuto più velocità × tempo trascorso (calcolato a
             // ogni fotogramma, così non ci sono scatti tra un aggiornamento e l'altro)
             property <float> f0: car.f;
@@ -634,17 +634,28 @@ component RaceView inherits Rectangle {
                 Rectangle { x: parent.width - self.width; y: 0px; width: max(1.5px, 2px * root.k); height: parent.height; background: root.bg; }
                 Rectangle { x: 0px; y: parent.height - self.height; width: parent.width; height: max(1.5px, 2px * root.k); background: root.bg; }
             }
-            Car {
+            // rotazione e specchio su due elementi distinti: il renderer applica la scala prima
+            // della rotazione, e con lo specchio sullo stesso elemento in curva il muso si
+            // girava dalla parte sbagliata (rientro dal pit sul lato interno)
+            Rectangle {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
-                car: car;
-                arrived: car.pit && parent.lin >= 1;
-                on-road: abs(parent.off) <= root.sw / 2;
-                phase: root.phase;
-                road: root.road;
+                width: 36px;
+                height: 20px;
                 transform-rotation: car.parked ? -90deg : parent.a + parent.yaw;
                 transform-scale-x: root.k;
-                transform-scale-y: root.k * (parent.l-side < 0 ? -1 : 1);
+                transform-scale-y: root.k;
+                Car {
+                    x: 0px;
+                    y: 0px;
+                    car: car;
+                    arrived: car.pit && slot.lin >= 1;
+                    on-road: abs(slot.off) <= root.sw / 2;
+                    phase: root.phase;
+                    road: root.road;
+                    // la piazzola e i meccanici dalla parte del pit
+                    transform-scale-y: slot.l-side < 0 ? -1 : 1;
+                }
             }
             TouchArea {
                 clicked => {

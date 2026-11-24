@@ -2,9 +2,9 @@
 //!
 //! `tremendous-preparator --promemoria` è un processo leggero senza finestra: ogni minuto rilegge
 //! `reminder.json` (scritto dall'app) e all'orario scelto invia una notifica tramite
-//! `org.freedesktop.Notifications`; cliccandola si apre l'app. Parte all'accesso grazie a
-//! un file in `~/.config/autostart` e l'app lo avvia anche subito. Una sola istanza alla
-//! volta (socket astratto come lucchetto).
+//! `org.freedesktop.Notifications`; cliccandola si apre l'app. Lo avvia l'app e resta attivo
+//! fino alla fine della sessione (nessun avvio automatico all'accesso: sul computer non serve).
+//! Una sola istanza alla volta (socket astratto come lucchetto).
 
 use chrono::Local;
 use prep_core::reminder::ReminderState;
@@ -31,51 +31,14 @@ fn autostart_file() -> Option<PathBuf> {
     Some(base.join("autostart").join(format!("{APP_ID}.promemoria.desktop")))
 }
 
-fn escape_desktop_exec(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            '`' => out.push_str("\\`"),
-            '$' => out.push_str("\\$"),
-            '%' => out.push_str("%%"),
-            _ => out.push(c),
-        }
-    }
-    out
-}
-
-fn exec_line() -> String {
-    if in_flatpak() {
-        format!("flatpak run --command=tremendous-preparator {APP_ID} --promemoria")
-    } else {
-        let exe =
-            std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_else(|_| "tremendous-preparator".into());
-        format!("\"{}\" --promemoria", escape_desktop_exec(&exe))
-    }
-}
-
-/// Crea o rimuove l'avvio automatico e, se attivo, fa partire subito il processo.
+/// Toglie l'avvio automatico all'accesso delle versioni precedenti (sul computer non serve:
+/// il promemoria vive finché si resta collegati) e, se attivo, fa partire subito il processo.
 pub fn sync_autostart(enabled: bool) {
     if std::env::var_os("PREP_DEMO").is_some() {
         return;
     }
     if let Some(f) = autostart_file() {
-        if enabled {
-            let body = format!(
-                "[Desktop Entry]\nType=Application\nName=Tremendous Preparator (promemoria)\n\
-                 Comment=Promemoria giornaliero di studio\nExec={}\nIcon={APP_ID}\n\
-                 NoDisplay=true\nX-GNOME-Autostart-enabled=true\n",
-                exec_line()
-            );
-            if std::fs::read_to_string(&f).ok().as_deref() != Some(body.as_str()) {
-                let _ = std::fs::create_dir_all(f.parent().unwrap());
-                let _ = std::fs::write(&f, body);
-            }
-        } else {
-            let _ = std::fs::remove_file(&f);
-        }
+        let _ = std::fs::remove_file(&f);
     }
     if enabled {
         if let Ok(exe) = std::env::current_exe() {

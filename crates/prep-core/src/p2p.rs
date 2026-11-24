@@ -40,8 +40,8 @@ const PEER_TTL: i64 = 75;
 const MAX_FILE: usize = 4 << 20;
 const MAX_PACK: u64 = 300 << 20;
 const MAX_PARTIAL_FILES: usize = 64;
-const MAX_EPHEMERAL_AGE: i64 = 600;
-const MAX_FUTURE_SKEW: i64 = 300;
+const MAX_EPHEMERAL_AGE: i64 = 1800;
+const MAX_FUTURE_SKEW: i64 = 900;
 const REPLAY_WINDOW_SECS: i64 = 120;
 const MAX_PEER_SEQS: usize = 2048;
 const MAX_TRACKED_PEERS: usize = 512;
@@ -90,7 +90,7 @@ pub fn normalize_code(s: &str) -> String {
 
 /// Stanza di una condivisione tra persone diverse.
 pub fn share_room(code: &str) -> Room {
-    Room::derive("condivisione", &normalize_code(code))
+    Room::derive_code("condivisione", &normalize_code(code))
 }
 
 pub fn sha256_hex(b: &[u8]) -> String {
@@ -109,11 +109,22 @@ pub struct Room {
 impl Room {
     /// Ricava il seme segreto (32 byte) da nome utente (senza distinzione di maiuscole) e password.
     pub fn derive_seed(username: &str, password: &str) -> [u8; 32] {
+        Self::seed_with(username, password, 600_000)
+    }
+
+    fn seed_with(username: &str, password: &str, rounds: u32) -> [u8; 32] {
         let user = username.trim().to_lowercase();
         let salt = format!("tremendous-preparator/v1/{user}");
         let mut seed = [0u8; 32];
-        pbkdf2::pbkdf2_hmac::<Sha256>(password.as_bytes(), salt.as_bytes(), 600_000, &mut seed);
+        pbkdf2::pbkdf2_hmac::<Sha256>(password.as_bytes(), salt.as_bytes(), rounds, &mut seed);
         seed
+    }
+
+    /// Stanza di un codice casuale (gruppo, condivisione): il codice ha già abbastanza
+    /// entropia, quindi resta la derivazione di sempre (60 000 giri) e le versioni precedenti
+    /// dell'app continuano a trovarsi nella stessa stanza.
+    pub fn derive_code(label: &str, code: &str) -> Room {
+        Self::from_seed(Self::seed_with(label, code, 60_000))
     }
 
     /// Costruisce la stanza dal seme segreto già derivato.
@@ -542,6 +553,8 @@ struct Download {
 
 #[derive(Default)]
 struct PeerSeq {
+    /// ha già mandato buste con `ts`/`seq`: da qui in poi le buste senza non valgono più
+    modern: bool,
     max_ts: i64,
     recent: BTreeSet<(i64, u64)>,
     stored_recent: BTreeSet<(i64, u64)>,
@@ -739,7 +752,13 @@ impl Engine {
             return vec![];
         }
         if env.ts <= 0 || env.seq == 0 {
-            return vec![];
+            // versioni precedenti dell'app (senza tempo e sequenza): valgono finché lo stesso
+            // dispositivo non si fa sentire con una versione nuova, poi una copia vecchia
+            // ripetuta da qualcuno non passa più
+            if env.stored || self.peer_seq.get(&env.from).is_some_and(|p| p.modern) {
+                return vec![];
+            }
+            return self.dispatch(host, env, payload, now);
         }
         if now > 0 {
             if env.ts > now + MAX_FUTURE_SKEW {
@@ -754,6 +773,7 @@ impl Engine {
             return vec![];
         }
         let ps = self.peer_seq.entry(env.from.clone()).or_default();
+        ps.modern = true;
         if env.stored {
             if !ps.stored_recent.insert((env.ts, env.seq)) {
                 return vec![];
@@ -781,6 +801,11 @@ impl Engine {
                 }
             }
         }
+        self.dispatch(host, env, payload, now)
+    }
+
+    /// Esegue un messaggio già accettato.
+    fn dispatch(&mut self, host: &mut dyn Host, env: Envelope, payload: Vec<u8>, now: i64) -> Vec<Out> {
         let from = env.from.clone();
         let mut out = Vec::new();
         if let Some(p) = self.peers.get_mut(&from) {
@@ -1276,6 +1301,36 @@ mod tests {
         dst.events.clear();
         // il vecchio messaggio con id diverso viene comunque bloccato dalla finestra anti-replay
         let _ = dst.receive(&mut host, "ev-replay", &old, 5050);
+        assert!(dst.events.is_empty());
+    }
+
+    #[test]
+    fn legacy_envelopes_until_the_peer_updates() {
+        let mut dst = Engine::new("B", "PC", "linux");
+        let mut host = Mem::default();
+        // busta di una versione precedente: niente ts né seq
+        let legacy = encode(
+            &Envelope {
+                v: 1,
+                from: "A".into(),
+                to: None,
+                ts: 0,
+                seq: 0,
+                stored: false,
+                msg: Msg::Group(crate::group::Status::default()),
+            },
+            &[],
+        );
+        let _ = dst.receive(&mut host, "ev-1", &legacy, 5000);
+        assert_eq!(dst.events.len(), 1, "la versione vecchia si sente ancora");
+        dst.events.clear();
+        // A si aggiorna: da qui le buste vecchie (ripetute da qualcuno) non valgono più
+        let mut src = Engine::new("A", "Tel", "android");
+        let new = src.wire_at(&Out::new(None, Msg::Group(crate::group::Status::default())), 5001);
+        let _ = dst.receive(&mut host, "ev-2", &new, 5001);
+        assert_eq!(dst.events.len(), 1);
+        dst.events.clear();
+        let _ = dst.receive(&mut host, "ev-3", &legacy, 5002);
         assert!(dst.events.is_empty());
     }
 

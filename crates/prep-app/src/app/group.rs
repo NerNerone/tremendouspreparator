@@ -545,7 +545,11 @@ impl Ctrl {
     fn group_send_info_stored(&mut self) {
         if self.is_group_admin() {
             if let Some(g) = self.groups.active_mut() {
-                if !g.admin_sk.is_empty() && (g.admin_pk.is_empty() || g.admin_sig.is_empty()) {
+                // gruppo di prima delle firme: la chiave nasce qui (se un altro proprio dispositivo ne ha
+                // già una, arriva con la sincronizzazione e non se ne crea un'altra)
+                if (!g.admin_sk.is_empty() || g.admin_pk.is_empty())
+                    && (g.admin_pk.is_empty() || g.admin_sig.is_empty())
+                {
                     g.sign_current_info();
                     let _ = self.groups.save(&self.store.base);
                 }
@@ -574,7 +578,11 @@ impl Ctrl {
         let is_admin = self.is_group_admin();
         if is_admin {
             if let Some(g) = self.groups.active_mut() {
-                if !g.admin_sk.is_empty() && (g.admin_pk.is_empty() || g.admin_sig.is_empty()) {
+                // gruppo di prima delle firme: la chiave nasce qui (se un altro proprio dispositivo ne ha
+                // già una, arriva con la sincronizzazione e non se ne crea un'altra)
+                if (!g.admin_sk.is_empty() || g.admin_pk.is_empty())
+                    && (g.admin_pk.is_empty() || g.admin_sig.is_empty())
+                {
                     g.sign_current_info();
                     let _ = self.groups.save(&self.store.base);
                 }
@@ -820,10 +828,19 @@ impl Ctrl {
         let _ = self.store.save_settings(&s);
         if !mine.is_empty() {
             self.groups.rename_user(&mine, &pick);
+            // nei gruppi che si amministrano, le impostazioni firmate dicono il nuovo id
+            let now = Self::now_secs();
+            for g in &mut self.groups.groups {
+                if g.admin == pick && !g.admin_sk.is_empty() {
+                    g.info_at = now.max(g.info_at + 1);
+                    g.sign_current_info();
+                }
+            }
             let _ = self.groups.save(&self.store.base);
         }
         self.uid_cache = None;
         self.group_send();
+        self.group_send_info();
         self.refresh_group();
     }
 
@@ -1668,7 +1685,13 @@ impl Ctrl {
                 .min_by(|a, b| a.0.total_cmp(&b.0))
                 .map(|(gap, r)| {
                     let m = (gap * 2000.0).round() as i32;
-                    let trend = if r.2 < me.2 { "la stai prendendo" } else if r.2 > me.2 { "si allontana" } else { "stesso passo" };
+                    let trend = if r.2 < me.2 {
+                        "la stai prendendo"
+                    } else if r.2 > me.2 {
+                        "si allontana"
+                    } else {
+                        "stesso passo"
+                    };
                     let who = r.0.split_whitespace().next().unwrap_or("").to_string();
                     format!("{who} {m} m davanti · {trend}")
                 })

@@ -211,17 +211,18 @@ fn import_with(store: &Store, bytes: &[u8], replace: bool) -> Result<PackInfo, S
 
 /// Impronta dei contenuti nel mirror (libri, quiz, flashcard): uguale su due dispositivi
 /// che hanno gli stessi file, comunque ci siano arrivati (pacchetto o altro dispositivo).
+/// Non è un controllo di sicurezza (i file hanno già il loro SHA): resta SHA-1 perché i
+/// dispositivi se la scambiano e le versioni precedenti la calcolano così.
 pub fn content_version(store: &Store) -> String {
-    use sha2::{Digest, Sha256};
     let idx = store.index();
-    let mut h = Sha256::new();
+    let mut h = sha1_smol::Sha1::new();
     for (p, sha) in idx.files.iter().filter(|(p, _)| in_pack(p)) {
         h.update(p.as_bytes());
         h.update(b"\0");
         h.update(sha.as_bytes());
         h.update(b"\n");
     }
-    h.finalize().iter().map(|b| format!("{b:02x}")).collect()
+    h.digest().to_string()
 }
 
 /// Ultimo pacchetto importato, se c'è.
