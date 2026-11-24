@@ -13,6 +13,21 @@ pub(super) enum PdfTool {
 }
 
 impl Ctrl {
+    /// Anteprima del testo estratto (i primi caratteri) e il testo intero da copiare.
+    pub(super) fn show_md(&self, name: &str, md: &str) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let preview: String = md.chars().take(1800).collect();
+        st.set_pdf_md_name(ss(name));
+        st.set_pdf_md_info(ss(format!(
+            "{} caratteri · {} pagine segnate",
+            md.chars().count(),
+            md.matches("<!-- p.").count()
+        )));
+        st.set_pdf_md_preview(ss(if preview.len() < md.len() { format!("{preview}\n…") } else { preview }));
+        st.set_pdf_md(ss(md));
+    }
+
     pub(super) fn open_pdf_tools(&mut self) {
         let ui = self.ui();
         let st = ui.global::<AppState>();
@@ -143,6 +158,7 @@ impl Ctrl {
             );
         }
         let stem = name.trim_end_matches(".pdf").trim_end_matches(".PDF");
+        self.show_md(&format!("{stem}.md"), &md);
         let where_ = self.save_outputs(&[(format!("{stem}.md"), md.into_bytes())], "text/markdown")?;
         let mut msg = format!(
             "Testo grezzo di {} pagine su {total} estratto in «{stem}.md»{where_} Prima di usarlo fallo revisionare da un'AI con il prompt 8.5 della guida.",
@@ -247,6 +263,7 @@ impl Ctrl {
                 with_ctrl(|c| {
                     let res = res.and_then(|(md, msg)| {
                         let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(&name).to_string();
+                        c.show_md(&format!("{stem}.md"), &md);
                         let where_ = c.save_outputs(&[(format!("{stem}.md"), md.into_bytes())], "text/markdown")?;
                         Ok(format!(
                             "{msg}. Testo in «{stem}.md»{where_} L'OCR sbaglia lettere accentate, formule e simboli: prima di usarlo fallo revisionare da un'AI con il prompt 8.5 della guida."
@@ -280,6 +297,7 @@ impl Ctrl {
             return Err("nessun testo trovato nel documento".into());
         }
         let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(name).to_string();
+        self.show_md(&format!("{stem}.md"), &d.md);
         let where_ = self.save_outputs(&[(format!("{stem}.md"), d.md.into_bytes())], "text/markdown")?;
         let what = match (d.kind, d.pages) {
             ("PowerPoint" | "Impress (ODP)", n) if n > 0 => format!("{} slide", n),

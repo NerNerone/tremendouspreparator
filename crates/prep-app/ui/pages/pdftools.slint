@@ -1,15 +1,16 @@
+// Traguardo: «Estrai il testo». Documenti e foto trasformati in Markdown (con l'OCR dove
+// serve) e PDF divisi in parti, per prepararli all'AI. Tre schede: File, Foto (OCR), Dividi.
 import { M3, Icons, Type } from "../theme.slint";
 import { AppState } from "../state.slint";
-import { LineEdit } from "std-widgets.slint";
-import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip } from "../components.slint";
+import { Page, M3Button, Hint, Scroller, Chip, BigHeader, OutlinedField, SegButtons, Icon, WavyProgress } from "../components.slint";
 
-// strumenti per preparare il materiale da dare a un'AI: dividere i PDF, estrarne il testo
 export component PdfToolsPage inherits Page {
+    // 0 file (testo), 1 foto e scansioni (OCR), 2 dividi il PDF
+    property <int> tab: 0;
     VerticalLayout {
-        TopBar {
-            title: "Strumenti per l'AI";
-            subtitle: "Documenti e foto da trasformare in testo, PDF da dividere";
-            can-back: true;
+        BigHeader {
+            title: "Estrai il testo";
+            subtitle: "PDF, Word, PowerPoint, EPUB, HTML, foto";
             back => {
                 AppState.back();
             }
@@ -17,168 +18,239 @@ export component PdfToolsPage inherits Page {
 
         Scroller {
             vertical-stretch: 1;
+            align: start;
             pad: 16px;
             pad-top: 4px;
             gap: 12px;
-            // pagine da usare, per entrambi gli strumenti
-            Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 8px;
-                    Text {
-                        text: "Pagine";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    LineEdit {
-                        text <=> AppState.pdf-pages;
-                        placeholder-text: "Tutte (oppure es. 25-30, 40, 45-)";
-                    }
-                    Text {
-                        text: "Vuoto = tutto il documento. Con le pagine scelte (es. un capitolo: 25-30; nelle presentazioni le slide) si estrae o si divide solo quella parte, sempre sotto il limite per parte.";
-                        wrap: word-wrap;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
+
+            SegButtons {
+                items: [
+                    { label: "File", icon: Icons.description },
+                    { label: "Foto", icon: Icons.focus },
+                    { label: "Dividi", icon: Icons.apps },
+                ];
+                selected: root.tab;
+                picked(i) => {
+                    root.tab = i;
+                }
+            }
+
+            // pagine da usare, per tutti gli strumenti
+            OutlinedField {
+                label: "Pagine";
+                text <=> AppState.pdf-pages;
+                placeholder: "tutte, oppure 25-30, 40, 45-";
+                pencil: false;
+            }
+
+            if root.tab == 0: Text {
+                text: "Salva il testo in Markdown con i segnaposto di pagina (nelle presentazioni una sezione per slide). Da Word, PowerPoint ed EPUB titoli, elenchi e tabelle escono già in Markdown; dal PDF è testo grezzo. Poi fallo revisionare da un'AI con il prompt 8.5 della guida: costa meno e sbaglia meno del PDF.";
+                font-size: 13px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            if root.tab == 1: Text {
+                text: AppState.ocr-available
+                    ? "Per scansioni e foto: riconosce il testo sul dispositivo (anche su due colonne); le pagine che hanno già testo lo usano così com'è. La prima volta scarica i modelli (12 MB). Le foto vengono meglio dritte, ben illuminate e a tutta pagina."
+                    : "Nel browser l'OCR non c'è: usalo dall'app per Android o per computer, oppure passa il PDF diviso direttamente all'AI.";
+                font-size: 13px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            if root.tab == 2: Text {
+                text: "Quando serve dare il PDF all'AI (scansioni illeggibili, formule e figure): lo divide in parti sotto il limite di MB della tua AI, a pagine intere e in ordine.";
+                font-size: 13px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            if root.tab == 2: Flickable {
+                height: 40px;
+                interactive: true;
+                content-width: max(self.width, mb-strip.preferred-width);
+                content-height: 40px;
+                mb-strip := HorizontalLayout {
+                    x: 0px;
+                    y: 0px;
+                    height: 40px;
+                    spacing: 6px;
+                    alignment: start;
+                    padding-top: 2px;
+                    padding-bottom: 2px;
+                    for mb in [5, 10, 20, 50, 100]: Chip {
+                        text: mb + " MB";
+                        selected: AppState.pdf-max-mb == mb;
+                        clicked => {
+                            AppState.pdf-max-mb = mb;
+                        }
                     }
                 }
             }
-            // esito (o avanzamento) dell'ultimo lavoro: in alto, così si vede senza scorrere
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                if root.tab == 0: M3Button {
+                    text: "Scegli un file";
+                    has-icon: true;
+                    icon: Icons.description;
+                    enabled: !AppState.pdf-busy;
+                    clicked => {
+                        AppState.pdf-text();
+                    }
+                }
+                if root.tab == 1 && AppState.ocr-available: M3Button {
+                    text: "Scegli PDF o foto";
+                    has-icon: true;
+                    icon: Icons.focus;
+                    enabled: !AppState.pdf-busy;
+                    clicked => {
+                        AppState.pdf-ocr();
+                    }
+                }
+                if root.tab == 1 && AppState.pdf-ocr-running: M3Button {
+                    text: "Ferma";
+                    kind: 2;
+                    clicked => {
+                        AppState.pdf-stop();
+                    }
+                }
+                if root.tab == 2: M3Button {
+                    text: "Dividi il PDF";
+                    has-icon: true;
+                    icon: Icons.apps;
+                    enabled: !AppState.pdf-busy;
+                    clicked => {
+                        AppState.pdf-split();
+                    }
+                }
+            }
+
+            // lavoro in corso o esito dell'ultimo
             if AppState.pdf-status != "": Rectangle {
-                background: M3.secondary-container;
-                border-radius: 16px;
-                VerticalLayout {
-                    padding: 14px;
-                    Text {
-                        text: AppState.pdf-status;
-                        wrap: word-wrap;
-                        color: M3.on-secondary-container;
-                    }
-                }
-            }
-            Card {
-                VerticalLayout {
+                border-radius: 24px;
+                background: M3.primary-container;
+                min-height: st-row.preferred-height;
+                st-row := HorizontalLayout {
                     padding: 16px;
-                    spacing: 10px;
-                    Text {
-                        text: "1 · Estrai il testo (PDF, Word, PowerPoint…)";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    Text {
-                        text: "Il consigliato. Salva il testo in un file Markdown con i segnaposto di pagina (nelle presentazioni, una sezione per slide). Legge PDF, Word (.docx), PowerPoint (.pptx), OpenDocument (.odt, .odp), EPUB, HTML e testo. Da Word, PowerPoint e simili titoli, elenchi e tabelle escono già in Markdown; dal PDF è testo GREZZO (a capo spezzati, titoli non riconosciuti, formule e tabelle rovinate). In entrambi i casi va revisionato: dallo a un'AI con il prompt 8.5 della guida, non il file originale: costa meno, sbaglia meno e non ha limiti di MB. Le pagine scansionate dei PDF vengono segnalate: per quelle usa l'OCR qui sotto.";
-                        wrap: word-wrap;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                    }
-                    M3Button {
-                        text: "Estrai il testo";
-                        has-icon: true;
-                        icon: Icons.book;
-                        enabled: !AppState.pdf-busy;
-                        clicked => {
-                            AppState.pdf-text();
+                    spacing: 14px;
+                    VerticalLayout {
+                        alignment: start;
+                        Icon {
+                            width: 28px;
+                            height: 28px;
+                            source: Icons.description;
+                            tint: M3.on-primary-container;
                         }
                     }
-                }
-            }
-            Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    Text {
-                        text: "2 · Testo con l'OCR: scansioni e foto";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    Text {
-                        text: AppState.ocr-available
-                            ? "Per i PDF scansionati (o una foto di una pagina): riconosce il testo sul dispositivo e lo salva in Markdown con i segnaposto di pagina; le pagine che hanno già testo lo usano così com'è. Legge anche le pagine su due colonne. La prima volta scarica i modelli (12 MB). Sbaglia più del testo vero (lettere accentate, formule, simboli): va sempre revisionato da un'AI con il prompt 8.5, che costa comunque molto meno che passarle il PDF. Le foto vengono meglio dritte, ben illuminate e a tutta pagina."
-                            : "Nel browser l'OCR non c'è: usalo dall'app per Android o per computer, oppure passa il PDF diviso direttamente all'AI.";
-                        wrap: word-wrap;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                    }
-                    if AppState.ocr-available: HorizontalLayout {
+                    VerticalLayout {
+                        horizontal-stretch: 1;
                         spacing: 8px;
-                        M3Button {
-                            text: "Scegli PDF o foto";
-                            has-icon: true;
-                            icon: Icons.search;
-                            kind: 1;
-                            enabled: !AppState.pdf-busy;
-                            clicked => {
-                                AppState.pdf-ocr();
-                            }
+                        Text {
+                            text: AppState.pdf-status;
+                            font-size: 14px;
+                            color: M3.on-primary-container;
+                            wrap: word-wrap;
                         }
-                        if AppState.pdf-ocr-running: M3Button {
-                            text: "Ferma";
-                            kind: 2;
-                            clicked => {
-                                AppState.pdf-stop();
-                            }
+                        if AppState.pdf-busy: WavyProgress {
+                            moving: true;
+                            intro: false;
+                            value: 1;
+                            amp: 3px;
+                            wavelength: 18px;
+                            thickness: 4px;
                         }
                     }
                 }
             }
-            Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    Text {
-                        text: "3 · Dividi il PDF in più parti";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
+
+            // il testo estratto: anteprima, copia, uso con l'AI
+            if AppState.pdf-md-name != "": VerticalLayout {
+                spacing: 10px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Rectangle {
+                        height: 32px;
+                        width: c1.preferred-width + 20px;
+                        border-radius: 10px;
+                        background: M3.secondary-container;
+                        c1 := Text {
+                            text: "✓ Markdown";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: M3.on-secondary-container;
+                        }
                     }
-                    Text {
-                        text: "Per i casi in cui serve passare il PDF all'AI (scansioni che l'OCR non legge, formule e figure da ricomporre): divide il PDF, o solo le pagine scelte qui sopra, in parti sotto il limite di MB per file della tua AI, a pagine intere e in ordine. Il nome di ogni parte dice le pagine che contiene; le parti si danno una alla volta o insieme.";
+                    Rectangle {
+                        height: 32px;
+                        width: c2.preferred-width + 20px;
+                        border-radius: 10px;
+                        background: M3.secondary-container;
+                        c2 := Text {
+                            text: "✓ Segnaposto di pagina";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: M3.on-secondary-container;
+                        }
+                    }
+                }
+                Text {
+                    text: AppState.pdf-md-name + " · " + AppState.pdf-md-info;
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+                Rectangle {
+                    border-radius: 24px;
+                    background: M3.surface-container;
+                    height: min(320px, pv.preferred-height + 32px);
+                    clip: true;
+                    pv := Text {
+                        x: 16px;
+                        y: 16px;
+                        width: parent.width - 32px;
+                        text: AppState.pdf-md-preview;
+                        font-family: "monospace";
+                        font-size: 13px;
+                        color: M3.on-surface;
                         wrap: word-wrap;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
                     }
-                    Text {
-                        text: "Limite per parte: " + AppState.pdf-max-mb + " MB";
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    // fila che scorre col dito su schermi stretti, senza uscire dalla scheda
-                    Flickable {
-                        height: 40px;
-                        interactive: true;
-                        content-width: max(self.width, mb-strip.preferred-width);
-                        content-height: 40px;
-                        mb-strip := HorizontalLayout {
-                            x: 0px;
-                            y: 0px;
-                            height: 40px;
-                            spacing: 6px;
-                            alignment: start;
-                            padding-top: 2px;
-                            padding-bottom: 2px;
-                            for mb in [5, 10, 20, 50, 100]: Chip {
-                                text: mb + " MB";
-                                selected: AppState.pdf-max-mb == mb;
-                                clicked => {
-                                    AppState.pdf-max-mb = mb;
-                                }
-                            }
+                }
+                md-buf := TextInput {
+                    width: 0px;
+                    height: 0px;
+                    text: AppState.pdf-md;
+                    read-only: true;
+                    enabled: false;
+                    opacity: 0;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    M3Button {
+                        text: "Usa per un pacchetto AI";
+                        has-icon: true;
+                        icon: Icons.smart-toy;
+                        clicked => {
+                            AppState.open-creator(false);
                         }
                     }
                     M3Button {
-                        text: "Dividi il PDF in più parti";
+                        text: "Copia";
                         kind: 1;
-                        enabled: !AppState.pdf-busy;
                         clicked => {
-                            AppState.pdf-split();
+                            md-buf.select-all();
+                            md-buf.copy();
+                            md-buf.clear-selection();
+                            AppState.rd-copied();
                         }
                     }
                 }
             }
+
             Hint {
-                short: "Le parti e il testo restano sul tuo dispositivo.";
+                short: "Tutto resta sul tuo dispositivo.";
                 full: "Il lavoro si fa tutto sul dispositivo: niente viene mandato da nessuna parte (l'OCR scarica solo i suoi modelli, la prima volta: modelli del progetto ocrs di Robert Knight, licenza CC BY-SA 4.0). Su Android scegli la cartella dove salvare i file; sul computer finiscono in Download; nel browser vengono scaricati. Un PDF protetto da password va prima sbloccato.";
             }
         }
