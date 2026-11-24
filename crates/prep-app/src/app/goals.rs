@@ -437,6 +437,7 @@ impl Ctrl {
                     } else {
                         String::new()
                     }),
+                    ..subject_look(self.content.subject(&s.id))
                 }
             })
             .collect()
@@ -471,6 +472,10 @@ impl Ctrl {
                 })
             })
             .collect();
+        // prossimo appello (per la fascia di Oggi): il primo da oggi in poi
+        let next = dates.iter().filter(|d| d.days >= 0).min_by_key(|d| d.days);
+        st.set_next_exam_days(next.map(|d| d.days).unwrap_or(-1));
+        st.set_next_exam_label(next.map(|d| d.label.clone()).unwrap_or_default());
         st.set_exam_dates(model(dates));
         st.set_total_time(ss(if self.progress.total_secs > 0 {
             format!(
@@ -653,6 +658,28 @@ impl Ctrl {
                 String::new()
             }),
         });
+        // fonti delle domande dell'unità (si spengono qui o nel quiz personalizzato)
+        let mut per_source: BTreeMap<String, usize> = BTreeMap::new();
+        for q in &self.content.questions {
+            if self.content.unit_of_topic(&q.topic).is_some_and(|u| u.id == self.unit_id) {
+                *per_source.entry(q.source_group()).or_default() += 1;
+            }
+        }
+        let mut src: Vec<(String, usize)> = per_source.into_iter().collect();
+        src.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        st.set_unit_sources(model(
+            src.into_iter()
+                .map(|(g, n)| QzOptVM {
+                    id: ss(&g),
+                    name: ss(&g),
+                    group: ss(""),
+                    sel: !self.qz.off_sources.contains(&g),
+                    count: n as i32,
+                    head: false,
+                    open: false,
+                })
+                .collect(),
+        ));
         let pace = exam_pace(self.content.syllabus().exam.minutes, self.content.syllabus().exam.questions);
         let topics: Vec<TopicVM> = up
             .topics
@@ -742,4 +769,23 @@ impl Ctrl {
     pub(super) fn flagged_cards(&self) -> Vec<String> {
         self.history.flagged.iter().filter(|id| self.content.card(id).is_some()).cloned().collect()
     }
+}
+
+/// Icona e colore di una materia decisi dal pacchetto (vedi `prep_core::icons`).
+pub(super) fn subject_look(subject: Option<&prep_core::model::Subject>) -> SubjectVM {
+    use prep_core::icons::{self, Glyph};
+    let Some(sub) = subject else { return SubjectVM::default() };
+    let mut vm = SubjectVM::default();
+    match icons::glyph(sub) {
+        Glyph::Path { d, viewbox: (x, y, w, h) } => {
+            vm.glyph = ss(d);
+            (vm.vbx, vm.vby, vm.vbw, vm.vbh) = (x, y, w, h);
+        }
+        Glyph::Monogram(m) => vm.mono = ss(m),
+    }
+    if let Some(c) = icons::parse_color(&sub.color) {
+        vm.color = slint::Color::from_argb_encoded(0xff00_0000 | c);
+        vm.own_color = true;
+    }
+    vm
 }

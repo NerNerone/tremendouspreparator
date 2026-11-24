@@ -110,6 +110,39 @@ fn page_marker(line: &str) -> Option<u32> {
     rest.trim().parse().ok()
 }
 
+/// Colonne di una tabella da mostrare: righe completate allo stesso numero di celle e larghezza
+/// di ogni colonna (frazioni che sommano a 1), uguale per tutte le righe, così i dati restano
+/// incolonnati anche con celle vuote o testi lunghi. Una colonna vale quanto il suo testo più
+/// lungo (con un tetto, perché va a capo) ma mai meno della parola più lunga.
+pub fn table_columns(rows: &[Vec<String>]) -> (Vec<Vec<String>>, Vec<f32>) {
+    let n = rows.iter().map(Vec::len).max().unwrap_or(0);
+    if n == 0 {
+        return (Vec::new(), Vec::new());
+    }
+    let padded: Vec<Vec<String>> = rows
+        .iter()
+        .map(|r| {
+            let mut r = r.clone();
+            r.resize(n, String::new());
+            r
+        })
+        .collect();
+    let weights: Vec<f32> = (0..n)
+        .map(|j| {
+            let (mut text, mut word) = (0usize, 0usize);
+            for r in &padded {
+                let c = &r[j];
+                text = text.max(c.chars().count());
+                word = word.max(c.split_whitespace().map(|w| w.chars().count()).max().unwrap_or(0));
+            }
+            // radice: le colonne lunghe vanno a capo, quelle brevi non si schiacciano
+            (text.min(80) as f32).sqrt().max(word.min(16) as f32 * 0.7).max(1.5)
+        })
+        .collect();
+    let sum: f32 = weights.iter().sum();
+    (padded, weights.iter().map(|w| w / sum).collect())
+}
+
 pub fn parse(md: &str) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut para: Vec<String> = Vec::new();
@@ -315,6 +348,21 @@ pub fn find_section(secs: &[Section], query: &str, page: Option<u32>) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn table_columns_align_and_pad() {
+        let rows = vec![
+            vec!["NUMERO QUANTICO".to_string(), "VALORE".into(), "INFORMAZIONE QUALITATIVA".into()],
+            vec!["n".into(), "1 → ∞".into(), "Dimensioni dell'orbitale".into()],
+            vec!["".into(), "".into()],
+        ];
+        let (p, w) = table_columns(&rows);
+        assert!(p.iter().all(|r| r.len() == 3));
+        assert!((w.iter().sum::<f32>() - 1.0).abs() < 1e-4);
+        assert!(w[2] > w[1], "la colonna più lunga è più larga");
+        assert!(w.iter().all(|x| *x > 0.1));
+        assert_eq!(table_columns(&[]).1.len(), 0);
+    }
 
     const MD: &str = "<!-- p. 240 -->\n# 9 Fluidi\nIntro **forte**.\n\n## 9.3 Teorema di Bernoulli\n<!-- p. 245 -->\nTesto [link](http://x) e `codice`.\n- punto\n1. primo\n\n| a | b |\n|---|---|\n| 1 | 2 |\n";
 

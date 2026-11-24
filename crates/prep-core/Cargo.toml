@@ -22,7 +22,7 @@ sha2 = "0.10"
 hmac = "0.12"
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
-k256 = { version = "0.13", default-features = false, features = ["schnorr", "arithmetic", "std"] }
+k256 = { version = "0.14", default-features = false, features = ["schnorr", "arithmetic", "std"] }
 getrandom = "0.2"
 # strumenti PDF: dividere in parti e estrarre il testo
 lopdf = { version = "0.47", default-features = false }

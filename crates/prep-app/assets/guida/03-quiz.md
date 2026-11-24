@@ -17,7 +17,7 @@ Un file contiene un elenco di domande; puoi dividerle in quanti file vuoi (per m
 
 - `options`: 5 risposte plausibili, una sola giusta; `answer` è la sua posizione **a partire da 0** (qui 2 = «80 km/h»). L'app mescola le opzioni a ogni domanda.
 - `difficulty`: 1 facile, 2 media, 3 difficile.
-- `source` / `group`: da dove viene la domanda; `group` è il nome nel filtro «Fonti» del quiz.
+- `source` / `group`: da dove viene la domanda; `group` è il nome della fonte nel filtro «Fonti» (quiz personalizzato e pagina dell'unità, che vale anche per i quiz di argomento). Se manca si ricava da `source`. Conviene metterlo uguale in tutte le domande di uno stesso materiale.
 
 ## 3.2 Note su ogni risposta (arricchimenti)
 

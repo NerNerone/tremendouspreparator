@@ -1,7 +1,8 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { ChipStrip } from "hub.slint";
+import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
 export component StudyPage inherits Page {
     VerticalLayout {
@@ -48,6 +49,13 @@ export component StudyPage inherits Page {
                 selected: AppState.current-subject == s.id;
                 clicked => {
                     AppState.select-subject(s.id);
+                }
+                VerticalLayout {
+                    alignment: center;
+                    SubjectIcon {
+                        s: s;
+                        width: 22px;
+                    }
                 }
             }
         }
@@ -428,6 +436,21 @@ export component UnitPage inherits Page {
                             clicked => {
                                 AppState.start-cards("unit", AppState.unit.id);
                             }
+                        }
+                    }
+
+                    // fonti delle domande: valgono per il quiz dell'unità e per quelli degli argomenti
+                    if AppState.unit-sources.length > 1: VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "Fonti delle domande";
+                            font-size: Type.label;
+                            font-weight: 700;
+                            color: M3.on-surface-variant;
+                        }
+                        ChipStrip {
+                            opts: AppState.unit-sources;
+                            kind: "source";
                         }
                     }
                 }

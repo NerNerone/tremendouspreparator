@@ -1,7 +1,8 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { Avatar } from "group.slint";
+import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
 component SubjectCard inherits Card {
     in property <SubjectVM> s;
@@ -13,11 +14,9 @@ component SubjectCard inherits Card {
             spacing: 12px;
             VerticalLayout {
                 alignment: center;
-                Rectangle {
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 6px;
-                    background: M3.subject(root.s.n);
+                SubjectIcon {
+                    s: root.s;
+                    width: 36px;
                 }
             }
 
@@ -34,14 +33,14 @@ component SubjectCard inherits Card {
                 text: round(root.s.mastery * 100) + "%";
                 font-size: Type.title;
                 font-weight: 700;
-                color: M3.subject(root.s.n);
+                color: root.s.own-color ? root.s.color : M3.subject(root.s.n);
             }
         }
 
         WavyProgress {
             intro: !AppState.home-intro-done;
             value: root.s.mastery;
-            fill: M3.subject(root.s.n);
+            fill: root.s.own-color ? root.s.color : M3.subject(root.s.n);
             amp: 3px;
             wavelength: 28px;
             thickness: 4px;
@@ -142,59 +141,6 @@ export component HomePage inherits Page {
                 fg: d.days >= 0 && d.days <= 7 ? M3.on-error-container : M3.on-tertiary-container;
             }
         }
-
-            if AppState.paused-title != "": Card {
-                bg: M3.tertiary-container;
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 8px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        VIcon {
-                            source: Icons.pause;
-                            tint: M3.on-tertiary-container;
-                            size: 20px;
-                        }
-
-                        Text {
-                            text: "In pausa: " + AppState.paused-title;
-                            font-size: Type.title;
-                            font-weight: 700;
-                            color: M3.on-tertiary-container;
-                            wrap: word-wrap;
-                            horizontal-stretch: 1;
-                        }
-                    }
-
-                    Text {
-                        text: AppState.paused-info;
-                        font-size: Type.label;
-                        color: M3.on-tertiary-container;
-                        wrap: word-wrap;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: end;
-                        M3Button {
-                            text: "Scarta";
-                            kind: 3;
-                            clicked => {
-                                AppState.discard-paused();
-                            }
-                        }
-
-                        M3Button {
-                            text: "Riprendi";
-                            has-icon: true;
-                            icon: Icons.play;
-                            clicked => {
-                                AppState.resume-quiz();
-                            }
-                        }
-                    }
-                }
-            }
 
             if AppState.goals.length > 0: Card {
                 clickable: true;
@@ -364,10 +310,52 @@ export component HomePage inherits Page {
                 wrap: word-wrap;
             }
 
+            // giorni al prossimo appello, in alto a destra (spariscono comprimendo)
+            if AppState.next-exam-days >= 0: VerticalLayout {
+                x: parent.width - self.width - 20px;
+                y: 18px;
+                width: 120px;
+                height: self.preferred-height;
+                alignment: start;
+                opacity: max(0, 1 - root.t * 2.5);
+                Text {
+                    text: AppState.next-exam-days == 0 ? "Oggi" : AppState.next-exam-days;
+                    horizontal-alignment: right;
+                    font-size: 40px;
+                    font-weight: 900;
+                    color: M3.on-primary-container;
+                }
+                Text {
+                    text: AppState.next-exam-days == 0 ? AppState.next-exam-label : (AppState.next-exam-days == 1 ? "giorno al " : "giorni al ") + AppState.next-exam-label;
+                    horizontal-alignment: right;
+                    wrap: word-wrap;
+                    font-size: Type.label;
+                    color: M3.on-primary-container;
+                }
+            }
+
+            // inizio e fine della barra
+            Text {
+                x: 20px;
+                y: parent.height - 20px;
+                text: "0%";
+                font-size: 11px;
+                color: M3.on-primary-container;
+                opacity: max(0, 1 - root.t * 3);
+            }
+            Text {
+                x: parent.width - self.width - 20px;
+                y: parent.height - 20px;
+                text: "100%";
+                font-size: 11px;
+                color: M3.on-primary-container;
+                opacity: max(0, 1 - root.t * 3);
+            }
+
             WavyProgress {
                 intro: !AppState.home-intro-done;
                 x: 20px;
-                y: parent.height - self.height - 18px + 4px * root.t;
+                y: parent.height - self.height - 24px + 10px * root.t;
                 width: parent.width - 40px;
                 value: AppState.overall;
                 fill: M3.primary;
@@ -430,12 +418,21 @@ export component HomePage inherits Page {
                 }
             }
 
-            IconButton {
-                icon: Icons.tune;
-                tint: M3.on-surface;
-                clicked => {
-                    AppState.settings-sec = -1;
-                    AppState.open-settings();
+            // profilo: porta a «Tu» (opzioni comprese)
+            Rectangle {
+                width: 48px;
+                Avatar {
+                    width: 36px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    photo: AppState.my-photo;
+                    has-photo: AppState.my-has-photo;
+                    initial: AppState.my-initial;
+                }
+                TouchArea {
+                    clicked => {
+                        AppState.go-tab(3);
+                    }
                 }
             }
         }

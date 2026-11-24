@@ -178,11 +178,13 @@ component BlockView inherits VerticalLayout {
             HorizontalLayout {
                 padding: 8px;
                 spacing: 8px;
-                for c in root.b.cells: Text {
+                // colonne con la stessa larghezza in tutte le righe della tabella
+                for c[i] in root.b.cells: Text {
                     text: c;
                     wrap: word-wrap;
+                    width: root.b.widths.length > i ? (root.avail-width - 16px - 8px * (root.b.cells.length - 1)) * root.b.widths[i] : self.preferred-width;
                     horizontal-stretch: 1;
-                    font-size: 14px;
+                    font-size: root.b.level == 1 ? 12px : 14px;
                     font-weight: root.b.level == 1 ? 700 : 400;
                     color: M3.on-surface;
                 }

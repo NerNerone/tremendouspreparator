@@ -190,7 +190,7 @@ impl Signer {
     pub fn new() -> Signer {
         loop {
             let b: [u8; 32] = random();
-            if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&b) {
+            if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&k256::FieldBytes::from(b)) {
                 let pubkey = hex(&sk.verifying_key().to_bytes());
                 return Signer { sk, pubkey };
             }
@@ -258,7 +258,7 @@ fn verify_nostr_event(ev: &serde_json::Value) -> Option<(String, String)> {
     if expect_id != id_bytes {
         return None;
     }
-    let vk = k256::schnorr::VerifyingKey::from_bytes(&pk_bytes).ok()?;
+    let vk = k256::schnorr::VerifyingKey::from_bytes(&k256::FieldBytes::from(pk_bytes)).ok()?;
     let sig = k256::schnorr::Signature::try_from(sig_bytes.as_slice()).ok()?;
     vk.verify_prehash(&id_bytes, &sig).ok()?;
     Some((id_hex.to_string(), content.to_string()))
@@ -1154,7 +1154,10 @@ mod tests {
         assert_eq!(ev["id"].as_str().unwrap(), sha256_hex(ser.as_bytes()));
         // firma BIP-340 valida
         use k256::schnorr::signature::hazmat::PrehashVerifier;
-        let vk = k256::schnorr::VerifyingKey::from_bytes(&hex_dec(ev["pubkey"].as_str().unwrap())).unwrap();
+        let vk = k256::schnorr::VerifyingKey::from_bytes(
+            &k256::FieldBytes::try_from(hex_dec(ev["pubkey"].as_str().unwrap()).as_slice()).unwrap(),
+        )
+        .unwrap();
         let sig = k256::schnorr::Signature::try_from(hex_dec(ev["sig"].as_str().unwrap()).as_slice()).unwrap();
         vk.verify_prehash(&hex_dec(ev["id"].as_str().unwrap()), &sig).unwrap();
         let relay = format!("[\"EVENT\",\"sub\",{}]", serde_json::to_string(ev).unwrap());

@@ -207,6 +207,16 @@ impl Ctrl {
         let allowed = self.store.settings().focus_allowed;
         crate::focus::start(&serde_json::json!({ "until": until, "allowed": allowed }).to_string());
         self.ui().global::<AppState>().set_focus_open(false);
+        // sessione già aperta su un altro proprio dispositivo: la concentrazione si somma a quella
+        if self.twin_active(Self::now_secs()) && self.study_state == prep_core::group::State::Idle {
+            self.focus_on = true;
+            self.group_send();
+            self.toast(format!(
+                "Concentrazione avviata per {minutes} minuti: il moltiplicatore vale per la sessione aperta sull'altro tuo dispositivo"
+            ));
+            self.refresh_focus();
+            return;
+        }
         self.study_set(prep_core::group::State::Studying);
         self.toast(format!("Concentrazione avviata per {minutes} minuti: buono studio!"));
         self.refresh_focus();

@@ -49,7 +49,7 @@ component FlagRow inherits Rectangle {
 }
 
 // fila orizzontale di chip che scorre col dito se non c'è spazio
-component ChipStrip inherits Flickable {
+export component ChipStrip inherits Flickable {
     in property <[QzOptVM]> opts;
     in property <string> kind;
     height: 40px;

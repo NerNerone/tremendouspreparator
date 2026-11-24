@@ -137,6 +137,9 @@ impl Ctrl {
             _ => {}
         }
         self.refresh_quiz_setup();
+        if kind == "source" && !self.unit_id.is_empty() {
+            self.refresh_unit();
+        }
     }
 
     pub(super) fn qz_start(&mut self) {

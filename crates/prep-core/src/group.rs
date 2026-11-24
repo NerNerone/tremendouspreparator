@@ -110,6 +110,10 @@ pub struct Status {
     /// intensità del ritmo (0..1)
     #[serde(default)]
     pub level: f32,
+    /// concentrazione attiva su questo dispositivo: vale anche per la sessione di studio aperta
+    /// su un altro dispositivo dello stesso utente (i moltiplicatori si sommano)
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub focus: bool,
 }
 
 /// Numeri del profilo per l'esame su cui si studia; a zero le funzioni non usate (che il
@@ -303,7 +307,12 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
     let mut state = State::Idle;
     let mut pit_since = 0;
     let mut doing = String::new();
+    // colore: quello del dispositivo che ha aperto la sessione in corso (se c'è)
+    let mut session_color: Option<u32> = None;
     for (s, on) in devs {
+        if *on && s.state != State::Idle && (session_color.is_none() || s.state == State::Studying) {
+            session_color = Some(s.color);
+        }
         let (a, b, mm, d) = live(s, c);
         for (x, y) in pts.iter_mut().zip(live_pts(s, c)) {
             *x += y;
@@ -342,6 +351,9 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
         }
     }
     out.state = state;
+    if let Some(c) = session_color {
+        out.color = c;
+    }
     out.today = t;
     out.week = w;
     out.month = m;
@@ -423,7 +435,7 @@ pub fn new_admin_keypair() -> (String, String) {
     let mut b = [0u8; 32];
     loop {
         getrandom::getrandom(&mut b).expect("generatore casuale");
-        if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&b) {
+        if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&k256::FieldBytes::from(b)) {
             let pk = hex_enc(&sk.verifying_key().to_bytes());
             return (hex_enc(&b), pk);
         }
@@ -463,7 +475,7 @@ pub fn sign_info(
     sk_hex: &str,
 ) -> Option<String> {
     let sk_bytes: [u8; 32] = hex_dec(sk_hex.trim())?;
-    let sk = k256::schnorr::SigningKey::from_bytes(&sk_bytes).ok()?;
+    let sk = k256::schnorr::SigningKey::from_bytes(&k256::FieldBytes::from(sk_bytes)).ok()?;
     let mut aux = [0u8; 32];
     getrandom::getrandom(&mut aux).expect("generatore casuale");
     let digest = info_digest(code, admin, name, photo, removed, at);
@@ -490,7 +502,7 @@ pub fn verify_info_sig(
     let Some(sig_bytes) = hex_dec::<64>(sig_hex.trim()) else {
         return false;
     };
-    let Ok(vk) = k256::schnorr::VerifyingKey::from_bytes(&pk_bytes) else {
+    let Ok(vk) = k256::schnorr::VerifyingKey::from_bytes(&k256::FieldBytes::from(pk_bytes)) else {
         return false;
     };
     let Ok(sig) = k256::schnorr::Signature::try_from(sig_bytes.as_slice()) else {
@@ -626,7 +638,7 @@ impl Group {
             self.admin_pk = pk;
         } else if self.admin_pk.is_empty() {
             if let Some(sk_bytes) = hex_dec::<32>(self.admin_sk.trim()) {
-                if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&sk_bytes) {
+                if let Ok(sk) = k256::schnorr::SigningKey::from_bytes(&k256::FieldBytes::from(sk_bytes)) {
                     self.admin_pk = hex_enc(&sk.verifying_key().to_bytes());
                 }
             }
@@ -2088,6 +2100,19 @@ mod tests {
             g.apply_info("me", "boss", "Nuovo", "", &["me".into()], now + 1, &pk, &kick_me, now + 1),
             InfoResult::Removed
         );
+    }
+
+    #[test]
+    fn session_device_gives_the_color() {
+        let today = NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+        let now = 1_000_000;
+        let ck = Clock { now, today, day0: 0, week0: 0, month0: 0 };
+        let pc = Status { color: 0x0000ff, state: State::Studying, at: now - 5, ..Default::default() };
+        let phone = Status { color: 0xff0000, state: State::Idle, focus: true, at: now, ..Default::default() };
+        let (c, _) = combine(&[(pc.clone(), true), (phone.clone(), true)], &ck);
+        assert_eq!(c.color, 0x0000ff, "colore del PC che studia, anche se il telefono è più recente");
+        let (c, _) = combine(&[(Status { state: State::Idle, ..pc }, true), (phone, true)], &ck);
+        assert_eq!(c.color, 0xff0000, "nessuna sessione: il più recente");
     }
 
     #[test]

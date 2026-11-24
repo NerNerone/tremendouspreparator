@@ -2,7 +2,7 @@
 // movimento a molla (curve "expressive spatial/effects"), indicatori ondulati.
 import { ScrollView } from "std-widgets.slint";
 import { M3, Icons, Type, Shape, Motion } from "theme.slint";
-import { AppState } from "state.slint";
+import { AppState, SubjectVM } from "state.slint";
 
 export component Icon inherits Image {
     in property <color> tint: M3.on-surface;
@@ -27,24 +27,11 @@ export component Page inherits Rectangle {
 }
 
 // Contenuto che si anima ogni volta che `key` cambia (nuova domanda, nuova sezione…)
+// Contenitore di una pagina che cambia (lettore, quiz, flashcard). Il cambio è istantaneo: la
+// dissolvenza mostrava la pagina nuova, la spegneva e la riaccendeva (un lampo a ogni pagina).
 export component Swap inherits Rectangle {
     in property <string> key;
-    property <float> k: 0;
-    property <float> f: k - floor(k);
-    changed key => {
-        k = floor(k) + 1;
-    }
-    animate k {
-        duration: Motion.spatial;
-        easing: cubic-bezier(0.38, 1.21, 0.22, 1.0);
-    }
-    inner := Rectangle {
-        x: f == 0 ? 0px : (1 - f) * 28px;
-        width: parent.width;
-        height: parent.height;
-        opacity: f == 0 ? 1 : f;
-        @children
-    }
+    @children
 }
 
 // Increspatura Material al tocco
@@ -186,6 +173,39 @@ export component M3Button inherits Rectangle {
     animate background { duration: Motion.effects; }
 }
 
+// Icona di una materia: il simbolo (o le iniziali) del pacchetto su un riquadro tenue del suo colore.
+export component SubjectIcon inherits Rectangle {
+    in property <SubjectVM> s;
+    in property <color> tint: root.s.own-color ? root.s.color : M3.subject(root.s.n);
+    in property <bool> filled;
+    width: 36px;
+    height: self.width;
+    border-radius: self.width * 0.34;
+    background: root.filled ? root.tint : root.tint.with-alpha(0.16);
+    if root.s.glyph != "": Path {
+        x: parent.width * 0.18;
+        y: parent.height * 0.18;
+        width: parent.width * 0.64;
+        height: parent.height * 0.64;
+        viewbox-x: root.s.vbx;
+        viewbox-y: root.s.vby;
+        viewbox-width: root.s.vbw;
+        viewbox-height: root.s.vbh;
+        commands: root.s.glyph;
+        fill: root.filled ? M3.surface : root.tint;
+    }
+    if root.s.glyph == "": Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.s.mono;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: parent.width * 0.42;
+        font-weight: 800;
+        color: root.filled ? M3.surface : root.tint;
+    }
+}
+
 export component Chip inherits Rectangle {
     in property <string> text;
     in property <bool> selected;
@@ -212,6 +232,8 @@ export component Chip inherits Rectangle {
             tint: root.selected ? root.accent : M3.on-surface-variant;
             size: 18px;
         }
+        // eventuale icona propria (es. quella della materia)
+        @children
         Text {
             text: root.text;
             color: root.selected ? M3.on-secondary-container : M3.on-surface-variant;

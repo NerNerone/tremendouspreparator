@@ -193,6 +193,7 @@ impl Ctrl {
         let mut blocks: Vec<BlockVM> = Vec::new();
         for b in &e.blocks[e.section.start..e.section.end] {
             if let Block::Table(rows) = b {
+                let (rows, widths) = prep_core::markdown::table_columns(rows);
                 for (k, row) in rows.iter().enumerate() {
                     blocks.push(BlockVM {
                         kind: 9,
@@ -200,6 +201,7 @@ impl Ctrl {
                         level: if k == 0 { 1 } else { 0 },
                         label: ss(""),
                         cells: model(row.iter().map(ss).collect()),
+                        widths: model(widths.clone()),
                         img: Default::default(),
                     });
                 }
@@ -214,6 +216,7 @@ impl Ctrl {
                     level: 0,
                     label: ss(""),
                     cells: model(vec![]),
+                    widths: model(vec![]),
                     img: img.unwrap_or_default(),
                 });
                 continue;
@@ -228,6 +231,7 @@ impl Ctrl {
                     level: 0,
                     label: ss(""),
                     cells: model(vec![]),
+                    widths: model(vec![]),
                     img: img.unwrap_or_default(),
                 });
                 continue;
@@ -245,7 +249,15 @@ impl Ctrl {
                     Block::Rule => (8, String::new(), 0, String::new()),
                     Block::Table(_) | Block::Math(_) | Block::Figure { .. } => unreachable!(),
                 };
-                BlockVM { kind, text: ss(text), level, label: ss(label), cells: model(vec![]), img: Default::default() }
+                BlockVM {
+                    kind,
+                    text: ss(text),
+                    level,
+                    label: ss(label),
+                    cells: model(vec![]),
+                    widths: model(vec![]),
+                    img: Default::default(),
+                }
             });
         }
         st.set_rd_blocks(model(blocks));

@@ -16,6 +16,16 @@ export struct SubjectVM {
     questions: int,
     note: string,
     pace: string,
+    // icona dal pacchetto (vedi prep_core::icons): tracciato con il suo riquadro, oppure le
+    // iniziali; colore della materia se il pacchetto lo indica
+    glyph: string,
+    vbx: float,
+    vby: float,
+    vbw: float,
+    vbh: float,
+    mono: string,
+    color: color,
+    own-color: bool,
 }
 
 export struct UnitVM {
@@ -81,6 +91,8 @@ export struct BlockVM {
     level: int, // per le righe di tabella: 1 = intestazione
     label: string,
     cells: [string],
+    // righe di tabella: larghezza di ogni colonna (frazioni, uguali per tutta la tabella)
+    widths: [float],
     img: image,
 }
 
@@ -718,6 +730,9 @@ export global AppState {
     in property <bool> group-can-rename;
     callback group-rename(string);
     callback group-ping(string);
+    // giorni al prossimo appello (-1 se nessuno) e suo nome, per la fascia di Oggi
+    in property <int> next-exam-days: -1;
+    in property <string> next-exam-label;
     in property <image> my-photo;
     in property <bool> my-has-photo;
     in property <string> my-initial;
@@ -784,6 +799,8 @@ export global AppState {
     in property <[QzOptVM]> qz-subjects;
     in property <[QzOptVM]> qz-units;
     in property <[QzOptVM]> qz-sources;
+    // fonti delle domande dell'unità aperta (stessa scelta del quiz personalizzato)
+    in property <[QzOptVM]> unit-sources;
     in property <bool> qz-mcq: true;
     in property <bool> qz-fill: true;
     in property <int> qz-n: 20;

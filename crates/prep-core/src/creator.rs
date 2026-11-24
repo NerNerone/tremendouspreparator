@@ -276,11 +276,11 @@ FORMATO (un solo blocco ```json):
 {{ \"schema\": 1, \"questions\": [
   {{ \"id\": \"{prefix}-q{start:03}\", \"topic\": \"id argomento\", \"type\": \"mcq\", \"difficulty\": 2,
     \"text\": \"...\", \"options\": [\"...\", \"...\", \"...\", \"...\", \"...\"], \"answer\": 0,
-    \"explanation\": \"...\", \"source\": \"{source}\" }},
+    \"explanation\": \"...\", \"source\": \"{source}\", \"group\": \"{source}\" }},
   {{ \"id\": \"{prefix}-q{n2:03}\", \"topic\": \"...\", \"type\": \"fill\", \"text\": \"... ____ ...\",
-    \"answers\": [\"risposta\", \"variante accettata\"], \"explanation\": \"...\", \"source\": \"{source}\" }},
+    \"answers\": [\"risposta\", \"variante accettata\"], \"explanation\": \"...\", \"source\": \"{source}\", \"group\": \"{source}\" }},
   {{ \"id\": \"{prefix}-q{n3:03}\", \"topic\": \"...\", \"type\": \"fill\", \"text\": \"... ____ m/s\",
-    \"numeric\": {{ \"value\": 19.6, \"tolerance\": 0.02, \"unit\": \"m/s\" }}, \"explanation\": \"...\", \"source\": \"{source}\" }}
+    \"numeric\": {{ \"value\": 19.6, \"tolerance\": 0.02, \"unit\": \"m/s\" }}, \"explanation\": \"...\", \"source\": \"{source}\", \"group\": \"{source}\" }}
 ] }}
 
 ISTRUZIONI:
@@ -294,6 +294,7 @@ ISTRUZIONI:
 - {expl}
 - Una domanda verifica UN concetto del materiale; niente conoscenze che il materiale non contiene.
 - Nel testo i numeri con la virgola decimale; nel campo \"value\" con il punto.
+- \"source\" e \"group\": lasciali come nell'esempio. \"group\" è il nome della fonte con cui chi studia sceglie da dove pescare le domande nei quiz (personalizzato, di unità e di argomento): uguale per tutte le domande di questo materiale. In \"source\" puoi aggiungere dopo una virgola il punto preciso (capitolo, pagina, numero dell'esercizio).
 
 MATERIALE: [allega il capitolo, gli appunti o le slide]",
         n2 = start + 1,

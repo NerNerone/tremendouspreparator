@@ -975,7 +975,14 @@ pub(crate) fn wave_path(x0: f32, x1: f32, cy: f32, amp: f32, wl: f32, phase: f32
     }
     let a = amp * (len / wl).min(1.0);
     let k = std::f32::consts::TAU / wl;
-    let y = |x: f32| cy - a * (k * (x - x0) - std::f32::consts::TAU * phase).sin();
+    // inizio e fine netti (Traguardo): l'onda parte piatta dal tappo, cresce, e torna piatta
+    // prima della fine della parte fatta
+    let ramp = (wl * 0.6).min(len * 0.3).max(0.01);
+    let env = |x: f32| {
+        let t = ((x - x0).min(x1 - x) / ramp).clamp(0.0, 1.0);
+        t * t * (3.0 - 2.0 * t)
+    };
+    let y = |x: f32| cy - a * env(x) * (k * (x - x0) - std::f32::consts::TAU * phase).sin();
     let step = (wl / 20.0).max(1.5);
     let n = (len / step).ceil().max(1.0) as usize;
     let mut s = String::with_capacity(n * 16 + 16);
@@ -1221,7 +1228,26 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_start_practice(|kind, id| {
         with_ctrl(|c| {
             let scope = Ctrl::scope_of(&kind, &id);
-            let ids = select::practice(&c.content, &c.history, &scope, PRACTICE_N);
+            // quiz di unità e di argomento: solo le fonti scelte (se tutte spente, tutte)
+            let ids = match &scope {
+                Scope::Unit(_) | Scope::Topic(_) => {
+                    let off = &c.qz.off_sources;
+                    let content = &c.content;
+                    let ids = select::practice_where(
+                        content,
+                        &c.history,
+                        |q| scope.matches(content, &q.topic) && !off.contains(&q.source_group()),
+                        PRACTICE_N,
+                    );
+                    if ids.is_empty() && !off.is_empty() {
+                        c.toast("Nessuna domanda dalle fonti scelte: uso tutte le fonti");
+                        select::practice(&c.content, &c.history, &scope, PRACTICE_N)
+                    } else {
+                        ids
+                    }
+                }
+                _ => select::practice(&c.content, &c.history, &scope, PRACTICE_N),
+            };
             let (title, subject, unit) = match &scope {
                 Scope::Unit(u) => {
                     let unit = c.content.unit(u);

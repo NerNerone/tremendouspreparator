@@ -49,8 +49,8 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
 ]}
 ```
 
-- `group` (facoltativo): nome della fonte nel filtro «Fonti» del quiz (es. "Eserciziario Rossi",
-  "Slide del prof. Rossi"); se manca viene ricavato da `source`.
+- `group` (facoltativo): nome della fonte nel filtro «Fonti» (quiz personalizzato e pagina dell'unità, valido anche
+  per i quiz di argomento), es. "Eserciziario Rossi", "Slide del prof. Rossi"; se manca viene ricavato da `source`.
 - `id` univoco e **stabile** (le sessioni lo referenziano): `<materia>-u<n>-q<NNN>`; i generati da un libro possono
   usare un suffisso, es. `fis-u3-b012`.
 - `topic`: id di un argomento di `content/syllabus.json`.

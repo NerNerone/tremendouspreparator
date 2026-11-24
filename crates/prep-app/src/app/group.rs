@@ -114,6 +114,7 @@ impl Ctrl {
         s.uid = self.user_id();
         s.dev = self.device_id();
         s.since = if self.study_state == prep_core::group::State::Idle { 0 } else { self.session_start };
+        s.focus = self.focus_on;
         let set = self.store.settings();
         s.photo = set.photo;
         s.prev = set.prev_ids;
@@ -1188,9 +1189,12 @@ impl Ctrl {
                 }
             }
             let (mut c, _) = prep_core::group::combine(&devs, &ck);
-            // nome, colore e attività sono quelli di questo dispositivo
+            // nome e attività sono quelli di questo dispositivo; il colore è di quello che ha
+            // aperto la sessione in corso (questo, se studia qui)
             c.name = here.name;
-            c.color = here.color;
+            if self.study_state != State::Idle || c.state == State::Idle {
+                c.color = here.color;
+            }
             c.photo = here.photo;
             if self.study_state != State::Idle {
                 c.state = self.study_state;
@@ -2360,6 +2364,12 @@ impl Ctrl {
         }
         let today = self.study_log.combined().day(Local::now().date_naive())
             + self.study_since.map(|t| (now - t).max(0) as u64).unwrap_or(0);
-        self.run.score(now, self.focus_on, self.racing_others, today)
+        self.run.score(now, self.focus_on || self.twin_focus(now), self.racing_others, today)
+    }
+
+    /// Concentrazione attiva su un altro proprio dispositivo (sentito da poco): si somma alla
+    /// sessione aperta qui.
+    pub(super) fn twin_focus(&self, now: i64) -> bool {
+        self.own_devs.values().any(|(s, at)| s.focus && now - at < 35)
     }
 }
