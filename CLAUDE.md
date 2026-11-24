@@ -17,6 +17,9 @@ Il tuo compito di solito è uno di questi tre:
 - **Il repository deve essere privato.** Dentro ci sono progressi ed elenco dei gruppi con i loro
   codici: se è pubblico, fermati e chiedi all'utente di renderlo privato (Settings › General ›
   Change visibility). L'app stessa non sincronizza con un repository pubblico.
+- **Un repository privato, un ramo per esame.** Se l'utente ha già il suo repository privato dei
+  dati, un esame nuovo è un **ramo nuovo** lì (dal modello: `git switch -c <esame>
+  modello/modello-dati`), non un repository nuovo.
 - **Aggiornati dal modello, non ricominciare da zero.** Guida, schemi, strumenti e queste
   istruzioni arrivano dal ramo `modello-dati` del repository dell'app: non riclonarlo e non
   ricreare il repository, unisci i suoi commit (vedi «Aggiornare dal modello» qui sotto).
