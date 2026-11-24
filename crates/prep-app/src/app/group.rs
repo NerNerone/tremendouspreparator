@@ -1314,6 +1314,8 @@ impl Ctrl {
         st.set_group_has(has);
         if !has {
             st.set_ranking(model(Vec::<RankVM>::new()));
+            st.set_home_race_title(ss(""));
+            st.set_home_race_sub(ss(""));
         }
         st.set_group_has(true);
         st.set_group_name(ss(&g.name));
@@ -1670,6 +1672,23 @@ impl Ctrl {
             .into_iter()
             .map(|h| self.photo_image(&h))
             .collect();
+        // per Oggi: posizione in gara e distacco da chi precede
+        {
+            let pts: Vec<f64> = order.iter().map(|(_, s)| prep_core::group::points(s, &ck, p)).collect();
+            if let Some(i) = order.iter().position(|(id, _)| *id == me_id) {
+                st.set_home_race_title(ss(format!("{}° in gara", i + 1)));
+                st.set_home_race_sub(ss(if i == 0 {
+                    if order.len() > 1 {
+                        "sei in testa".to_string()
+                    } else {
+                        "sei solo in gara".to_string()
+                    }
+                } else {
+                    let who = order[i - 1].1.name.split_whitespace().next().unwrap_or("").to_string();
+                    format!("{} punti da {who}", fmt_pts((pts[i - 1] - pts[i]).max(0.0)))
+                }));
+            }
+        }
         let ranking: Vec<RankVM> = order
             .iter()
             .zip(photos)
@@ -1775,6 +1794,7 @@ impl Ctrl {
         });
         st.set_ahead_text(ss(ahead.unwrap_or_default()));
         st.set_paddock_n(cars.iter().filter(|c| c.parked).count() as i32);
+        st.set_paddock_cars(model(cars.iter().filter(|c| c.parked).cloned().collect()));
         let m = &self.cars_model;
         for (i, c) in cars.into_iter().enumerate() {
             if i < m.row_count() {

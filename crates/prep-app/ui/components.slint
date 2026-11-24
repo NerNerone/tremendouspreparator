@@ -442,8 +442,9 @@ export component RingProgress inherits Rectangle {
     @children
 }
 
+// Traguardo: superfici tonali piatte (niente ombre), angoli larghi, un solo linguaggio in tutta l'app
 export component Card inherits Rectangle {
-    in property <color> bg: M3.surface-container-low;
+    in property <color> bg: M3.surface-container;
     in property <bool> clickable: false;
     in property <int> stagger: 0;
     callback clicked;
@@ -461,10 +462,7 @@ export component Card inherits Rectangle {
     transform-scale-y: 92% + 8% * root.enter;
     background: root.bg;
     animate background { duration: Motion.effects; }
-    border-radius: Shape.xl;
-    drop-shadow-blur: 3px;
-    drop-shadow-offset-y: 1px;
-    drop-shadow-color: M3.dark ? #00000000 : #00000022;
+    border-radius: 28px;
     // sotto ai figli: i pulsanti interni (es. "Apri") ricevono il tocco
     ta := TouchArea {
         enabled: root.clickable;

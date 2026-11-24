@@ -84,6 +84,14 @@ impl Ctrl {
                 format!("Ti mancano {left} domande per chiudere la giornata.")
             }));
             st.set_goals_left(items.iter().filter(|g| g.done < g.target).count() as i32);
+            st.set_goals_done_n(items.iter().filter(|g| g.done >= g.target).count() as i32);
+            let n = items.len();
+            let done_n = items.iter().filter(|g| g.done >= g.target).count();
+            st.set_goals_status(ss(format!(
+                "{done_n} di {n} fatt{} · {}",
+                if done_n == 1 { "o" } else { "i" },
+                if left == 0 { "giornata chiusa".to_string() } else { format!("mancano {left} domande") }
+            )));
             st.set_goals_confirmed(true);
             st.set_goals(model(items));
             self.plan = None;
@@ -145,6 +153,7 @@ impl Ctrl {
             p.minutes % 60
         )));
         st.set_goals_confirmed(false);
+        st.set_goals_done_n(0);
         st.set_goals_left(0);
         st.set_goals(model(items));
         self.plan = Some(p);
@@ -426,6 +435,7 @@ impl Ctrl {
                         it1(max_points).trim_end_matches(",0")
                     )),
                     flagged: s.flagged as i32,
+                    score: ss(it1(s.predicted).trim_end_matches(",0")),
                     due: due as i32,
                     new_cards: new as i32,
                     learned: select::count_learned(&self.content, &self.history, &Scope::Subject(s.id.clone()), now)
@@ -472,6 +482,114 @@ impl Ctrl {
                 })
             })
             .collect();
+        // fascia di Oggi: giorni al prossimo appello (con la data) e quello dopo
+        const MESI: [&str; 12] = [
+            "gennaio",
+            "febbraio",
+            "marzo",
+            "aprile",
+            "maggio",
+            "giugno",
+            "luglio",
+            "agosto",
+            "settembre",
+            "ottobre",
+            "novembre",
+            "dicembre",
+        ];
+        let upcoming: Vec<(i64, NaiveDate, String)> = {
+            let mut v: Vec<(i64, NaiveDate, String)> = self
+                .content
+                .syllabus()
+                .exam
+                .dates
+                .iter()
+                .filter_map(|d| {
+                    let nd = NaiveDate::parse_from_str(&d.date, "%Y-%m-%d").ok()?;
+                    let days = (nd - today).num_days();
+                    (days >= 0).then(|| (days, nd, d.label.clone()))
+                })
+                .collect();
+            v.sort_by_key(|x| x.0);
+            v
+        };
+        match upcoming.first() {
+            Some((days, nd, _)) => {
+                use chrono::Datelike;
+                st.set_hero_days(*days as i32);
+                st.set_hero_days_label(ss(format!(
+                    "{} al {} {}",
+                    if *days == 1 { "giorno" } else { "giorni" },
+                    nd.day(),
+                    MESI[nd.month0() as usize]
+                )));
+            }
+            None => {
+                st.set_hero_days(-1);
+                st.set_hero_days_label(ss(""));
+            }
+        }
+        st.set_hero_days_sub(ss(upcoming.get(1).map(|(d, _, l)| format!("{l} tra {d}")).unwrap_or_default()));
+        // punteggio atteso in tutto e soglia per materia
+        let rules = &self.content.syllabus().exam;
+        let max_points = rules.questions as f64 * rules.correct;
+        let n_sub = self.progress.subjects.len() as f64;
+        let expected: f64 = self.progress.subjects.iter().map(|s| s.predicted).sum();
+        if max_points > 0.0 && n_sub > 0.0 {
+            let mut t = format!(
+                "atteso {} / {}",
+                it1(expected).trim_end_matches(",0"),
+                it1(max_points * n_sub).trim_end_matches(",0")
+            );
+            if rules.pass > 0.0 {
+                t.push_str(&format!(" · serve {} a materia", it1(rules.pass).trim_end_matches(",0")));
+            }
+            st.set_hero_expected(ss(t));
+        } else {
+            st.set_hero_expected(ss(""));
+        }
+        let ok = rules.pass > 0.0 && n_sub > 0.0 && self.progress.subjects.iter().all(|s| s.predicted >= rules.pass);
+        st.set_pass_ok(ok);
+        if rules.pass > 0.0 && max_points > 0.0 {
+            st.set_pass_frac((rules.pass / max_points).clamp(0.0, 1.0) as f32);
+            st.set_pass_label(ss(format!(
+                "{} · {}",
+                it1(rules.pass).trim_end_matches(",0"),
+                if ok { "superata" } else { "per superare" }
+            )));
+        } else {
+            st.set_pass_frac(0.0);
+            st.set_pass_label(ss(""));
+        }
+        // settimana di studio (da lunedì) e serie di giorni con almeno un po' di studio
+        {
+            use chrono::Datelike;
+            let log = self.study_log.combined();
+            let monday = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
+            let secs: Vec<u64> = (0..7).map(|i| log.day(monday + chrono::Duration::days(i))).collect();
+            let max = secs.iter().copied().max().unwrap_or(0).max(1);
+            st.set_week_bars(model(secs.iter().map(|s| *s as f32 / max as f32).collect()));
+            st.set_week_today(today.weekday().num_days_from_monday() as i32);
+            let total: u64 = secs.iter().sum();
+            let days = secs.iter().filter(|s| **s > 0).count() as u64;
+            st.set_week_total(ss(if total == 0 {
+                String::new()
+            } else {
+                format!("{} · media {}′", hm(total), total / days.max(1) / 60)
+            }));
+            let mut streak = 0;
+            let mut d = if log.day(today) > 0 { today } else { today - chrono::Duration::days(1) };
+            while log.day(d) > 0 && streak < 999 {
+                streak += 1;
+                d -= chrono::Duration::days(1);
+            }
+            st.set_streak_days(streak);
+        }
+        st.set_hero_time(ss(if self.progress.total_secs > 0 {
+            format!("{} studiate", hm(self.progress.total_secs))
+        } else {
+            String::new()
+        }));
         st.set_exam_dates(model(dates));
         st.set_total_time(ss(if self.progress.total_secs > 0 {
             format!(

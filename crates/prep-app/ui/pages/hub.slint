@@ -102,6 +102,8 @@ component CheckRow inherits Rectangle {
                     border-color: M3.outline;
                     background: root.o.sel ? M3.primary : transparent;
                     if root.o.sel: VIcon {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
                         source: Icons.check;
                         tint: M3.on-primary;
                         size: 18px;

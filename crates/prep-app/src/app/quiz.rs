@@ -59,7 +59,6 @@ impl Ctrl {
         self.tick.stop();
         self.refresh_home();
         self.set_page(self.tab_return());
-        self.toast("Quiz in pausa: lo riprendi dalla barra in basso");
     }
 
     /// L'app passa in secondo piano durante un quiz: pausa automatica (si riprende dalla barra

@@ -4,73 +4,104 @@ import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM
 import { Avatar } from "group.slint";
 import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
-component SubjectCard inherits Card {
-    in property <SubjectVM> s;
-    clickable: true;
-    VerticalLayout {
-        padding: 16px;
-        spacing: 10px;
-        HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                alignment: center;
-                SubjectIcon {
-                    s: root.s;
-                    width: 36px;
-                }
+// riga della lista «da fare» in Oggi: simbolo in un riquadro tonale, titolo e dettaglio
+component NextRow inherits Rectangle {
+    in property <image> icon;
+    in property <string> title;
+    in property <string> sub;
+    callback clicked;
+    height: nr.preferred-height;
+    background: nta.pressed ? M3.on-surface.with-alpha(0.06) : transparent;
+    nr := HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 14px;
+        Rectangle {
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            background: M3.primary-container;
+            Icon {
+                x: 8px;
+                y: 8px;
+                width: 24px;
+                height: 24px;
+                source: root.icon;
+                tint: M3.on-primary-container;
             }
-
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
             Text {
-                text: root.s.name;
-                font-size: Type.title;
-                font-weight: 700;
+                text: root.title;
+                font-size: 15px;
                 color: M3.on-surface;
-                horizontal-stretch: 1;
                 overflow: elide;
             }
-
             Text {
-                text: round(root.s.mastery * 100) + "%";
-                font-size: Type.title;
-                font-weight: 700;
-                color: root.s.own-color ? root.s.color : M3.subject(root.s.n);
-            }
-        }
-
-        WavyProgress {
-            intro: !AppState.home-intro-done;
-            value: root.s.mastery;
-            fill: root.s.own-color ? root.s.color : M3.subject(root.s.n);
-            amp: 3px;
-            wavelength: 28px;
-            thickness: 4px;
-        }
-
-        HorizontalLayout {
-            spacing: 8px;
-            Text {
-                text: "Punteggio atteso " + root.s.predicted + (root.s.pace != "" ? "\n" + root.s.pace : "");
-                wrap: word-wrap;
-                color: M3.on-surface-variant;
+                text: root.sub;
                 font-size: Type.label;
-                horizontal-stretch: 1;
+                color: M3.on-surface-variant;
+                overflow: elide;
             }
+        }
+    }
+    nta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
 
-            if root.s.flagged > 0: Pill {
-                text: root.s.flagged + " insicure";
-                bg: M3.tertiary-container;
-                fg: M3.on-tertiary-container;
+// riquadro piccolo con un numero (Oggi: gara, simulazioni)
+component MiniStat inherits Rectangle {
+    in property <image> icon;
+    in property <string> title;
+    in property <string> sub;
+    callback clicked;
+    border-radius: 24px;
+    background: msta.pressed ? M3.surface-container-high : M3.surface-container;
+    height: ms.preferred-height;
+    min-width: 120px;
+    horizontal-stretch: 1;
+    ms := VerticalLayout {
+        padding: 16px;
+        spacing: 8px;
+        // il simbolo in un HorizontalLayout: con la larghezza fissa diretta il riquadro non si allargava
+        HorizontalLayout {
+            alignment: start;
+            Icon {
+                width: 22px;
+                height: 22px;
+                source: root.icon;
+                tint: M3.primary;
             }
+        }
+        Text {
+            text: root.title;
+            font-size: 16px;
+            font-weight: 800;
+            color: M3.on-surface;
+            wrap: word-wrap;
+        }
+        Text {
+            text: root.sub;
+            font-size: Type.label;
+            color: M3.on-surface-variant;
+            wrap: word-wrap;
+        }
+    }
+    msta := TouchArea {
+        clicked => {
+            root.clicked();
         }
     }
 }
 
 export component HomePage inherits Page {
-    // intestazione grande che si comprime scorrendo (0 = aperta, 1 = compatta)
-    property <length> hero-max: 288px;
-    property <length> hero-min: 140px;
-    property <float> t: max(0, min(1, -sv.content-y / (root.hero-max - root.hero-min)));
-    property <length> hero-h: root.hero-max - (root.hero-max - root.hero-min) * root.t;
     // l'ingresso animato delle barre si vede solo la prima volta: tornando alla Home
     // (la pagina viene ricreata) le barre compaiono già piene, senza svuotarsi e ripartire
     Timer {
@@ -80,173 +111,573 @@ export component HomePage inherits Page {
             AppState.home-intro-done = true;
         }
     }
+    // la fascia compatta compare quando quella grande è uscita in alto
+    property <bool> compact: -sv.content-y > band.height - 96px;
 
     sv := Scroller {
         width: 100%;
         height: 100%;
         content-y <=> AppState.home-scroll;
         align: start;
-        pad: 16px;
-        pad-top: root.hero-max + 4px;
-        gap: 14px;
-        // sincronizzazione, sotto la preparazione (solo se GitHub è configurato in Impostazioni)
-        if AppState.sync-configured: HorizontalLayout {
-            spacing: 12px;
-            VerticalLayout {
-                horizontal-stretch: 1;
-                alignment: center;
-                Text {
-                    text: AppState.sync-status;
-                    font-size: Type.label;
-                    color: M3.on-surface-variant;
-                    wrap: word-wrap;
-                }
-            }
+        pad: 0px;
+        gap: 0px;
 
-            if AppState.syncing: Rectangle {
-                width: 48px;
-                MorphLoader { }
-            }
-            if !AppState.syncing: M3Button {
-                text: "Sincronizza";
-                kind: 1;
-                has-icon: true;
-                icon: Icons.sync;
-                clicked => {
-                    AppState.sync-now();
+        // fascia dell'eroe (Traguardo): a tutta larghezza, angoli in basso
+        band := Rectangle {
+            background: M3.primary-container;
+            border-bottom-left-radius: 32px;
+            border-bottom-right-radius: 32px;
+            height: hero.preferred-height;
+            hero := VerticalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 4px;
+                padding-bottom: 20px;
+                spacing: 0px;
+                // selettore dell'esame e profilo
+                HorizontalLayout {
+                    height: 52px;
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        HorizontalLayout {
+                            alignment: start;
+                            Rectangle {
+                                border-radius: 20px;
+                                background: sel-ta.pressed || AppState.exam-menu ? M3.on-primary-container.with-alpha(0.08) : transparent;
+                                HorizontalLayout {
+                                    padding-right: 8px;
+                                    spacing: 6px;
+                                    Text {
+                                        text: AppState.exam-name;
+                                        font-size: 17px;
+                                        font-weight: 700;
+                                        color: M3.on-primary-container;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                        max-width: root.width - 120px;
+                                    }
+                                    Rectangle {
+                                        width: 14px;
+                                        Path {
+                                            width: 12px;
+                                            height: 7px;
+                                            viewbox-width: 14;
+                                            viewbox-height: 8;
+                                            commands: AppState.exam-menu ? "M 1 7 L 7 1 L 13 7" : "M 1 1 L 7 7 L 13 1";
+                                            stroke: M3.on-primary-container;
+                                            stroke-width: 2px;
+                                        }
+                                    }
+                                }
+                                sel-ta := TouchArea {
+                                    clicked => {
+                                        AppState.exam-menu = !AppState.exam-menu;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        width: 40px;
+                        Avatar {
+                            width: 36px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            photo: AppState.my-photo;
+                            has-photo: AppState.my-has-photo;
+                            initial: AppState.my-initial;
+                        }
+                        TouchArea {
+                            clicked => {
+                                AppState.go-tab(3);
+                            }
+                        }
+                    }
+                }
+                // percentuale grande a sinistra, giorni al prossimo appello a destra
+                HorizontalLayout {
+                    spacing: 12px;
+                    VerticalLayout {
+                        alignment: start;
+                        Text {
+                            text: "PREPARAZIONE";
+                            font-size: 12px;
+                            font-weight: 800;
+                            letter-spacing: 1px;
+                            color: M3.primary;
+                        }
+                        Text {
+                            text: round(AppState.overall * 100) + "%";
+                            font-size: 88px;
+                            font-weight: 900;
+                            letter-spacing: -3px;
+                            color: M3.on-primary-container;
+                        }
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
+                    if AppState.hero-days >= 0: VerticalLayout {
+                        alignment: start;
+                        padding-top: 20px;
+                        Text {
+                            horizontal-alignment: right;
+                            text: AppState.hero-days == 0 ? "Oggi" : AppState.hero-days;
+                            font-size: 40px;
+                            font-weight: 900;
+                            color: AppState.hero-days <= 7 ? M3.error : M3.on-primary-container;
+                        }
+                        Text {
+                            horizontal-alignment: right;
+                            text: AppState.hero-days-label;
+                            font-size: 12px;
+                            color: M3.on-primary-container;
+                        }
+                        if AppState.hero-days-sub != "": Text {
+                            horizontal-alignment: right;
+                            text: AppState.hero-days-sub;
+                            font-size: 12px;
+                            color: M3.on-primary-container;
+                        }
+                    }
+                }
+                // barra ondulata con la soglia
+                Rectangle {
+                    height: wave.height;
+                    wave := WavyProgress {
+                        width: parent.width;
+                        intro: !AppState.home-intro-done;
+                        value: AppState.overall;
+                        fill: M3.primary;
+                        track: M3.surface.with-alpha(0.75);
+                        amp: 6px;
+                        wavelength: 44px;
+                        thickness: 7px;
+                    }
+                    if AppState.pass-frac > 0: Rectangle {
+                        x: parent.width * AppState.pass-frac - 1px;
+                        y: 0px;
+                        width: 2px;
+                        height: parent.height;
+                        background: AppState.pass-ok ? M3.success : M3.on-primary-container;
+                    }
+                }
+                Rectangle {
+                    height: 22px;
+                    Text {
+                        x: 0px;
+                        y: 4px;
+                        text: "0%";
+                        font-size: 11px;
+                        color: M3.on-primary-container;
+                    }
+                    if AppState.pass-label != "": Text {
+                        x: max(30px, min(parent.width - self.width - 40px, parent.width * AppState.pass-frac - self.width / 2));
+                        y: 4px;
+                        text: AppState.pass-label;
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppState.pass-ok ? M3.success : M3.on-primary-container;
+                    }
+                    Text {
+                        x: parent.width - self.width;
+                        y: 4px;
+                        text: "100%";
+                        font-size: 11px;
+                        color: M3.on-primary-container;
+                    }
+                }
+                HorizontalLayout {
+                    padding-top: 4px;
+                    padding-bottom: 12px;
+                    Text {
+                        horizontal-stretch: 1;
+                        text: AppState.hero-expected != "" ? AppState.hero-expected : AppState.overall-label;
+                        font-size: 12.5px;
+                        color: M3.on-primary-container;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: AppState.hero-time;
+                        font-size: 12.5px;
+                        color: M3.on-primary-container;
+                    }
+                }
+                // una barretta per materia
+                if AppState.subjects.length > 0: Rectangle {
+                    border-radius: 20px;
+                    background: M3.surface.with-alpha(0.72);
+                    height: subj.preferred-height;
+                    subj := VerticalLayout {
+                        padding: 14px;
+                        padding-top: 10px;
+                        padding-bottom: 10px;
+                        spacing: 2px;
+                        for s in AppState.subjects: Rectangle {
+                            height: 30px;
+                            HorizontalLayout {
+                                spacing: 12px;
+                                Text {
+                                    width: 78px;
+                                    text: s.short;
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    horizontal-stretch: 1;
+                                    WavyProgress {
+                                        intro: !AppState.home-intro-done;
+                                        value: s.mastery;
+                                        fill: s.own-color ? s.color : M3.subject(s.n);
+                                        track: M3.surface-container-high;
+                                        amp: 3px;
+                                        wavelength: 24px;
+                                        thickness: 4px;
+                                    }
+                                }
+                                Text {
+                                    width: 40px;
+                                    horizontal-alignment: right;
+                                    vertical-alignment: center;
+                                    text: s.score != "" ? s.score : round(s.mastery * 100) + "%";
+                                    font-size: 15px;
+                                    font-weight: 800;
+                                    color: M3.on-surface;
+                                }
+                            }
+                            TouchArea {
+                                clicked => {
+                                    AppState.select-subject(s.id);
+                                    AppState.go-tab(1);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // nessun esame installato: da dove cominciare
-        if AppState.no-exam: Card {
-            bg: M3.primary-container;
-            VerticalLayout {
-                padding: 18px;
-                spacing: 10px;
-                Text {
-                    text: "Benvenuto!";
-                    font-size: Type.title;
-                    font-weight: 800;
-                    color: M3.on-primary-container;
+        VerticalLayout {
+            padding: 16px;
+            padding-top: 18px;
+            spacing: 14px;
+            // sincronizzazione con GitHub (solo se acceso)
+            if AppState.sync-configured: HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    Text {
+                        text: AppState.sync-status;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
                 }
-                Text {
-                    text: "Per iniziare installa un pacchetto di contenuti (quiz, flashcard e libri di un esame): da un file, da un altro tuo dispositivo o da un amico che lo condivide.";
-                    color: M3.on-primary-container;
-                    wrap: word-wrap;
+                if AppState.syncing: Rectangle {
+                    width: 48px;
+                    MorphLoader { }
                 }
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-                    M3Button {
-                        text: "Importa pacchetto";
-                        clicked => {
-                            AppState.import-pack();
+                if !AppState.syncing: M3Button {
+                    text: "Sincronizza";
+                    kind: 1;
+                    has-icon: true;
+                    icon: Icons.sync;
+                    clicked => {
+                        AppState.sync-now();
+                    }
+                }
+            }
+
+            // nessun esame installato: da dove cominciare
+            if AppState.no-exam: Card {
+                bg: M3.primary-container;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 10px;
+                    Text {
+                        text: "Benvenuto!";
+                        font-size: Type.title;
+                        font-weight: 800;
+                        color: M3.on-primary-container;
+                    }
+                    Text {
+                        text: "Per iniziare installa un pacchetto di contenuti (quiz, flashcard e libri di un esame): da un file, da un altro tuo dispositivo o da un amico che lo condivide.";
+                        color: M3.on-primary-container;
+                        wrap: word-wrap;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        M3Button {
+                            text: "Importa pacchetto";
+                            clicked => {
+                                AppState.import-pack();
+                            }
+                        }
+                        M3Button {
+                            text: "Ricevi";
+                            kind: 2;
+                            clicked => {
+                                AppState.settings-sec = 3;
+                                AppState.open-settings();
+                            }
                         }
                     }
                     M3Button {
-                        text: "Ricevi";
+                        text: "Crea un pacchetto con l'AI";
                         kind: 2;
                         clicked => {
-                            AppState.settings-sec = 3;
-                            AppState.open-settings();
+                            AppState.open-creator(true);
                         }
                     }
                 }
-                M3Button {
-                    text: "Crea un pacchetto con l'AI";
-                    kind: 2;
-                    clicked => {
-                        AppState.open-creator(true);
-                    }
-                }
             }
-        }
-        HorizontalLayout {
-            spacing: 8px;
-            for d in AppState.exam-dates: Pill {
-                text: d.label + ": " + (d.days > 0 ? "tra " + d.days + " giorni" : d.days == 0 ? "OGGI" : "passato");
-                bg: d.days >= 0 && d.days <= 7 ? M3.error-container : M3.tertiary-container;
-                fg: d.days >= 0 && d.days <= 7 ? M3.on-error-container : M3.on-tertiary-container;
-            }
-        }
 
-            if AppState.goals.length > 0: Card {
-                clickable: true;
-                bg: M3.secondary-container;
-                clicked => {
-                    AppState.open-goals();
-                }
-                HorizontalLayout {
+            // piano di oggi: anello, stato, caselle
+            if !AppState.no-exam: Card {
+                VerticalLayout {
                     padding: 16px;
                     spacing: 12px;
-                    VIcon {
-                        source: Icons.target;
-                        tint: M3.on-secondary-container;
+                    HorizontalLayout {
+                        spacing: 14px;
+                        RingProgress {
+                            width: 44px;
+                            height: 44px;
+                            thickness: 6px;
+                            value: AppState.goals.length > 0 ? AppState.goals-done-n / AppState.goals.length : 0;
+                            fill: M3.success;
+                            track: M3.surface-container-highest;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: "Piano di oggi";
+                                font-size: 22px;
+                                font-weight: 700;
+                                color: M3.on-surface;
+                            }
+                            Text {
+                                text: AppState.goals-confirmed ? AppState.goals-status : AppState.goals.length > 0 ? "Una proposta è pronta: sceglila o cambiala" : "Scegli cosa fare oggi";
+                                font-size: Type.label;
+                                color: M3.on-surface-variant;
+                                wrap: word-wrap;
+                            }
+                        }
                     }
+                    for g[i] in AppState.goals-confirmed ? AppState.goals : []: Rectangle {
+                        height: grow.preferred-height;
+                        grow := HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 26px;
+                                    height: 26px;
+                                    border-radius: g.done >= g.target ? 13px : 8px;
+                                    background: g.done >= g.target ? M3.success-container : transparent;
+                                    border-width: g.done >= g.target ? 0px : 2px;
+                                    border-color: M3.outline;
+                                    if g.done >= g.target: VIcon {
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                        source: Icons.check;
+                                        tint: M3.success;
+                                        size: 18px;
+                                    }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: g.name;
+                                    font-size: 15px;
+                                    color: g.done >= g.target ? M3.on-surface-variant : M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: g.info;
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                }
+                            }
+                            if g.done < g.target: Rectangle {
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 20px;
+                                background: M3.primary;
+                                VIcon {
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                    source: Icons.play;
+                                    tint: M3.on-primary;
+                                    size: 20px;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        AppState.goals-train(g.topic);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !AppState.goals-confirmed: M3Button {
+                        text: AppState.goals.length > 0 ? "Vedi la proposta" : "Scegli gli obiettivi";
+                        kind: 1;
+                        clicked => {
+                            AppState.open-goals();
+                        }
+                    }
+                    if AppState.goals-confirmed: TouchArea {
+                        height: 24px;
+                        clicked => {
+                            AppState.open-goals();
+                        }
+                        Text {
+                            x: 0px;
+                            text: "Modifica il piano";
+                            font-size: Type.label;
+                            font-weight: 700;
+                            color: M3.primary;
+                        }
+                    }
+                }
+            }
 
+            // prossime cose da fare (righe con il simbolo in un riquadro, come nel mockup)
+            if !AppState.no-exam: Rectangle {
+                border-radius: 28px;
+                background: M3.surface-container;
+                height: nextl.preferred-height;
+                clip: true;
+                nextl := VerticalLayout {
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    if AppState.flagged-count + AppState.wrong-count > 0: NextRow {
+                        icon: Icons.flag;
+                        title: "Ripassa le insicure e le sbagliate";
+                        sub: (AppState.flagged-count + AppState.wrong-count) + " domande da rivedere";
+                        clicked => {
+                            AppState.start-review("");
+                        }
+                    }
+                    NextRow {
+                        icon: Icons.cards;
+                        title: "Flashcard di oggi";
+                        sub: AppState.due-count > 0 ? AppState.due-count + " carte da ripassare" : "nessuna in scadenza: allenati sulle nuove";
+                        clicked => {
+                            AppState.start-cards("all", "");
+                        }
+                    }
+                }
+            }
+
+            // questa settimana: una barra per giorno, oggi pieno
+            if !AppState.no-exam: Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    HorizontalLayout {
+                        Text {
+                            horizontal-stretch: 1;
+                            text: "Questa settimana";
+                            font-size: 20px;
+                            font-weight: 700;
+                            color: M3.on-surface;
+                        }
+                        Text {
+                            text: AppState.week-total;
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                            vertical-alignment: center;
+                        }
+                    }
+                    HorizontalLayout {
+                        height: 96px;
+                        spacing: 8px;
+                        for v[i] in AppState.week-bars: VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 6px;
+                            alignment: end;
+                            Rectangle {
+                                height: max(i <= AppState.week-today ? 6px : 3px, 70px * v);
+                                border-radius: 12px;
+                                background: i == AppState.week-today ? M3.primary : i < AppState.week-today ? M3.primary-container : M3.surface-container-highest;
+                            }
+                            Text {
+                                horizontal-alignment: center;
+                                text: i == 0 ? "L" : i == 1 ? "M" : i == 2 ? "M" : i == 3 ? "G" : i == 4 ? "V" : i == 5 ? "S" : "D";
+                                font-size: 12px;
+                                font-weight: i == AppState.week-today ? 800 : 500;
+                                color: i == AppState.week-today ? M3.on-surface : M3.on-surface-variant;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // serie di giorni di studio
+            if AppState.streak-days > 0: Rectangle {
+                border-radius: 28px;
+                background: M3.success-container;
+                height: streakl.preferred-height;
+                streakl := HorizontalLayout {
+                    padding: 18px;
+                    spacing: 14px;
+                    VIcon {
+                        source: Icons.today;
+                        tint: M3.success;
+                        size: 28px;
+                    }
                     VerticalLayout {
                         horizontal-stretch: 1;
-                        spacing: 2px;
+                        alignment: center;
                         Text {
-                            text: AppState.goals-confirmed ? "Obiettivi di oggi" : "Scegli gli obiettivi di oggi";
-                            font-size: Type.title;
-                            font-weight: 700;
-                            color: M3.on-secondary-container;
+                            text: AppState.streak-days == 1 ? "1 giorno di studio" : AppState.streak-days + " giorni di fila";
+                            font-size: 22px;
+                            font-weight: 800;
+                            color: M3.on-surface;
                         }
-
                         Text {
-                            text: AppState.goals-confirmed ? AppState.goals-status : "Una proposta è pronta nella scheda Obiettivi";
+                            text: AppState.goals-left > 0 ? "Oggi mancano " + AppState.goals-left + " obiettivi al piano" : "Studia un po' ogni giorno per allungarla";
                             font-size: Type.label;
-                            color: M3.on-secondary-container;
+                            color: M3.on-surface-variant;
                             wrap: word-wrap;
                         }
                     }
-
-                    VIcon {
-                        source: Icons.chevron;
-                        tint: M3.on-secondary-container;
-                    }
                 }
             }
 
-            for s[i] in AppState.subjects: SubjectCard {
-                s: s;
-                stagger: i + 1;
-                clicked => {
-                    AppState.select-subject(s.id);
-                    AppState.go-tab(1);
-                }
-            }
-
-            HorizontalLayout {
-                spacing: 10px;
-                M3Button {
-                    kind: 1;
-                    has-icon: true;
-                    icon: Icons.flag;
-                    text: "Ripasso (" + (AppState.flagged-count + AppState.wrong-count) + ")";
-                    enabled: AppState.flagged-count + AppState.wrong-count > 0;
+            // gara del gruppo e simulazioni, affiancate
+            if !AppState.no-exam: HorizontalLayout {
+                spacing: 12px;
+                MiniStat {
                     horizontal-stretch: 1;
+                    icon: Icons.groups;
+                    title: AppState.home-race-title != "" ? AppState.home-race-title : "Squadra";
+                    sub: AppState.home-race-title != "" ? AppState.home-race-sub : "studia in gara con altri";
                     clicked => {
-                        AppState.start-review("");
+                        AppState.go-tab(2);
                     }
                 }
-
-                M3Button {
-                    kind: 1;
-                    has-icon: true;
-                    icon: Icons.cards;
-                    text: "Flashcard (" + AppState.due-count + ")";
+                MiniStat {
                     horizontal-stretch: 1;
+                    icon: Icons.timer;
+                    title: AppState.sim-count == 1 ? "1 simulazione" : AppState.sim-count + " simulazioni";
+                    sub: AppState.sim-count > 0 ? "media " + AppState.sim-avg : "fanne una prima dell'appello";
                     clicked => {
-                        AppState.start-cards("all", "");
+                        AppState.open-simlog();
                     }
                 }
             }
 
             if AppState.ai-summary != "": Card {
-                bg: M3.surface-container;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 8px;
@@ -258,7 +689,6 @@ export component HomePage inherits Page {
                             width: 20px;
                             height: 20px;
                         }
-
                         Text {
                             text: "Revisione AI";
                             font-weight: 700;
@@ -266,13 +696,11 @@ export component HomePage inherits Page {
                             color: M3.on-surface;
                         }
                     }
-
                     Text {
                         text: AppState.ai-summary;
                         wrap: word-wrap;
                         color: M3.on-surface;
                     }
-
                     for p in AppState.ai-priorities: Text {
                         text: "• " + p;
                         wrap: word-wrap;
@@ -289,160 +717,65 @@ export component HomePage inherits Page {
                 wrap: word-wrap;
                 horizontal-alignment: center;
             }
-        }
-
-    // intestazione: titolo, impostazioni, percentuale grande e barra ondulata
-    Rectangle {
-        x: 0px;
-        y: 0px;
-        width: root.width;
-        height: root.hero-h;
-        background: M3.surface;
-        Rectangle {
-            x: 12px;
-            y: 56px;
-            width: parent.width - 24px;
-            height: parent.height - 64px;
-            border-radius: Shape.xl - 8px * root.t;
-            background: M3.primary-container;
-            clip: true;
-            // percentuale: grande e a sinistra, poi piccola a destra; «Preparazione» resta sempre
-            // allineato a sinistra (prima scivolava a destra accanto alla percentuale)
-            pct := Text {
-                x: 20px + (parent.width - 40px - self.width) * root.t;
-                y: 14px - 4px * root.t;
-                text: round(AppState.overall * 100) + "%";
-                font-size: Type.display-large * (1 - root.t) + 26px * root.t;
-                font-weight: 800;
-                color: M3.on-primary-container;
-            }
-
-            Text {
-                x: 20px;
-                y: 104px - 88px * root.t;
-                width: parent.width - 40px - (pct.width + 12px) * root.t;
-                text: "Preparazione";
-                font-size: Type.title-large * (1 - root.t) + Type.title * root.t;
-                font-weight: 700;
-                color: M3.on-primary-container;
-                overflow: elide;
-            }
-
-            Text {
-                x: 20px;
-                y: 134px;
-                width: parent.width - 40px;
-                text: AppState.overall-label + (AppState.total-time != "" ? "\n" + AppState.total-time : "");
-                font-size: Type.label;
-                color: M3.on-primary-container;
-                opacity: max(0, 1 - root.t * 2.2);
-                wrap: word-wrap;
-            }
-
-            // inizio e fine della barra
-            Text {
-                x: 20px;
-                y: parent.height - 20px;
-                text: "0%";
-                font-size: 11px;
-                color: M3.on-primary-container;
-                opacity: max(0, 1 - root.t * 3);
-            }
-            Text {
-                x: parent.width - self.width - 20px;
-                y: parent.height - 20px;
-                text: "100%";
-                font-size: 11px;
-                color: M3.on-primary-container;
-                opacity: max(0, 1 - root.t * 3);
-            }
-
-            WavyProgress {
-                intro: !AppState.home-intro-done;
-                x: 20px;
-                y: parent.height - self.height - 24px + 10px * root.t;
-                width: parent.width - 40px;
-                value: AppState.overall;
-                fill: M3.primary;
-                track: M3.surface.with-alpha(0.7);
-                amp: 6px - 3px * root.t;
-                wavelength: 44px - 12px * root.t;
-                thickness: 7px - 2px * root.t;
-            }
-        }
-
-        // riga del titolo
-        HorizontalLayout {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: 56px;
-            padding-left: 20px;
-            padding-right: 4px;
-            // selettore dell'esame: nome dell'esame attivo, tocca per cambiarlo o aggiungerne uno
+            // spazio per «Studia ora»
             Rectangle {
-                horizontal-stretch: 1;
-                HorizontalLayout {
-                    alignment: start;
-                    Rectangle {
-                        border-radius: 20px;
-                        background: sel-ta.pressed || AppState.exam-menu ? M3.surface-container-high : transparent;
-                        animate background { duration: 150ms; }
-                        HorizontalLayout {
-                            padding-left: 4px;
-                            padding-right: 10px;
-                            spacing: 8px;
-                            Text {
-                                text: AppState.exam-name;
-                                font-size: Type.title-large;
-                                font-weight: 700;
-                                color: M3.on-surface;
-                                vertical-alignment: center;
-                                overflow: elide;
-                                max-width: root.width - 140px;
-                            }
-                            Rectangle {
-                                width: 16px;
-                                Path {
-                                    width: 14px;
-                                    height: 8px;
-                                    viewbox-width: 14;
-                                    viewbox-height: 8;
-                                    commands: AppState.exam-menu ? "M 1 7 L 7 1 L 13 7" : "M 1 1 L 7 7 L 13 1";
-                                    stroke: M3.on-surface;
-                                    stroke-width: 2px;
-                                }
-                            }
-                        }
-                        sel-ta := TouchArea {
-                            clicked => {
-                                AppState.exam-menu = !AppState.exam-menu;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // profilo: porta a «Tu» (opzioni comprese)
-            Rectangle {
-                width: 48px;
-                Avatar {
-                    width: 36px;
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    photo: AppState.my-photo;
-                    has-photo: AppState.my-has-photo;
-                    initial: AppState.my-initial;
-                }
-                TouchArea {
-                    clicked => {
-                        AppState.go-tab(3);
-                    }
-                }
+                height: 72px;
             }
         }
     }
 
+    // fascia compatta, scorrendo (Traguardo: «Preparazione · 21 g · 38 %»)
+    Rectangle {
+        x: 0px;
+        y: root.compact ? 0px : -self.height;
+        animate y {
+            duration: 180ms;
+            easing: ease-out;
+        }
+        width: root.width;
+        height: 76px;
+        background: M3.primary-container;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+        VerticalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 10px;
+            spacing: 6px;
+            HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: "Preparazione";
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: M3.on-primary-container;
+                    vertical-alignment: center;
+                }
+                if AppState.hero-days >= 0: Text {
+                    text: AppState.hero-days + " g";
+                    font-size: 13px;
+                    color: M3.on-primary-container;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: round(AppState.overall * 100) + "%";
+                    font-size: 26px;
+                    font-weight: 900;
+                    color: M3.on-primary-container;
+                }
+            }
+            WavyProgress {
+                intro: false;
+                value: AppState.overall;
+                fill: M3.primary;
+                track: M3.surface.with-alpha(0.75);
+                amp: 3px;
+                wavelength: 32px;
+                thickness: 4px;
+            }
+        }
+    }
     // menu degli esami installati (sopra a tutto)
     if AppState.exam-menu: Rectangle {
         x: 0px;

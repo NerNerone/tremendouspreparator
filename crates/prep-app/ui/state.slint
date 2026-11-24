@@ -26,6 +26,8 @@ export struct SubjectVM {
     mono: string,
     color: color,
     own-color: bool,
+    // punteggio atteso (solo il numero, es. «9,8»)
+    score: string,
 }
 
 export struct UnitVM {
@@ -402,6 +404,23 @@ export global AppState {
 
     // home
     in property <float> overall;
+    // fascia di Oggi (Traguardo): giorni al prossimo appello, punteggio atteso, soglia, tempo
+    in property <int> hero-days: -1;
+    in property <string> hero-days-label;
+    in property <string> hero-days-sub;
+    in property <string> hero-expected;
+    in property <string> hero-time;
+    in property <float> pass-frac;
+    in property <string> pass-label;
+    in property <bool> pass-ok;
+    in property <int> goals-done-n;
+    // Oggi, scorrendo: settimana di studio, serie di giorni, posizione in gara
+    in property <[float]> week-bars;
+    in property <int> week-today;
+    in property <string> week-total;
+    in property <int> streak-days;
+    in property <string> home-race-title;
+    in property <string> home-race-sub;
     in property <string> overall-label;
     in property <string> total-time;
     in property <string> paused-title;
@@ -538,6 +557,8 @@ export global AppState {
     in property <string> group-name;
     // fuori gara (paddock flottante sotto la finestra della gara)
     in property <int> paddock-n;
+    // solo le monoposto nel paddock (fuori gara), per la pillola sotto la gara
+    in property <[CarVM]> paddock-cars;
     // in concentrazione: chi ti precede («Marta 18 m davanti · la stai prendendo»)
     in property <string> ahead-text;
     in property <string> group-id;
