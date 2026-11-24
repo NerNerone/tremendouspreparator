@@ -184,6 +184,8 @@ export struct SimRowVM {
 export struct ExamVM {
     id: string,
     name: string,
+    // iniziali per il cerchio del menu (es. «Pa» per «Patente B»)
+    initials: string,
     active: bool,
     info: string,
 }
@@ -820,6 +822,9 @@ export global AppState {
     in-out property <bool> exam-menu;
     callback select-exam(string);
     callback remove-exam(string);
+    // GitHub: nuovo ramo dal modello, o l'esame in uso salvato in un ramo nuovo
+    callback gh-new-branch(string);
+    callback gh-save-branch(string);
     in-out property <string> s-username;
     in property <[SwatchVM]> car-swatches;
     callback car-color(int);

@@ -1626,6 +1626,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_car_color(|v| with_ctrl(|c| c.set_car_color(v as u32)));
     st.on_theme_color(|v| with_ctrl(|c| c.set_theme_color(v as u32)));
     st.on_theme_set_mode(|v| with_ctrl(|c| c.set_theme_mode(v)));
+    st.on_gh_new_branch(|n| with_ctrl(|c| c.gh_new_branch(&n)));
+    st.on_gh_save_branch(|n| with_ctrl(|c| c.gh_save_branch(&n)));
     st.on_rem_toggle(|i, on| with_ctrl(|c| c.rem_toggle(i.max(0) as usize, on)));
     st.on_rem_set_time(|i, t| with_ctrl(|c| c.rem_time(i.max(0) as usize, &t)));
     st.on_open_goals(|| with_ctrl(|c| c.set_page(P_GOALS)));

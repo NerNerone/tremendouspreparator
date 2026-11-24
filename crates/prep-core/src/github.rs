@@ -131,8 +131,11 @@ impl GitHub {
     pub fn create_issue(&self, _: &str, _: &str, _: &[&str]) -> Result<u64, GhError> {
         Self::off()
     }
-    pub fn publish_branch(&self, _: &str, _: &[(String, Vec<u8>)], _: &str) -> Result<(), GhError> {
+    pub fn publish_branch(&self, _: &str, _: &[(String, Vec<u8>)], _: &str, _: Option<&str>) -> Result<(), GhError> {
         Self::off()
+    }
+    pub fn create_branch(&self, _: &str, _: &str) -> Result<(), GhError> {
+        Err(GhError::Network("non disponibile nel browser".into()))
     }
     pub fn releases(&self, _: u32) -> Result<Vec<Release>, GhError> {
         Self::off()
@@ -319,17 +322,57 @@ impl GitHub {
         Self::check(status, text)
     }
 
-    /// Crea il ramo `branch` (nuovo, senza storia in comune con gli altri) con questi file in
-    /// un solo commit: serve per salvare in un ramo nuovo un esame importato da un pacchetto.
-    /// I file vanno in più alberi successivi, così nessuna richiesta è troppo grande.
-    pub fn publish_branch(&self, branch: &str, files: &[(String, Vec<u8>)], message: &str) -> Result<(), GhError> {
-        use base64::engine::general_purpose::STANDARD;
-        let (st, _) =
+    /// Commit in cima al ramo `branch`, se esiste.
+    fn branch_head(&self, branch: &str) -> Result<Option<String>, GhError> {
+        let (st, b) =
             self.get(&self.url(&format!("/git/ref/heads/{}", enc_path(branch))), "application/vnd.github+json")?;
-        if st == 200 {
+        if st == 404 {
+            return Ok(None);
+        }
+        let body = Self::check(st, String::from_utf8_lossy(&b).into_owned())?;
+        let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| GhError::Parse(e.to_string()))?;
+        Ok(v["object"]["sha"].as_str().map(str::to_string))
+    }
+
+    /// Nuovo ramo `branch` che parte da `from` (es. il ramo modello con guida e strumenti).
+    pub fn create_branch(&self, branch: &str, from: &str) -> Result<(), GhError> {
+        if self.branch_head(branch)?.is_some() {
             return Err(GhError::Http(422, format!("il ramo «{branch}» esiste già")));
         }
+        let sha = self
+            .branch_head(from)?
+            .ok_or_else(|| GhError::Http(404, format!("il ramo modello «{from}» non c'è nel repository")))?;
+        self.post_json("/git/refs", &serde_json::json!({ "ref": format!("refs/heads/{branch}"), "sha": sha }))?;
+        Ok(())
+    }
+
+    /// Crea il ramo `branch` con questi file in un solo commit: serve per salvare in un ramo
+    /// nuovo un esame importato da un pacchetto. Con `base` (se quel ramo esiste) il commit
+    /// parte dai suoi file, per esempio il modello con guida, strumenti e direttive per l'AI;
+    /// altrimenti il ramo non ha storia in comune con gli altri. I file vanno in più alberi
+    /// successivi, così nessuna richiesta è troppo grande.
+    pub fn publish_branch(
+        &self,
+        branch: &str,
+        files: &[(String, Vec<u8>)],
+        message: &str,
+        base: Option<&str>,
+    ) -> Result<(), GhError> {
+        use base64::engine::general_purpose::STANDARD;
+        if self.branch_head(branch)?.is_some() {
+            return Err(GhError::Http(422, format!("il ramo «{branch}» esiste già")));
+        }
+        let parent = match base {
+            Some(b) => self.branch_head(b)?,
+            None => None,
+        };
         let mut tree: Option<String> = None;
+        if let Some(c) = &parent {
+            let (st, b) = self.get(&self.url(&format!("/git/commits/{c}")), "application/vnd.github+json")?;
+            let body = Self::check(st, String::from_utf8_lossy(&b).into_owned())?;
+            let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| GhError::Parse(e.to_string()))?;
+            tree = v["tree"]["sha"].as_str().map(str::to_string);
+        }
         let mut batch: Vec<serde_json::Value> = Vec::new();
         let mut size = 0usize;
         let flush = |tree: &mut Option<String>, batch: &mut Vec<serde_json::Value>| -> Result<(), GhError> {
@@ -368,8 +411,9 @@ impl GitHub {
         }
         flush(&mut tree, &mut batch)?;
         let tree = tree.ok_or_else(|| GhError::Parse("nessun file da salvare".into()))?;
-        let text =
-            self.post_json("/git/commits", &serde_json::json!({ "message": message, "tree": tree, "parents": [] }))?;
+        let parents: Vec<String> = parent.into_iter().collect();
+        let text = self
+            .post_json("/git/commits", &serde_json::json!({ "message": message, "tree": tree, "parents": parents }))?;
         let v: serde_json::Value = serde_json::from_str(&text).map_err(|e| GhError::Parse(e.to_string()))?;
         let commit = v["sha"].as_str().ok_or_else(|| GhError::Parse("commit senza sha".into()))?;
         self.post_json("/git/refs", &serde_json::json!({ "ref": format!("refs/heads/{branch}"), "sha": commit }))?;

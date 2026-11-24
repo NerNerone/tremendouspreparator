@@ -2,7 +2,7 @@ import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.sli
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
 import { Avatar } from "group.slint";
-import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, OutlinedField } from "../components.slint";
 
 // riga della lista «da fare» in Oggi: simbolo in un riquadro tonale, titolo e dettaglio
 component NextRow inherits Rectangle {
@@ -101,7 +101,51 @@ component MiniStat inherits Rectangle {
     }
 }
 
+// pulsante del menu degli esami: contorno, simbolo e testo
+component MenuChip inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    callback clicked;
+    height: 40px;
+    width: mc.preferred-width;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: M3.outline;
+    background: mta.pressed ? M3.on-surface.with-alpha(0.08) : transparent;
+    mc := HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 14px;
+        spacing: 8px;
+        VerticalLayout {
+            alignment: center;
+            Icon {
+                width: 18px;
+                height: 18px;
+                source: root.icon;
+                tint: M3.on-surface;
+            }
+        }
+        Text {
+            text: root.text;
+            font-size: 14px;
+            font-weight: 600;
+            color: M3.on-surface;
+            vertical-alignment: center;
+        }
+    }
+    mta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component HomePage inherits Page {
+    // menu degli esami: esame con le azioni aperte (tre puntini), e il nome del ramo da creare
+    property <string> exam-more;
+    // 0 niente, 1 nuovo ramo dal modello, 2 salva l'esame in uso in un ramo nuovo
+    property <int> branch-mode: 0;
+    property <string> branch-name;
     // l'ingresso animato delle barre si vede solo la prima volta: tornando alla Home
     // (la pagina viene ricreata) le barre compaiono già piene, senza svuotarsi e ripartire
     Timer {
@@ -782,153 +826,273 @@ export component HomePage inherits Page {
         y: 0px;
         width: root.width;
         height: root.height;
-        background: #00000033;
+        background: #00000040;
         TouchArea {
             clicked => {
                 AppState.exam-menu = false;
+                root.exam-more = "";
+                root.branch-mode = 0;
             }
         }
         Rectangle {
             x: 12px;
             y: 52px;
             width: min(root.width - 24px, 520px);
-            height: menu.preferred-height;
-            border-radius: Shape.lg;
-            background: M3.surface-container;
-            drop-shadow-blur: 12px;
-            drop-shadow-color: #0000004d;
+            height: min(menu.preferred-height, root.height - 64px);
+            border-radius: 28px;
+            background: M3.surface-container-low;
+            drop-shadow-blur: 16px;
+            drop-shadow-color: #00000040;
             drop-shadow-offset-y: 4px;
+            clip: true;
             TouchArea { }
             menu := VerticalLayout {
-                padding: 8px;
-                spacing: 4px;
+                padding: 10px;
+                padding-bottom: 14px;
+                spacing: 3px;
                 Text {
-                    text: "Esami installati";
-                    font-size: Type.label;
-                    font-weight: 700;
+                    text: "I tuoi esami · i progressi restano separati";
+                    font-size: 13px;
+                    font-weight: 600;
                     color: M3.on-surface-variant;
-                    height: 28px;
+                    height: 30px;
                     vertical-alignment: center;
                     x: 12px;
                 }
-                for e in AppState.exams: Rectangle {
-                    min-height: 56px;
-                    border-radius: 12px;
-                    background: e.active ? M3.secondary-container : row-ta.pressed ? M3.surface-container-high : transparent;
+                for e[i] in AppState.exams: Rectangle {
+                    border-radius: 20px;
+                    background: e.active ? M3.primary-container : row-ta.pressed ? M3.surface-container-high : transparent;
+                    min-height: row-col.preferred-height;
                     row-ta := TouchArea {
                         clicked => {
+                            root.exam-more = "";
                             AppState.select-exam(e.id);
                         }
                     }
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 4px;
-                        spacing: 10px;
-                        Rectangle {
-                            width: 22px;
+                    row-col := VerticalLayout {
+                        HorizontalLayout {
+                            padding: 10px;
+                            padding-right: 2px;
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 44px;
+                                    height: 44px;
+                                    border-radius: 22px;
+                                    background: e.active ? M3.surface : Math.mod(i, 3) == 0 ? M3.error-container : Math.mod(i, 3) == 1 ? M3.success-container : M3.tertiary-container;
+                                    Text {
+                                        text: e.initials;
+                                        font-size: 16px;
+                                        font-weight: 800;
+                                        color: e.active ? M3.primary : Math.mod(i, 3) == 0 ? M3.on-error-container : Math.mod(i, 3) == 1 ? M3.on-success-container : M3.on-tertiary-container;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 1;
+                                spacing: 1px;
+                                Text {
+                                    text: e.name;
+                                    font-size: 16px;
+                                    font-weight: 700;
+                                    color: e.active ? M3.on-primary-container : M3.on-surface;
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: e.info;
+                                    font-size: 13px;
+                                    color: e.active ? M3.on-primary-container : M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
                             if e.active: VIcon {
                                 source: Icons.check;
-                                tint: M3.on-secondary-container;
-                                size: 20px;
+                                tint: M3.primary;
+                                size: 22px;
+                            }
+                            IconButton {
+                                icon: Icons.more-vert;
+                                tint: e.active ? M3.on-primary-container : M3.on-surface-variant;
+                                clicked => {
+                                    root.exam-more = root.exam-more == e.id ? "" : e.id;
+                                    root.branch-mode = 0;
+                                }
                             }
                         }
-                        VerticalLayout {
-                            alignment: center;
-                            horizontal-stretch: 1;
-                            spacing: 2px;
-                            Text {
-                                text: e.name;
-                                font-weight: 700;
-                                color: M3.on-surface;
-                                wrap: word-wrap;
+                        // azioni sull'esame toccato con i tre puntini
+                        if root.exam-more == e.id: HorizontalLayout {
+                            padding-left: 66px;
+                            padding-right: 10px;
+                            padding-bottom: 10px;
+                            spacing: 6px;
+                            alignment: start;
+                            if e.active: M3Button {
+                                text: "Modifica";
+                                kind: 1;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.edit;
+                                clicked => {
+                                    AppState.exam-menu = false;
+                                    root.exam-more = "";
+                                    AppState.open-creator(false);
+                                }
                             }
-                            Text {
-                                text: e.info;
-                                font-size: Type.label;
-                                color: M3.on-surface-variant;
-                                wrap: word-wrap;
+                            if e.active && AppState.sync-configured: M3Button {
+                                text: "Salva in un ramo";
+                                kind: 1;
+                                small: true;
+                                has-icon: true;
+                                icon: Icons.branch;
+                                clicked => {
+                                    root.exam-more = "";
+                                    root.branch-mode = 2;
+                                }
                             }
-                        }
-                        // matita: modificare il pacchetto in uso (aggiungere o rifare file) con il creatore
-                        if e.active: IconButton {
-                            icon: Icons.edit;
-                            tint: M3.on-secondary-container;
-                            clicked => {
-                                AppState.exam-menu = false;
-                                AppState.open-creator(false);
-                            }
-                        }
-                        IconButton {
-                            icon: Icons.close;
-                            tint: M3.on-surface-variant;
-                            clicked => {
-                                AppState.remove-exam(e.id);
+                            M3Button {
+                                text: "Rimuovi";
+                                kind: 3;
+                                small: true;
+                                clicked => {
+                                    root.exam-more = "";
+                                    AppState.remove-exam(e.id);
+                                }
                             }
                         }
                     }
                 }
                 Rectangle {
-                    height: 1px;
-                    background: M3.outline-variant;
+                    height: 13px;
+                    Rectangle {
+                        x: 12px;
+                        y: 6px;
+                        width: parent.width - 24px;
+                        height: 1px;
+                        background: M3.outline-variant;
+                    }
                 }
-                Rectangle {
-                    min-height: 52px;
-                    border-radius: 12px;
-                    background: add-ta.pressed ? M3.surface-container-high : transparent;
-                    add-ta := TouchArea {
+                Text {
+                    text: "Aggiungi un esame";
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: M3.on-surface;
+                    x: 12px;
+                    height: 28px;
+                    vertical-alignment: center;
+                }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 8px;
+                    alignment: start;
+                    MenuChip {
+                        icon: Icons.add;
+                        text: AppState.pack-busy ? "Importazione…" : "Importa un pacchetto";
                         clicked => {
                             AppState.exam-menu = false;
                             AppState.import-pack();
                         }
                     }
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        spacing: 10px;
-                        VIcon {
-                            source: Icons.add;
-                            tint: M3.primary;
-                            size: 22px;
-                        }
-                        Text {
-                            text: AppState.pack-busy ? "Importazione…" : "Importa un pacchetto (nuovo esame o aggiornamento)";
-                            color: M3.primary;
-                            font-weight: 700;
-                            vertical-alignment: center;
-                            wrap: word-wrap;
-                            horizontal-stretch: 1;
+                }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 5px;
+                    spacing: 8px;
+                    alignment: start;
+                    MenuChip {
+                        icon: Icons.share;
+                        text: "Ricevi con un codice";
+                        clicked => {
+                            AppState.exam-menu = false;
+                            AppState.open-setting(3);
                         }
                     }
-                }
-                Rectangle {
-                    min-height: 52px;
-                    border-radius: 12px;
-                    background: guide-ta.pressed ? M3.surface-container-high : transparent;
-                    guide-ta := TouchArea {
+                    MenuChip {
+                        icon: Icons.smart-toy;
+                        text: "Crea con l'AI";
                         clicked => {
                             AppState.exam-menu = false;
                             AppState.open-creator(true);
                         }
                     }
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        spacing: 10px;
-                        VIcon {
-                            source: Icons.book;
-                            tint: M3.primary;
-                            size: 22px;
+                }
+                // con GitHub collegato: un ramo del repository (esistente o nuovo dal modello)
+                if AppState.sync-configured: HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 5px;
+                    spacing: 8px;
+                    alignment: start;
+                    MenuChip {
+                        icon: Icons.sync;
+                        text: "Da un ramo";
+                        clicked => {
+                            AppState.exam-menu = false;
+                            AppState.open-setting(7);
+                            AppState.gh-load-branches();
                         }
-                        Text {
-                            text: "Crea un pacchetto con l'AI (passo passo)";
-                            color: M3.primary;
-                            vertical-alignment: center;
-                            wrap: word-wrap;
-                            horizontal-stretch: 1;
+                    }
+                    MenuChip {
+                        icon: Icons.branch;
+                        text: "Nuovo ramo";
+                        clicked => {
+                            root.exam-more = "";
+                            root.branch-mode = root.branch-mode == 1 ? 0 : 1;
                         }
                     }
                 }
-                Hint {
-                    short: "Ogni esame ha contenuti e progressi suoi.";
-                    full: "Ogni esame ha contenuti e progressi suoi. Un pacchetto va all'esame indicato nel suo syllabus: se è nuovo viene aggiunto qui.";
+                // nome del ramo: nuovo dal modello, o dove salvare l'esame in uso
+                if root.branch-mode > 0: VerticalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 10px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        OutlinedField {
+                            horizontal-stretch: 1;
+                            label: root.branch-mode == 1 ? "Nome del nuovo ramo" : "Ramo in cui salvare l'esame";
+                            text <=> root.branch-name;
+                            placeholder: root.branch-mode == 1 ? "es. anatomia-2027" : "es. semestre-aperto";
+                            pencil: false;
+                            accepted(t) => {
+                                if (root.branch-mode == 1) {
+                                    AppState.gh-new-branch(t);
+                                } else {
+                                    AppState.gh-save-branch(t);
+                                }
+                                root.branch-mode = 0;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            M3Button {
+                                text: root.branch-mode == 1 ? "Crea" : "Salva";
+                                enabled: root.branch-name != "";
+                                clicked => {
+                                    if (root.branch-mode == 1) {
+                                        AppState.gh-new-branch(root.branch-name);
+                                    } else {
+                                        AppState.gh-save-branch(root.branch-name);
+                                    }
+                                    root.branch-mode = 0;
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.branch-mode == 1
+                            ? "Parte dal ramo «modello-dati»: guida, schema, strumenti per estrarre il testo e l'OCR e le direttive per preparare il pacchetto con l'AI."
+                            : "Contenuti, libri e progressi di questo esame vanno in un ramo nuovo (basato sul modello); da lì in poi l'esame si sincronizza con quel ramo.";
+                        font-size: 12px;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
                 }
             }
         }

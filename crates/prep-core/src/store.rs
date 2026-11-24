@@ -317,6 +317,24 @@ impl Store {
         write_atomic(&p, bytes)
     }
 
+    /// Tutti i file del mirror che la sincronizzazione segue (contenuti, libri, progressi),
+    /// con il loro percorso nel repository: per salvare un esame in un ramo nuovo.
+    pub fn mirror_files(&self) -> Vec<(String, Vec<u8>)> {
+        let base = self.root.join("mirror");
+        let mut out: Vec<(String, Vec<u8>)> = fs::walk_files(&base)
+            .into_iter()
+            .filter_map(|p| {
+                let rel = p.strip_prefix(&base).ok()?.to_string_lossy().replace('\\', "/");
+                if !crate::sync::tracked(&rel) {
+                    return None;
+                }
+                Some((rel, fs::read(&p).ok()?))
+            })
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    }
+
     pub fn remove_mirror(&self, repo_path: &str) {
         if let Some(p) = self.mirror_path(repo_path) {
             let _ = fs::remove_file(&p);

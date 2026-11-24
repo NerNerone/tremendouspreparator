@@ -2,6 +2,9 @@
 
 use super::*;
 
+/// Ramo modello del repository dei dati: guida, schema, strumenti e direttive per l'AI.
+const TEMPLATE_BRANCH: &str = "modello-dati";
+
 impl Ctrl {
     // ---------- sync ----------
 
@@ -150,6 +153,97 @@ impl Ctrl {
         self.refresh_gh_branches();
         self.toast(format!("Questo esame si sincronizza dal ramo «{branch}»"));
         self.start_sync(true);
+    }
+
+    /// Nome di ramo valido per GitHub (lettere, cifre, trattini), o vuoto.
+    fn branch_name(raw: &str) -> String {
+        let mut out = String::new();
+        for c in raw.trim().chars() {
+            let c = if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' || c == '/' {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            };
+            if !(c == '-' && out.ends_with('-')) {
+                out.push(c);
+            }
+        }
+        out.trim_matches(|c| c == '-' || c == '/' || c == '.').to_string()
+    }
+
+    /// Nuovo ramo nel repository, a partire dal ramo modello (guida, schema, strumenti per
+    /// estrarre il testo e l'OCR, direttive per l'AI): lì si prepara il pacchetto di un esame.
+    pub(super) fn gh_new_branch(&mut self, raw: &str) {
+        let name = Self::branch_name(raw);
+        if name.is_empty() {
+            self.toast("Scrivi il nome del ramo, per esempio anatomia-2027");
+            return;
+        }
+        let Some(gh) = self.gh_client() else {
+            self.toast("Prima accendi GitHub in Tu › App e inserisci proprietario, repository e token");
+            return;
+        };
+        self.toast(format!("Creo il ramo «{name}» dal modello…"));
+        spawn_background(move || {
+            let r = gh.create_branch(&name, TEMPLATE_BRANCH);
+            let _ = slint::invoke_from_event_loop(move || {
+                with_ctrl(|c| match r {
+                    Ok(()) => {
+                        c.toast(format!(
+                            "Ramo «{name}» creato dal modello: dentro ci sono la guida e gli strumenti per \
+                             preparare il pacchetto con l'AI. Quando è pronto, scaricalo con «Da un ramo»."
+                        ));
+                        c.gh_load_branches();
+                    }
+                    Err(e) => c.toast(format!("Ramo non creato: {e}")),
+                })
+            });
+        });
+    }
+
+    /// Salva l'esame in uso (contenuti, libri e progressi, per esempio importati da un
+    /// pacchetto locale) in un ramo nuovo basato sul modello, e da lì in poi lo sincronizza.
+    pub(super) fn gh_save_branch(&mut self, raw: &str) {
+        let name = Self::branch_name(raw);
+        if name.is_empty() {
+            self.toast("Scrivi il nome del ramo, per esempio semestre-aperto");
+            return;
+        }
+        let Some(gh) = self.gh_client() else {
+            self.toast("Prima accendi GitHub in Tu › App e inserisci proprietario, repository e token");
+            return;
+        };
+        if self.exams.active.is_empty() {
+            self.toast("Nessun esame da salvare");
+            return;
+        }
+        let files = self.store.mirror_files();
+        if !files.iter().any(|(p, _)| p == "content/syllabus.json") {
+            self.toast("Questo esame non ha ancora contenuti da salvare");
+            return;
+        }
+        let exam = self.exams.get(&self.exams.active).map(|e| e.name.clone()).unwrap_or_default();
+        let n = files.len();
+        self.toast(format!("Salvo «{exam}» nel ramo «{name}» ({n} file)…"));
+        let root = self.store.root.clone();
+        spawn_background(move || {
+            let r = gh.publish_branch(&name, &files, &format!("Esame «{exam}» dall'app"), Some(TEMPLATE_BRANCH));
+            let _ = slint::invoke_from_event_loop(move || {
+                with_ctrl(|c| match r {
+                    Ok(()) => {
+                        // l'esame attivo potrebbe essere cambiato nel frattempo: si scrive nel suo archivio
+                        if let Ok(st) = Store::open_in(&c.store.base.clone(), root.clone()) {
+                            let _ = st.set_exam_branch(&name);
+                        }
+                        c.toast(format!("Esame salvato nel ramo «{name}»: da ora si sincronizza da lì"));
+                        c.refresh_exams();
+                        c.gh_load_branches();
+                        c.start_sync(true);
+                    }
+                    Err(e) => c.toast(format!("Esame non salvato: {e}")),
+                })
+            });
+        });
     }
 
     /// Nuovo esame scaricato da un ramo del repository (pacchetto e progressi).

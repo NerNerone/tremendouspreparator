@@ -86,7 +86,27 @@ impl Ctrl {
                     None if e.id == self.exams.active => format!("{} domande", self.content.questions.len()),
                     None => "contenuti inclusi nell'app".into(),
                 };
-                ExamVM { id: ss(&e.id), name: ss(&e.name), active: e.id == self.exams.active, info: ss(info) }
+                let active = e.id == self.exams.active;
+                let mut info = info;
+                if active && !self.content.questions.is_empty() {
+                    info = format!("{}% · {info}", (self.progress.overall * 100.0).round());
+                }
+                let branch = st.exam_branch();
+                if !branch.is_empty() {
+                    info = format!("{info} · ramo {branch}");
+                }
+                let initials: String = {
+                    let mut w =
+                        e.name.split_whitespace().filter(|w| w.chars().next().is_some_and(char::is_alphanumeric));
+                    let a: String = w.next().map(|w| w.chars().take(2).collect()).unwrap_or_default();
+                    let mut c = a.chars();
+                    match (c.next(), c.next()) {
+                        (Some(x), Some(y)) => format!("{}{}", x.to_uppercase(), y.to_lowercase()),
+                        (Some(x), None) => x.to_uppercase().to_string(),
+                        _ => "?".into(),
+                    }
+                };
+                ExamVM { id: ss(&e.id), name: ss(&e.name), initials: ss(initials), active, info: ss(info) }
             })
             .collect();
         let name = self.exams.get(&self.exams.active).map(|e| e.name.clone()).unwrap_or_else(|| "Nessun esame".into());
