@@ -1,10 +1,10 @@
-//! Strumento da riga di comando per chi prepara i contenuti: controlli, statistiche, report dei
-//! progressi e pacchetti.
+//! Strumento da riga di comando per lavorare sul repository (usato da Claude in chat).
 //!
 //!   cargo run -p prep-core --bin prep -- validate          controlla i contenuti
 //!   cargo run -p prep-core --bin prep -- stats             copertura domande/flashcard per argomento
 //!   cargo run -p prep-core --bin prep -- report            report progressi (markdown)
 //!   cargo run -p prep-core --bin prep -- report --json     stesso report in JSON
+//!   cargo run -p prep-core --bin prep -- feedback          feedback senza risposta (--all per tutti)
 //!   cargo run -p prep-core --bin prep -- pack --out=F.json.gz [--label=L]
 //!   cargo run -p prep-core --bin prep -- text FILE        testo di PDF/Word/PowerPoint/… in Markdown
 //!                                                         pacchetto contenuti (quiz, flashcard, libri)
@@ -223,6 +223,56 @@ fn main() {
             );
             if !warnings.is_empty() {
                 std::process::exit(2);
+            }
+        }
+        "feedback" => {
+            // feedback ancora senza risposta (o tutti con --all)
+            let all = args.iter().any(|a| a == "--all");
+            let status: prep_core::feedback::FeedbackStatus =
+                fs::read_to_string(root.join("progress/feedback_status.json"))
+                    .ok()
+                    .and_then(|t| serde_json::from_str(&t).ok())
+                    .unwrap_or_default();
+            let mut files = Vec::new();
+            walk(&root.join("progress/feedback"), &mut files);
+            let mut list: Vec<prep_core::feedback::Feedback> = files
+                .iter()
+                .filter_map(|p| fs::read_to_string(p).ok().and_then(|t| serde_json::from_str(&t).ok()))
+                .collect();
+            list.sort_by_key(|f| f.created_at);
+            let mut n = 0;
+            for f in list {
+                let st = status.items.get(&f.id);
+                if !all && st.is_some() {
+                    continue;
+                }
+                n += 1;
+                println!(
+                    "## {} · {} {}{}",
+                    f.id,
+                    f.kind,
+                    f.category,
+                    f.rating.map(|r| format!(" · voto {r}/5")).unwrap_or_default()
+                );
+                if !f.context.is_empty() {
+                    println!("contesto: {}", f.context);
+                }
+                if let Some(s) = &f.session {
+                    println!("sessione: {s}");
+                }
+                if let Some(i) = &f.item {
+                    match content.question(i) {
+                        Some(q) => println!("domanda {i}: {}", q.text),
+                        None => println!("elemento: {i}"),
+                    }
+                }
+                println!("\n{}\n", if f.text.is_empty() { "(nessun testo)" } else { &f.text });
+                if let Some(st) = st {
+                    println!("→ {}: {}\n", st.status, st.reply);
+                }
+            }
+            if n == 0 {
+                println!("Nessun feedback da leggere.");
             }
         }
         "stats" => {

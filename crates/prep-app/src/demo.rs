@@ -60,6 +60,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "pt" => st.invoke_pt_select(arg.parse().unwrap_or(1)),
                 "ptfilter" => st.set_pt_filter(arg.parse().unwrap_or(-1)),
                 "link" => st.invoke_open_subject_link(arg.parse().unwrap_or(0)),
+                "fbpage" => st.invoke_open_feedback(),
                 "wait" => {}
                 // pagina «Contenuti»: contents (apre), addfile:percorso (come se fosse scelto),
                 // contentsexport, contentsrm:percorso nel mirror
@@ -243,6 +244,12 @@ pub fn maybe_run(ui: &AppWindow) {
                 "pause" => st.invoke_pause_quiz(),
                 "resume" => st.invoke_resume_quiz(),
                 "note" => st.set_c_note(arg.into()),
+                "rate" => st.set_r_rating(arg.parse().unwrap_or(0)),
+                "rtext" => st.set_r_feedback(arg.into()),
+                "sendfb" => st.invoke_send_session_feedback(),
+                "report" => st.invoke_report_result(arg.parse().unwrap_or(0)),
+                "fbtext" => st.set_fb_text(arg.into()),
+                "sendgen" => st.invoke_send_feedback(),
                 "openrefcard" => st.invoke_open_ref_card(),
                 "book" => st.invoke_open_book(arg.into()),
                 "rnext" => st.invoke_reader_next(),

@@ -534,15 +534,16 @@ impl Ctrl {
             items,
             score: Some(score.clone()),
         };
-        if let Err(e) = self.store.record_session(&session) {
+        let sname = q.subject.as_deref().and_then(|s| self.content.subject(s)).map(|s| s.name.clone());
+        let msg = session.commit_message(sname.as_deref());
+        if let Err(e) = self.store.record_session(&session, &msg) {
             self.toast(format!("Errore salvataggio: {e}"));
         }
         self.reload_progress();
         self.refresh_all();
         self.results_from_log = false;
         self.show_results(&session, &q.title);
-        // gli altri propri dispositivi collegati ricevono subito la sessione
-        self.p2p_announce();
+        self.start_sync(false);
     }
 
     pub(super) fn show_results(&mut self, s: &Session, title: &str) {
@@ -576,6 +577,9 @@ impl Ctrl {
             st.set_r_points(ss(format!("{}/{}", sc.correct, sc.correct + sc.wrong + sc.omitted)));
             st.set_r_summary(ss(format!("{} errate · {} insicure{time_line}", sc.wrong, sc.unsure)));
         }
+        st.set_r_rating(0);
+        st.set_r_feedback(ss(""));
+        st.set_r_feedback_sent(false);
         self.results = Some(s.clone());
         self.render_results();
         self.set_page(P_RESULTS);
@@ -643,6 +647,7 @@ impl Ctrl {
             })
             .collect();
         st.set_r_items(model(items));
+        st.set_r_sync(ss(sync::status_line(&self.store)));
     }
 
     pub(super) fn result_toggle_flag(&mut self, k: usize) {
@@ -654,6 +659,13 @@ impl Ctrl {
     }
 
     pub(super) fn results_close(&mut self) {
+        {
+            let ui = self.ui();
+            let st = ui.global::<AppState>();
+            if !st.get_r_feedback_sent() && (st.get_r_rating() > 0 || !st.get_r_feedback().trim().is_empty()) {
+                self.send_session_feedback();
+            }
+        }
         let unit = self.results.as_ref().and_then(|s| s.unit.clone());
         self.results = None;
         self.flush_flags();
@@ -738,12 +750,12 @@ impl Ctrl {
             items,
             score: None,
         };
-        if let Err(e) = self.store.record_session(&s) {
+        let msg = s.commit_message(None);
+        if let Err(e) = self.store.record_session(&s, &msg) {
             self.toast(format!("Errore salvataggio: {e}"));
         }
         self.reload_progress();
         self.refresh_all();
-        // gli altri propri dispositivi collegati ricevono subito la sessione
-        self.p2p_announce();
+        self.start_sync(false);
     }
 }

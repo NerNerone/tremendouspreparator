@@ -1,6 +1,6 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
-import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
 import { Avatar } from "group.slint";
 import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
@@ -89,6 +89,35 @@ export component HomePage inherits Page {
         pad: 16px;
         pad-top: root.hero-max + 4px;
         gap: 14px;
+        // sincronizzazione, sotto la preparazione (solo se GitHub è configurato in Impostazioni)
+        if AppState.sync-configured: HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: AppState.sync-status;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+            }
+
+            if AppState.syncing: Rectangle {
+                width: 48px;
+                MorphLoader { }
+            }
+            if !AppState.syncing: M3Button {
+                text: "Sincronizza";
+                kind: 1;
+                has-icon: true;
+                icon: Icons.sync;
+                clicked => {
+                    AppState.sync-now();
+                }
+            }
+        }
+
         // nessun esame installato: da dove cominciare
         if AppState.no-exam: Card {
             bg: M3.primary-container;

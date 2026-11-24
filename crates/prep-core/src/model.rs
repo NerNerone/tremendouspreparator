@@ -1,5 +1,5 @@
 //! Tipi dei contenuti di studio: syllabus, domande, flashcard.
-//! I file JSON stanno in `content/` (vedi `docs/FORMATI.md`).
+//! I file JSON stanno in `content/` nel repository (vedi `docs/FORMATI.md`).
 
 use serde::{Deserialize, Serialize};
 

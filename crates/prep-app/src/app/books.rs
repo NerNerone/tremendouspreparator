@@ -60,7 +60,7 @@ impl Ctrl {
             return Some(b);
         }
         if cfg!(all(not(target_os = "android"), not(target_arch = "wasm32"))) {
-            // sviluppo desktop: legge i contenuti dalla cartella del progetto
+            // sviluppo desktop: legge dal checkout del repository
             if let Ok(b) = vfs::read(std::path::Path::new(path)) {
                 return Some(b);
             }

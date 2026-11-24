@@ -15,6 +15,7 @@ impl Ctrl {
                 short_date(&i.created),
                 short_date(&i.imported)
             ),
+            None if self.from_repo => format!("In uso: {n} domande, {c} flashcard, sincronizzate dal repository."),
             None => format!("In uso: {n} domande, {c} flashcard, incluse nell'app."),
         }
     }
@@ -123,6 +124,7 @@ impl Ctrl {
         self.plan_sel.clear();
         self.plan_extra.clear();
         self.unit_id.clear();
+        self.fb_item = None;
         self.result_perm.clear();
         self.qz = QuizSetup::default();
         self.reload_content();

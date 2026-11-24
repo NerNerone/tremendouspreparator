@@ -162,6 +162,8 @@ impl Ctrl {
         let ui = self.ui();
         let st = ui.global::<AppState>();
         st.set_app_version(ss(format!("Versione {APP_VERSION}")));
+        st.set_sync_status(ss(sync::status_line(&self.store)));
+        st.set_sync_configured(self.sync_configured());
         st.set_on_android(cfg!(target_os = "android"));
         st.set_pack_status(ss(self.pack_status()));
     }
@@ -170,6 +172,11 @@ impl Ctrl {
         let s = self.store.settings();
         let ui = self.ui();
         let st = ui.global::<AppState>();
+        st.set_s_owner(ss(&s.owner));
+        st.set_s_repo(ss(&s.repo));
+        st.set_s_branch(ss(&s.branch));
+        st.set_s_token(ss(&s.token));
+        st.set_s_github_on(s.github_on);
         st.set_s_username(ss(&s.username));
         st.set_p2p_auto(s.p2p_auto);
         st.set_p2p_direct_only(s.direct_only);

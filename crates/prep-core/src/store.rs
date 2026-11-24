@@ -4,11 +4,20 @@
 //! in `<base>/exams/<id>/` (vedi [`crate::exams`]):
 //!
 //! ```text
-//! <base>/settings.json          nome utente, sincronizzazione tra dispositivi, promemoria
+//! <base>/settings.json          nome utente, token e repository, promemoria
 //! <root>/mirror/<percorso repo> copia locale di content/** e progress/**
 //! <root>/mirror_index.json      sha git di ogni file del mirror
+//! <root>/outbox/<id>.json       commit in attesa di invio (offline)
+//! <root>/sync_state.json        esito dell'ultima sincronizzazione
 //! ```
 
+use crate::feedback::{Feedback, FeedbackStatus};
+use crate::github::git_blob_sha;
+
+/// Impronta di un file come blob git (nome usato dal codice in comune con la build pubblica).
+pub fn blob_sha(bytes: &[u8]) -> String {
+    git_blob_sha(bytes)
+}
 use crate::progress::Assessment;
 use crate::session::Session;
 use crate::vfs as fs;
@@ -19,6 +28,20 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default = "d_api")]
+    pub api_base: String,
+    #[serde(default = "d_owner")]
+    pub owner: String,
+    #[serde(default = "d_repo")]
+    pub repo: String,
+    /// vuoto = branch predefinito del repository
+    #[serde(default)]
+    pub branch: String,
+    #[serde(default)]
+    pub token: String,
+    /// sincronizzazione con un repository GitHub (spenta finché non la si accende in Opzioni)
+    #[serde(default)]
+    pub github_on: bool,
     /// notifica giornaliera di ripasso
     #[serde(default = "d_true")]
     pub reminder_enabled: bool,
@@ -98,9 +121,27 @@ fn d_eve_time() -> String {
     "21:30".into()
 }
 
+fn d_api() -> String {
+    "https://api.github.com".into()
+}
+// nessun repository predefinito: senza proprietario, repository e token la sincronizzazione
+// e i feedback per Claude restano nascosti
+fn d_owner() -> String {
+    String::new()
+}
+fn d_repo() -> String {
+    String::new()
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Settings {
+            api_base: d_api(),
+            owner: d_owner(),
+            repo: d_repo(),
+            branch: String::new(),
+            github_on: false,
+            token: String::new(),
             reminder_enabled: true,
             reminder_time: d_rem_time(),
             evening_time: d_eve_time(),
@@ -129,11 +170,27 @@ impl Default for Settings {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MirrorIndex {
-    /// true dopo il primo pacchetto installato: da lì i contenuti vengono dall'archivio
+    /// true dopo la prima sincronizzazione riuscita: da lì i contenuti vengono dal repo
     #[serde(default)]
     pub synced_once: bool,
     #[serde(default)]
     pub files: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SyncState {
+    #[serde(default)]
+    pub last_ok: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub last_error: String,
+    #[serde(default)]
+    pub branch: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutboxEntry {
+    pub path: String,
+    pub message: String,
 }
 
 #[derive(Debug, Clone)]
@@ -168,14 +225,6 @@ fn write_atomic(p: &Path, bytes: &[u8]) -> io::Result<()> {
     write_atomic_mode(p, bytes, false)
 }
 
-/// Impronta di un file (sha1 nel formato dei blob di git), per riconoscere i file già presenti.
-pub fn blob_sha(bytes: &[u8]) -> String {
-    let mut h = sha1_smol::Sha1::new();
-    h.update(format!("blob {}\0", bytes.len()).as_bytes());
-    h.update(bytes);
-    h.digest().to_string()
-}
-
 fn safe_rel(path: &str) -> bool {
     !path.is_empty() && !path.starts_with('/') && !path.split('/').any(|s| s == ".." || s.is_empty())
 }
@@ -191,7 +240,25 @@ impl Store {
     pub fn open_in(base: impl Into<PathBuf>, root: impl Into<PathBuf>) -> io::Result<Store> {
         let (base, root) = (base.into(), root.into());
         fs::create_dir_all(&root.join("mirror"))?;
+        fs::create_dir_all(&root.join("outbox"))?;
         Ok(Store { root, base })
+    }
+
+    /// Ramo del repository GitHub da cui si sincronizza questo esame (`repo.json` nella sua
+    /// cartella); vuoto = quello delle impostazioni o il predefinito del repository.
+    pub fn exam_branch(&self) -> String {
+        fs::read_to_string(&self.root.join("repo.json"))
+            .ok()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            .and_then(|v| v["branch"].as_str().map(str::to_string))
+            .unwrap_or_default()
+    }
+
+    pub fn set_exam_branch(&self, branch: &str) -> io::Result<()> {
+        write_atomic(
+            &self.root.join("repo.json"),
+            serde_json::json!({ "branch": branch.trim() }).to_string().as_bytes(),
+        )
     }
 
     pub fn settings(&self) -> Settings {
@@ -211,6 +278,14 @@ impl Store {
 
     pub fn save_index(&self, idx: &MirrorIndex) -> io::Result<()> {
         write_atomic(&self.root.join("mirror_index.json"), serde_json::to_string_pretty(idx)?.as_bytes())
+    }
+
+    pub fn sync_state(&self) -> SyncState {
+        read_json(&self.root.join("sync_state.json"))
+    }
+
+    pub fn save_sync_state(&self, s: &SyncState) -> io::Result<()> {
+        write_atomic(&self.root.join("sync_state.json"), serde_json::to_string_pretty(s)?.as_bytes())
     }
 
     pub fn mirror_path(&self, repo_path: &str) -> Option<PathBuf> {
@@ -281,16 +356,58 @@ impl Store {
         serde_json::from_str(&t).ok()
     }
 
-    /// Salva un file nuovo nell'archivio e ne registra l'impronta nell'indice.
-    pub fn record_file(&self, path: String, bytes: Vec<u8>) -> io::Result<()> {
+    /// Salva un file nuovo nel mirror e lo mette in coda per il commit.
+    pub fn record_file(&self, id: &str, path: String, bytes: Vec<u8>, message: &str) -> io::Result<()> {
         self.write_mirror(&path, &bytes)?;
         let mut idx = self.index();
-        idx.files.insert(path, blob_sha(&bytes));
-        self.save_index(&idx)
+        idx.files.insert(path.clone(), git_blob_sha(&bytes));
+        self.save_index(&idx)?;
+        let entry = OutboxEntry { path, message: message.to_string() };
+        write_atomic(
+            &self.root.join("outbox").join(format!("{id}.json")),
+            serde_json::to_string_pretty(&entry)?.as_bytes(),
+        )
     }
 
-    pub fn record_session(&self, s: &Session) -> io::Result<()> {
-        self.record_file(s.repo_path(), s.to_json().into_bytes())
+    pub fn record_session(&self, s: &Session, message: &str) -> io::Result<()> {
+        self.record_file(&s.id, s.repo_path(), s.to_json().into_bytes(), message)
+    }
+
+    pub fn record_feedback(&self, f: &Feedback) -> io::Result<()> {
+        self.record_file(&f.id, f.repo_path(), f.to_json().into_bytes(), &f.commit_message())
+    }
+
+    pub fn feedbacks(&self) -> Vec<Feedback> {
+        let base = self.root.join("mirror");
+        let mut files = Vec::new();
+        Self::walk(&base.join("progress").join("feedback"), &base, &mut files);
+        let mut v: Vec<Feedback> = files
+            .iter()
+            .filter_map(|(_, p)| fs::read_to_string(p).ok().and_then(|t| serde_json::from_str(&t).ok()))
+            .collect();
+        v.sort_by_key(|f| std::cmp::Reverse(f.created_at));
+        v
+    }
+
+    pub fn feedback_status(&self) -> FeedbackStatus {
+        read_json(&self.root.join("mirror/progress/feedback_status.json"))
+    }
+
+    pub fn is_pending(&self, repo_path: &str) -> bool {
+        self.outbox().iter().any(|(_, e)| e.path == repo_path)
+    }
+
+    pub fn outbox(&self) -> Vec<(PathBuf, OutboxEntry)> {
+        let mut v: Vec<(PathBuf, OutboxEntry)> = fs::list_dir(&self.root.join("outbox"))
+            .into_iter()
+            .filter_map(|p| {
+                let t = fs::read_to_string(&p).ok()?;
+                let entry: OutboxEntry = serde_json::from_str(&t).ok()?;
+                Some((p, entry))
+            })
+            .collect();
+        v.sort_by(|a, b| a.0.cmp(&b.0));
+        v
     }
 
     pub fn read_mirror(&self, repo_path: &str) -> Option<Vec<u8>> {

@@ -1,0 +1,172 @@
+import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
+import { M3, Icons, Type, Shape } from "../theme.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+
+export component FeedbackPage inherits Page {
+    VerticalLayout {
+        TopBar {
+            title: "Feedback";
+            subtitle: "Proposte e segnalazioni: Claude le legge e le integra";
+            can-back: true;
+            back => {
+                AppState.back();
+            }
+        }
+
+        Scroller {
+            vertical-stretch: 1;
+            align: start;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 12px;
+            Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: "Nuovo feedback";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Chip {
+                            text: "Contenuti";
+                            selected: AppState.fb-category == "contenuti";
+                            clicked => {
+                                AppState.fb-category = "contenuti";
+                            }
+                        }
+
+                        Chip {
+                            text: "Domanda";
+                            selected: AppState.fb-category == "domanda";
+                            clicked => {
+                                AppState.fb-category = "domanda";
+                            }
+                        }
+
+                        Chip {
+                            text: "App";
+                            selected: AppState.fb-category == "app";
+                            clicked => {
+                                AppState.fb-category = "app";
+                            }
+                        }
+
+                        Chip {
+                            text: "Altro";
+                            selected: AppState.fb-category == "altro";
+                            clicked => {
+                                AppState.fb-category = "altro";
+                            }
+                        }
+                    }
+
+                    if AppState.fb-item != "": Rectangle {
+                        border-radius: 10px;
+                        background: M3.tertiary-container;
+                        HorizontalLayout {
+                            padding: 10px;
+                            spacing: 8px;
+                            Text {
+                                text: "Riguarda: " + AppState.fb-item-text;
+                                wrap: word-wrap;
+                                color: M3.on-tertiary-container;
+                                font-size: Type.label;
+                                horizontal-stretch: 1;
+                            }
+
+                            IconButton {
+                                icon: Icons.close;
+                                tint: M3.on-tertiary-container;
+                                clicked => {
+                                    AppState.clear-fb-item();
+                                }
+                            }
+                        }
+                    }
+
+                    TextEdit {
+                        text <=> AppState.fb-text;
+                        placeholder-text: "Scrivi qui: cosa cambiare, cosa aggiungere, errori trovati…";
+                        wrap: word-wrap;
+                        min-height: 140px;
+                    }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        M3Button {
+                            text: "Invia";
+                            has-icon: true;
+                            icon: Icons.feedback;
+                            enabled: AppState.fb-text != "";
+                            clicked => {
+                                AppState.send-feedback();
+                            }
+                        }
+                    }
+                }
+            }
+
+            if AppState.feedbacks.length > 0: SectionTitle {
+                text: "Inviati";
+            }
+            for f in AppState.feedbacks: Rectangle {
+                border-radius: 14px;
+                background: M3.surface-container-low;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 6px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: f.date + " · " + f.title + (f.rating > 0 ? " · " + f.rating + "/5" : "");
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                            horizontal-stretch: 1;
+                            wrap: word-wrap;
+                        }
+
+                        Pill {
+                            text: f.status;
+                            bg: f.pending ? M3.warn-container : f.reply != "" ? M3.success-container : M3.secondary-container;
+                            fg: f.pending ? M3.on-warn-container : f.reply != "" ? M3.on-success-container : M3.on-secondary-container;
+                        }
+                    }
+
+                    if f.text != "": Text {
+                        text: f.text;
+                        wrap: word-wrap;
+                        color: M3.on-surface;
+                    }
+                    if f.reply != "": Rectangle {
+                        border-radius: 10px;
+                        background: M3.primary-container;
+                        HorizontalLayout {
+                            padding: 10px;
+                            spacing: 8px;
+                            VIcon {
+                                source: Icons.ai;
+                                tint: M3.on-primary-container;
+                                size: 18px;
+                            }
+
+                            Text {
+                                text: f.reply;
+                                wrap: word-wrap;
+                                color: M3.on-primary-container;
+                                horizontal-stretch: 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------- tavola periodica ----------

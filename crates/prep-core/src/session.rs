@@ -1,5 +1,5 @@
-//! Sessioni di studio, salvate in `progress/sessions/`.
-//! Ogni sessione è un file nuovo e immutabile: tra dispositivi non ci sono conflitti.
+//! Sessioni di studio: è ciò che l'app committa in `progress/sessions/`.
+//! Ogni sessione è un file nuovo e immutabile → nessun conflitto tra commit.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -91,13 +91,41 @@ impl Session {
         format!("{}-{}-{}-{:04x}", at.format("%Y%m%dT%H%M%SZ"), subject.unwrap_or("mix"), k, fastrand::u16(..))
     }
 
-    /// percorso nell'archivio
+    /// percorso nel repository
     pub fn repo_path(&self) -> String {
         format!("progress/sessions/{}/{}.json", self.started_at.format("%Y-%m"), self.id)
     }
 
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("serializzazione sessione") + "\n"
+    }
+
+    /// messaggio di commit leggibile
+    pub fn commit_message(&self, subject_name: Option<&str>) -> String {
+        let who = subject_name.unwrap_or("misto");
+        match (&self.kind, &self.score) {
+            (SessionKind::Exam, Some(s)) => format!(
+                "simulazione {who}: {:.1}/31 ({} ok, {} err, {} omesse, {} insicure)",
+                s.points, s.correct, s.wrong, s.omitted, s.unsure
+            ),
+            (SessionKind::Practice | SessionKind::Review, Some(s)) => format!(
+                "{} {who}: {}/{} corrette, {} insicure",
+                if self.kind == SessionKind::Review { "ripasso" } else { "quiz" },
+                s.correct,
+                s.correct + s.wrong + s.omitted,
+                s.unsure
+            ),
+            (SessionKind::Flashcards, _) => {
+                let unsure = self.items.iter().filter(|i| i.unsure).count();
+                format!("flashcard {who}: {} ripassate, {} insicure", self.items.len(), unsure)
+            }
+            (SessionKind::Flags, _) => {
+                let on = self.items.iter().filter(|i| i.flag == Some(true)).count();
+                let off = self.items.iter().filter(|i| i.flag == Some(false)).count();
+                format!("segnalazioni: +{on} insicure, -{off} risolte")
+            }
+            _ => format!("sessione {}", self.id),
+        }
     }
 }
 

@@ -67,7 +67,7 @@ impl Ctrl {
             let unsure = r.items.iter().filter(|i| i.unsure).count();
             let good = r.items.iter().filter(|i| i.grade.unwrap_or(0) >= 2).count();
             st.set_c_summary(ss(format!(
-                "Ripassate {} carte\n{} sapute · {} insicure\nRisultati salvati.",
+                "Ripassate {} carte\n{} sapute · {} insicure\nRisultati salvati e inviati al repository.",
                 r.items.len(),
                 good,
                 unsure
@@ -170,13 +170,14 @@ impl Ctrl {
             items: r.items.clone(),
             score: None,
         };
-        if let Err(e) = self.store.record_session(&s) {
+        let sname = r.subject.as_deref().and_then(|x| self.content.subject(x)).map(|x| x.name.clone());
+        let msg = s.commit_message(sname.as_deref());
+        if let Err(e) = self.store.record_session(&s, &msg) {
             self.toast(format!("Errore salvataggio: {e}"));
         }
         self.reload_progress();
         self.refresh_all();
-        // gli altri propri dispositivi collegati ricevono subito la sessione
-        self.p2p_announce();
+        self.start_sync(false);
     }
 
     pub(super) fn cards_close(&mut self) {

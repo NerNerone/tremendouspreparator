@@ -1823,6 +1823,29 @@ impl Ctrl {
             });
         }
     }
+
+    /// GitHub configurato: senza proprietario, repository e token il tasto Sincronizza non compare in Home
+    pub(super) fn sync_configured(&self) -> bool {
+        let s = self.store.settings();
+        s.github_on && !s.owner.trim().is_empty() && !s.repo.trim().is_empty() && !s.token.trim().is_empty()
+    }
+
+    pub(super) fn save_settings(&mut self) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let mut s = self.store.settings();
+        s.owner = st.get_s_owner().trim().to_string();
+        s.repo = st.get_s_repo().trim().to_string();
+        s.branch = st.get_s_branch().trim().to_string();
+        s.token = st.get_s_token().trim().to_string();
+        match self.store.save_settings(&s) {
+            Ok(()) => {
+                self.refresh_settings_info();
+                self.start_sync(true)
+            }
+            Err(e) => self.toast(format!("Errore: {e}")),
+        }
+    }
 }
 
 const MONTH_NAMES: [&str; 12] = [

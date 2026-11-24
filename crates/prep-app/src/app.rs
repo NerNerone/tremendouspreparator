@@ -2,13 +2,14 @@
 
 use crate::periodic;
 use crate::{
-    AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, CrewVM, ExamDateVM, ExamSectionVM, ExamVM, FlagVM,
-    FocusAppVM, GoalVM, GroupVM, NavCellVM, NavRowVM, NewsVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM, ResultItemVM,
-    SimRowVM, SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
+    AppState, AppWindow, BlockVM, BookVM, BtDevVM, CarVM, CrewVM, ExamDateVM, ExamSectionVM, ExamVM, FeedbackVM,
+    FlagVM, FocusAppVM, GoalVM, GroupVM, NavCellVM, NavRowVM, NewsVM, OfferVM, OptionVM, PeerVM, QzOptVM, RankVM,
+    ResultItemVM, SimRowVM, SubjectVM, SwatchVM, TocVM, TopicVM, UnitVM,
 };
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use prep_core::answer::{is_correct, Given};
 use prep_core::content::Content;
+use prep_core::feedback::Feedback;
 use prep_core::latex;
 use prep_core::markdown::{self, Block, Section};
 use prep_core::model::{BookRef, QKind, Question, TOOL_PERIODIC_TABLE};
@@ -17,6 +18,7 @@ use prep_core::progress::{build_history, compute, exam_pace, Assessment, History
 use prep_core::select::{self, Scope};
 use prep_core::session::{score_items, Item, Session, SessionKind};
 use prep_core::store::Store;
+use prep_core::sync::{self, SyncReport};
 use prep_core::vfs;
 use serde::{Deserialize, Serialize};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
@@ -35,7 +37,9 @@ mod contents;
 mod creator;
 mod devices;
 mod exams;
+mod feedback;
 mod focus;
+mod github;
 mod goals;
 mod group;
 mod news;
@@ -61,7 +65,8 @@ gestiti da terzi, che scegli tu nelle Opzioni; per stabilire il collegamento dir
 a server STUN pubblici (Google, Cloudflare), che non ricevono dati. I relay di norma inoltrano i messaggi senza \
 conservarli; fanno eccezione gli avvisi «vieni a studiare» dei gruppi di studio, che restano cifrati sui relay \
 per arrivare anche a chi è offline e scadono dopo 24 ore (un relay potrebbe non rispettare la scadenza). Foto profilo \
-e del gruppo e il nome utente li vedono i membri dei gruppi in cui entri. Questi servizi hanno le loro condizioni e la loro gestione dei dati (per esempio \
+e del gruppo e il nome utente li vedono i membri dei gruppi in cui entri. Se configuri GitHub, i progressi vanno nel tuo \
+repository. Questi servizi hanno le loro condizioni e la loro gestione dei dati (per esempio \
 possono vedere l'indirizzo IP): usarli è una tua scelta, e la password della sincronizzazione va custodita da te. \
 La prima volta che usi l'OCR l'app scarica i suoi modelli (progetto ocrs di Robert Knight, licenza CC BY-SA 4.0) \
 da GitHub o da Amazon S3; le pagine da leggere restano sul dispositivo.
@@ -91,6 +96,7 @@ const P_FLAGS: i32 = 6;
 const P_SETTINGS: i32 = 7;
 const P_DECKS: i32 = 8;
 const P_READER: i32 = 9;
+const P_FEEDBACK: i32 = 10;
 const P_GOALS: i32 = 11;
 const P_PERIODIC: i32 = 12;
 const P_GROUP: i32 = 13;
@@ -183,7 +189,7 @@ impl Quiz {
 }
 
 /// Quiz/simulazione in corso salvato su disco: permette pausa e ripresa (anche dopo
-/// la chiusura dell'app). Resta solo sul dispositivo.
+/// la chiusura dell'app). Resta solo sul dispositivo, non viene committato.
 #[derive(Serialize, Deserialize)]
 struct SavedQuiz {
     kind: SessionKind,
@@ -266,8 +272,7 @@ pub struct Ctrl {
     history: History,
     assessment: Option<Assessment>,
     progress: Progress,
-    /// contenuti da un pacchetto installato (non quelli inclusi nell'app)
-    from_pack: bool,
+    from_repo: bool,
     unit_id: String,
     quiz: Option<Quiz>,
     cards: Option<CardRun>,
@@ -275,12 +280,17 @@ pub struct Ctrl {
     pending_flags: BTreeMap<String, bool>,
     dialog: Option<Dialog>,
     reader: Option<Reader>,
+    fb_item: Option<String>,
     last_save: Instant,
+    syncing: bool,
+    sync_verbose: bool,
     /// proposta di obiettivi del giorno (se non ancora confermati) e selezione dell'utente
     plan: Option<prep_core::plan::DayPlan>,
     plan_sel: Vec<bool>,
     /// argomenti aggiunti a mano alla proposta (prima della conferma)
     plan_extra: Vec<String>,
+    /// la pagina Feedback è stata aperta dalle Opzioni (il tasto indietro ci ritorna)
+    feedback_from_settings: bool,
     elements: Vec<periodic::Element>,
     /// ordine delle opzioni del quiz appena finito, per mostrare i risultati con le stesse lettere
     result_perm: std::collections::HashMap<String, Vec<usize>>,
@@ -400,6 +410,8 @@ pub struct Ctrl {
     study_notified: (i64, i32),
     /// APK della versione più nuova trovata (vedi `updates`)
     update_url: String,
+    /// rami del repository GitHub (vedi `github::gh_load_branches`)
+    gh_branches: Vec<String>,
     update_asset: String,
     update_sha256: Option<String>,
     update_sums_url: String,
@@ -576,6 +588,12 @@ impl p2p::Host for Ctrl {
         if st.mirror_path(path).is_some_and(|p| vfs::exists(&p)) {
             return false;
         }
+        // con GitHub acceso i progressi arrivati da un altro dispositivo vanno anche nel repository
+        // (se c'erano già, l'invio li trova e passa oltre)
+        if self.sync_configured() && !st.index().files.contains_key(path) {
+            let id = format!("p2p-{}", path.replace(['/', '.'], "_"));
+            return st.record_file(&id, path.to_string(), bytes.to_vec(), "progressi da un altro dispositivo").is_ok();
+        }
         st.write_mirror(path, bytes).is_ok()
     }
 
@@ -690,12 +708,12 @@ impl Ctrl {
 
     fn reload_content(&mut self) {
         let files = self.store.content_files(crate::bundled::BUNDLED);
-        self.from_pack = self.store.index().synced_once;
+        self.from_repo = self.store.index().synced_once;
         self.content = Content::from_files(files.iter().map(|(a, b)| (a.as_str(), b.as_str())));
         if self.content.syllabus.is_none() {
             // contenuti installati rotti: quelli inclusi nell'app, se ci sono
             self.content = Content::from_files(crate::bundled::BUNDLED.iter().copied());
-            self.from_pack = false;
+            self.from_repo = false;
         }
         if self.content.syllabus.is_none() {
             // nessun esame: la Home invita a importare un pacchetto
@@ -736,6 +754,7 @@ impl Ctrl {
     // ---------- rendering ----------
 
     fn refresh_all(&mut self) {
+        self.refresh_feedback();
         self.refresh_home();
         self.refresh_study();
         self.refresh_unit();
@@ -812,7 +831,7 @@ impl Ctrl {
                     if self.quiz.as_ref().is_some_and(|q| q.is_exam()) {
                         "Pausa: la simulazione si ferma (anche il timer) e la riprendi dalla Home.\nTermina: la simulazione viene annullata e non salvata."
                     } else {
-                        "Pausa: riprendi più tardi dalla Home da dove eri arrivato.\nTermina: le risposte già confermate vengono salvate."
+                        "Pausa: riprendi più tardi dalla Home da dove eri arrivato.\nTermina: le risposte già confermate vengono salvate e committate."
                     },
                     "Termina",
                 );
@@ -843,6 +862,15 @@ impl Ctrl {
                     let ret = self.reader.take().map(|r| r.return_page).unwrap_or(P_STUDY);
                     self.set_page(ret);
                 }
+                true
+            }
+            P_FEEDBACK if self.feedback_from_settings => {
+                self.feedback_from_settings = false;
+                self.set_page(P_SETTINGS);
+                true
+            }
+            P_FEEDBACK if self.results.is_some() => {
+                self.set_page(P_RESULTS);
                 true
             }
             P_CONTENTS => {
@@ -1054,7 +1082,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         history: History::default(),
         assessment: None,
         progress,
-        from_pack: false,
+        from_repo: false,
         unit_id: String::new(),
         quiz: None,
         cards: None,
@@ -1062,10 +1090,14 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         pending_flags: BTreeMap::new(),
         dialog: None,
         reader: None,
+        fb_item: None,
         last_save: Instant::now(),
+        syncing: false,
+        sync_verbose: false,
         plan: None,
         plan_sel: vec![],
         plan_extra: vec![],
+        feedback_from_settings: false,
         elements: Vec::new(),
         result_perm: Default::default(),
         tick: Timer::default(),
@@ -1132,6 +1164,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         racing_others: 0,
         study_notified: (0, -1),
         update_url: String::new(),
+        gh_branches: Vec::new(),
         update_asset: String::new(),
         update_sha256: None,
         update_sums_url: String::new(),
@@ -1314,6 +1347,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     });
     st.on_start_cards(|kind, id| with_ctrl(|c| c.start_cards(&kind, &id)));
     st.on_qz_toggle(|kind, id| with_ctrl(|c| c.qz_toggle(&kind, &id)));
+    st.on_gh_toggle(|on| with_ctrl(|c| c.gh_toggle(on)));
+    st.on_gh_load_branches(|| with_ctrl(|c| c.gh_load_branches()));
+    st.on_gh_pick_branch(|b| with_ctrl(|c| c.gh_pick_branch(&b)));
+    st.on_gh_add_exam(|b| with_ctrl(|c| c.gh_add_exam(&b)));
     st.on_qz_set_n(|n| with_ctrl(|c| c.qz_toggle("n", &n.to_string())));
     st.on_qz_start(|| with_ctrl(|c| c.qz_start()));
     st.on_select_option(|k| with_ctrl(|c| c.select_option(k)));
@@ -1373,6 +1410,26 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
             c.open_ref(link)
         })
     });
+    st.on_send_session_feedback(|| with_ctrl(|c| c.send_session_feedback()));
+    st.on_send_feedback(|| {
+        with_ctrl(|c| {
+            let back_to_results = c.results.is_some() && c.fb_item.is_some();
+            c.send_feedback();
+            if back_to_results {
+                c.set_page(P_RESULTS);
+            }
+        })
+    });
+    st.on_report_result(|k| with_ctrl(|c| c.report_result(k.max(0) as usize)));
+    st.on_clear_fb_item(|| {
+        with_ctrl(|c| {
+            c.fb_item = None;
+            let ui = c.ui();
+            let st = ui.global::<AppState>();
+            st.set_fb_item(ss(""));
+            st.set_fb_item_text(ss(""));
+        })
+    });
     st.on_reader_prev(|| {
         with_ctrl(|c| {
             let k = c.reader.as_ref().map(|r| r.pos.saturating_sub(1)).unwrap_or(0);
@@ -1386,6 +1443,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         })
     });
     st.on_reader_goto(|k| with_ctrl(|c| c.reader_goto(k.max(0) as usize)));
+    st.on_sync_now(|| with_ctrl(|c| c.start_sync(true)));
     st.on_save_reminder(|| with_ctrl(|c| c.save_reminder()));
     st.on_goals_toggle(|i| with_ctrl(|c| c.goals_toggle(i)));
     st.on_goals_add(|t| with_ctrl(|c| c.goals_add(t.to_string())));
@@ -1400,6 +1458,13 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         with_ctrl(|c| {
             c.refresh_settings_info();
             c.set_page(P_SETTINGS);
+        })
+    });
+    st.on_open_feedback(|| {
+        with_ctrl(|c| {
+            c.feedback_from_settings = true;
+            c.refresh_feedback();
+            c.set_page(P_FEEDBACK);
         })
     });
     st.on_goals_confirm(|| with_ctrl(|c| c.goals_confirm()));
@@ -1439,6 +1504,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
             c.start_quiz(SessionKind::Practice, ids, format!("Ripasso · {name}"), subject, unit);
         })
     });
+    st.on_save_settings(|| with_ctrl(|c| c.save_settings()));
     st.on_import_pack(|| with_ctrl(|c| c.pick_pack()));
     st.on_open_contents(|| with_ctrl(|c| c.open_contents()));
     st.on_open_guide(|| with_ctrl(|c| c.open_guide()));
@@ -1457,9 +1523,12 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_cr_open_figure(|p| with_ctrl(|c| c.creator_open_figure(&p)));
     st.on_cr_close(|| with_ctrl(|c| c.creator_close()));
     st.on_update_install(|| with_ctrl(|c| c.updates_install()));
-    st.on_update_check(|| with_ctrl(|c| c.updates_check_now()));
+    // build privata: si aggiorna dalle release del proprio repository GitHub (vedi github.rs)
+    st.on_update_check(|| with_ctrl(|c| if updates::enabled() { c.updates_check_now() } else { c.update_check_now() }));
+    st.set_update_can_check(
+        updates::enabled() || cfg!(target_os = "android") || std::env::var_os("FLATPAK_ID").is_some(),
+    );
     st.on_news_all(|| with_ctrl(|c| c.news_all()));
-    st.set_update_can_check(updates::enabled());
     st.on_pdf_split(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Split)));
     st.on_pdf_text(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Text)));
     st.on_pdf_ocr(|| with_ctrl(|c| c.pdf_pick(pdftools::PdfTool::Ocr)));
@@ -1627,6 +1696,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     // promemoria desktop: processo in background (e via l'avvio automatico delle versioni vecchie)
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     crate::desktop_reminder::sync_autostart(ctrl.borrow().store.settings().reminder_enabled);
+    // sync all'avvio
+    ctrl.borrow_mut().start_sync(false);
 
     // errore nella sessione precedente: proposta di segnalazione, a interfaccia pronta
     slint::Timer::single_shot(Duration::from_millis(1200), || with_ctrl(|c| c.crash_check()));

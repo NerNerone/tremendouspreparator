@@ -1,6 +1,6 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
-import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
 component NavCell inherits Rectangle {
@@ -343,6 +343,7 @@ component ResultTile inherits Rectangle {
     in property <ResultItemVM> item;
     callback toggle-flag;
     callback open-ref;
+    callback report;
     property <bool> expanded: false;
     border-radius: 14px;
     background: M3.surface-container-low;
@@ -408,6 +409,18 @@ component ResultTile inherits Rectangle {
                 root.open-ref();
             }
         }
+        if root.expanded && AppState.sync-configured: HorizontalLayout {
+            alignment: end;
+            M3Button {
+                kind: 3;
+                text: "Segnala un problema";
+                has-icon: true;
+                icon: Icons.report;
+                clicked => {
+                    root.report();
+                }
+            }
+        }
     }
 }
 
@@ -415,6 +428,7 @@ export component ResultsPage inherits Page {
     VerticalLayout {
         TopBar {
             title: AppState.r-title;
+            subtitle: AppState.r-sync;
         }
 
         Scroller {
@@ -451,6 +465,44 @@ export component ResultsPage inherits Page {
                 }
             }
 
+            // feedback per Claude: solo con GitHub configurato (finisce nel repository)
+            if AppState.sync-configured: Card {
+                bg: M3.surface-container;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+                    Text {
+                        text: AppState.r-feedback-sent ? "Grazie, feedback inviato!" : "Ti ha soddisfatto questo quiz?";
+                        font-size: Type.title;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                    }
+
+                    if !AppState.r-feedback-sent: StarRating {
+                        value <=> AppState.r-rating;
+                    }
+                    if !AppState.r-feedback-sent: TextEdit {
+                        text <=> AppState.r-feedback;
+                        placeholder-text: "Proposte o modifiche (domande poco chiare, troppo facili/difficili, argomenti da aggiungere…)";
+                        wrap: word-wrap;
+                        min-height: 96px;
+                    }
+                    if !AppState.r-feedback-sent: HorizontalLayout {
+                        alignment: end;
+                        M3Button {
+                            text: "Invia feedback";
+                            kind: 1;
+                            has-icon: true;
+                            icon: Icons.feedback;
+                            enabled: AppState.r-rating > 0 || AppState.r-feedback != "";
+                            clicked => {
+                                AppState.send-session-feedback();
+                            }
+                        }
+                    }
+                }
+            }
+
             Text {
                 text: "Tocca una domanda per la spiegazione; la bandierina segna/toglie \"insicura\".";
                 font-size: Type.label;
@@ -465,6 +517,9 @@ export component ResultsPage inherits Page {
                 }
                 open-ref => {
                     AppState.open-ref-result(i);
+                }
+                report => {
+                    AppState.report-result(i);
                 }
             }
         }

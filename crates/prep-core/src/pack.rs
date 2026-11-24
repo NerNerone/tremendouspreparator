@@ -1,5 +1,5 @@
 //! Pacchetto contenuti: quiz, flashcard e libri in un unico file (`.json.gz`), così i
-//! contenuti si aggiornano senza reinstallare l'app.
+//! contenuti si aggiornano anche senza token GitHub e senza reinstallare l'app.
 //!
 //! ```text
 //! { "format": "tremendous-preparator-contenuti", "version": 1,
@@ -12,6 +12,7 @@
 //! (`progress/`) non vengono mai toccati.
 
 use crate::content::Content;
+use crate::github::git_blob_sha;
 use crate::store::Store;
 use crate::vfs;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,8 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 pub const FORMAT: &str = "tremendous-preparator-contenuti";
+/// Formato dei pacchetti creati dalle prime versioni, ancora accettato.
+const FORMAT_OLD: &str = "semestre-aperto-contenuti";
 /// Nome proposto per il file del pacchetto (se ne accettano anche altri, `.json.gz`).
 pub const FILE_NAME: &str = "contenuti.json.gz";
 
@@ -69,7 +72,7 @@ fn walk(dir: &Path, base: &Path, out: &mut Vec<String>) {
     }
 }
 
-/// Crea il pacchetto da una cartella di contenuti (`root` = cartella con content/ e books/).
+/// Crea il pacchetto dal checkout del repository (`root` = cartella con content/ e books/).
 pub fn build(root: &Path, label: &str) -> Result<(Vec<u8>, PackInfo), String> {
     let mut paths = Vec::new();
     walk(&root.join("content"), root, &mut paths);
@@ -114,7 +117,7 @@ fn parse(bytes: &[u8]) -> Result<Pack, String> {
     }
     let pack: Pack = serde_json::from_slice(&json)
         .map_err(|_| "non è un pacchetto contenuti di Tremendous Preparator".to_string())?;
-    if pack.format != FORMAT {
+    if pack.format != FORMAT && pack.format != FORMAT_OLD {
         return Err("non è un pacchetto contenuti di Tremendous Preparator".into());
     }
     if pack.version > 1 {
@@ -195,7 +198,7 @@ fn import_with(store: &Store, bytes: &[u8], replace: bool) -> Result<PackInfo, S
     }
     for (p, t) in &pack.files {
         let bytes = t.as_bytes();
-        let sha = crate::store::blob_sha(bytes);
+        let sha = git_blob_sha(bytes);
         let same = idx.files.get(p) == Some(&sha) && store.mirror_path(p).is_some_and(|f| vfs::exists(&f));
         if !same {
             store.write_mirror(p, bytes).map_err(|e| format!("{p}: {e}"))?;
@@ -210,7 +213,7 @@ fn import_with(store: &Store, bytes: &[u8], replace: bool) -> Result<PackInfo, S
 }
 
 /// Impronta dei contenuti nel mirror (libri, quiz, flashcard): uguale su due dispositivi
-/// che hanno gli stessi file, comunque ci siano arrivati (pacchetto o altro dispositivo).
+/// che hanno gli stessi file, comunque ci siano arrivati (pacchetto, GitHub, altro dispositivo).
 /// Non è un controllo di sicurezza (i file hanno già il loro SHA): resta SHA-1 perché i
 /// dispositivi se la scambiano e le versioni precedenti la calcolano così.
 pub fn content_version(store: &Store) -> String {

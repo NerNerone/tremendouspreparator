@@ -142,6 +142,13 @@ export component TuPage inherits Page {
                 }
             }
             ListRow {
+                title: "GitHub";
+                subtitle: AppState.sync-configured ? "Acceso · " + AppState.sync-status : "Spento · repository con pacchetto, progressi e gruppi";
+                clicked => {
+                    AppState.open-setting(7);
+                }
+            }
+            ListRow {
                 title: "Condividi con un'altra persona";
                 subtitle: "Manda o ricevi un esame con un codice";
                 clicked => {
@@ -181,6 +188,14 @@ export component TuPage inherits Page {
                 subtitle: "Importa, gestisci ed esporta quiz, flashcard e libri";
                 clicked => {
                     AppState.open-setting(4);
+                }
+            }
+            // segnalazioni nel repository GitHub (solo con GitHub acceso)
+            if AppState.sync-configured: ListRow {
+                title: "Feedback";
+                subtitle: "Segnalazioni e richieste, salvate nel repository";
+                clicked => {
+                    AppState.open-feedback();
                 }
             }
             ListRow {

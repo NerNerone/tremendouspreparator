@@ -3,7 +3,7 @@
 //! confermati sono salvati in `goals.json` e il loro avanzamento si calcola dallo storico.
 //!
 //! Sincronizzazione tra dispositivi: ogni modifica degli obiettivi crea anche un file nuovo in
-//! `progress/goals/<giorno>/` (l'app crea solo file nuovi, mai li sovrascrive); ogni
+//! `progress/goals/<giorno>/` (i commit dell'app creano solo file, mai li sovrascrivono); ogni
 //! dispositivo usa la versione con `updated_at` più recente tra la sua e quelle scaricate.
 //! Cancellare gli obiettivi registra una versione con `topics` vuoto.
 
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 pub const GOALS_FILE: &str = "goals.json";
-/// Cartella con le versioni degli obiettivi.
+/// Cartella del repository con le versioni degli obiettivi.
 pub const GOALS_DIR: &str = "progress/goals";
 /// Tentativi per argomento che vorremmo aver fatto prima dell'esame.
 const TARGET_ATTEMPTS: u32 = 15;
@@ -96,8 +96,14 @@ impl Goals {
         let now = chrono::Utc::now();
         self.updated_at = Some(now);
         self.save(&store.root)?;
+        let id = format!("goals-{}", now.format("%Y%m%dT%H%M%S%3fZ"));
         let path = format!("{GOALS_DIR}/{}/{}.json", self.date, now.format("%Y%m%dT%H%M%S%3fZ"));
-        store.record_file(path, serde_json::to_string_pretty(self)?.into_bytes())
+        let msg = if self.topics.is_empty() {
+            format!("obiettivi {}: cancellati", self.date)
+        } else {
+            format!("obiettivi {}: {} argomenti", self.date, self.topics.len())
+        };
+        store.record_file(&id, path, serde_json::to_string_pretty(self)?.into_bytes(), &msg)
     }
 
     /// Obiettivi cancellati per il giorno `date`.
@@ -353,7 +359,7 @@ mod sync_tests {
             .write_mirror("progress/goals/2026-11-11/y.json", serde_json::to_string(&gone).unwrap().as_bytes())
             .unwrap();
         assert!(Goals::latest(&store, day).unwrap().topics.is_empty());
-        assert!(store.index().files.keys().any(|p| p.starts_with("progress/goals/2026-11-11/")));
+        assert!(store.outbox().iter().any(|(_, e)| e.path.starts_with("progress/goals/2026-11-11/")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

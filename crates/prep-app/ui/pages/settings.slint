@@ -1,10 +1,11 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
-import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM } from "../state.slint";
+import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
 import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 import { Avatar } from "group.slint";
 
 export component SettingsPage inherits Page {
+    property <bool> gh-open: true;
     // voci del menu (l'indice è il numero della sezione, vedi `settings-sec`)
     property <[{id: int, title: string, sub: string}]> menu: [
         { id: 0, title: "Profilo", sub: "Nome, foto e colore con cui ti vedono gli altri" },
@@ -14,6 +15,7 @@ export component SettingsPage inherits Page {
         { id: 4, title: "Pacchetto contenuti", sub: "Importa, gestisci ed esporta quiz, flashcard e libri" },
         { id: 5, title: "Promemoria", sub: "Notifiche per ripassare" },
         { id: 6, title: "Esame e barra", sub: "Regole della prova e come si calcola la preparazione" },
+        { id: 7, title: "GitHub e aggiornamenti", sub: "Repository dei progressi e nuove versioni dell'app" },
     ];
     VerticalLayout {
         TopBar {
@@ -66,7 +68,7 @@ export component SettingsPage inherits Page {
                         AppState.update-check();
                     }
                 }
-                // nuova versione dell'app disponibile
+                // nuova versione dell'app disponibile (dal repository GitHub)
                 if AppState.update-version != "": M3Button {
                     text: AppState.update-busy ? "Scarico l'aggiornamento…" : "Aggiorna alla versione " + AppState.update-version;
                     has-icon: true;
@@ -219,7 +221,7 @@ export component SettingsPage inherits Page {
                 }
             }
 
-            // sincronizzazione tra dispositivi (telefono, web app, computer)
+            // sincronizzazione tra dispositivi (telefono, web app, computer) senza GitHub
             if AppState.settings-sec == 2: Section {
                 title: "Dispositivi";
                 summary: "Progressi ed esami tra i tuoi dispositivi, cifrati; si trovano tramite relay pubblici di terzi";
@@ -499,6 +501,232 @@ export component SettingsPage inherits Page {
                 }
             }
 
+            if AppState.settings-sec < 0 && AppState.sync-configured: Card {
+                clickable: true;
+                bg: M3.tertiary-container;
+                clicked => {
+                    AppState.open-feedback();
+                }
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    VIcon {
+                        source: Icons.feedback;
+                        tint: M3.on-tertiary-container;
+                    }
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text {
+                            text: "Feedback";
+                            font-size: Type.title;
+                            font-weight: 700;
+                            color: M3.on-tertiary-container;
+                        }
+
+                        Text {
+                            text: "Proposte e segnalazioni: Claude le legge, le integra e ti risponde qui (" + AppState.feedbacks.length + " inviati)";
+                            font-size: Type.label;
+                            color: M3.on-tertiary-container;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    VIcon {
+                        source: Icons.chevron;
+                        tint: M3.on-tertiary-container;
+                    }
+                }
+            }
+
+            // repository GitHub: chiuso è solo una riga con lo stato; si apre toccandolo
+            if AppState.settings-sec == 7: Card {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Rectangle {
+                        height: gh-head.preferred-height;
+                        gh-head := HorizontalLayout {
+                            spacing: 12px;
+                            VIcon {
+                                source: Icons.sync;
+                                tint: M3.on-surface-variant;
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "Repository GitHub";
+                                    font-size: Type.title;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                }
+                                if !root.gh-open: Text {
+                                    text: AppState.sync-configured ? AppState.s-owner + "/" + AppState.s-repo + " · " + AppState.sync-status : "Spento: progressi e gruppi solo tra i tuoi dispositivi";
+                                    font-size: Type.label;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+                            VIcon {
+                                source: Icons.chevron;
+                                tint: M3.on-surface-variant;
+                                transform-rotation: root.gh-open ? -90deg : 90deg;
+                                animate transform-rotation { duration: 200ms; }
+                            }
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.gh-open = !root.gh-open;
+                            }
+                        }
+                    }
+
+                    if root.gh-open: HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            text: "Sincronizza con un repository GitHub";
+                            font-size: Type.body;
+                            color: M3.on-surface;
+                            vertical-alignment: center;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+                        Switch {
+                            checked <=> AppState.s-github-on;
+                            toggled => {
+                                AppState.gh-toggle(self.checked);
+                            }
+                        }
+                    }
+
+                    if root.gh-open: Text {
+                        text: AppState.s-github-on
+                            ? "Un repository (anche privato) con il pacchetto e i progressi: ogni quiz, simulazione, ripasso, obiettivo e l'elenco dei gruppi diventano file in progress/. Ogni esame usa un suo ramo. Serve un token «fine-grained» limitato a quel repository, con Contents: Read and write."
+                            : "Spento: progressi e gruppi viaggiano solo tra i tuoi dispositivi collegati, nessuna richiesta a GitHub.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    if root.gh-open && AppState.s-github-on: LineEdit {
+                        text <=> AppState.s-owner;
+                        placeholder-text: "Proprietario (nome utente GitHub)";
+                    }
+
+                    if root.gh-open && AppState.s-github-on: LineEdit {
+                        text <=> AppState.s-repo;
+                        placeholder-text: "Repository";
+                    }
+
+                    if root.gh-open && AppState.s-github-on: LineEdit {
+                        text <=> AppState.s-token;
+                        placeholder-text: "Token GitHub (github_pat_…)";
+                        input-type: password;
+                    }
+
+                    if root.gh-open && AppState.s-github-on: HorizontalLayout {
+                        spacing: 8px;
+                        M3Button {
+                            text: "Salva e sincronizza";
+                            has-icon: true;
+                            icon: Icons.sync;
+                            enabled: !AppState.syncing;
+                            horizontal-stretch: 1;
+                            clicked => {
+                                AppState.save-settings();
+                            }
+                        }
+                        M3Button {
+                            text: "Rami";
+                            kind: 1;
+                            clicked => {
+                                AppState.gh-load-branches();
+                            }
+                        }
+                    }
+
+                    if root.gh-open && AppState.s-github-on: Text {
+                        text: AppState.gh-exam-branch != "" ? "Questo esame si sincronizza dal ramo «" + AppState.gh-exam-branch + "». Tocca un ramo per cambiarlo, o «Nuovo esame» per scaricarne un altro." : "Scegli il ramo di questo esame, o scarica un esame nuovo da un ramo.";
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    if root.gh-open && AppState.s-github-on && AppState.gh-branch-status != "": Text {
+                        text: AppState.gh-branch-status;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    for b in root.gh-open && AppState.s-github-on ? AppState.gh-branches : []: HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            border-radius: 14px;
+                            background: b.sel ? M3.secondary-container : M3.surface-container-high;
+                            HorizontalLayout {
+                                padding: 10px;
+                                spacing: 8px;
+                                if b.sel: VIcon {
+                                    source: Icons.check;
+                                    tint: M3.on-secondary-container;
+                                    size: 18px;
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: b.name;
+                                        font-weight: 700;
+                                        color: M3.on-surface;
+                                        overflow: elide;
+                                    }
+                                    if b.group != "": Text {
+                                        text: "esame: " + b.group;
+                                        font-size: Type.label;
+                                        color: M3.on-surface-variant;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                            TouchArea {
+                                clicked => {
+                                    AppState.gh-pick-branch(b.id);
+                                }
+                            }
+                        }
+                        M3Button {
+                            text: "Nuovo esame";
+                            kind: 2;
+                            clicked => {
+                                AppState.gh-add-exam(b.id);
+                            }
+                        }
+                    }
+
+                    if root.gh-open && AppState.s-github-on: Text {
+                        text: AppState.sync-status;
+                        wrap: word-wrap;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                    }
+
+                    // aggiornamento dall'ultima release del repository (anche a scheda chiusa)
+                    if AppState.update-version != "": M3Button {
+                        text: AppState.update-busy ? "Scarico l'aggiornamento…" : "Aggiorna alla versione " + AppState.update-version;
+                        has-icon: true;
+                        icon: Icons.sync;
+                        enabled: !AppState.update-busy;
+                        clicked => {
+                            AppState.update-install();
+                        }
+                    }
+                }
+            }
+
             if AppState.settings-sec == 4: Section {
                 title: "Pacchetto contenuti";
                 summary: "Quiz, flashcard e libri da un unico file";
@@ -509,9 +737,22 @@ export component SettingsPage inherits Page {
                         text: AppState.pack-busy ? "Importazione…" : "Importa pacchetto";
                         has-icon: true;
                         icon: Icons.sync;
-                        enabled: !AppState.pack-busy;
+                        enabled: !AppState.pack-busy && !AppState.syncing;
                         clicked => {
                             AppState.import-pack();
+                        }
+                    }
+                    // pacchetto (e progressi) da un ramo del repository GitHub dei dati
+                    M3Button {
+                        text: "Da un ramo del repository GitHub";
+                        kind: 1;
+                        has-icon: true;
+                        icon: Icons.sync;
+                        clicked => {
+                            AppState.open-setting(7);
+                            if (AppState.sync-configured) {
+                                AppState.gh-load-branches();
+                            }
                         }
                     }
                     M3Button {

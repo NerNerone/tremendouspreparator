@@ -104,6 +104,16 @@ export struct TocVM {
     current: bool,
 }
 
+export struct FeedbackVM {
+    date: string,
+    title: string,
+    text: string,
+    rating: int,
+    status: string,
+    reply: string,
+    pending: bool,
+}
+
 export struct BookVM {
     id: string,
     title: string,
@@ -386,7 +396,7 @@ export global AppState {
     // tracciato della barra ondulata (calcolato in Rust): onda da x0 a x1 centrata su cy,
     // ampiezza amp, lunghezza d'onda wl, fase 0..1; coordinate in pixel logici
     pure callback wave-path(float, float, float, float, float, float) -> string;
-    // navigazione: 0 home, 1 studio, 2 unità, 3 quiz, 4 risultati, 5 flashcard, 6 insicure, 7 impostazioni, 8 mazzi, 9 lettore, 11 obiettivi, 12 tavola periodica
+    // navigazione: 0 home, 1 studio, 2 unità, 3 quiz, 4 risultati, 5 flashcard, 6 insicure, 7 impostazioni, 8 mazzi, 9 lettore, 10 feedback, 11 obiettivi, 12 tavola periodica
     in-out property <int> page: 0;
     in-out property <int> tab: 0;
 
@@ -422,12 +432,16 @@ export global AppState {
     in property <int> due-count;
     in property <string> ai-summary;
     in property <[string]> ai-priorities;
+    in property <string> sync-status;
+    /// proprietario, repository e token GitHub impostati
+    in property <bool> sync-configured;
     // pacchetto contenuti (quiz, flashcard, libri in un file)
     in property <string> pack-status;
     in property <[ContentFileVM]> content-files;
     in property <string> contents-status;
     in property <bool> pack-busy;
     in property <bool> on-android;
+    in property <bool> syncing;
     in property <string> content-info;
     // nessun esame installato (la Home invita a importare un pacchetto)
     in property <bool> no-exam;
@@ -476,6 +490,10 @@ export global AppState {
     in property <bool> r-is-exam;
     in property <bool> r-passed;
     in property <[ResultItemVM]> r-items;
+    in property <string> r-sync;
+    in-out property <int> r-rating;
+    in-out property <string> r-feedback;
+    in property <bool> r-feedback-sent;
 
     // flashcard
     in property <string> c-front;
@@ -530,6 +548,10 @@ export global AppState {
     in property <float> cam-side: 1;
     in property <float> cam-stack: 0;
     in property <float> cam-run: 0;
+    // aggiornamento dell'app (build privata): versione disponibile, download in corso
+    in property <string> update-version;
+    in property <bool> update-busy;
+    callback update-install();
     // giri al secondo in pista
     in property <float> lap-speed: 0.0166667;
     in property <string> track-cmd;
@@ -646,10 +668,6 @@ export global AppState {
     in-out property <string> pdf-pages;
     in property <bool> pdf-busy;
     in property <string> pdf-status;
-    // aggiornamento dell'app disponibile (solo APK pubblicati su GitHub)
-    in property <string> update-version;
-    in property <bool> update-busy;
-    callback update-install();
     // «Cerca aggiornamenti»: solo nelle build che si aggiornano da sole
     in property <bool> update-can-check;
     in property <bool> update-checking;
@@ -796,6 +814,15 @@ export global AppState {
     in property <[QzOptVM]> qz-subjects;
     in property <[QzOptVM]> qz-units;
     in property <[QzOptVM]> qz-sources;
+    // repository GitHub dei dati (spento di default): rami, ramo dell'esame aperto
+    in-out property <bool> s-github-on;
+    in property <[QzOptVM]> gh-branches;
+    in property <string> gh-branch-status;
+    in property <string> gh-exam-branch;
+    callback gh-toggle(bool);
+    callback gh-load-branches();
+    callback gh-pick-branch(string);
+    callback gh-add-exam(string);
     // fonti delle domande dell'unità aperta (stessa scelta del quiz personalizzato)
     in property <[QzOptVM]> unit-sources;
     in property <bool> qz-mcq: true;
@@ -805,7 +832,18 @@ export global AppState {
     in property <int> exam-n: 31;
     in property <int> qz-available;
 
+    // feedback
+    in-out property <string> fb-category: "contenuti";
+    in-out property <string> fb-text;
+    in property <string> fb-item;
+    in property <string> fb-item-text;
+    in property <[FeedbackVM]> feedbacks;
+
     // impostazioni
+    in-out property <string> s-owner;
+    in-out property <string> s-repo;
+    in-out property <string> s-branch;
+    in-out property <string> s-token;
     in-out property <bool> s-rem-on: true;
     in-out property <string> s-rem-time: "18:30";
     in property <string> app-version;
@@ -857,6 +895,10 @@ export global AppState {
 
     callback flag-toggle(string);
 
+    callback send-session-feedback();
+    callback send-feedback();
+    callback report-result(int);
+    callback clear-fb-item();
 
     callback open-ref-quiz();
     callback open-ref-result(int);
@@ -881,6 +923,8 @@ export global AppState {
     callback notify(string);
     callback rd-share(string);
 
+    callback sync-now();
+    callback save-settings();
     callback import-pack();
     callback open-contents();
     callback contents-add();
@@ -901,6 +945,7 @@ export global AppState {
     callback goals-remove(int);
     callback goals-pick-subject(string);
     callback open-settings();
+    callback open-feedback();
     // sezione delle Opzioni aperta (-1 = menu)
     in-out property <int> settings-sec: -1;
     // tavola periodica e nomenclatura

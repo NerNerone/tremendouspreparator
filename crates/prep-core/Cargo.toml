@@ -29,6 +29,10 @@ lopdf = { version = "0.47", default-features = false }
 # «Estrai il testo» anche da Word, PowerPoint, OpenDocument ed EPUB (XML dentro archivi ZIP)
 roxmltree = "0.21"
 
+# rete bloccante per la sincronizzazione GitHub: non nel browser
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+
 # nel browser il caso e l'ora vengono da JavaScript
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fastrand = { version = "2", default-features = false, features = ["std", "js"] }

@@ -513,6 +513,8 @@ impl Ctrl {
                 st.set_ai_priorities(model(vec![]));
             }
         }
+        st.set_sync_status(ss(sync::status_line(&self.store)));
+        st.set_sync_configured(self.sync_configured());
         let warn = if self.content.warnings.is_empty() {
             String::new()
         } else {
@@ -524,7 +526,7 @@ impl Ctrl {
             "{} domande · {} flashcard · contenuti {}{} · {} sessioni",
             self.content.questions.len(),
             self.content.cards.len(),
-            if self.from_pack { "da un pacchetto" } else { "inclusi nell'app" },
+            if self.from_repo { "dal repository" } else { "inclusi nell'app" },
             warn,
             self.sessions.len()
         )));

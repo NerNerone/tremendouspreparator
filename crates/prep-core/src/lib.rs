@@ -7,6 +7,8 @@ pub mod contents;
 pub mod creator;
 pub mod docs;
 pub mod exams;
+pub mod feedback;
+pub mod github;
 pub mod group;
 pub mod icons;
 pub mod latex;
@@ -25,6 +27,7 @@ pub mod select;
 pub mod session;
 pub mod srs;
 pub mod store;
+pub mod sync;
 pub mod vfs;
 
 pub use content::Content;
