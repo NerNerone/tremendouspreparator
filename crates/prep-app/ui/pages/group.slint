@@ -1656,11 +1656,10 @@ export component GroupPage inherits Page {
                             alignment: start;
                             Rectangle {
                                 height: 26px;
-                                width: live-row.preferred-width + 20px;
+                                width: 66px;
                                 border-radius: 13px;
                                 background: M3.error;
                                 live-row := HorizontalLayout {
-                                    x: 10px;
                                     spacing: 5px;
                                     alignment: center;
                                     VerticalLayout {
@@ -1725,59 +1724,188 @@ export component GroupPage inherits Page {
             if AppState.focus-active: Rectangle {
                 border-radius: 28px;
                 background: M3.primary-container;
-                HorizontalLayout {
+                min-height: fcol.preferred-height;
+                fcol := VerticalLayout {
                     padding: 16px;
-                    spacing: 16px;
-                    Rectangle {
-                        width: 120px;
-                        height: 120px;
-                        RingProgress {
-                            width: 120px;
-                            height: 120px;
-                            value: AppState.focus-left != "" ? AppState.focus-left-frac : 1;
-                            thickness: 11px;
-                            fill: M3.primary;
-                            track: M3.primary.with-alpha(0.18);
+                    spacing: 12px;
+                    HorizontalLayout {
+                        spacing: 16px;
+                        Rectangle {
+                            width: 132px;
+                            height: 132px;
+                            RingProgress {
+                                width: 132px;
+                                height: 132px;
+                                value: AppState.focus-left != "" ? AppState.focus-left-frac : 1;
+                                thickness: 12px;
+                                fill: M3.primary;
+                                track: M3.primary.with-alpha(0.18);
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: AppState.focus-left != "" ? AppState.focus-left : "∞";
+                                    font-size: 32px;
+                                    font-weight: 900;
+                                    color: M3.on-primary-container;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: AppState.focus-left != "" ? "rimasti" : "fino a «Termina»";
+                                    font-size: 12px;
+                                    color: M3.on-primary-container;
+                                    horizontal-alignment: center;
+                                }
+                            }
                         }
                         VerticalLayout {
                             alignment: center;
+                            spacing: 4px;
+                            horizontal-stretch: 1;
                             Text {
-                                text: AppState.focus-left != "" ? AppState.focus-left : "∞";
+                                text: "×1,5";
                                 font-size: 28px;
-                                font-weight: 800;
-                                color: M3.on-primary-container;
-                                horizontal-alignment: center;
+                                font-weight: 900;
+                                color: M3.primary;
                             }
                             Text {
-                                text: AppState.focus-left != "" ? "rimasti" : "fino a «Termina»";
-                                font-size: Type.label;
+                                text: "Concentrazione · scia blu";
+                                font-size: 15px;
+                                font-weight: 700;
                                 color: M3.on-primary-container;
-                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: AppState.ahead-text != "" ? AppState.ahead-text : "Le altre app sono bloccate fino alla fine";
+                                font-size: 13px;
+                                color: M3.on-primary-container;
+                                wrap: word-wrap;
                             }
                         }
                     }
-                    VerticalLayout {
-                        alignment: center;
-                        spacing: 6px;
-                        horizontal-stretch: 1;
-                        Text {
-                            text: "Concentrazione · ×1,5";
-                            font-size: Type.title;
-                            font-weight: 700;
-                            color: M3.on-primary-container;
-                            wrap: word-wrap;
+                    // app permesse: si aprono da qui
+                    Flickable {
+                        height: 40px;
+                        interactive: true;
+                        content-width: max(self.width, flaunch.preferred-width);
+                        content-height: 40px;
+                        flaunch := HorizontalLayout {
+                            x: 0px;
+                            y: 0px;
+                            height: 40px;
+                            spacing: 8px;
+                            alignment: start;
+                            for a in AppState.focus-launcher: AppChip {
+                                app: a;
+                                clicked => {
+                                    AppState.focus-launch(a.pkg);
+                                }
+                            }
+                            Chip {
+                                text: "Telefono";
+                                clicked => {
+                                    AppState.focus-dial();
+                                }
+                            }
                         }
-                        Text {
-                            text: AppState.ahead-text != "" ? AppState.ahead-text : "Scia blu in pista: le altre app sono bloccate";
-                            font-size: Type.label;
-                            color: M3.on-primary-container;
-                            wrap: word-wrap;
+                    }
+                    Text {
+                        text: "Se esci prima del tempo il bonus resta sospeso: bandiera gialla in pista.";
+                        font-size: 12px;
+                        color: M3.on-primary-container.with-alpha(0.8);
+                        wrap: word-wrap;
+                    }
+                    HorizontalLayout {
+                        spacing: 3px;
+                        if AppState.study-state == 1: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 52px;
+                            border-top-left-radius: 26px;
+                            border-bottom-left-radius: 26px;
+                            border-top-right-radius: 8px;
+                            border-bottom-right-radius: 8px;
+                            background: M3.surface;
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 8px;
+                                VIcon {
+                                    source: Icons.pause;
+                                    tint: M3.on-surface;
+                                    size: 20px;
+                                }
+                                Text {
+                                    text: "Pit stop";
+                                    font-size: 15px;
+                                    font-weight: 800;
+                                    color: M3.on-surface;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea {
+                                clicked => {
+                                    AppState.study-pause();
+                                }
+                            }
                         }
-                        Text {
-                            text: "Se esci prima del tempo il bonus resta sospeso (bandiera gialla).";
-                            font-size: Type.label;
-                            color: M3.on-primary-container.with-alpha(0.75);
-                            wrap: word-wrap;
+                        if AppState.study-state != 1: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 52px;
+                            border-top-left-radius: 26px;
+                            border-bottom-left-radius: 26px;
+                            border-top-right-radius: 8px;
+                            border-bottom-right-radius: 8px;
+                            background: M3.primary;
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 8px;
+                                VIcon {
+                                    source: Icons.play;
+                                    tint: M3.on-primary;
+                                    size: 20px;
+                                }
+                                Text {
+                                    text: "Riparti";
+                                    font-size: 15px;
+                                    font-weight: 800;
+                                    color: M3.on-primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea {
+                                clicked => {
+                                    AppState.study-start();
+                                }
+                            }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 52px;
+                            border-top-left-radius: 8px;
+                            border-bottom-left-radius: 8px;
+                            border-top-right-radius: 26px;
+                            border-bottom-right-radius: 26px;
+                            background: M3.error-container;
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 8px;
+                                VIcon {
+                                    source: Icons.close;
+                                    tint: M3.on-error-container;
+                                    size: 20px;
+                                }
+                                Text {
+                                    text: "Termina";
+                                    font-size: 15px;
+                                    font-weight: 800;
+                                    color: M3.on-error-container;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea {
+                                clicked => {
+                                    AppState.study-stop();
+                                }
+                            }
                         }
                     }
                 }
@@ -2156,8 +2284,8 @@ export component GroupPage inherits Page {
                 }
             }
 
-            // cronometro personale
-            Card {
+            // cronometro personale (con la concentrazione attiva i comandi stanno nel riquadro in alto)
+            if !AppState.focus-active: Card {
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -2220,65 +2348,6 @@ export component GroupPage inherits Page {
                             kind: 2;
                             clicked => {
                                 AppState.focus-setup(true);
-                            }
-                        }
-                    }
-                    if AppState.focus-active: VerticalLayout {
-                        spacing: 6px;
-                        // conto alla rovescia del blocco
-                        if AppState.focus-left != "": HorizontalLayout {
-                            spacing: 12px;
-                            Text {
-                                text: AppState.focus-left;
-                                font-size: 34px;
-                                font-weight: 800;
-                                color: M3.primary;
-                                vertical-alignment: center;
-                            }
-                            VerticalLayout {
-                                alignment: center;
-                                horizontal-stretch: 1;
-                                spacing: 4px;
-                                Text {
-                                    text: "alla fine della concentrazione";
-                                    font-size: Type.label;
-                                    color: M3.on-surface-variant;
-                                }
-                                LinearProgress {
-                                    value: AppState.focus-left-frac;
-                                }
-                            }
-                        }
-                        Text {
-                            text: AppState.focus-status;
-                            wrap: word-wrap;
-                            font-size: Type.label;
-                            font-weight: 700;
-                            color: M3.primary;
-                        }
-                        Flickable {
-                            height: 44px;
-                            interactive: true;
-                            content-width: max(self.width, launch-row.preferred-width);
-                            content-height: 44px;
-                            launch-row := HorizontalLayout {
-                                x: 0px;
-                                y: 0px;
-                                height: 44px;
-                                spacing: 8px;
-                                alignment: start;
-                                for a in AppState.focus-launcher: AppChip {
-                                    app: a;
-                                    clicked => {
-                                        AppState.focus-launch(a.pkg);
-                                    }
-                                }
-                                Chip {
-                                    text: "Telefono";
-                                    clicked => {
-                                        AppState.focus-dial();
-                                    }
-                                }
                             }
                         }
                     }

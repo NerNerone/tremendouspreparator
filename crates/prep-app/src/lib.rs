@@ -278,11 +278,15 @@ pub(crate) mod focus {
         #[cfg(not(target_os = "android"))]
         // PREP_FOCUS_FAKE=restricted: come un APK installato da file su Android 13+
         if cfg!(debug_assertions) {
+            // PREP_FOCUS_FAKE=active: concentrazione già in corso (16 minuti alla fine)
             std::env::var("PREP_FOCUS_FAKE").ok().map(|v| {
                 let r = v == "restricted";
+                let on = v == "active";
+                let until = if on { chrono::Utc::now().timestamp_millis() + 962_000 } else { 0 };
                 format!(
-                    r#"{{"usage":{},"restricted":{r},"overlay":false,"until":0,"armed":false,"session":0,"active":false,"allowed":[]}}"#,
-                    !r
+                    r#"{{"usage":{},"restricted":{r},"overlay":{on},"until":{until},"armed":{on},"session":{},"active":{on},"allowed":["org.wikipedia"]}}"#,
+                    !r,
+                    i32::from(on)
                 )
             })
         } else {
