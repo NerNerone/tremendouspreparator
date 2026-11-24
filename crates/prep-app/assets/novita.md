@@ -5,6 +5,14 @@ l'aggiornamento che lo porta.
 
 ## 24 novembre 2026
 
+- Tutta l'app nello stile «Traguardo»: Oggi con gli appelli nella fascia della preparazione, Studia, unità, quiz, risultati, flashcard, lettore, Squadra e Tu.
+- Tu: tempo, risposte e giuste in alto; Opzioni in quattro riquadri (Tu e l'aspetto, Dispositivi, Studio, App) e la pagina Novità e note legali.
+- Aspetto: tema chiaro, scuro o come il sistema. Promemoria: ogni orario si accende e si spegne da solo.
+- Menu degli esami: con GitHub collegato puoi creare un ramo nuovo dal modello (guida, strumenti e direttive per l'AI) o salvare in un ramo l'esame importato da un pacchetto.
+- Simulazioni: prova completa con tutte le materie una dopo l'altra, con o senza tempo, prove ufficiali intere e registro nella stessa pagina.
+- Lettore: «Quiz su …» sull'argomento della sezione che stai leggendo.
+- Gestisci contenuti: filtri e scelta di più file da togliere insieme. Estrai il testo: anteprima del testo con «Copia».
+- Feedback come una chat; calendario e pit stop in pagine dedicate in Squadra.
 - Nuova interfaccia «Traguardo»: barra Oggi · Studia · Squadra · Tu, pulsante «Studia ora» con il menu delle attività, Opzioni dentro «Tu».
 - Oggi: barra ondulata con inizio e fine netti, icona e colore delle materie decisi dal pacchetto.
 - Barra della sessione in basso: un quiz lasciato a metà si riprende con un tocco (su Android va in pausa da solo quando esci dall'app).
