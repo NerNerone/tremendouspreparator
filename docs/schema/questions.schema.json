@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "content/questions/*.json — domande",
+  "type": "object",
+  "required": [
+    "schema",
+    "questions"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "topic",
+          "type",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "mcq",
+              "fill"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string"
+            }
+          },
+          "answer": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "indice da 0 dell'opzione giusta"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "numeric": {
+            "type": "object",
+            "required": [
+              "value"
+            ],
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "tolerance": {
+                "type": "number",
+                "minimum": 0
+              },
+              "unit": {
+                "type": "string"
+              }
+            }
+          },
+          "explanation": {
+            "type": "string",
+            "description": "le righe «• B) testo: perché» diventano note sulle singole risposte"
+          },
+          "source": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "ref": {
+            "type": "object",
+            "required": [
+              "book"
+            ],
+            "properties": {
+              "book": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string",
+                "pattern": "^books/.+\\.md$"
+              },
+              "section": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "mcq"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "options",
+                "answer"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "fill"
+                }
+              }
+            },
+            "then": {
+              "anyOf": [
+                {
+                  "required": [
+                    "answers"
+                  ]
+                },
+                {
+                  "required": [
+                    "numeric"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

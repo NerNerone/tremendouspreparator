@@ -1,0 +1,9 @@
+{
+  "name": "tremendouspreparator-tools",
+  "private": true,
+  "type": "module",
+  "description": "Strumenti per i contenuti: impaginazione delle formule LaTeX in SVG",
+  "dependencies": {
+    "mathjax-full": "3.2.2"
+  }
+}

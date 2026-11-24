@@ -1,52 +1,60 @@
-# Modello di repository dei dati per Tremendous Preparator
+# Esame per Tremendous Preparator
 
-Questo ramo (`modello-dati`) è lo scheletro di un repository **di soli dati**: il pacchetto
-contenuti di un esame e i progressi di chi studia. Nessun codice e nessun workflow: non consuma
-minuti di GitHub Actions.
+Questo ramo è un esame per [Tremendous Preparator](https://github.com/NerNerone/tremendouspreparator):
+il pacchetto dei contenuti e i progressi di chi studia. Solo dati: nessun codice dell'app e
+nessun workflow, quindi non consuma minuti di GitHub Actions.
 
 ## Struttura
 
 ```text
-content/syllabus.json        materie, unità, argomenti, regole e date d'esame
-content/questions/*.json     quiz
-content/flashcards/*.json    flashcard
-books/<materia>/<libro>/*.md libri (facoltativi; figure .svg accanto)
-progress/sessions/AAAA-MM/   quiz, simulazioni e ripassi (li scrive l'app)
-progress/goals/<giorno>/     obiettivi del giorno (li scrive l'app)
-progress/groups/             elenco dei propri gruppi di studio (lo scrive l'app)
-progress/feedback/AAAA-MM/   segnalazioni (le scrive l'app)
-progress/assessment.json     revisione dei progressi fatta da un'AI (facoltativo)
+content/syllabus.json         materie, unità, argomenti, regole e date d'esame
+content/questions/*.json      quiz
+content/flashcards/*.json     flashcard
+content/books.json            libri registrati (facoltativo)
+books/<materia>/<libro>/*.md  libri in Markdown, figure .svg accanto (facoltativi)
+progress/                     sessioni, obiettivi, gruppi, feedback: li scrive l'app
+progress/assessment.json      revisione dei progressi fatta da un'AI (facoltativa)
+
+CLAUDE.md, AGENTS.md          direttive per l'AI che prepara il pacchetto
+docs/guida/                   la guida dell'app, con i prompt (08-prompt.md)
+docs/FORMATI.md, docs/schema/ formati dei file e schemi JSON
+tools/                        estrazione del testo dai PDF (con OCR), divisione in capitoli,
+                              formule in SVG
 ```
 
-I formati sono descritti in `docs/FORMATI.md` e nella guida dentro l'app (Opzioni › Pacchetto
-contenuti). Qui c'è il pacchetto d'esempio dell'app: sostituiscilo con il tuo.
+## Preparare il pacchetto con un'AI
 
-L'app crea solo file nuovi in `progress/` e non li modifica mai: niente conflitti tra dispositivi.
-Non cancellare i file di `progress/sessions/`, sono lo storico delle risposte.
+Dai all'AI questo ramo (o apri il repository con Claude Code, Codex, …) e chiedi di preparare
+l'esame dal tuo materiale: le istruzioni sono in `CLAUDE.md` (uguale ad `AGENTS.md`). Il percorso
+completo, con i prompt da copiare, è in `docs/guida/00-con-l-ai.md`.
 
-## Un ramo per esame
-
-Ogni ramo è un esame (o una versione dello stesso esame: per esempio due persone che preparano
-la stessa prova con progressi separati, o una variante del pacchetto). Per crearne uno nuovo
-parti da questo ramo:
+Strumenti (Linux o macOS):
 
 ```bash
-git clone <url del tuo repository> dati && cd dati
-git fetch <url del repository di Tremendous Preparator> modello-dati
-git checkout -b mio-esame FETCH_HEAD
-git push -u origin mio-esame
+sudo apt-get install poppler-utils tesseract-ocr tesseract-ocr-ita   # una volta
+python3 -I tools/pdf2md.py libro.pdf raw.md --offset 12              # testo, con OCR dove serve
+python3 -I tools/import_md.py libro.md books/fisica/mio-libro        # un file per capitolo
 ```
+
+Controllo dei file con lo strumento `prep` dell'app:
+
+```bash
+git clone https://github.com/NerNerone/tremendouspreparator ../tp
+cargo run -q --manifest-path ../tp/Cargo.toml -p prep-core --bin prep -- validate .
+```
+
+Il pacchetto d'esempio (`esempio`) va sostituito con il tuo esame.
 
 ## Nell'app
 
-1. Crea un repository (meglio privato) e copia qui dentro il contenuto di questo ramo.
-2. Crea un token GitHub «fine-grained» limitato **solo** a quel repository, con il permesso
-   *Contents: Read and write* (nient'altro).
-3. App › Tu › Dispositivi › GitHub: accendi «Sincronizza con un repository GitHub», scrivi
-   proprietario, nome del repository e token, poi «Salva e sincronizza».
-4. «Rami»: tocca il ramo dell'esame aperto, oppure «Nuovo esame» per scaricare un esame da un
-   altro ramo. Anche da Opzioni › Pacchetto contenuti › «Da un ramo del repository GitHub».
+1. Repository (meglio privato) e token GitHub «fine-grained» limitato **solo** a quel
+   repository, con il permesso *Contents: Read and write*.
+2. Tu › App › Repository dei progressi: accendi, scrivi proprietario, repository e token,
+   «Salva e sincronizza».
+3. Dal menu degli esami in Oggi: «Da un ramo» per scaricare un esame, «Nuovo ramo» per crearne
+   uno da questo modello, oppure «Salva in un ramo» (tre puntini sull'esame) per mettere qui un
+   esame importato da un pacchetto.
 
-Il token resta solo sul dispositivo (impostazioni locali, mai inviato ad altri dispositivi né
-messo nel repository). Con GitHub spento l'app non fa nessuna richiesta a GitHub: progressi e
-gruppi viaggiano solo tra i propri dispositivi collegati.
+Ogni ramo è un esame, o una versione dello stesso esame con progressi separati. L'app crea solo
+file nuovi in `progress/` e non li modifica: niente conflitti tra dispositivi. Il token resta
+solo sul dispositivo.
