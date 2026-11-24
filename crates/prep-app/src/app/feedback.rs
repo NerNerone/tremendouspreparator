@@ -139,7 +139,10 @@ impl Ctrl {
                     pending,
                 }
             })
-            .collect();
+            .collect::<Vec<_>>();
+        // come una chat: dal più vecchio al più recente, in basso vicino al campo di testo
+        let mut list = list;
+        list.reverse();
         self.ui().global::<AppState>().set_feedbacks(model(list));
     }
 }

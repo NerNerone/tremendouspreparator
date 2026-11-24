@@ -1,14 +1,54 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, BigHeader } from "../components.slint";
+
+// Traguardo: «Feedback» come una chat. I tuoi messaggi a destra, le risposte di Claude a
+// sinistra; in basso il tipo di segnalazione e il campo per scrivere.
+component FbChip inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> on;
+    callback clicked;
+    height: 36px;
+    width: fcr.preferred-width;
+    border-radius: 10px;
+    background: root.on ? M3.secondary-container : transparent;
+    border-width: root.on ? 0px : 1px;
+    border-color: M3.outline;
+    fcr := HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        VerticalLayout {
+            alignment: center;
+            Icon {
+                width: 18px;
+                height: 18px;
+                source: root.on ? Icons.check : root.icon;
+                tint: root.on ? M3.on-secondary-container : M3.on-surface;
+            }
+        }
+        Text {
+            text: root.text;
+            font-size: 14px;
+            font-weight: 600;
+            color: root.on ? M3.on-secondary-container : M3.on-surface;
+            vertical-alignment: center;
+        }
+    }
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
 
 export component FeedbackPage inherits Page {
     VerticalLayout {
-        TopBar {
+        BigHeader {
             title: "Feedback";
-            subtitle: "Proposte e segnalazioni: Claude le legge e le integra";
-            can-back: true;
+            subtitle: "Claude li legge, li integra e ti risponde qui";
             back => {
                 AppState.back();
             }
@@ -19,147 +59,216 @@ export component FeedbackPage inherits Page {
             align: start;
             pad: 16px;
             pad-top: 4px;
-            gap: 12px;
-            Card {
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    Text {
-                        text: "Nuovo feedback";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
+            gap: 10px;
+            if AppState.feedbacks.length == 0: Text {
+                text: "Scrivi qui sotto una proposta o un errore trovato: finisce nel repository GitHub, Claude lo legge alla prossima revisione e la risposta compare in questa pagina.";
+                font-size: 14px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            for f in AppState.feedbacks: VerticalLayout {
+                spacing: 8px;
+                // il tuo messaggio, a destra (larghezza esplicita: l'altezza del testo a capo è esatta)
+                HorizontalLayout {
+                    alignment: end;
+                    Rectangle {
+                        width: root.width - 32px - 48px;
+                        height: m1.preferred-height + m2.preferred-height + 32px;
+                        border-radius: 22px;
+                        border-bottom-right-radius: 6px;
+                        background: M3.primary-container;
+                        m1 := Text {
+                            x: 14px;
+                            y: 14px;
+                            width: parent.width - 28px;
+                            text: f.text != "" ? f.text : f.rating > 0 ? "Voto " + f.rating + "/5" : "(senza testo)";
+                            font-size: 15px;
+                            color: M3.on-primary-container;
+                            wrap: word-wrap;
+                        }
+                        m2 := Text {
+                            x: 14px;
+                            y: m1.y + m1.preferred-height + 4px;
+                            width: parent.width - 28px;
+                            text: f.title + (f.rating > 0 && f.text != "" ? " · " + f.rating + "/5" : "") + " · " + f.date;
+                            font-size: 12px;
+                            color: M3.on-primary-container.with-alpha(0.75);
+                            wrap: word-wrap;
+                        }
                     }
-
-                    HorizontalLayout {
-                        spacing: 6px;
-                        Chip {
-                            text: "Contenuti";
-                            selected: AppState.fb-category == "contenuti";
-                            clicked => {
-                                AppState.fb-category = "contenuti";
-                            }
+                }
+                // la risposta, a sinistra
+                if f.reply != "": HorizontalLayout {
+                    alignment: start;
+                    Rectangle {
+                        width: root.width - 32px - 48px;
+                        height: r1.preferred-height + r2.preferred-height + 32px;
+                        border-radius: 22px;
+                        border-bottom-left-radius: 6px;
+                        background: M3.surface-container-high;
+                        r1 := Text {
+                            x: 14px;
+                            y: 14px;
+                            width: parent.width - 28px;
+                            text: f.reply;
+                            font-size: 15px;
+                            color: M3.on-surface;
+                            wrap: word-wrap;
                         }
-
-                        Chip {
-                            text: "Domanda";
-                            selected: AppState.fb-category == "domanda";
-                            clicked => {
-                                AppState.fb-category = "domanda";
-                            }
+                        r2 := Text {
+                            x: 14px;
+                            y: r1.y + r1.preferred-height + 4px;
+                            width: parent.width - 28px;
+                            text: "Claude · " + f.status;
+                            font-size: 12px;
+                            color: M3.on-surface-variant;
                         }
+                    }
+                }
+                if f.reply == "": HorizontalLayout {
+                    spacing: 6px;
+                    VerticalLayout {
+                        alignment: center;
+                        Icon {
+                            width: 16px;
+                            height: 16px;
+                            source: Icons.history;
+                            tint: M3.on-surface-variant;
+                        }
+                    }
+                    Text {
+                        text: f.pending ? "in coda · parte alla prossima sincronizzazione" : f.status + " · in attesa di risposta";
+                        font-size: 12px;
+                        color: M3.on-surface-variant;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+        }
 
-                        Chip {
-                            text: "App";
-                            selected: AppState.fb-category == "app";
+        // in basso: tipo di segnalazione, riferimento a una domanda, testo e invio
+        Rectangle {
+            background: M3.surface-container-low;
+            VerticalLayout {
+                padding: 12px;
+                padding-top: 10px;
+                spacing: 8px;
+                Flickable {
+                    height: 36px;
+                    interactive: true;
+                    content-width: max(self.width, cats.preferred-width);
+                    content-height: 36px;
+                    cats := HorizontalLayout {
+                        x: 0px;
+                        y: 0px;
+                        height: 36px;
+                        spacing: 8px;
+                        alignment: start;
+                        FbChip {
+                            text: "Proposta";
+                            icon: Icons.lightbulb;
+                            on: AppState.fb-category == "app";
                             clicked => {
                                 AppState.fb-category = "app";
                             }
                         }
-
-                        Chip {
+                        FbChip {
+                            text: "Errore in una domanda";
+                            icon: Icons.flag;
+                            on: AppState.fb-category == "domanda";
+                            clicked => {
+                                AppState.fb-category = "domanda";
+                            }
+                        }
+                        FbChip {
+                            text: "Contenuti";
+                            icon: Icons.book;
+                            on: AppState.fb-category == "contenuti";
+                            clicked => {
+                                AppState.fb-category = "contenuti";
+                            }
+                        }
+                        FbChip {
                             text: "Altro";
-                            selected: AppState.fb-category == "altro";
+                            icon: Icons.report;
+                            on: AppState.fb-category == "altro";
                             clicked => {
                                 AppState.fb-category = "altro";
                             }
                         }
                     }
-
-                    if AppState.fb-item != "": Rectangle {
-                        border-radius: 10px;
-                        background: M3.tertiary-container;
-                        HorizontalLayout {
-                            padding: 10px;
-                            spacing: 8px;
-                            Text {
-                                text: "Riguarda: " + AppState.fb-item-text;
-                                wrap: word-wrap;
-                                color: M3.on-tertiary-container;
-                                font-size: Type.label;
-                                horizontal-stretch: 1;
-                            }
-
-                            IconButton {
-                                icon: Icons.close;
-                                tint: M3.on-tertiary-container;
-                                clicked => {
-                                    AppState.clear-fb-item();
-                                }
-                            }
+                }
+                if AppState.fb-item != "": Rectangle {
+                    border-radius: 14px;
+                    background: M3.tertiary-container;
+                    min-height: it.preferred-height;
+                    it := HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 8px;
+                        Text {
+                            text: "Riguarda: " + AppState.fb-item-text;
+                            wrap: word-wrap;
+                            color: M3.on-tertiary-container;
+                            font-size: 13px;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
                         }
-                    }
-
-                    TextEdit {
-                        text <=> AppState.fb-text;
-                        placeholder-text: "Scrivi qui: cosa cambiare, cosa aggiungere, errori trovati…";
-                        wrap: word-wrap;
-                        min-height: 140px;
-                    }
-
-                    HorizontalLayout {
-                        alignment: end;
-                        M3Button {
-                            text: "Invia";
-                            has-icon: true;
-                            icon: Icons.feedback;
-                            enabled: AppState.fb-text != "";
+                        IconButton {
+                            icon: Icons.close;
+                            tint: M3.on-tertiary-container;
                             clicked => {
-                                AppState.send-feedback();
+                                AppState.clear-fb-item();
                             }
                         }
                     }
                 }
-            }
-
-            if AppState.feedbacks.length > 0: SectionTitle {
-                text: "Inviati";
-            }
-            for f in AppState.feedbacks: Rectangle {
-                border-radius: 14px;
-                background: M3.surface-container-low;
-                VerticalLayout {
-                    padding: 12px;
-                    spacing: 6px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Text {
-                            text: f.date + " · " + f.title + (f.rating > 0 ? " · " + f.rating + "/5" : "");
-                            font-size: Type.label;
-                            color: M3.on-surface-variant;
-                            horizontal-stretch: 1;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: max(52px, min(140px, fb-in.preferred-height + 28px));
+                        border-radius: 26px;
+                        background: M3.surface-container-highest;
+                        clip: true;
+                        fb-in := TextInput {
+                            x: 18px;
+                            y: 14px;
+                            width: parent.width - 36px;
+                            text <=> AppState.fb-text;
+                            single-line: false;
                             wrap: word-wrap;
+                            font-size: 16px;
+                            color: M3.on-surface;
                         }
-
-                        Pill {
-                            text: f.status;
-                            bg: f.pending ? M3.warn-container : f.reply != "" ? M3.success-container : M3.secondary-container;
-                            fg: f.pending ? M3.on-warn-container : f.reply != "" ? M3.on-success-container : M3.on-secondary-container;
+                        if fb-in.text == "": Text {
+                            x: 18px;
+                            y: 14px;
+                            width: parent.width - 36px;
+                            text: AppState.fb-category == "domanda" ? "Cosa c'è di sbagliato?" : AppState.fb-category == "app" ? "Scrivi una proposta…" : "Scrivi qui…";
+                            font-size: 16px;
+                            color: M3.on-surface-variant;
                         }
                     }
-
-                    if f.text != "": Text {
-                        text: f.text;
-                        wrap: word-wrap;
-                        color: M3.on-surface;
-                    }
-                    if f.reply != "": Rectangle {
-                        border-radius: 10px;
-                        background: M3.primary-container;
-                        HorizontalLayout {
-                            padding: 10px;
-                            spacing: 8px;
-                            VIcon {
-                                source: Icons.ai;
-                                tint: M3.on-primary-container;
-                                size: 18px;
+                    VerticalLayout {
+                        alignment: end;
+                        Rectangle {
+                            width: 52px;
+                            height: 52px;
+                            border-radius: 18px;
+                            background: AppState.fb-text != "" ? M3.primary : M3.on-surface.with-alpha(0.12);
+                            Icon {
+                                x: 14px;
+                                y: 14px;
+                                width: 24px;
+                                height: 24px;
+                                source: Icons.chevron;
+                                tint: AppState.fb-text != "" ? M3.on-primary : M3.on-surface.with-alpha(0.38);
                             }
-
-                            Text {
-                                text: f.reply;
-                                wrap: word-wrap;
-                                color: M3.on-primary-container;
-                                horizontal-stretch: 1;
+                            TouchArea {
+                                enabled: AppState.fb-text != "";
+                                clicked => {
+                                    AppState.send-feedback();
+                                }
                             }
                         }
                     }
