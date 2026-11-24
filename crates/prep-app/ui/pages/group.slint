@@ -1,7 +1,7 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, HeatVM, GHeatVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, BigHeader } from "../components.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, BigHeader, GroupLabel } from "../components.slint";
 
 // foto profilo (o iniziale) in un cerchio col bordo del colore della monoposto
 export component Avatar inherits Rectangle {
@@ -767,8 +767,8 @@ component RaceView inherits Rectangle {
                     horizontal-stretch: 1;
                     Text {
                         text: AppState.car-info-title;
-                        font-weight: 800;
-                        font-size: Type.body + 1px;
+                        font-weight: 900;
+                        font-size: 22px;
                         color: M3.on-surface;
                         overflow: elide;
                     }
@@ -795,57 +795,85 @@ component RaceView inherits Rectangle {
                     }
                 }
             }
-            // tempi di studio
+            // tempi di studio: tre riquadri uniti
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 3px;
                 for st[i] in [
-                    { label: "Oggi", value: AppState.car-info-today },
-                    { label: "Settimana", value: AppState.car-info-week },
-                    { label: "Mese", value: AppState.car-info-month },
+                    { label: "oggi", value: AppState.car-info-today },
+                    { label: "settimana", value: AppState.car-info-week },
+                    { label: "mese", value: AppState.car-info-month },
                 ]: Rectangle {
                     horizontal-stretch: 1;
-                    border-radius: 12px;
+                    border-top-left-radius: i == 0 ? 18px : 6px;
+                    border-bottom-left-radius: i == 0 ? 18px : 6px;
+                    border-top-right-radius: i == 2 ? 18px : 6px;
+                    border-bottom-right-radius: i == 2 ? 18px : 6px;
                     background: M3.surface-container;
                     min-height: tile.preferred-height;
                     tile := VerticalLayout {
-                        padding: 8px;
-                        spacing: 2px;
+                        padding: 10px;
+                        spacing: 0px;
+                        alignment: center;
+                        Text {
+                            text: st.value;
+                            font-weight: 900;
+                            font-size: 17px;
+                            color: M3.on-surface;
+                            horizontal-alignment: center;
+                            overflow: elide;
+                        }
                         Text {
                             text: st.label;
                             font-size: 11px;
                             color: M3.on-surface-variant;
-                        }
-                        Text {
-                            text: st.value;
-                            font-weight: 700;
-                            font-size: Type.label;
-                            color: M3.on-surface;
-                            overflow: elide;
+                            horizontal-alignment: center;
                         }
                     }
                 }
             }
-            for line in AppState.car-info-lines: Text {
-                text: line;
-                font-size: Type.label;
-                color: M3.on-surface-variant;
-                wrap: word-wrap;
+            for line in AppState.car-info-lines: HorizontalLayout {
+                spacing: 8px;
+                VerticalLayout {
+                    alignment: start;
+                    padding-top: 5px;
+                    Rectangle {
+                        width: 7px;
+                        height: 7px;
+                        border-radius: 3.5px;
+                        background: AppState.car-info-color;
+                    }
+                }
+                Text {
+                    text: line;
+                    font-size: 13px;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                }
             }
             if !AppState.car-info-me: HorizontalLayout {
                 spacing: 8px;
+                alignment: start;
                 if AppState.car-info-racing: M3Button {
-                    horizontal-stretch: 1;
-                    small: true;
                     kind: AppState.car-info-following ? 2 : 1;
-                    text: AppState.car-info-following ? "Smetti di seguire" : "Segui";
+                    has-icon: true;
+                    icon: Icons.focus;
+                    text: AppState.car-info-following ? "Non seguire" : "Segui";
                     clicked => {
                         AppState.car-follow(AppState.car-sel);
                     }
                 }
                 M3Button {
-                    horizontal-stretch: 1;
-                    small: true;
                     kind: 2;
+                    has-icon: true;
+                    icon: Icons.feedback;
+                    text: "Avvisa";
+                    clicked => {
+                        AppState.group-ping(AppState.car-sel);
+                    }
+                }
+                M3Button {
+                    kind: 3;
                     text: "Profilo";
                     clicked => {
                         AppState.open-profile(AppState.car-sel);
@@ -1506,6 +1534,8 @@ export component GroupPage inherits Page {
     property <bool> rename-open: false;
     property <bool> groups-open: false;
     property <bool> cal-open: false;
+    // pagina che spiega pit stop ed effetti in pista (dalla legenda)
+    property <bool> pit-open: false;
     property <bool> has-group: AppState.group-has && AppState.group-code != "";
     // calendario mostrato: quello del gruppo, di un altro membro, o il proprio
     property <bool> cal-group: has-group && AppState.cal-ids[AppState.cal-index] == "*";
@@ -1957,6 +1987,11 @@ export component GroupPage inherits Page {
                         width: lg.preferred-width + 24px;
                         border-radius: 17px;
                         background: M3.surface-container-high;
+                        TouchArea {
+                            clicked => {
+                                root.pit-open = true;
+                            }
+                        }
                         lg := HorizontalLayout {
                             x: 12px;
                             spacing: 6px;
@@ -2740,6 +2775,137 @@ export component GroupPage inherits Page {
                             }
                         }
                     }
+            }
+        }
+    }
+
+    // Traguardo: «Pit stop», come funzionano soste ed effetti in pista
+    if root.pit-open: Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        background: M3.surface;
+        TouchArea { }
+        VerticalLayout {
+            BigHeader {
+                title: "Pit stop";
+                subtitle: "Uscita, sosta e rientro · gli effetti in pista";
+                back => {
+                    root.pit-open = false;
+                }
+            }
+            Scroller {
+                vertical-stretch: 1;
+                align: start;
+                pad: 16px;
+                pad-top: 4px;
+                gap: 8px;
+                for st[i] in [
+                    { t: "Esce dalla pista", d: "Dopo almeno 25 minuti di studio, la pausa breve porta la monoposto nella piazzola: rallenta e si ferma accanto al rettilineo, fuori dall'asfalto." },
+                    { t: "Sosta, fino a 10′", d: "I meccanici cambiano le gomme. Resti in gara: la piazzola sta sul circuito, non nel paddock." },
+                    { t: "Rientra con gomme nuove", d: "Riparte e torna sul rettilineo con le scintille: ×1,2 per 25 minuti." },
+                ]: Rectangle {
+                    border-radius: 24px;
+                    background: i == 2 ? M3.success-container : M3.surface-container;
+                    min-height: pr.preferred-height;
+                    pr := HorizontalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+                        VerticalLayout {
+                            alignment: start;
+                            Rectangle {
+                                width: 32px;
+                                height: 32px;
+                                border-radius: 16px;
+                                background: M3.primary;
+                                Text {
+                                    text: i + 1;
+                                    font-size: 15px;
+                                    font-weight: 900;
+                                    color: M3.on-primary;
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            Text {
+                                text: st.t;
+                                font-size: 17px;
+                                font-weight: 800;
+                                color: i == 2 ? M3.on-success-container : M3.on-surface;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: st.d;
+                                font-size: 13px;
+                                color: i == 2 ? M3.on-success-container : M3.on-surface-variant;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "Pausa tra 10 e 30 minuti: il ritmo si dimezza. Oltre 30 minuti o «Termina»: la monoposto va nel paddock e riparte da ×1.";
+                    font-size: 13px;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+                GroupLabel {
+                    text: "Gli effetti in pista";
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    for e[i] in [
+                        { c: #4F8DF5, t: "Scia blu · ×1,5", d: "Concentrazione attiva: le altre app sono bloccate." },
+                        { c: #F2853A, t: "Fiamme · ritmo", d: "+0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3." },
+                        { c: #F2C94C, t: "Scintille · ×1,2", d: "Gomme nuove dopo un pit stop, per 25 minuti." },
+                        { c: #9E9E9E, t: "Vento · +0,1", d: "Per ogni altro membro in pista con te, fino a ×1,4." },
+                        { c: #6D6D6D, t: "Fumo · ×0,8", d: "Più di 2 pause in 30 minuti, per 15 minuti." },
+                    ]: Rectangle {
+                        border-top-left-radius: i == 0 ? 24px : 6px;
+                        border-top-right-radius: i == 0 ? 24px : 6px;
+                        border-bottom-left-radius: i == 4 ? 24px : 6px;
+                        border-bottom-right-radius: i == 4 ? 24px : 6px;
+                        background: M3.surface-container;
+                        min-height: er.preferred-height;
+                        er := HorizontalLayout {
+                            padding: 14px;
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 12px;
+                                    height: 12px;
+                                    border-radius: 6px;
+                                    background: e.c;
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: e.t;
+                                    font-size: 15px;
+                                    font-weight: 700;
+                                    color: M3.on-surface;
+                                }
+                                Text {
+                                    text: e.d;
+                                    font-size: 13px;
+                                    color: M3.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: "Il moltiplicatore è anche la velocità della monoposto (al massimo ×5); un giro vale 60 punti. Oltre 10 ore al giorno resta ×1.";
+                    font-size: 13px;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
             }
         }
     }
