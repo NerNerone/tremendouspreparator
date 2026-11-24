@@ -82,8 +82,17 @@ impl Ctrl {
             };
             let blocks = Rc::new(markdown::parse(&text));
             for sec in markdown::sections(&blocks) {
+                // argomenti della sezione (rimando preciso del pacchetto), altrimenti del capitolo
+                let num = sec.title.split_whitespace().next().unwrap_or("");
+                let topics = ch
+                    .sections
+                    .iter()
+                    .find(|x| x.section == sec.title || (!x.section.is_empty() && x.section == num))
+                    .map(|x| x.topics.clone())
+                    .unwrap_or_else(|| ch.topics.clone());
                 entries.push(ReaderEntry {
                     chapter: ch.title.clone(),
+                    topics,
                     blocks: blocks.clone(),
                     section: sec,
                     file: ch.file.clone(),
@@ -112,6 +121,7 @@ impl Ctrl {
             for sec in markdown::sections(&blocks) {
                 entries.push(ReaderEntry {
                     chapter: chapter.clone(),
+                    topics: vec![],
                     blocks: blocks.clone(),
                     section: sec,
                     file: file.to_string(),
@@ -186,8 +196,26 @@ impl Ctrl {
         let e = &r.entries[r.pos];
         let title = if e.section.title == "Inizio" { e.chapter.clone() } else { e.section.title.clone() };
         st.set_rd_book(ss(&r.title));
-        st.set_rd_title(ss(title));
+        st.set_rd_title(ss(&title));
         st.set_rd_page_label(ss(e.section.page.map(|p| format!("p. {p}")).unwrap_or_default()));
+        // Traguardo: posizione nel libro, capitolo sopra il titolo, quiz sull'argomento
+        let n = r.entries.len().max(1);
+        st.set_rd_frac((r.pos + 1) as f32 / n as f32);
+        st.set_rd_pos_label(ss(format!(
+            "sezione {} di {}{}",
+            r.pos + 1,
+            n,
+            e.section.page.map(|p| format!(" · p. {p}")).unwrap_or_default()
+        )));
+        st.set_rd_eyebrow(ss(if e.chapter != title { e.chapter.to_uppercase() } else { String::new() }));
+        let topic = e.topics.iter().find(|t| self.content.topic(t).is_some()).cloned().unwrap_or_default();
+        let num = title.split_whitespace().next().unwrap_or("");
+        st.set_rd_quiz_label(ss(if num.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+            format!("Quiz su {}", num.trim_end_matches('.'))
+        } else {
+            "Quiz".to_string()
+        }));
+        st.set_rd_topic(ss(topic));
         // guida: il riquadro «copia tutto per un'AI» e gli strumenti PDF sulla prima pagina
         st.set_rd_llm_card(r.title == GUIDE_TITLE && r.pos == 0);
         let mut blocks: Vec<BlockVM> = Vec::new();

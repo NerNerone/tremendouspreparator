@@ -12,14 +12,14 @@ component BlockView inherits VerticalLayout {
             text: root.b.text;
             wrap: word-wrap;
             color: M3.on-surface;
-            font-weight: 700;
-            font-size: root.b.level <= 1 ? 24px : root.b.level == 2 ? 20px : 17px;
+            font-weight: root.b.level <= 2 ? 900 : 800;
+            font-size: root.b.level <= 1 ? 28px : root.b.level == 2 ? 24px : 19px;
         }
         if root.b.kind == 1: Text {
             text: root.b.text;
             wrap: word-wrap;
             color: M3.on-surface;
-            font-size: 16px;
+            font-size: 17px;
         }
         if root.b.kind == 2 || root.b.kind == 3: HorizontalLayout {
             spacing: 8px;
@@ -39,20 +39,19 @@ component BlockView inherits VerticalLayout {
                 horizontal-stretch: 1;
             }
         }
-        if root.b.kind == 4: HorizontalLayout {
-            spacing: 10px;
-            Rectangle {
-                width: 3px;
-                background: M3.primary;
-            }
-
-            Text {
+        // riquadri (esempi, note, regole): verde tenue, angoli grandi
+        if root.b.kind == 4: Rectangle {
+            border-radius: 20px;
+            background: M3.success-container;
+            min-height: qt.preferred-height + 28px;
+            qt := Text {
+                x: 14px;
+                y: 14px;
+                width: parent.width - 28px;
                 text: root.b.text;
                 wrap: word-wrap;
-                color: M3.on-surface-variant;
+                color: M3.on-success-container;
                 font-size: 16px;
-                font-italic: true;
-                horizontal-stretch: 1;
             }
         }
         if root.b.kind == 5: Rectangle {
@@ -96,20 +95,11 @@ component BlockView inherits VerticalLayout {
                 }
             }
         }
-        if root.b.kind == 6: HorizontalLayout {
-            spacing: 8px;
-            Rectangle {
-                height: 1px;
-                y: parent.height / 2;
-                background: M3.outline-variant;
-                horizontal-stretch: 1;
-            }
-
-            Text {
-                text: root.b.text;
-                font-size: Type.label;
-                color: M3.on-surface-variant;
-            }
+        if root.b.kind == 6: Text {
+            text: root.b.text;
+            font-size: 12px;
+            color: M3.on-surface-variant;
+            horizontal-alignment: right;
         }
         if root.b.kind == 7: Rectangle {
             border-radius: 8px;
@@ -194,12 +184,35 @@ component BlockView inherits VerticalLayout {
 
 export component ReaderPage inherits Page {
     VerticalLayout {
-        TopBar {
-            title: AppState.rd-title;
-            subtitle: AppState.rd-book + (AppState.rd-page-label != "" ? " · " + AppState.rd-page-label : "");
-            can-back: true;
-            back => {
-                AppState.back();
+        // testata: libro, posizione, indice
+        HorizontalLayout {
+            padding-left: 4px;
+            padding-right: 4px;
+            height: 60px;
+            spacing: 4px;
+            IconButton {
+                icon: Icons.back;
+                tint: M3.on-surface;
+                clicked => {
+                    AppState.back();
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: AppState.rd-book;
+                    font-size: 17px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    overflow: elide;
+                }
+                Text {
+                    text: AppState.rd-pos-label;
+                    font-size: 12px;
+                    color: M3.on-surface-variant;
+                    overflow: elide;
+                }
             }
             IconButton {
                 icon: Icons.toc;
@@ -209,121 +222,183 @@ export component ReaderPage inherits Page {
                 }
             }
         }
-
-        if !AppState.rd-toc-visible: Swap {
-            key: AppState.rd-title;
-            vertical-stretch: 1;
-        // ScrollView con altezza presa dalla fine reale del contenuto: con le tabelle (testo a capo
-        // in righe orizzontali) Slint sottostima l'altezza preferita e lo scroll col dito si fermava
-        rsv := ScrollView {
-            mouse-drag-pan-enabled: AppState.drag-pan;
-            width: parent.width;
-            height: parent.height;
-            horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
-            content-width: self.visible-width;
-            content-height: max(self.visible-height, endm.y + 24px);
-            content-y <=> AppState.rd-scroll;
-            VerticalLayout {
-                x: 0px;
-                y: 0px;
-                width: rsv.visible-width;
-                height: self.preferred-height;
-                alignment: start;
-                padding: 18px;
-                padding-top: 4px;
-                spacing: 0px;
-                if AppState.rd-llm-card: VerticalLayout {
-                    padding-top: 8px;
-                    padding-bottom: 8px;
-                    spacing: 8px;
-                    LlmCopy {
-                        text: AppState.guide-llm;
-                        copied => {
-                            AppState.rd-copied();
-                        }
-                        share => {
-                            AppState.rd-share(AppState.guide-llm);
-                        }
-                    }
-                    M3Button {
-                        text: "Strumenti PDF";
-                        kind: 1;
-                        clicked => {
-                            AppState.open-pdf-tools();
-                        }
-                    }
-                }
-                for b in AppState.rd-blocks: BlockView {
-                    b: b;
-                    avail-width: rsv.visible-width - 36px;
-                }
-                endm := Rectangle {
-                    height: 0px;
-                }
-            }
-        }
-        }
-        if AppState.rd-toc-visible: Scroller {
-            vertical-stretch: 1;
-            align: start;
-            pad: 8px;
-            for t in AppState.rd-toc: Rectangle {
-                min-height: max(44px, toc-row.preferred-height);
-                border-radius: 10px;
-                background: t.current ? M3.secondary-container : tta.pressed ? M3.on-surface.with-alpha(0.08) : transparent;
-                toc-row := HorizontalLayout {
-                    padding-left: 12px + 14px * max(0, t.level - 1);
-                    padding-right: 12px;
-                    spacing: 8px;
-                    Text {
-                        text: t.title;
-                        wrap: word-wrap;
-                        vertical-alignment: center;
-                        font-weight: t.level <= 1 ? 700 : 400;
-                        color: M3.on-surface;
-                        horizontal-stretch: 1;
-                    }
-
-                    Text {
-                        text: t.page;
-                        vertical-alignment: center;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
-                    }
-                }
-
-                tta := TouchArea {
-                    clicked => {
-                        AppState.reader-goto(t.idx);
-                    }
-                }
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-bottom: 6px;
+            WavyProgress {
+                intro: false;
+                moving: false;
+                value: AppState.rd-frac;
+                fill: M3.success;
+                amp: 3px;
+                wavelength: 20px;
+                thickness: 4px;
             }
         }
 
         Rectangle {
-            background: M3.surface-container;
-            HorizontalLayout {
-                padding: 10px;
-                spacing: 8px;
-                M3Button {
-                    kind: 1;
-                    text: "Precedente";
-                    has-icon: true;
-                    icon: Icons.chevron-left;
-                    enabled: AppState.rd-has-prev;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.reader-prev();
+            vertical-stretch: 1;
+            if !AppState.rd-toc-visible: Swap {
+                key: AppState.rd-title;
+                width: parent.width;
+                height: parent.height;
+            // ScrollView con altezza presa dalla fine reale del contenuto: con le tabelle (testo a capo
+            // in righe orizzontali) Slint sottostima l'altezza preferita e lo scroll col dito si fermava
+            rsv := ScrollView {
+                mouse-drag-pan-enabled: AppState.drag-pan;
+                width: parent.width;
+                height: parent.height;
+                horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                content-width: self.visible-width;
+                content-height: max(self.visible-height, endm.y + 96px);
+                content-y <=> AppState.rd-scroll;
+                VerticalLayout {
+                    x: 0px;
+                    y: 0px;
+                    width: rsv.visible-width;
+                    height: self.preferred-height;
+                    alignment: start;
+                    padding: 20px;
+                    padding-top: 10px;
+                    spacing: 0px;
+                    if AppState.rd-eyebrow != "": Text {
+                        text: AppState.rd-eyebrow;
+                        font-size: 12px;
+                        font-weight: 800;
+                        letter-spacing: 0.8px;
+                        color: M3.success;
+                        wrap: word-wrap;
+                        height: self.preferred-height + 6px;
+                    }
+                    if AppState.rd-llm-card: VerticalLayout {
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        spacing: 8px;
+                        LlmCopy {
+                            text: AppState.guide-llm;
+                            copied => {
+                                AppState.rd-copied();
+                            }
+                            share => {
+                                AppState.rd-share(AppState.guide-llm);
+                            }
+                        }
+                        M3Button {
+                            text: "Strumenti PDF";
+                            kind: 1;
+                            clicked => {
+                                AppState.open-pdf-tools();
+                            }
+                        }
+                    }
+                    for b in AppState.rd-blocks: BlockView {
+                        b: b;
+                        avail-width: rsv.visible-width - 40px;
+                    }
+                    endm := Rectangle {
+                        height: 0px;
                     }
                 }
+            }
+            }
+            if AppState.rd-toc-visible: Scroller {
+                width: parent.width;
+                height: parent.height;
+                align: start;
+                pad: 8px;
+                for t in AppState.rd-toc: Rectangle {
+                    min-height: max(44px, toc-row.preferred-height);
+                    border-radius: 14px;
+                    background: t.current ? M3.secondary-container : tta.pressed ? M3.on-surface.with-alpha(0.08) : transparent;
+                    toc-row := HorizontalLayout {
+                        padding-left: 12px + 14px * max(0, t.level - 1);
+                        padding-right: 12px;
+                        spacing: 8px;
+                        Text {
+                            text: t.title;
+                            wrap: word-wrap;
+                            vertical-alignment: center;
+                            font-weight: t.level <= 1 ? 700 : 400;
+                            color: M3.on-surface;
+                            horizontal-stretch: 1;
+                        }
 
-                M3Button {
-                    kind: 1;
-                    text: "Successiva";
-                    enabled: AppState.rd-has-next;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.reader-next();
+                        Text {
+                            text: t.page;
+                            vertical-alignment: center;
+                            font-size: Type.label;
+                            color: M3.on-surface-variant;
+                        }
+                    }
+
+                    tta := TouchArea {
+                        clicked => {
+                            AppState.reader-goto(t.idx);
+                        }
+                    }
+                }
+            }
+
+            // barra flottante: sezione precedente, indice, successiva, quiz sull'argomento
+            if !AppState.rd-toc-visible: Rectangle {
+                width: min(parent.width - 32px, bar.preferred-width + 16px);
+                height: 64px;
+                x: (parent.width - self.width) / 2;
+                y: parent.height - self.height - 14px;
+                border-radius: 32px;
+                background: M3.surface-container-high;
+                drop-shadow-blur: 14px;
+                drop-shadow-offset-y: 3px;
+                drop-shadow-color: #00000033;
+                bar := HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 2px;
+                    alignment: center;
+                    VerticalLayout {
+                        alignment: center;
+                        IconButton {
+                            icon: Icons.chevron-left;
+                            tint: M3.on-surface;
+                            enabled: AppState.rd-has-prev;
+                            clicked => {
+                                AppState.reader-prev();
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        IconButton {
+                            icon: Icons.toc;
+                            tint: M3.on-surface;
+                            clicked => {
+                                AppState.rd-toc-visible = true;
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        IconButton {
+                            icon: Icons.chevron;
+                            tint: M3.on-surface;
+                            enabled: AppState.rd-has-next;
+                            clicked => {
+                                AppState.reader-next();
+                            }
+                        }
+                    }
+                    if AppState.rd-topic != "": VerticalLayout {
+                        alignment: center;
+                        padding-left: 6px;
+                        M3Button {
+                            text: AppState.rd-quiz-label;
+                            has-icon: true;
+                            icon: Icons.quiz;
+                            clicked => {
+                                AppState.start-practice("topic", AppState.rd-topic);
+                            }
+                        }
                     }
                 }
             }

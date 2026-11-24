@@ -241,6 +241,8 @@ struct CardRun {
 
 struct ReaderEntry {
     chapter: String,
+    /// argomenti del syllabus della sezione (o del capitolo): «Quiz su …» nel lettore
+    topics: Vec<String>,
     blocks: Rc<Vec<Block>>,
     section: Section,
     file: String,
