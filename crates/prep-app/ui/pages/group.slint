@@ -1476,6 +1476,8 @@ export component GroupPage inherits Page {
     property <bool> title-tapped: false;
     property <string> new-name: AppState.group-name;
     property <bool> cal-open: false;
+    // scelta del circuito (amministratore)
+    property <bool> circuit-open: false;
     // pagina che spiega pit stop ed effetti in pista (dalla legenda)
     property <bool> pit-open: false;
     property <bool> has-group: AppState.group-has && AppState.group-code != "";
@@ -1718,10 +1720,34 @@ export component GroupPage inherits Page {
                                 overflow: elide;
                             }
                             Text {
-                                text: AppState.race-hud;
+                                text: AppState.race-hud + (has-group && AppState.study-state == 0 ? (AppState.circuit-fixed < 0 ? " · cambia ogni giorno" : " · scelto dall'amministratore") : "");
                                 font-size: 13px;
                                 color: M3.on-surface-variant;
                                 overflow: elide;
+                            }
+                        }
+                        // l'amministratore sceglie il circuito (o la rotazione giornaliera)
+                        if has-group && AppState.group-admin: VerticalLayout {
+                            alignment: start;
+                            Rectangle {
+                                width: 34px;
+                                height: 34px;
+                                border-radius: 17px;
+                                background: cta.pressed ? M3.secondary-container.darker(0.08) : M3.secondary-container;
+                                Icon {
+                                    x: 8px;
+                                    y: 8px;
+                                    width: 18px;
+                                    height: 18px;
+                                    source: Icons.tune;
+                                    tint: M3.on-secondary-container;
+                                }
+                                cta := TouchArea {
+                                    clicked => {
+                                        root.circuit-open = true;
+                                        AppState.sheet-open = true;
+                                    }
+                                }
                             }
                         }
                         if AppState.race-live: VerticalLayout {
@@ -1812,7 +1838,7 @@ export component GroupPage inherits Page {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: AppState.focus-active ? "×1,5 · scia blu" : AppState.study-state == 2 ? "Pit stop" : AppState.study-today;
+                                text: AppState.focus-active ? "Concentrazione · scia blu" : AppState.study-state == 2 ? "Pit stop" : AppState.study-today;
                                 font-size: 15px;
                                 font-weight: 800;
                                 color: M3.on-surface;
@@ -2575,7 +2601,7 @@ export component GroupPage inherits Page {
                 VerticalLayout {
                     spacing: 3px;
                     for e[i] in [
-                        { c: #4F8DF5, t: "Scia blu · ×1,5", d: "Concentrazione attiva: le altre app sono bloccate." },
+                        { c: #4F8DF5, t: "Scia blu · concentrazione", d: "Concentrazione attiva: le altre app sono bloccate (nessun bonus sui punti)." },
                         { c: #F2853A, t: "Fiamme · ritmo", d: "+0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3." },
                         { c: #F2C94C, t: "Scintille · ×1,2", d: "Gomme nuove dopo un pit stop, per 25 minuti." },
                         { c: #9E9E9E, t: "Vento · +0,1", d: "Per ogni altro membro in pista con te, fino a ×1,4." },
@@ -2798,6 +2824,95 @@ export component GroupPage inherits Page {
                     }
                 }
             }
+            }
+        }
+    }
+
+    // scelta del circuito (amministratore): uno diverso ogni giorno o sempre lo stesso
+    if root.circuit-open: Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        background: #00000040;
+        TouchArea {
+            clicked => {
+                root.circuit-open = false;
+                AppState.sheet-open = false;
+            }
+        }
+        Rectangle {
+            y: parent.height - self.height;
+            height: csh.preferred-height;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            background: M3.surface-container-low;
+            TouchArea { }
+            csh := VerticalLayout {
+                padding: 20px;
+                padding-top: 14px;
+                spacing: 3px;
+                HorizontalLayout {
+                    alignment: center;
+                    padding-bottom: 8px;
+                    Rectangle {
+                        width: 36px;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: M3.outline-variant;
+                    }
+                }
+                Text {
+                    text: "Circuito del gruppo";
+                    font-size: 22px;
+                    font-weight: 900;
+                    color: M3.on-surface;
+                }
+                Text {
+                    text: "Lo decidi tu per tutti; più membri, pista più grande";
+                    font-size: 13px;
+                    color: M3.on-surface-variant;
+                    height: self.preferred-height + 10px;
+                }
+                for i in AppState.circuit-names.length + 1: Rectangle {
+                    property <int> v: i - 1;
+                    property <bool> on: AppState.circuit-fixed == self.v;
+                    height: 52px;
+                    border-top-left-radius: i == 0 ? 20px : 6px;
+                    border-top-right-radius: i == 0 ? 20px : 6px;
+                    border-bottom-left-radius: i == AppState.circuit-names.length ? 20px : 6px;
+                    border-bottom-right-radius: i == AppState.circuit-names.length ? 20px : 6px;
+                    background: self.on ? M3.secondary-container : M3.surface-container;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 14px;
+                        spacing: 10px;
+                        Text {
+                            text: v < 0 ? "Uno diverso ogni giorno" : AppState.circuit-names[v];
+                            font-size: 15px;
+                            font-weight: on ? 800 : 500;
+                            color: M3.on-surface;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        if on: VerticalLayout {
+                            alignment: center;
+                            Icon {
+                                width: 20px;
+                                height: 20px;
+                                source: Icons.check;
+                                tint: M3.primary;
+                            }
+                        }
+                    }
+                    TouchArea {
+                        clicked => {
+                            AppState.group-set-circuit(v);
+                            root.circuit-open = false;
+                            AppState.sheet-open = false;
+                        }
+                    }
+                }
             }
         }
     }

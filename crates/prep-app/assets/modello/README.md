@@ -59,6 +59,16 @@ git remote add origin https://github.com/<tu>/<repository-privato>.git
 git push -u origin HEAD:mio-esame                     # un ramo per esame
 ```
 
+Hai già il repository privato (per un altro esame)? Non crearne un altro: aggiungi un ramo.
+
+```bash
+git fetch modello modello-dati
+git switch -c altro-esame modello/modello-dati
+git push -u origin altro-esame
+```
+
+(dall'app: menu degli esami › «Nuovo ramo»).
+
 Per avere guida, strumenti e istruzioni aggiornati non si riparte da zero: si uniscono i commit
 del modello (`git fetch modello modello-dati && git merge modello/modello-dati`). Le istruzioni
 per l'AI (`CLAUDE.md`) lo fanno fare da sé all'inizio di ogni lavoro.

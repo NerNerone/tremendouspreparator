@@ -118,6 +118,15 @@ pub fn maybe_run(ui: &AppWindow) {
                 // registro delle simulazioni: simlog (apre), simopen:N (riapre la N-esima)
                 "simlog" => st.invoke_open_simlog(),
                 "updcheck" => st.invoke_update_check(),
+                // schermata dell'aggiornamento obbligatorio: updfake:frazione (0 = da avviare)
+                "updfake" => {
+                    st.set_update_version("0.3.0".into());
+                    st.set_update_required(true);
+                    let f: f32 = arg.parse().unwrap_or(0.0);
+                    st.set_update_busy(f > 0.0);
+                    st.set_update_frac(f);
+                    st.set_update_phase("Scarico la nuova versione… 18,4 di 41,2 MB".into());
+                }
                 "rmexam" => st.invoke_remove_exam(arg.into()),
                 "simopen" => {
                     if let Some(r) = slint::Model::row_data(&st.get_sim_rows(), arg.parse().unwrap_or(0)) {

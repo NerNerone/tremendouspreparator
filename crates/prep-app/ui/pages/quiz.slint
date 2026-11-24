@@ -1,7 +1,7 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, FullScroll } from "../components.slint";
 
 component NavCell inherits Rectangle {
     in property <int> n;
@@ -154,7 +154,7 @@ export component QuizPage inherits Page {
         Swap {
             key: "" + AppState.q-index;
             vertical-stretch: 1;
-        qsv := ScrollView {
+        qsv := FullScroll {
             vertical-scrollbar-policy: ScrollBarPolicy.always-off;
             mouse-drag-pan-enabled: AppState.drag-pan;
             // il layout stima un'altezza minore del reale con testo a capo (spiegazioni lunghe su

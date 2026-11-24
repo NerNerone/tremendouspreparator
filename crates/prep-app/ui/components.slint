@@ -1019,7 +1019,36 @@ export component StarRating inherits HorizontalLayout {
 // «sbordano» ma restano nelle posizioni giuste), quindi l'altezza scorrevole si prende dalla
 // posizione reale di scroller-end e non da preferred-height. Prima lo scroll si fermava prima
 // della fine (schede Studio, tabelle del lettore).
-export component Scroller inherits ScrollView {
+// area scorrevole a tutta larghezza: la ScrollView standard tiene sempre 12 px a destra per la
+// barra (anche spenta) e le fasce colorate non arrivavano al bordo dello schermo
+export component FullScroll {
+    out property <length> visible-width <=> fl.width;
+    out property <length> visible-height <=> fl.height;
+    in-out property <length> content-width <=> fl.content-width;
+    in-out property <length> content-height <=> fl.content-height;
+    in-out property <length> content-x <=> fl.content-x;
+    in-out property <length> content-y <=> fl.content-y;
+    in property <bool> mouse-drag-pan-enabled <=> fl.mouse-drag-pan-enabled;
+    // accettate per compatibilità: qui non c'è mai una barra
+    in property <ScrollBarPolicy> vertical-scrollbar-policy;
+    in property <ScrollBarPolicy> horizontal-scrollbar-policy;
+    callback scrolled <=> fl.flicked;
+    min-height: 50px;
+    min-width: 50px;
+    horizontal-stretch: 1;
+    vertical-stretch: 1;
+    preferred-height: 100%;
+    preferred-width: 100%;
+    fl := Flickable {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        @children
+    }
+}
+
+export component Scroller inherits FullScroll {
     in property <length> pad: 0px;
     in property <length> pad-top: root.pad;
     in property <length> pad-bottom: root.pad;
@@ -1194,7 +1223,7 @@ export component FabMenu inherits Rectangle {
             FabMenuItem {
                 icon: Icons.focus;
                 title: "Concentrazione " + (AppState.focus-minutes >= 60 && Math.mod(AppState.focus-minutes, 60) == 0 ? (AppState.focus-minutes / 60) + " h" : AppState.focus-minutes + " min");
-                sub: "come l'ultima volta · ×1,5";
+                sub: "come l'ultima volta · le altre app bloccate";
                 clicked => {
                     AppState.fab-open = false;
                     AppState.focus-start();

@@ -5,6 +5,10 @@ l'aggiornamento che lo porta.
 
 ## 24 novembre 2026
 
+- Aggiornamenti obbligatori: quando esce una versione nuova l'app la installa prima di continuare, con la barra ondulata dello scaricamento.
+- Gara: l'amministratore sceglie il circuito del gruppo, oppure ne gira uno diverso ogni giorno.
+- Concentrazione: niente più bonus ×1,5 sui punti; resta la scia blu e il blocco delle altre app.
+- La fascia della preparazione arriva fino al bordo destro dello schermo.
 - Squadra: niente più card «Pronto a partire». Il pulsante in basso è il comando della gara («Scendi in pista», poi «Pit stop» e «Riparti», con «Termina» sopra); tenuto premuto apre il menu, con la concentrazione.
 - Concentrazione: durata a scelta (25′, 50′, 90′, 2 h o «Altro» fino a 4 ore), tempo e «+15′» nel piede della gara, app permesse sotto.
 - Oggi: la fascia della preparazione arriva fin sotto la barra di stato e scorrendo si riduce senza stacchi.

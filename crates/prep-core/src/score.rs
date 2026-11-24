@@ -9,7 +9,7 @@
 //! | pit lento | pausa tra 10 e 30 min | il ritmo si dimezza |
 //! | sosta lunga, «Termina» | pausa oltre 30 min | il ritmo riparte da ×1 |
 //! | box troppo frequenti | più di 2 pause in 30 min | ×0,8 per 15 min |
-//! | concentrazione | modalità concentrazione attiva | ×1,5 |
+//! | concentrazione | modalità concentrazione attiva | ×1 (solo la scia blu: niente bonus) |
 //! | scia di gruppo | altri membri in pista | +0,1 per ciascuno, al massimo ×1,4 |
 //! | limite giornaliero | oltre 10 ore nel giorno | ×1 fisso |
 
@@ -24,7 +24,7 @@ pub const LONG_PIT: i64 = 30 * 60;
 pub const SMOKE: f64 = 0.8;
 pub const SMOKE_SECS: i64 = 15 * 60;
 pub const PITS_WINDOW: i64 = 30 * 60;
-pub const FOCUS: f64 = 1.5;
+pub const FOCUS: f64 = 1.0;
 pub const DRAFT_EACH: f64 = 0.1;
 pub const DRAFT_MAX: f64 = 1.4;
 pub const CAP: f64 = 5.0;
@@ -173,8 +173,8 @@ mod tests {
         // pause brevi tengono il ritmo (e danno le gomme nuove): meglio di una sosta lunga
         let pomodoro = points(&[(50, 5), (50, 5), (50, 5), (50, 5), (50, 5), (50, 5), (60, 0)], false);
         assert!(pomodoro > tu, "{pomodoro} vs {tu}");
-        // la concentrazione aumenta tutto, ma mai oltre ×5
-        assert!(points(&[(360, 0)], true) > giovanni);
+        // la concentrazione non dà punti in più (solo la scia blu), e mai oltre ×5
+        assert_eq!(points(&[(360, 0)], true), giovanni);
         let r = Run { acc: 10 * 3600, since: Some(0), tyres_until: 100, ..Default::default() };
         assert!(r.score(1, true, 9, 0).mult <= CAP);
     }

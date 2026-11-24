@@ -623,6 +623,11 @@ export global AppState {
     // aggiornamento dell'app (build privata): versione disponibile, download in corso
     in property <string> update-version;
     in property <bool> update-busy;
+    // aggiornamento obbligatorio: schermata che copre l'app, avanzamento e fase, errore
+    in-out property <bool> update-required;
+    in property <float> update-frac;
+    in property <string> update-phase;
+    in property <string> update-error;
     callback update-install();
     // giri al secondo in pista
     in property <float> lap-speed: 0.0166667;
@@ -832,6 +837,12 @@ export global AppState {
     callback group-kick(string);
     in property <bool> group-can-rename;
     callback group-rename(string);
+    // circuito: nomi di tutti, quello fissato dall'amministratore (-1 = uno diverso ogni giorno)
+    in property <[string]> circuit-names;
+    in property <int> circuit-fixed: -1;
+    callback group-set-circuit(int);
+    // un foglio dal basso aperto sopra la pagina: il pulsante «Studia ora» si nasconde
+    in-out property <bool> sheet-open;
     callback group-ping(string);
     in property <image> my-photo;
     in property <bool> my-has-photo;

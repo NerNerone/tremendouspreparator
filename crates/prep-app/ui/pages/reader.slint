@@ -1,7 +1,7 @@
 import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, LlmCopy } from "../components.slint";
+import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, LlmCopy, FullScroll } from "../components.slint";
 
 component BlockView inherits VerticalLayout {
     in property <BlockVM> b;
@@ -245,7 +245,7 @@ export component ReaderPage inherits Page {
                 height: parent.height;
             // ScrollView con altezza presa dalla fine reale del contenuto: con le tabelle (testo a capo
             // in righe orizzontali) Slint sottostima l'altezza preferita e lo scroll col dito si fermava
-            rsv := ScrollView {
+            rsv := FullScroll {
                 vertical-scrollbar-policy: ScrollBarPolicy.always-off;
                 mouse-drag-pan-enabled: AppState.drag-pan;
                 width: parent.width;

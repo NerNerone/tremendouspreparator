@@ -463,10 +463,20 @@ pub fn new_admin_keypair() -> (String, String) {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn info_digest(code: &str, admin: &str, name: &str, photo: &str, removed: &[String], at: i64) -> [u8; 32] {
+fn info_digest(
+    code: &str,
+    admin: &str,
+    name: &str,
+    photo: &str,
+    removed: &[String],
+    at: i64,
+    circuit: Option<u32>,
+) -> [u8; 32] {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
-    h.update(b"tp-group-info-v1\0");
+    // con il circuito scelto dall'amministratore la firma copre anche quello (v2); senza resta
+    // quella di prima (v1)
+    h.update(if circuit.is_some() { b"tp-group-info-v2\0" } else { b"tp-group-info-v1\0" });
     let push_str = |h: &mut Sha256, s: &str| {
         h.update((s.len() as u32).to_be_bytes());
         h.update(s.as_bytes());
@@ -480,6 +490,9 @@ fn info_digest(code: &str, admin: &str, name: &str, photo: &str, removed: &[Stri
         push_str(&mut h, r);
     }
     h.update(at.to_be_bytes());
+    if let Some(c) = circuit {
+        h.update(c.to_be_bytes());
+    }
     h.finalize().into()
 }
 
@@ -492,13 +505,14 @@ pub fn sign_info(
     photo: &str,
     removed: &[String],
     at: i64,
+    circuit: Option<u32>,
     sk_hex: &str,
 ) -> Option<String> {
     let sk_bytes: [u8; 32] = hex_dec(sk_hex.trim())?;
     let sk = k256::schnorr::SigningKey::from_bytes(&k256::FieldBytes::from(sk_bytes)).ok()?;
     let mut aux = [0u8; 32];
     getrandom::getrandom(&mut aux).expect("generatore casuale");
-    let digest = info_digest(code, admin, name, photo, removed, at);
+    let digest = info_digest(code, admin, name, photo, removed, at, circuit);
     let sig = sk.sign_raw(&digest, &aux).ok()?;
     Some(hex_enc(&sig.to_bytes()))
 }
@@ -512,6 +526,7 @@ pub fn verify_info_sig(
     photo: &str,
     removed: &[String],
     at: i64,
+    circuit: Option<u32>,
     pk_hex: &str,
     sig_hex: &str,
 ) -> bool {
@@ -528,7 +543,7 @@ pub fn verify_info_sig(
     let Ok(sig) = k256::schnorr::Signature::try_from(sig_bytes.as_slice()) else {
         return false;
     };
-    let digest = info_digest(code, admin, name, photo, removed, at);
+    let digest = info_digest(code, admin, name, photo, removed, at, circuit);
     vk.verify_prehash(&digest, &sig).is_ok()
 }
 
@@ -548,6 +563,9 @@ pub enum GroupMsg {
         pk: String,
         #[serde(default, skip_serializing_if = "String::is_empty")]
         sig: String,
+        /// circuito scelto dall'amministratore (assente = uno diverso ogni giorno)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        circuit: Option<u32>,
     },
     /// richiesta di una foto che non si ha (la manda chi ce l'ha)
     PhotoGet { hash: String },
@@ -618,6 +636,9 @@ pub struct Group {
     /// quando l'amministratore ha cambiato le impostazioni l'ultima volta
     #[serde(default)]
     pub info_at: i64,
+    /// circuito fissato dall'amministratore; `None` = uno diverso ogni giorno
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub circuit: Option<u32>,
     /// istante dell'ultimo avviso già mostrato (per non ripeterli)
     #[serde(default)]
     pub ping_seen: i64,
@@ -672,9 +693,16 @@ impl Group {
         if !name.is_empty() {
             self.name = name;
         }
-        if let Some(sig) =
-            sign_info(&self.code, &self.admin, &self.name, &self.photo, &self.removed, self.info_at, &self.admin_sk)
-        {
+        if let Some(sig) = sign_info(
+            &self.code,
+            &self.admin,
+            &self.name,
+            &self.photo,
+            &self.removed,
+            self.info_at,
+            self.circuit,
+            &self.admin_sk,
+        ) {
             self.admin_sig = sig;
         }
     }
@@ -818,6 +846,7 @@ impl Group {
         at: i64,
         pk: &str,
         sig: &str,
+        circuit: Option<u32>,
         now: i64,
     ) -> InfoResult {
         // impostazioni senza firma (versioni precedenti, compresa la privata): valgono solo nei
@@ -847,7 +876,7 @@ impl Group {
         {
             return InfoResult::Ignored;
         }
-        if !verify_info_sig(&self.code, admin, name, photo, removed, at, pk, sig) {
+        if !verify_info_sig(&self.code, admin, name, photo, removed, at, circuit, pk, sig) {
             return InfoResult::Ignored;
         }
         if !self.admin_pk.is_empty() {
@@ -865,6 +894,7 @@ impl Group {
         }
         self.photo = photo.to_string();
         self.removed = removed.to_vec();
+        self.circuit = circuit;
         self.info_at = at;
         for r in removed {
             self.members.remove(r);
@@ -907,6 +937,8 @@ pub struct GroupRef {
     pub photo: String,
     #[serde(default)]
     pub info_at: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub circuit: Option<u32>,
     #[serde(default)]
     pub joined_at: i64,
 }
@@ -978,6 +1010,7 @@ impl Groups {
                 admin_sig: g.admin_sig.clone(),
                 photo: g.photo.clone(),
                 info_at: g.info_at,
+                circuit: g.circuit,
                 joined_at: g.joined_at,
             })
             .collect()
@@ -1010,6 +1043,7 @@ impl Groups {
                     admin_sig: r.admin_sig.clone(),
                     photo: r.photo.clone(),
                     info_at: r.info_at,
+                    circuit: r.circuit,
                     joined_at: r.joined_at.max(1),
                     ..Default::default()
                 }),
@@ -1017,6 +1051,7 @@ impl Groups {
                     if r.info_at > g.info_at {
                         g.name = r.name.clone();
                         g.photo = r.photo.clone();
+                        g.circuit = r.circuit;
                         g.info_at = r.info_at;
                         if !r.admin.is_empty() {
                             g.admin = r.admin.clone();
@@ -1740,6 +1775,25 @@ pub fn circuit_for(code: &str, members: usize) -> usize {
     pool[h as usize % pool.len()]
 }
 
+/// Nome del circuito `i` (per il selettore dell'amministratore).
+pub fn circuit_name(i: usize) -> &'static str {
+    LAYOUTS[i % LAYOUTS.len()].0
+}
+
+/// Il circuito del giorno: quello fissato dall'amministratore, altrimenti uno diverso ogni
+/// giorno fra tutti (`day` = giorni dal 1970, UTC: lo stesso per tutti nel gruppo; dipende anche
+/// dal codice, così gruppi diversi non corrono tutti sullo stesso).
+pub fn circuit_today(code: &str, fixed: Option<u32>, day: i64) -> usize {
+    if let Some(c) = fixed {
+        if (c as usize) < LAYOUTS.len() {
+            return c as usize;
+        }
+    }
+    let h = code.bytes().fold(7u32, |a, b| a.wrapping_mul(31).wrapping_add(b as u32));
+    let n = LAYOUTS.len() as i64;
+    ((day + h as i64 % n).rem_euclid(n)) as usize
+}
+
 /// Quanto è grande il circuito (1 = da soli): cresce con il numero di membri.
 pub fn circuit_scale(members: usize) -> f64 {
     (1.0 + 0.15 * members.saturating_sub(1) as f64).min(2.2)
@@ -2102,40 +2156,40 @@ mod tests {
         // solo l'amministratore autenticato toglie membri, e solo con firma valida e tempo coerente
         let (sk, pk) = new_admin_keypair();
         let (other_sk, other_pk) = new_admin_keypair();
-        let sig = sign_info("X", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &sk).unwrap();
-        let other_sig = sign_info("X", "altro", "N", "", std::slice::from_ref(&uid), now, &other_sk).unwrap();
+        let sig = sign_info("X", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, None, &sk).unwrap();
+        let other_sig = sign_info("X", "altro", "N", "", std::slice::from_ref(&uid), now, None, &other_sk).unwrap();
         assert_eq!(
-            g.apply_info("me", "altro", "N", "", std::slice::from_ref(&uid), now, &other_pk, &other_sig, now),
+            g.apply_info("me", "altro", "N", "", std::slice::from_ref(&uid), now, &other_pk, &other_sig, None, now),
             InfoResult::Ignored
         );
         assert_eq!(
-            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, "", now),
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, "", None, now),
             InfoResult::Ignored
         );
         assert_eq!(
-            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now + 1000, &pk, &sig, now),
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now + 1000, &pk, &sig, None, now),
             InfoResult::Ignored
         );
         assert_eq!(
-            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, &sig, now),
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, &sig, None, now),
             InfoResult::Applied
         );
         assert!(g.members.is_empty() && g.name == "Nuovo");
         // chiave diversa non può sostituirsi nemmeno conoscendo l'id dell'amministratore
-        let spoof_sig = sign_info("X", "boss", "Falso", "", &[], now + 1, &other_sk).unwrap();
+        let spoof_sig = sign_info("X", "boss", "Falso", "", &[], now + 1, None, &other_sk).unwrap();
         assert_eq!(
-            g.apply_info("me", "boss", "Falso", "", &[], now + 1, &other_pk, &spoof_sig, now + 1),
+            g.apply_info("me", "boss", "Falso", "", &[], now + 1, &other_pk, &spoof_sig, None, now + 1),
             InfoResult::Ignored
         );
         g.status_in("d2", Status { uid: uid.clone(), ..Default::default() }, now);
         assert!(g.members.is_empty());
         assert_eq!(
-            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, &sig, now),
+            g.apply_info("me", "boss", "Nuovo", "", std::slice::from_ref(&uid), now, &pk, &sig, None, now),
             InfoResult::Ignored
         );
-        let kick_me = sign_info("X", "boss", "Nuovo", "", &["me".into()], now + 1, &sk).unwrap();
+        let kick_me = sign_info("X", "boss", "Nuovo", "", &["me".into()], now + 1, None, &sk).unwrap();
         assert_eq!(
-            g.apply_info("me", "boss", "Nuovo", "", &["me".into()], now + 1, &pk, &kick_me, now + 1),
+            g.apply_info("me", "boss", "Nuovo", "", &["me".into()], now + 1, &pk, &kick_me, None, now + 1),
             InfoResult::Removed
         );
     }
@@ -2157,22 +2211,22 @@ mod tests {
         // gruppo nato nella versione privata: l'amministratore si sa dalle impostazioni senza firma
         let mut g = Group { code: "L".into(), ..Default::default() };
         assert_eq!(
-            g.apply_info("me", "uold", "Serali", "", &["uvittima".into()], now, "", "", now),
+            g.apply_info("me", "uold", "Serali", "", &["uvittima".into()], now, "", "", None, now),
             InfoResult::Applied
         );
         assert_eq!(g.admin, "uold");
         assert_eq!(g.name, "Serali");
         assert!(g.removed.is_empty(), "senza firma non si toglie nessuno");
         // un altro non può prendersi l'amministrazione
-        assert_eq!(g.apply_info("me", "uevil", "X", "", &[], now + 1, "", "", now + 1), InfoResult::Ignored);
+        assert_eq!(g.apply_info("me", "uevil", "X", "", &[], now + 1, "", "", None, now + 1), InfoResult::Ignored);
         // gruppo già firmato: le impostazioni senza firma non valgono più
         let mut adm = Group { code: "L".into(), admin: "uold".into(), info_at: now + 2, ..Default::default() };
         adm.sign_current_info();
         assert_eq!(
-            g.apply_info("me", "uold", &adm.name, "", &[], now + 2, &adm.admin_pk, &adm.admin_sig, now + 2),
+            g.apply_info("me", "uold", &adm.name, "", &[], now + 2, &adm.admin_pk, &adm.admin_sig, None, now + 2),
             InfoResult::Applied
         );
-        assert_eq!(g.apply_info("me", "uold", "Falso", "", &[], now + 3, "", "", now + 3), InfoResult::Ignored);
+        assert_eq!(g.apply_info("me", "uold", "Falso", "", &[], now + 3, "", "", None, now + 3), InfoResult::Ignored);
     }
 
     #[test]
@@ -2209,7 +2263,18 @@ mod tests {
         assert_eq!(a.name, "Studio serale");
         let mut b = Group { code: "Q".into(), admin: "ua".into(), ..Default::default() };
         assert_eq!(
-            b.apply_info("ub", &a.admin, &a.name, &a.photo, &a.removed, a.info_at, &a.admin_pk, &a.admin_sig, now),
+            b.apply_info(
+                "ub",
+                &a.admin,
+                &a.name,
+                &a.photo,
+                &a.removed,
+                a.info_at,
+                &a.admin_pk,
+                &a.admin_sig,
+                None,
+                now
+            ),
             InfoResult::Applied
         );
         // chi era stato rimosso torna con un id nuovo: resta fuori, e `removed` non cambia
@@ -2217,7 +2282,18 @@ mod tests {
         assert!(!b.members.contains_key("ux2") && b.removed == vec!["ux".to_string()]);
         let mut c = Group { code: "Q".into(), ..Default::default() };
         assert_eq!(
-            c.apply_info("uc", &b.admin, &b.name, &b.photo, &b.removed, b.info_at, &b.admin_pk, &b.admin_sig, now),
+            c.apply_info(
+                "uc",
+                &b.admin,
+                &b.name,
+                &b.photo,
+                &b.removed,
+                b.info_at,
+                &b.admin_pk,
+                &b.admin_sig,
+                None,
+                now
+            ),
             InfoResult::Applied
         );
         // gruppo di prima delle firme: l'amministratore che cambia id resta amministratore
@@ -2227,12 +2303,12 @@ mod tests {
         let mut adm = Group { code: "Q".into(), admin: "unew".into(), info_at: now, ..Default::default() };
         adm.sign_current_info();
         assert_eq!(
-            old.apply_info("uz", "unew", "N", "", &[], now, &adm.admin_pk, &adm.admin_sig, now),
+            old.apply_info("uz", "unew", "N", "", &[], now, &adm.admin_pk, &adm.admin_sig, None, now),
             InfoResult::Ignored,
             "firma su un nome diverso"
         );
         assert_eq!(
-            old.apply_info("uz", &adm.admin, &adm.name, "", &[], now, &adm.admin_pk, &adm.admin_sig, now),
+            old.apply_info("uz", &adm.admin, &adm.name, "", &[], now, &adm.admin_pk, &adm.admin_sig, None, now),
             InfoResult::Applied
         );
         // da firmato, un «prev» non basta più a prendersi l'amministrazione

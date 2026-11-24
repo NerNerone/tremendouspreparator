@@ -579,6 +579,7 @@ impl Ctrl {
             at: g.info_at,
             pk: g.admin_pk.clone(),
             sig: g.admin_sig.clone(),
+            circuit: g.circuit,
         };
         self.with_engine(Sess::Group, move |e, _| vec![e.group_msg(msg, true)]);
     }
@@ -613,6 +614,7 @@ impl Ctrl {
             at: g.info_at,
             pk: g.admin_pk.clone(),
             sig: g.admin_sig.clone(),
+            circuit: g.circuit,
         };
         self.with_engine(Sess::Group, move |e, _| vec![e.group_msg(msg, false)]);
     }
@@ -662,7 +664,7 @@ impl Ctrl {
         let now = Self::now_secs();
         let me = self.user_id();
         match msg {
-            GroupMsg::Info { admin, name, photo, removed, at, pk, sig } => {
+            GroupMsg::Info { admin, name, photo, removed, at, pk, sig, circuit } => {
                 if !photo.is_empty() && crate::photo::valid_hash(&photo) {
                     self.photo_src.insert(photo.clone(), from.clone());
                 }
@@ -675,7 +677,7 @@ impl Ctrl {
                     .filter(|r| **r != me && !g.removed.contains(r))
                     .filter_map(|r| g.members.get(r).map(|m| m.status.name.clone()))
                     .collect();
-                match g.apply_info(&me, &admin, &name, &photo, &removed, at, &pk, &sig, now) {
+                match g.apply_info(&me, &admin, &name, &photo, &removed, at, &pk, &sig, circuit, now) {
                     InfoResult::Ignored => {}
                     InfoResult::Applied => {
                         let _ = self.groups.save(&self.store.base);
@@ -1028,6 +1030,29 @@ impl Ctrl {
     /// Rinomina il gruppo attivo: stesso codice, stessi membri e dati; il nuovo nome arriva a
     /// tutti con le impostazioni dell'amministratore. Nei gruppi senza amministratore noto
     /// (creati con versioni precedenti) chi rinomina per primo lo diventa.
+    /// L'amministratore fissa il circuito (`-1` = uno diverso ogni giorno).
+    pub(super) fn group_set_circuit(&mut self, c: i32) {
+        if !self.can_admin_group() {
+            self.toast("Solo l'amministratore sceglie il circuito");
+            return;
+        }
+        self.claim_legacy_admin();
+        let now = Self::now_secs();
+        let Some(g) = self.groups.active_mut() else { return };
+        g.circuit = (c >= 0).then_some(c as u32);
+        g.info_at = now.max(g.info_at + 1);
+        g.sign_current_info();
+        let _ = self.groups.save(&self.store.base);
+        self.circuit_shown = None;
+        self.group_send_info();
+        self.toast(if c >= 0 {
+            format!("Circuito del gruppo: {}", prep_core::group::circuit_name(c as usize))
+        } else {
+            "Il circuito cambia ogni giorno".to_string()
+        });
+        self.refresh_group();
+    }
+
     pub(super) fn group_rename(&mut self, name: &str) {
         let name: String = name.trim().chars().take(60).collect();
         if name.is_empty() {
@@ -1349,7 +1374,9 @@ impl Ctrl {
         self.racing_others =
             all.iter().filter(|(id, s, on, _)| *id != me_id && *on && s.state == State::Studying).count();
         // circuito del gruppo: cambia (e cresce) con il numero dei membri
-        let ci = prep_core::group::circuit_for(&g.code, all.len());
+        // circuito del giorno (o quello fissato dall'amministratore)
+        let ci = prep_core::group::circuit_today(&g.code, g.circuit, Utc::now().timestamp().div_euclid(86_400));
+        st.set_circuit_fixed(g.circuit.map(|c| c as i32).unwrap_or(-1));
         let circuit = prep_core::group::circuit(ci);
         if self.circuit_shown != Some(ci) {
             self.circuit_shown = Some(ci);

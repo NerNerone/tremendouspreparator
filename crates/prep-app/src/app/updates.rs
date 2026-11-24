@@ -177,7 +177,9 @@ impl Ctrl {
                         c.update_sha256 = info.sha256;
                         c.update_sums_url = info.sums_url;
                         c.ui().global::<AppState>().set_update_version(ss(&info.version));
-                        c.toast(format!("È disponibile la versione {}: Tu › App › Aggiorna", info.version));
+                        // l'aggiornamento è obbligatorio: tutti sulla stessa versione (regole dei
+                        // gruppi e formati restano compatibili)
+                        c.ui().global::<AppState>().set_update_required(true);
                     })
                 });
             }
@@ -205,7 +207,7 @@ impl Ctrl {
                             c.update_sha256 = info.sha256;
                             c.update_sums_url = info.sums_url;
                             c.ui().global::<AppState>().set_update_version(ss(&info.version));
-                            c.toast(format!("È disponibile la versione {}: tocca «Aggiorna»", info.version));
+                            c.ui().global::<AppState>().set_update_required(true);
                         }
                         Ok(None) => c.toast(format!("Hai già l'ultima versione ({})", crate::app::APP_VERSION)),
                         Err(e) => c.toast(format!("Controllo non riuscito: {e}")),
@@ -215,11 +217,33 @@ impl Ctrl {
         });
     }
 
+    fn update_progress(&mut self, got: u64, total: u64) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let mb = |b: u64| format!("{:.1}", b as f64 / 1_048_576.0).replace('.', ",");
+        if total > 0 {
+            st.set_update_frac((got as f64 / total as f64).clamp(0.0, 1.0) as f32);
+            st.set_update_phase(ss(format!("Scarico la nuova versione… {} di {} MB", mb(got), mb(total))));
+        } else {
+            st.set_update_phase(ss(format!("Scarico la nuova versione… {} MB", mb(got))));
+        }
+    }
+
     /// «Aggiorna»: scarica l'APK (o il bundle Flatpak), ne verifica lo SHA-256 e lo installa.
     pub(super) fn updates_install(&mut self) {
-        if self.quiz.is_some() || self.study_state != prep_core::group::State::Idle {
-            self.toast("Prima termina il quiz o la sessione di studio: l'aggiornamento riavvia l'app");
-            return;
+        // l'aggiornamento riavvia l'app: il quiz resta in pausa, la sessione di studio si chiude
+        if self.quiz.is_some() {
+            self.autosave_quiz();
+        }
+        if self.study_state != prep_core::group::State::Idle {
+            self.study_set(prep_core::group::State::Idle);
+        }
+        {
+            let ui = self.ui();
+            let st = ui.global::<AppState>();
+            st.set_update_error(ss(""));
+            st.set_update_frac(0.0);
+            st.set_update_phase(ss("Scarico la nuova versione…"));
         }
         let url = self.update_url.clone();
         if url.is_empty() || !allowed_download_url(&url) {
@@ -241,8 +265,42 @@ impl Ctrl {
                     return Err("indirizzo di aggiornamento non consentito".into());
                 }
                 let mut resp = get(&url)?;
-                let bytes =
-                    resp.body_mut().with_config().limit(200_000_000).read_to_vec().map_err(|e| e.to_string())?;
+                // a pezzi, con l'avanzamento per la barra ondulata
+                let total: u64 = resp
+                    .headers()
+                    .get("content-length")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0);
+                let mut bytes: Vec<u8> = Vec::with_capacity(total as usize);
+                {
+                    use std::io::Read;
+                    let mut rd = resp.body_mut().with_config().limit(200_000_000).reader();
+                    let mut buf = vec![0u8; 64 * 1024];
+                    let mut last = std::time::Instant::now();
+                    loop {
+                        let n = rd.read(&mut buf).map_err(|e| e.to_string())?;
+                        if n == 0 {
+                            break;
+                        }
+                        bytes.extend_from_slice(&buf[..n]);
+                        if last.elapsed() > std::time::Duration::from_millis(120) {
+                            last = std::time::Instant::now();
+                            let (got, tot) = (bytes.len() as u64, total);
+                            let _ = slint::invoke_from_event_loop(move || {
+                                with_ctrl(|c| c.update_progress(got, tot));
+                            });
+                        }
+                    }
+                }
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ctrl(|c| {
+                        let ui = c.ui();
+                        let st = ui.global::<AppState>();
+                        st.set_update_frac(1.0);
+                        st.set_update_phase(ss("Verifico e installo…"));
+                    });
+                });
                 use sha2::{Digest, Sha256};
                 let actual: String = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
                 let expected = if let Some(h) = expected_sha {
@@ -271,8 +329,14 @@ impl Ctrl {
             let _ = slint::invoke_from_event_loop(move || {
                 with_ctrl(|c| {
                     c.ui().global::<AppState>().set_update_busy(false);
-                    if let Err(e) = r.and_then(|p| crate::install_apk(&p)) {
-                        c.toast(format!("Aggiornamento non riuscito: {e}"));
+                    match r.and_then(|p| crate::install_apk(&p)) {
+                        Ok(_) => c
+                            .ui()
+                            .global::<AppState>()
+                            .set_update_phase(ss("Conferma l'installazione nella finestra di Android")),
+                        Err(e) => {
+                            c.ui().global::<AppState>().set_update_error(ss(format!("Aggiornamento non riuscito: {e}")))
+                        }
                     }
                 })
             });
@@ -284,8 +348,14 @@ impl Ctrl {
                     with_ctrl(|c| {
                         c.ui().global::<AppState>().set_update_busy(false);
                         match r {
-                            Ok(_) => c.toast("Si è aperto il gestore di software: conferma lì l'aggiornamento"),
-                            Err(e) => c.toast(format!("Aggiornamento non riuscito: {e}")),
+                            Ok(_) => c
+                                .ui()
+                                .global::<AppState>()
+                                .set_update_phase(ss("Conferma l'aggiornamento nel gestore di software")),
+                            Err(e) => c
+                                .ui()
+                                .global::<AppState>()
+                                .set_update_error(ss(format!("Aggiornamento non riuscito: {e}"))),
                         }
                     })
                 });

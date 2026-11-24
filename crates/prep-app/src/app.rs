@@ -408,7 +408,7 @@ pub struct Ctrl {
     results_from_log: bool,
     /// tratto di studio in corso e suoi effetti (punteggio, vedi prep_core::score)
     run: prep_core::score::Run,
-    /// concentrazione attiva (×1,5) e altri membri in pista (scia di gruppo)
+    /// concentrazione attiva (scia blu) e altri membri in pista (scia di gruppo)
     focus_on: bool,
     racing_others: usize,
     /// ultima notifica della sessione: (istante, stato)
@@ -1663,6 +1663,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_theme_color(|v| with_ctrl(|c| c.set_theme_color(v as u32)));
     st.on_theme_set_mode(|v| with_ctrl(|c| c.set_theme_mode(v)));
     st.on_focus_extend(|m| with_ctrl(|c| c.focus_extend(m as i64)));
+    st.on_group_set_circuit(|i| with_ctrl(|c| c.group_set_circuit(i)));
+    st.set_circuit_names(model(
+        (0..prep_core::group::circuits()).map(|i| ss(prep_core::group::circuit_name(i))).collect::<Vec<_>>(),
+    ));
     st.on_gh_new_branch(|n| with_ctrl(|c| c.gh_new_branch(&n)));
     st.on_gh_save_branch(|n| with_ctrl(|c| c.gh_save_branch(&n)));
     st.on_rem_toggle(|i, on| with_ctrl(|c| c.rem_toggle(i.max(0) as usize, on)));

@@ -8,7 +8,7 @@ import "../fonts/DejaVuSans-Bold.ttf";
 import { M3, Icons, Type } from "theme.slint";
 import { Palette } from "std-widgets.slint";
 import { AppState } from "state.slint";
-import { NavItem, M3Button, Scroller, FabMenu, SessionBar } from "components.slint";
+import { NavItem, M3Button, Scroller, FabMenu, SessionBar, WavyProgress, Icon } from "components.slint";
 import { CropDialog } from "crop.slint";
 import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, PeriodicPage, GroupPage, ContentsPage, PdfToolsPage, CreatorPage, SimLogPage, TuPage } from "pages.slint";
 
@@ -29,7 +29,7 @@ export component AppWindow inherits Window {
     property <bool> show-nav: !AppState.focus-open && (AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13 || AppState.page == 18);
     // «Studia ora»: esteso in Oggi, solo simbolo nelle altre schede principali
     // durante lo studio di gruppo i comandi della sessione stanno in basso: niente pulsante
-    property <bool> show-fab: root.show-nav && AppState.page != 18 && AppState.car-sel == "";
+    property <bool> show-fab: root.show-nav && AppState.page != 18 && AppState.car-sel == "" && !AppState.sheet-open;
     property <bool> show-bar: root.show-nav && AppState.paused-title != "";
 
     fs := FocusScope {
@@ -352,6 +352,109 @@ export component AppWindow inherits Window {
     }
 
     // dialogo di conferma
+
+    // aggiornamento obbligatorio: copre tutta l'app finché non è installato (tutti sulla stessa
+    // versione: regole dei gruppi e formati restano compatibili). Avanzamento con la barra ondulata.
+    if AppState.update-required && AppState.update-version != "": Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        background: M3.primary-container;
+        TouchArea { }
+        VerticalLayout {
+            x: max(24px, (parent.width - 460px) / 2);
+            width: min(parent.width - 48px, 460px);
+            alignment: center;
+            spacing: 14px;
+            HorizontalLayout {
+                alignment: start;
+                Rectangle {
+                    width: 64px;
+                    height: 64px;
+                    border-radius: 22px;
+                    background: M3.primary;
+                    Icon {
+                        x: 16px;
+                        y: 16px;
+                        width: 32px;
+                        height: 32px;
+                        source: Icons.update;
+                        tint: M3.on-primary;
+                    }
+                }
+            }
+            Text {
+                text: "Nuova versione " + AppState.update-version;
+                font-size: 32px;
+                font-weight: 900;
+                color: M3.on-primary-container;
+                wrap: word-wrap;
+            }
+            Text {
+                text: "Per continuare serve aggiornare: così tutti nel gruppo hanno le stesse regole e le novità arrivano subito. Il quiz in corso resta in pausa e i progressi non si toccano.";
+                font-size: 15px;
+                color: M3.on-primary-container;
+                wrap: word-wrap;
+            }
+            if AppState.update-busy || AppState.update-frac > 0: VerticalLayout {
+                spacing: 8px;
+                padding-top: 8px;
+                WavyProgress {
+                    intro: false;
+                    moving: true;
+                    value: max(0.03, AppState.update-frac);
+                    fill: M3.primary;
+                    track: M3.surface.with-alpha(0.7);
+                    amp: 4px;
+                    wavelength: 26px;
+                    thickness: 6px;
+                }
+                HorizontalLayout {
+                    Text {
+                        text: AppState.update-phase;
+                        font-size: 13px;
+                        color: M3.on-primary-container;
+                        horizontal-stretch: 1;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: round(AppState.update-frac * 100) + "%";
+                        font-size: 15px;
+                        font-weight: 900;
+                        color: M3.on-primary-container;
+                    }
+                }
+            }
+            if AppState.update-error != "": Text {
+                text: AppState.update-error;
+                font-size: 13px;
+                color: M3.error;
+                wrap: word-wrap;
+            }
+            if !AppState.update-busy: HorizontalLayout {
+                alignment: start;
+                spacing: 8px;
+                M3Button {
+                    text: AppState.update-error != "" ? "Riprova" : "Aggiorna ora";
+                    has-icon: true;
+                    icon: Icons.update;
+                    clicked => {
+                        AppState.update-install();
+                    }
+                }
+                // solo dopo un errore: per non restare bloccati se l'aggiornamento non riesce
+                if AppState.update-error != "": M3Button {
+                    text: "Più tardi";
+                    kind: 3;
+                    clicked => {
+                        AppState.update-required = false;
+                    }
+                }
+            }
+        }
+    }
+
     if AppState.dialog-visible: Rectangle {
         property <float> enter: 0;
         init => {
