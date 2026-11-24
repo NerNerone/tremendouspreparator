@@ -177,7 +177,7 @@ impl Ctrl {
                         c.update_sha256 = info.sha256;
                         c.update_sums_url = info.sums_url;
                         c.ui().global::<AppState>().set_update_version(ss(&info.version));
-                        c.toast(format!("È disponibile la versione {}: Opzioni › Aggiorna", info.version));
+                        c.toast(format!("È disponibile la versione {}: Tu › App › Aggiorna", info.version));
                     })
                 });
             }
