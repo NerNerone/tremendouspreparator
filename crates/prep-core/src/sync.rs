@@ -44,7 +44,6 @@ impl SyncReport {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 /// File del mirror che la sincronizzazione tiene allineati con il repository.
 pub fn tracked(path: &str) -> bool {
     (path.ends_with(".json") && (path.starts_with("content/") || path.starts_with("progress/")))

@@ -233,7 +233,7 @@ impl Ctrl {
                 with_ctrl(|c| match r {
                     Ok(()) => {
                         // l'esame attivo potrebbe essere cambiato nel frattempo: si scrive nel suo archivio
-                        if let Ok(st) = Store::open_in(&c.store.base.clone(), root.clone()) {
+                        if let Ok(st) = Store::open_in(c.store.base.clone(), root.clone()) {
                             let _ = st.set_exam_branch(&name);
                         }
                         c.toast(format!("Esame salvato nel ramo «{name}»: da ora si sincronizza da lì"));
