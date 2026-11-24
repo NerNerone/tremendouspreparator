@@ -1,174 +1,392 @@
+// Traguardo: «Gestisci contenuti». I file dell'esame uno per uno, con filtri e scelta multipla:
+// aggiungere, togliere, esportare; sotto, gli strumenti per crearne di nuovi.
 import { M3, Icons, Type } from "../theme.slint";
 import { AppState, ContentFileVM } from "../state.slint";
-import { Page, IconButton, M3Button, Hint, TopBar, Scroller, VIcon, LlmCopy, Card } from "../components.slint";
+import { Page, Icon, IconButton, M3Button, Scroller, VIcon, LlmCopy, CheckBox, GroupLabel, GRow } from "../components.slint";
 
+// filtro in alto: pillola con contorno, piena se scelta
+component FilterChip inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon: true;
+    in property <bool> on;
+    callback clicked;
+    height: 36px;
+    width: fc.preferred-width;
+    border-radius: 10px;
+    background: root.on ? M3.secondary-container : transparent;
+    border-width: root.on ? 0px : 1px;
+    border-color: M3.outline;
+    fc := HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        if root.on || root.has-icon: VerticalLayout {
+            alignment: center;
+            Icon {
+                width: 18px;
+                height: 18px;
+                source: root.on ? Icons.check : root.icon;
+                tint: root.on ? M3.on-secondary-container : M3.on-surface;
+            }
+        }
+        Text {
+            text: root.text;
+            font-size: 14px;
+            font-weight: 600;
+            color: root.on ? M3.on-secondary-container : M3.on-surface;
+            vertical-alignment: center;
+        }
+    }
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// un file: casella, simbolo del tipo, nome e dettaglio
 component FileRow inherits Rectangle {
     in property <ContentFileVM> f;
-    min-height: row.preferred-height;
+    border-top-left-radius: root.f.first ? 24px : 6px;
+    border-top-right-radius: root.f.first ? 24px : 6px;
+    border-bottom-left-radius: root.f.last ? 24px : 6px;
+    border-bottom-right-radius: root.f.last ? 24px : 6px;
+    background: root.f.sel ? M3.secondary-container : M3.surface-container;
+    min-height: max(64px, row.preferred-height);
+    TouchArea {
+        clicked => {
+            AppState.contents-toggle(root.f.path);
+        }
+    }
     row := HorizontalLayout {
-        padding-left: 12px;
-        padding-top: 8px;
-        padding-bottom: 8px;
-        spacing: 12px;
+        padding: 12px;
+        padding-left: 16px;
+        spacing: 14px;
         VerticalLayout {
-            horizontal-stretch: 1;
             alignment: center;
-            spacing: 2px;
-            Text {
-                text: root.f.name;
-                font-size: Type.body;
-                color: M3.on-surface;
-                wrap: word-wrap;
-            }
-            Text {
-                text: root.f.info + (root.f.info != "" ? " · " : "") + root.f.path;
-                font-size: Type.label;
-                color: M3.on-surface-variant;
-                wrap: word-wrap;
+            CheckBox {
+                checked: root.f.sel;
+                toggled => {
+                    AppState.contents-toggle(root.f.path);
+                }
             }
         }
         VerticalLayout {
             alignment: center;
-            IconButton {
-                icon: Icons.close;
-                tint: M3.on-surface-variant;
-                clicked => {
-                    AppState.contents-remove(root.f.path);
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+                background: M3.primary-container;
+                Icon {
+                    x: 9px;
+                    y: 9px;
+                    width: 22px;
+                    height: 22px;
+                    source: root.f.icon == 0 ? Icons.quiz : root.f.icon == 1 ? Icons.cards : root.f.icon == 2 ? Icons.book : Icons.description;
+                    tint: M3.on-primary-container;
                 }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 1px;
+            Text {
+                text: root.f.kind + " · " + root.f.name;
+                font-size: 16px;
+                color: M3.on-surface;
+                wrap: word-wrap;
+            }
+            Text {
+                text: (root.f.info != "" ? root.f.info + " · " : "") + root.f.path;
+                font-size: 12px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
             }
         }
     }
 }
 
-// contenuti dell'esame file per file: aggiungere, togliere, esportare
 export component ContentsPage inherits Page {
     VerticalLayout {
-        TopBar {
-            title: "Contenuti";
-            subtitle: AppState.exam-name;
-            can-back: true;
-            back => {
-                AppState.back();
+        // testata: indietro, titolo, esame; «+» aggiunge un file
+        HorizontalLayout {
+            padding-left: 4px;
+            padding-right: 4px;
+            height: 64px;
+            spacing: 4px;
+            IconButton {
+                icon: Icons.back;
+                tint: M3.on-surface;
+                clicked => {
+                    AppState.back();
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: "Gestisci contenuti";
+                    font-size: 20px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    overflow: elide;
+                }
+                Text {
+                    text: AppState.exam-name;
+                    font-size: 12px;
+                    color: M3.on-surface-variant;
+                    overflow: elide;
+                }
+            }
+            IconButton {
+                icon: Icons.add;
+                tint: M3.on-surface;
+                clicked => {
+                    AppState.contents-add();
+                }
             }
         }
 
-        Scroller {
+        // filtri
+        Flickable {
+            height: 44px;
+            interactive: true;
+            content-width: max(self.width, chips.preferred-width + 32px);
+            content-height: 44px;
+            chips := HorizontalLayout {
+                x: 16px;
+                y: 2px;
+                height: 36px;
+                spacing: 8px;
+                alignment: start;
+                FilterChip {
+                    text: "Tutti";
+                    has-icon: false;
+                    on: AppState.contents-filter-n == 0;
+                    clicked => {
+                        AppState.contents-filter(0);
+                    }
+                }
+                FilterChip {
+                    text: "Domande";
+                    icon: Icons.quiz;
+                    on: AppState.contents-filter-n == 1;
+                    clicked => {
+                        AppState.contents-filter(1);
+                    }
+                }
+                FilterChip {
+                    text: "Flashcard";
+                    icon: Icons.cards;
+                    on: AppState.contents-filter-n == 2;
+                    clicked => {
+                        AppState.contents-filter(2);
+                    }
+                }
+                FilterChip {
+                    text: "Libri";
+                    icon: Icons.book;
+                    on: AppState.contents-filter-n == 3;
+                    clicked => {
+                        AppState.contents-filter(3);
+                    }
+                }
+                FilterChip {
+                    text: "Esame";
+                    icon: Icons.description;
+                    on: AppState.contents-filter-n == 4;
+                    clicked => {
+                        AppState.contents-filter(4);
+                    }
+                }
+            }
+        }
+
+        Rectangle {
             vertical-stretch: 1;
-            pad: 16px;
-            pad-top: 4px;
-            gap: 10px;
-            Hint {
-                short: "Aggiungi o sostituisci un singolo file senza rigenerare il pacchetto.";
-                full: "Puoi aggiungere file di quiz o flashcard (.json), la definizione dell'esame (syllabus.json), il catalogo dei libri (books.json), capitoli in Markdown (.md, vanno nel libro «Materiale importato» della materia scelta in Studio), figure .svg, oppure un pacchetto intero dello stesso esame (si unisce senza togliere niente). Un file con lo stesso nome di uno esistente lo sostituisce. I tuoi progressi non vengono toccati. «Esporta pacchetto» salva tutto in un unico file da condividere.";
-            }
-            HorizontalLayout {
-                spacing: 8px;
-                M3Button {
-                    text: "Aggiungi file";
-                    has-icon: true;
-                    icon: Icons.add;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.contents-add();
-                    }
+            Scroller {
+                width: parent.width;
+                height: parent.height;
+                align: start;
+                pad: 16px;
+                pad-top: 8px;
+                gap: 10px;
+
+                if AppState.contents-status != "": Text {
+                    text: AppState.contents-status;
+                    wrap: word-wrap;
+                    font-size: 13px;
+                    color: M3.primary;
                 }
-                M3Button {
-                    text: "Esporta pacchetto";
-                    kind: 1;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.contents-export();
-                    }
-                }
-            }
-            HorizontalLayout {
-                spacing: 8px;
-                M3Button {
-                    text: "Crea con l'AI";
-                    kind: 2;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.open-creator(false);
-                    }
-                }
-                M3Button {
-                    text: "Strumenti PDF";
-                    kind: 2;
-                    horizontal-stretch: 1;
-                    clicked => {
-                        AppState.open-pdf-tools();
-                    }
-                }
-            }
-            LlmCopy {
-                text: AppState.guide-llm;
-                copied => {
-                    AppState.rd-copied();
-                }
-                share => {
-                    AppState.rd-share(AppState.guide-llm);
-                }
-            }
-            Card {
+
                 VerticalLayout {
-                    padding: 14px;
-                    spacing: 6px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Text {
-                            text: "Controllo dei contenuti";
-                            font-size: Type.title;
-                            font-weight: 700;
-                            color: M3.on-surface;
-                            horizontal-stretch: 1;
-                            vertical-alignment: center;
+                    spacing: 3px;
+                    for f in AppState.content-files: FileRow {
+                        f: f;
+                    }
+                }
+                if AppState.content-files.length == 0: Text {
+                    text: AppState.contents-filter-n == 0 ? "Nessun contenuto: importa un pacchetto o aggiungi i file uno alla volta con «+»." : "Nessun file di questo tipo.";
+                    wrap: word-wrap;
+                    color: M3.on-surface-variant;
+                }
+
+                Rectangle {
+                    border-radius: 20px;
+                    background: M3.surface-container-high;
+                    min-height: hint.preferred-height;
+                    hint := HorizontalLayout {
+                        padding: 14px;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: start;
+                            Icon {
+                                width: 18px;
+                                height: 18px;
+                                source: Icons.lightbulb;
+                                tint: M3.primary;
+                            }
                         }
-                        M3Button {
-                            text: AppState.qa-summary == "" ? "Controlla" : "Ricontrolla";
-                            kind: 1;
-                            small: true;
-                            clicked => {
-                                AppState.contents-check();
+                        Text {
+                            horizontal-stretch: 1;
+                            text: "I tuoi progressi non cambiano: togli o sostituisci un file e le domande già fatte restano nel registro. Con «+» aggiungi quiz, flashcard, capitoli .md, figure .svg o un pacchetto dello stesso esame.";
+                            font-size: 13px;
+                            color: M3.on-surface-variant;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                GroupLabel {
+                    text: "Crea e controlla";
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    GRow {
+                        last: false;
+                        icon: Icons.target;
+                        title: "Controllo dei contenuti";
+                        sub: AppState.qa-summary != "" ? AppState.qa-summary : "Errori nei file, domande da sistemare, figure mancanti, argomenti con poche domande";
+                        trail: 3;
+                        action: AppState.qa-summary == "" ? "Controlla" : "Ancora";
+                        act => {
+                            AppState.contents-check();
+                        }
+                    }
+                    if AppState.qa-lines.length > 0: Rectangle {
+                        background: M3.surface-container;
+                        border-radius: 6px;
+                        min-height: qa.preferred-height;
+                        qa := VerticalLayout {
+                            padding: 16px;
+                            padding-top: 4px;
+                            spacing: 4px;
+                            for l in AppState.qa-lines: Text {
+                                text: l.head ? l.text : "• " + l.text;
+                                wrap: word-wrap;
+                                font-size: l.head ? 14px : 12px;
+                                font-weight: l.head ? 700 : 400;
+                                color: l.head ? M3.on-surface : M3.on-surface-variant;
                             }
                         }
                     }
+                    GRow {
+                        first: false;
+                        last: false;
+                        icon: Icons.smart-toy;
+                        title: "Crea con l'AI";
+                        sub: "Il creatore guidato: un file alla volta, con il prompt pronto";
+                        trail: 1;
+                        clicked => {
+                            AppState.open-creator(false);
+                        }
+                    }
+                    GRow {
+                        first: false;
+                        last: false;
+                        icon: Icons.description;
+                        title: "Strumenti PDF";
+                        sub: "Estrai il testo, OCR, dividi i PDF";
+                        trail: 1;
+                        clicked => {
+                            AppState.open-pdf-tools();
+                        }
+                    }
+                    GRow {
+                        first: false;
+                        icon: Icons.inventory-2;
+                        title: "Esporta il pacchetto";
+                        sub: "Tutti i contenuti in un file .json.gz da condividere";
+                        trail: 1;
+                        clicked => {
+                            AppState.contents-export();
+                        }
+                    }
+                }
+                LlmCopy {
+                    text: AppState.guide-llm;
+                    copied => {
+                        AppState.rd-copied();
+                    }
+                    share => {
+                        AppState.rd-share(AppState.guide-llm);
+                    }
+                }
+                // spazio per la barra delle azioni
+                if AppState.contents-sel-n > 0: Rectangle {
+                    height: 72px;
+                }
+            }
+
+            // barra delle azioni sui file scelti
+            if AppState.contents-sel-n > 0: Rectangle {
+                width: parent.width - 24px;
+                height: 64px;
+                x: 12px;
+                y: parent.height - self.height - 12px;
+                border-radius: 32px;
+                background: M3.surface-container-high;
+                drop-shadow-blur: 14px;
+                drop-shadow-offset-y: 3px;
+                drop-shadow-color: #00000033;
+                HorizontalLayout {
+                    padding-left: 20px;
+                    padding-right: 8px;
+                    spacing: 4px;
                     Text {
-                        text: AppState.qa-summary != "" ? AppState.qa-summary : "Cerca errori nei file, domande da sistemare (opzioni, spiegazioni, difficoltà), figure mancanti e argomenti con poche domande.";
-                        wrap: word-wrap;
-                        font-size: Type.label;
-                        color: M3.on-surface-variant;
+                        text: AppState.contents-sel-n == 1 ? "1 scelto" : AppState.contents-sel-n + " scelti";
+                        font-size: 15px;
+                        font-weight: 800;
+                        color: M3.on-surface;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
                     }
-                    for l in AppState.qa-lines: Text {
-                        text: l.head ? l.text : "• " + l.text;
-                        wrap: word-wrap;
-                        font-size: l.head ? Type.body : Type.label;
-                        font-weight: l.head ? 700 : 400;
-                        color: l.head ? M3.on-surface : M3.on-surface-variant;
+                    VerticalLayout {
+                        alignment: center;
+                        IconButton {
+                            icon: Icons.close;
+                            tint: M3.on-surface;
+                            clicked => {
+                                AppState.contents-clear-sel();
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        M3Button {
+                            text: "Togli";
+                            kind: 4;
+                            has-icon: true;
+                            icon: Icons.remove;
+                            clicked => {
+                                AppState.contents-remove-selected();
+                            }
+                        }
                     }
                 }
-            }
-            if AppState.contents-status != "": Text {
-                text: AppState.contents-status;
-                wrap: word-wrap;
-                font-size: Type.label;
-                color: M3.on-surface-variant;
-            }
-            for f in AppState.content-files: VerticalLayout {
-                spacing: 4px;
-                if f.head: Text {
-                    text: f.kind;
-                    font-size: Type.title;
-                    font-weight: 700;
-                    color: M3.on-surface;
-                }
-                FileRow {
-                    f: f;
-                }
-            }
-            if AppState.content-files.length == 0: Text {
-                text: "Nessun contenuto: importa un pacchetto o aggiungi i file uno alla volta.";
-                wrap: word-wrap;
-                color: M3.on-surface-variant;
             }
         }
     }

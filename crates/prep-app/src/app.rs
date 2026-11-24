@@ -263,6 +263,8 @@ enum Dialog {
     Crash,
     /// togliere un file dai contenuti dell'esame
     RemoveContent(String),
+    /// più file dei contenuti scelti insieme
+    RemoveContents(Vec<String>),
     /// avviare la concentrazione (blocca il telefono)
     FocusStart,
 }
@@ -417,6 +419,9 @@ pub struct Ctrl {
     gh_branches: Vec<String>,
     /// minuti della prossima simulazione (Some(0) = senza tempo), al posto di quelli del pacchetto
     exam_minutes: Option<u64>,
+    /// «Gestisci contenuti»: filtro (0 tutti, 1 domande, 2 flashcard, 3 libri, 4 altro) e file scelti
+    ct_filter: i32,
+    ct_sel: std::collections::BTreeSet<String>,
     update_asset: String,
     update_sha256: Option<String>,
     update_sums_url: String,
@@ -967,6 +972,7 @@ impl Ctrl {
             Some(Dialog::SubmitExam) => self.finish_quiz(),
             Some(Dialog::Crash) => self.crash_report(),
             Some(Dialog::RemoveContent(p)) => self.contents_remove(&p),
+            Some(Dialog::RemoveContents(v)) => self.contents_remove_many(&v),
             Some(Dialog::FocusStart) => self.focus_begin(),
             None => {}
         }
@@ -1178,6 +1184,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         update_url: String::new(),
         gh_branches: Vec::new(),
         exam_minutes: None,
+        ct_filter: 0,
+        ct_sel: Default::default(),
         update_asset: String::new(),
         update_sha256: None,
         update_sums_url: String::new(),
@@ -1641,6 +1649,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     });
     st.on_contents_add(|| with_ctrl(|c| c.contents_add()));
     st.on_contents_remove(|p| with_ctrl(|c| c.contents_remove_ask(&p)));
+    st.on_contents_filter(|k| with_ctrl(|c| c.contents_filter(k)));
+    st.on_contents_toggle(|p| with_ctrl(|c| c.contents_toggle(&p)));
+    st.on_contents_remove_selected(|| with_ctrl(|c| c.contents_remove_selected()));
+    st.on_contents_clear_sel(|| with_ctrl(|c| c.contents_clear_sel()));
     st.on_contents_export(|| with_ctrl(|c| c.contents_export()));
     st.on_contents_check(|| with_ctrl(|c| c.contents_check()));
     st.on_select_exam(|id| with_ctrl(|c| c.open_exam(&id)));

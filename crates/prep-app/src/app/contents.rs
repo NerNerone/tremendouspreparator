@@ -12,10 +12,26 @@ impl Ctrl {
     }
 
     pub(super) fn refresh_contents(&mut self) {
-        let mut last = None;
-        let files: Vec<ContentFileVM> = contents::list(&self.store)
+        let all = contents::list(&self.store);
+        // file scelti che non ci sono più (tolti o sostituiti)
+        self.ct_sel.retain(|p| all.iter().any(|e| e.path == *p));
+        let f = self.ct_filter;
+        let shown: Vec<_> = all
             .into_iter()
-            .map(|e| {
+            .filter(|e| match f {
+                1 => e.kind == Kind::Questions,
+                2 => e.kind == Kind::Cards,
+                3 => matches!(e.kind, Kind::Books | Kind::Chapter | Kind::Figure),
+                4 => matches!(e.kind, Kind::Exam | Kind::Pack),
+                _ => true,
+            })
+            .collect();
+        let n = shown.len();
+        let mut last = None;
+        let files: Vec<ContentFileVM> = shown
+            .into_iter()
+            .enumerate()
+            .map(|(i, e)| {
                 let head = last != Some(e.kind);
                 last = Some(e.kind);
                 ContentFileVM {
@@ -24,10 +40,76 @@ impl Ctrl {
                     name: ss(&e.name),
                     info: ss(&e.info),
                     head,
+                    icon: match e.kind {
+                        Kind::Questions => 0,
+                        Kind::Cards => 1,
+                        Kind::Books | Kind::Chapter | Kind::Figure => 2,
+                        _ => 3,
+                    },
+                    sel: self.ct_sel.contains(&e.path),
+                    first: i == 0,
+                    last: i + 1 == n,
                 }
             })
             .collect();
-        self.ui().global::<AppState>().set_content_files(model(files));
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_content_files(model(files));
+        st.set_contents_filter_n(f);
+        st.set_contents_sel_n(self.ct_sel.len() as i32);
+    }
+
+    pub(super) fn contents_filter(&mut self, k: i32) {
+        self.ct_filter = k.clamp(0, 4);
+        self.refresh_contents();
+    }
+
+    pub(super) fn contents_toggle(&mut self, path: &str) {
+        if !self.ct_sel.remove(path) {
+            self.ct_sel.insert(path.to_string());
+        }
+        self.refresh_contents();
+    }
+
+    pub(super) fn contents_clear_sel(&mut self) {
+        self.ct_sel.clear();
+        self.refresh_contents();
+    }
+
+    /// «Togli» sui file scelti: una sola conferma per tutti.
+    pub(super) fn contents_remove_selected(&mut self) {
+        let v: Vec<String> = self.ct_sel.iter().cloned().collect();
+        match v.len() {
+            0 => {}
+            1 => self.contents_remove_ask(&v[0]),
+            n => {
+                let what = if v.iter().any(|p| p == "content/syllabus.json") {
+                    "Tra questi c'è la definizione dell'esame: senza, materie e argomenti spariscono finché non ne aggiungi un'altra. I tuoi progressi restano."
+                } else {
+                    "I file vengono tolti da questo dispositivo; i tuoi progressi restano."
+                };
+                self.open_dialog(Dialog::RemoveContents(v), &format!("Togliere {n} file?"), what, "Togli");
+            }
+        }
+    }
+
+    pub(super) fn contents_remove_many(&mut self, paths: &[String]) {
+        let mut ok = 0;
+        let mut err = None;
+        for p in paths {
+            match contents::remove_file(&self.store, p) {
+                Ok(()) => ok += 1,
+                Err(e) => err = Some(e),
+            }
+        }
+        self.ct_sel.clear();
+        match err {
+            None => self.contents_changed(format!("Tolti {ok} file.")),
+            Some(e) => {
+                self.contents_changed(format!("Tolti {ok} file su {}.", paths.len()));
+                self.toast(format!("Alcuni file non tolti: {e}"));
+            }
+        }
     }
 
     /// Dopo una modifica: contenuti, progressi e pagine si ricalcolano.
@@ -105,7 +187,10 @@ impl Ctrl {
 
     pub(super) fn contents_remove(&mut self, path: &str) {
         match contents::remove_file(&self.store, path) {
-            Ok(()) => self.contents_changed(format!("Tolto {path}.")),
+            Ok(()) => {
+                self.ct_sel.remove(path);
+                self.contents_changed(format!("Tolto {path}."))
+            }
             Err(e) => self.toast(format!("Non tolto: {e}")),
         }
     }

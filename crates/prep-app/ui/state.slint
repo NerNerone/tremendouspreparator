@@ -161,6 +161,12 @@ export struct ContentFileVM {
     info: string,
     // primo file del suo tipo: sopra va l'intestazione del gruppo
     head: bool,
+    // simbolo: 0 quiz, 1 flashcard, 2 libro, 3 documento
+    icon: int,
+    sel: bool,
+    // primo e ultimo dell'elenco mostrato (angoli del gruppo)
+    first: bool,
+    last: bool,
 }
 
 // una simulazione del registro
@@ -1006,6 +1012,13 @@ export global AppState {
     callback open-contents();
     callback contents-add();
     callback contents-remove(string);
+    // filtro dell'elenco (0 tutti, 1 domande, 2 flashcard, 3 libri, 4 altro) e scelta multipla
+    in property <int> contents-filter-n;
+    in property <int> contents-sel-n;
+    callback contents-filter(int);
+    callback contents-toggle(string);
+    callback contents-remove-selected();
+    callback contents-clear-sel();
     callback contents-export();
     // controllo di qualità dei contenuti: riassunto e righe («# Titolo» per i gruppi)
     callback contents-check();
