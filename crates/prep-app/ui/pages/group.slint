@@ -150,6 +150,8 @@ component Car inherits Rectangle {
     // il paddock: solo il contorno della macchina
     property <bool> outline: root.car.parked;
     property <color> wheel: root.fx-tyres ? #e8322b : root.c;
+    // primo in classifica: alettoni d'oro con il bordo scuro (si vedono anche su una macchina gialla)
+    property <color> wing: root.fx-lead ? #f5c542 : root.c;
     // orologio (ms) per i movimenti continui: solo se c'è qualcosa da muovere
     property <bool> live: root.car.racing || root.fx-flag || root.fx-smoke || root.fx-up || root.fx-down;
     property <float> ms: root.live ? animation-tick() / 1ms : 0;
@@ -336,26 +338,25 @@ component Car inherits Rectangle {
         background: root.road;
         opacity: root.crew;
     }
-    // scia: corta nel colore della macchina, d'oro per chi è primo in classifica (resta anche
-    // con le fiamme e i nastri); in pista e senza la scia della concentrazione o del ritmo
-    property <bool> trail: root.car.racing && root.on-road && (root.fx-lead || !(root.fx-flame || root.fx-focus));
+    // scia corta nel colore della macchina, in pista e senza fiamme né nastri
+    property <bool> trail: root.car.racing && root.on-road && !(root.fx-flame || root.fx-focus);
     if root.trail: Rectangle {
-        x: root.fx-lead ? -10px : -10px - 5px * root.phase;
+        x: -10px - 5px * root.phase;
         y: 6px;
-        width: root.fx-lead ? 8px : 8px + 5px * root.phase;
+        width: 8px + 5px * root.phase;
         height: 2px;
         border-radius: 1px;
-        background: root.fx-lead ? #f5c542 : root.c;
-        opacity: root.fx-lead ? 1 : 0.2 + 0.35 * root.phase;
+        background: root.c;
+        opacity: 0.2 + 0.35 * root.phase;
     }
     if root.trail: Rectangle {
-        x: root.fx-lead ? -8px : -8px - 6px * (1 - root.phase);
+        x: -8px - 6px * (1 - root.phase);
         y: 12px;
-        width: root.fx-lead ? 6px : 6px + 6px * (1 - root.phase);
+        width: 6px + 6px * (1 - root.phase);
         height: 2px;
         border-radius: 1px;
-        background: root.fx-lead ? #f5c542 : root.c;
-        opacity: root.fx-lead ? 1 : 0.2 + 0.35 * (1 - root.phase);
+        background: root.c;
+        opacity: 0.2 + 0.35 * (1 - root.phase);
     }
     // la monoposto (trema appena con il bloccaggio); nel paddock solo il contorno
     Rectangle {
@@ -364,7 +365,7 @@ component Car inherits Rectangle {
         width: 36px;
         height: 20px;
         // alettone posteriore (si apre con il DRS)
-        Rectangle { x: root.drs; y: 3px; width: 3px; height: 14px; border-radius: 1px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        Rectangle { x: root.drs; y: 3px; width: 3px; height: 14px; border-radius: 1px; background: root.outline ? transparent : root.wing; border-width: root.outline || root.fx-lead ? 0.7px : 0px; border-color: root.fx-lead ? #7a5600 : root.c; }
         // ruote posteriori e anteriori (rosse con le gomme soft)
         Rectangle { x: 4px; y: 0px; width: 7px; height: 5px; border-radius: 1.5px; background: root.outline ? transparent : root.wheel; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
         Rectangle { x: 4px; y: 15px; width: 7px; height: 5px; border-radius: 1.5px; background: root.outline ? transparent : root.wheel; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
@@ -374,7 +375,7 @@ component Car inherits Rectangle {
         Rectangle { x: 6px; y: 6px; width: 16px; height: 8px; border-radius: 4px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
         // muso affilato e alettone anteriore
         Rectangle { x: 20px; y: 8.5px; width: 13px; height: 3px; border-radius: 1.5px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
-        Rectangle { x: 32px; y: 2px; width: 3px; height: 16px; border-radius: 1px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        Rectangle { x: 32px; y: 2px; width: 3px; height: 16px; border-radius: 1px; background: root.outline ? transparent : root.wing; border-width: root.outline || root.fx-lead ? 0.7px : 0px; border-color: root.fx-lead ? #7a5600 : root.c; }
         // abitacolo (halo): nel colore della strada, della stessa misura su tutte le monoposto
         if !root.outline: Rectangle {
             x: 15.5px;
@@ -385,35 +386,39 @@ component Car inherits Rectangle {
             background: root.road;
         }
     }
-    // scia dei compagni: una raffica per compagno contro l'alettone anteriore, che poi si
-    // apre ai lati della macchina
-    for i in (root.fx-draft ? max(1, min(3, root.car.others)) : 0): Rectangle {
-        property <length> gy: i == 0 ? 4px : i == 1 ? 16px : 10px;
-        property <float> g: mod(root.ms / 1400 - i * 0.25, 1);
+    // scia dei compagni: per ogni compagno (fino a 3) una coppia di raffiche simmetriche, sopra
+    // e sotto la mezzeria, che arrivano contro l'alettone anteriore e si aprono ognuna dal suo lato
+    property <int> gusts: root.fx-draft ? 2 * max(1, min(3, root.car.others)) : 0;
+    for i in root.gusts: Rectangle {
+        property <int> pair: floor(i / 2);
+        property <bool> up: mod(i, 2) == 0;
+        property <length> gy: self.pair == 0 ? (self.up ? 4px : 16px) : self.pair == 1 ? (self.up ? 7px : 13px) : (self.up ? 2px : 18px);
+        property <float> g: mod(root.ms / 1400 - self.pair * 0.33, 1);
         x: 38px + 26px * (1 - self.g * self.g);
-        y: self.gy - 0.4px;
+        y: self.gy - 0.5px;
         width: 10px;
-        height: 0.8px;
-        border-radius: 0.4px;
+        height: 1px;
+        border-radius: 0.5px;
         background: #9fe6ff;
         opacity: self.g < 0.15 ? self.g / 0.15 : 1;
     }
-    for j in (root.fx-draft ? 2 * max(1, min(3, root.car.others)) : 0): Rectangle {
-        property <int> i: floor(j / 2);
-        property <float> top: self.i == 0 ? 1 : 0;
-        property <length> y0: self.i == 0 ? 4px : self.i == 1 ? 16px : 10px;
-        property <float> s: clamp(mod(root.ms / 1400 - (self.i * 0.35 + 0.9) / 1.4, 1) - mod(j, 2) * 0.06, 0, 1);
+    for j in root.gusts * 3: Rectangle {
+        property <int> i: floor(j / 3);
+        property <int> pair: floor(self.i / 2);
+        property <bool> up: mod(self.i, 2) == 0;
+        property <length> y0: self.pair == 0 ? (self.up ? 4px : 16px) : self.pair == 1 ? (self.up ? 7px : 13px) : (self.up ? 2px : 18px);
+        property <float> s: clamp(mod(root.ms / 1400 - self.pair * 0.33 - 0.64, 1) - mod(j, 3) * 0.07, 0, 1);
         property <float> u: 1 - self.s;
-        // curva da (36, y) verso il lato: sopra per la raffica alta, sotto per le altre
+        // curva da (36, y) verso il proprio lato, fin dietro la macchina
         property <length> bx: 36px * self.u * self.u * self.u + 3 * 30px * self.u * self.u * self.s + 3 * 18px * self.u * self.s * self.s - 8px * self.s * self.s * self.s;
-        property <length> by: self.y0 * self.u * self.u * self.u + 3 * (self.top > 0 ? -3px : 23px) * self.u * self.u * self.s + 3 * (self.top > 0 ? -5px : 25px) * self.u * self.s * self.s + (self.top > 0 ? -6px : 26px) * self.s * self.s * self.s;
-        x: self.bx - 1.5px;
+        property <length> by: self.y0 * self.u * self.u * self.u + 3 * (self.up ? -3px : 23px) * self.u * self.u * self.s + 3 * (self.up ? -5px : 25px) * self.u * self.s * self.s + (self.up ? -6px : 26px) * self.s * self.s * self.s;
+        x: self.bx - 2px;
         y: self.by - 0.4px;
-        width: 3.5px;
+        width: 4px;
         height: 0.8px;
         border-radius: 0.4px;
         background: #9fe6ff;
-        opacity: (self.s < 0.1 ? self.s / 0.1 : 1 - self.s) * (mod(j, 2) == 0 ? 1 : 0.6);
+        opacity: (self.s <= 0 ? 0 : self.s < 0.1 ? self.s / 0.1 : 1 - self.s) * (mod(j, 3) == 0 ? 1 : mod(j, 3) == 1 ? 0.65 : 0.35);
     }
     // piano fatto: ogni tanto un lancio di coriandoli nei colori delle materie
     property <float> cf: mod(root.ms, 8000) / 2400;
@@ -2854,7 +2859,7 @@ export component GroupPage inherits Page {
                         { c: #E8322B, t: "Ruote rosse · gomme soft ×1,2", d: "Pit stop entro 10 minuti dopo almeno 25 di studio: per 25 minuti, con le strisce di gomma dietro." },
                         { c: #9FE6FF, t: "Raffiche · scia dei compagni", d: "+0,1 per ogni compagno in pista, fino a ×1,4: il loro vento si infrange sull'alettone." },
                         { c: #2FD27A, t: "Coriandoli · piano fatto ×1,1", d: "Obiettivi di oggi completati: ×1,1 fino a mezzanotte." },
-                        { c: #F5C542, t: "Scia d'oro · primo in classifica", d: "Chi è in testa oggi. Solo da vedere: il punteggio non cambia." },
+                        { c: #F5C542, t: "Alettoni d'oro · primo in classifica", d: "Chi è in testa oggi. Solo da vedere: il punteggio non cambia." },
                         { c: #FFD400, t: "Pannello giallo · bandiera gialla", d: "Uscito dalla concentrazione prima del tempo: bonus sospeso e DRS chiuso fino alla fine prevista o al rientro." },
                         { c: #A3A8B1, t: "Fumo davanti · bloccaggio ×0,8", d: "Più di 2 pause in 30 minuti, per 15 minuti: la macchina trema." },
                         { c: #A259FF, t: "Raggiera e «PB» · record", d: "Hai superato il tuo miglior giorno. Poi la bandierina a ogni giro e «+1»/«−1» a ogni sorpasso." },

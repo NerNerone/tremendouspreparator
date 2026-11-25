@@ -7,7 +7,7 @@ l'aggiornamento che lo porta.
 
 - Squadra, effetti nuovi in pista: fiamme a livelli per il ritmo, DRS e nastri blu per la concentrazione, ruote rosse con le strisce di gomma per le gomme soft, raffiche dei compagni che si infrangono davanti, fumo dalle ruote anteriori per il bloccaggio, solo il contorno nel paddock.
 - Piano fatto: con gli obiettivi di oggi completati ×1,1 fino a mezzanotte, e ogni tanto i coriandoli.
-- Primo in classifica: scia d'oro. Bandiera gialla: se esci dalla concentrazione prima del tempo, pannello giallo «!» e DRS chiuso. Record del giorno: raggiera viola e medaglia «PB»; a ogni giro la bandierina con il numero, a ogni sorpasso «+1» o «−1».
+- Primo in classifica: alettoni d'oro. Bandiera gialla: se esci dalla concentrazione prima del tempo, pannello giallo «!» e DRS chiuso. Record del giorno: raggiera viola e medaglia «PB»; a ogni giro la bandierina con il numero, a ogni sorpasso «+1» o «−1».
 - Strumenti dei pacchetti: tabelle interattive (come la tavola periodica), elenchi da cercare e calcolatori con formule, scritti come dati nel pacchetto. Esempi: codice genetico, vitamine, costanti, prefissi del SI, gas perfetti, diluizioni, pH, moto accelerato.
 - Gestisci contenuti › Strumenti: quelli del pacchetto in una sezione a sé; «Aggiungi strumento» ne copia uno da un altro pacchetto (o la tavola periodica); con ⋮ uno strumento si salva da solo come file da mandare, si copia in un altro pacchetto o si toglie. Chi riceve il file sceglie in quale pacchetto metterlo.
 - Nuova icona: libro con il segnalibro a scacchi, nei colori dell'accento di sistema (Android 12+).

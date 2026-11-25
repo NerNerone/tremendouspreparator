@@ -2362,7 +2362,7 @@ fn fx_showcase(cars: &mut Vec<CarVM>) {
         ("A", 0xffe53935, 0.012, -1.0, 2 | 1, 2.5, 0.3),
         ("B", 0xff43a047, -0.012, 1.0, 64, 1.2, 0.0),
         ("C", 0xff8e24aa, 0.024, 1.0, 8, 0.8, 0.0),
-        ("D", 0xfffb8c00, -0.024, -1.0, 16, 1.6, 0.0),
+        ("D", 0xfffb8c00, -0.024, -1.0, 16, 1.1, 0.0),
         ("E", 0xff00acc1, 0.036, 0.0, 32, 1.0, 0.0),
         ("F", 0xff6d4c41, -0.036, 0.0, 128 | 512, 1.0, 0.0),
     ];
@@ -2375,7 +2375,8 @@ fn fx_showcase(cars: &mut Vec<CarVM>) {
         c.f += df;
         c.lane = lane;
         c.fx = fx;
-        c.others = 3;
+        // la scia dei compagni come con un solo compagno in pista
+        c.others = 1;
         c.mult = mult;
         c.level = level;
         cars.push(c);
