@@ -129,6 +129,15 @@ impl Ctrl {
         st.set_focus_restricted(restricted && !usage);
         st.set_focus_overlay_ok(overlay);
         st.set_focus_active(active);
+        // bandiera gialla: concentrazione chiusa prima della fine prevista, mentre si studia;
+        // dura fino a quella fine o finché la concentrazione non riparte
+        if active {
+            self.focus_planned = until;
+            self.yellow_until = 0;
+        } else if self.focus_on && self.focus_planned > now_ms {
+            self.yellow_until = self.focus_planned;
+            self.focus_planned = 0;
+        }
         self.focus_on = active;
         st.set_focus_status(ss(status));
         // conto alla rovescia del blocco a tempo

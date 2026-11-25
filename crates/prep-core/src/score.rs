@@ -11,6 +11,7 @@
 //! | box troppo frequenti | più di 2 pause in 30 min | ×0,8 per 15 min |
 //! | concentrazione | modalità concentrazione attiva | +1,0 al ritmo (da ×1 a ×2); +0,1 per ogni altro proprio dispositivo in concentrazione |
 //! | scia di gruppo | altri membri in pista | +0,1 per ciascuno, al massimo ×1,4 |
+//! | piano fatto | obiettivi di oggi completati | ×1,1 fino a mezzanotte |
 //! | limite giornaliero | oltre 10 ore nel giorno | ×1 fisso |
 
 use serde::{Deserialize, Serialize};
@@ -30,6 +31,8 @@ pub const FOCUS: f64 = 1.0;
 pub const FOCUS_EXTRA: f64 = 0.1;
 pub const DRAFT_EACH: f64 = 0.1;
 pub const DRAFT_MAX: f64 = 1.4;
+/// piano del giorno completato
+pub const PLAN: f64 = 1.1;
 pub const CAP: f64 = 5.0;
 pub const DAILY_CAP_SECS: u64 = 10 * 3600;
 /// Punti per giro del circuito (a ×1 un giro al minuto, come prima).
@@ -41,6 +44,12 @@ pub const FX_TYRES: u8 = 2;
 pub const FX_FOCUS: u8 = 4;
 pub const FX_SMOKE: u8 = 8;
 pub const FX_DRAFT: u8 = 16;
+/// bandiera gialla: uscito dalla concentrazione prima del tempo (bonus sospeso)
+pub const FX_YELLOW: u8 = 32;
+/// piano del giorno completato (coriandoli)
+pub const FX_PLAN: u8 = 64;
+/// record personale battuto adesso (raggiera e medaglia, per pochi secondi)
+pub const FX_PB: u8 = 128;
 
 /// Il tratto di studio in corso, con i suoi effetti.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -110,6 +119,11 @@ impl Run {
     /// Moltiplicatore a `now`: `focus` = concentrazione attiva, `others` = altri membri in pista,
     /// `today` = secondi già studiati oggi.
     pub fn score(&self, now: i64, focus: u32, others: usize, today: u64) -> Score {
+        self.score_plan(now, focus, others, today, false)
+    }
+
+    /// Come [`Run::score`], con il piano del giorno completato (`plan`: ×1,1).
+    pub fn score_plan(&self, now: i64, focus: u32, others: usize, today: u64, plan: bool) -> Score {
         if today >= DAILY_CAP_SECS {
             return Score { mult: 1.0, fx: 0, level: 0.0 };
         }
@@ -133,6 +147,10 @@ impl Run {
         if others > 0 {
             m *= (1.0 + DRAFT_EACH * others as f64).min(DRAFT_MAX);
             fx |= FX_DRAFT;
+        }
+        if plan {
+            m *= PLAN;
+            fx |= FX_PLAN;
         }
         Score { mult: m.min(CAP), fx, level: ((ritmo - 1.0) / (RITMO_MAX - 1.0)) as f32 }
     }
@@ -211,5 +229,11 @@ mod tests {
         assert_eq!(r.score(121 * 60, 1, 3, DAILY_CAP_SECS).mult, 1.0);
         // scia di gruppo con un limite
         assert_eq!(Run::default().score(0, 0, 9, 0).mult, DRAFT_MAX);
+        // piano fatto: ×1,1, fino al tetto
+        let p = Run::default().score_plan(0, 0, 0, 0, true);
+        assert!((p.mult - PLAN).abs() < 1e-9 && p.fx & FX_PLAN != 0);
+        let mut big = Run::default();
+        big.start(0);
+        assert_eq!(big.score_plan(4 * 3600, 1, 9, 0, true).mult, CAP);
     }
 }

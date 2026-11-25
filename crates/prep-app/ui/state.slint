@@ -302,9 +302,13 @@ export struct CarVM {
     run: float,
     px: float,
     py: float,
-    // effetti in corso (bit): 1 ritmo (fiamma), 2 gomme nuove (scintille), 4 concentrazione
-    // (alone e scia blu), 8 penalità (fumo), 16 scia di gruppo (vento), 32 bandiera gialla
+    // effetti in corso (bit): 1 ritmo (fiamme), 2 gomme soft (ruote rosse), 4 concentrazione
+    // (DRS e nastri blu), 8 bloccaggio (fumo davanti), 16 scia dei compagni (raffiche),
+    // 32 bandiera gialla, 64 piano fatto (coriandoli), 128 record (raggiera e «PB»);
+    // calcolati qui: 256 primo in classifica (scia d'oro), 512 sorpasso «+1», 1024 «−1»
     fx: int,
+    // compagni in pista (raffiche della scia, al massimo 3)
+    others: int,
     // moltiplicatore dei punti (velocità) e intensità del ritmo (0..1)
     mult: float,
     level: float,

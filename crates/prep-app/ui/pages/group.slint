@@ -134,87 +134,196 @@ component Car inherits Rectangle {
     property <color> suit: root.road.darker(0.45);
     width: 36px;
     height: 20px;
-    // effetti (vedi CarVM.fx): orologi per i movimenti continui
+    // effetti (vedi CarVM.fx), come nel mockup approvato: coordinate in unità della monoposto
+    // (36 × 20), quindi in pixel prima dello zoom
     property <bool> fx-flame: root.car.racing && mod(root.car.fx, 2) == 1;
     property <bool> fx-tyres: root.car.racing && mod(floor(root.car.fx / 2), 2) == 1;
+    property <bool> fx-flag: !root.car.parked && mod(floor(root.car.fx / 32), 2) == 1;
     property <bool> fx-focus: root.car.racing && mod(floor(root.car.fx / 4), 2) == 1;
     property <bool> fx-smoke: !root.car.parked && mod(floor(root.car.fx / 8), 2) == 1;
     property <bool> fx-draft: root.car.racing && mod(floor(root.car.fx / 16), 2) == 1;
-    property <bool> fx-flag: !root.car.parked && mod(floor(root.car.fx / 32), 2) == 1;
-    property <bool> fx-any: root.car.fx != 0;
-    // effetti che prendono il posto della scia normale
-    property <bool> fx-trail: root.fx-flame || root.fx-focus || root.fx-smoke || root.fx-draft;
-    property <float> tk: root.fx-any ? mod(animation-tick() / 1ms, 1200) / 1200 : 0;
-    property <float> fl: root.fx-any ? mod(animation-tick() / 1ms, 160) / 160 : 0;
-    // concentrazione: alone blu che pulsa e lunga scia blu con filetti che scorrono
+    property <bool> fx-plan: root.car.racing && mod(floor(root.car.fx / 64), 2) == 1;
+    property <bool> fx-pb: root.car.racing && mod(floor(root.car.fx / 128), 2) == 1;
+    property <bool> fx-lead: root.car.racing && mod(floor(root.car.fx / 256), 2) == 1;
+    property <bool> fx-up: mod(floor(root.car.fx / 512), 2) == 1;
+    property <bool> fx-down: mod(floor(root.car.fx / 1024), 2) == 1;
+    // il paddock: solo il contorno della macchina
+    property <bool> outline: root.car.parked;
+    property <color> wheel: root.fx-tyres ? #e8322b : root.c;
+    // orologio (ms) per i movimenti continui: solo se c'è qualcosa da muovere
+    property <bool> live: root.car.racing || root.fx-flag || root.fx-smoke || root.fx-up || root.fx-down;
+    property <float> ms: root.live ? animation-tick() / 1ms : 0;
+    property <float> tk: mod(root.ms, 1200) / 1200;
+    // gradini del ritmo: una fiamma per livello (gialla, arancio, rossa)
+    property <int> lv: root.car.level < 0.34 ? 1 : root.car.level < 0.67 ? 2 : 3;
+    property <float> flick: mod(root.ms, 180) < 90 ? 1 : 0.84;
+    // DRS: alettone posteriore che si apre e si chiude (chiuso con la bandiera gialla)
+    property <float> drs-q: mod(root.ms, 2600) / 2600;
+    property <length> drs: root.fx-focus && !root.fx-flag ? -1.8px * (root.drs-q < 0.12 ? 0 : root.drs-q < 0.3 ? (root.drs-q - 0.12) / 0.18 : root.drs-q < 0.85 ? 1 : (1 - root.drs-q) / 0.15) : 0px;
+    // bloccaggio: la macchina trema appena
+    property <float> sh: root.fx-smoke ? sin(mod(root.ms, 200) / 200 * 360deg) : 0;
+    // giro completato: bandierina e numero del giro per un attimo
+    property <int> lap: floor(root.car.f);
+    property <float> lap-t: -10000;
+    changed lap => {
+        if (root.car.racing && root.lap > 0) {
+            root.lap-t = animation-tick() / 1ms;
+        }
+    }
+    property <float> lap-p: root.car.racing ? (root.ms - root.lap-t) / 2000 : 2;
+    // record personale: la raggiera e la medaglia partono quando arriva l'effetto
+    property <float> pb-t;
+    changed fx-pb => {
+        root.pb-t = animation-tick() / 1ms;
+    }
+    property <float> pb-p: root.fx-pb ? clamp((root.ms - root.pb-t) / 2200, 0, 1) : 1;
+
+    // gomme soft: due strisce di gomma sull'asfalto dietro le ruote
+    if root.fx-tyres: Rectangle { x: -30px; y: 1.6px; width: 34px; height: 1.6px; background: #16171a; opacity: 0.55; }
+    if root.fx-tyres: Rectangle { x: -30px; y: 16.8px; width: 34px; height: 1.6px; background: #16171a; opacity: 0.55; }
+    // record: raggiera viola dietro la macchina
+    if root.fx-pb && root.pb-p < 1: Rectangle {
+        x: 18px;
+        y: 10px;
+        width: 0px;
+        height: 0px;
+        Rectangle {
+            x: -26px;
+            y: -26px;
+            width: 52px;
+            height: 52px;
+            opacity: root.pb-p < 0.2 ? root.pb-p / 0.2 * 0.55 : 0.55 * (1 - root.pb-p) / 0.8;
+            transform-rotation: 40deg * root.pb-p;
+            transform-scale-x: 0.2 + 0.8 * root.pb-p;
+            transform-scale-y: 0.2 + 0.8 * root.pb-p;
+            Path {
+                width: 52px;
+                height: 52px;
+                viewbox-x: -26;
+                viewbox-y: -26;
+                viewbox-width: 52;
+                viewbox-height: 52;
+                fill: #c79bff;
+                commands: "M0 0 L25.81 -3.11 L25.81 3.11 Z M0 0 L15.61 20.79 L10.22 23.91 Z M0 0 L-10.19 23.92 L-15.58 20.82 Z M0 0 L-25.81 3.15 L-25.82 -3.07 Z M0 0 L-15.65 -20.77 L-10.26 -23.89 Z M0 0 L10.15 -23.94 L15.55 -20.84 Z";
+            }
+            Path {
+                width: 52px;
+                height: 52px;
+                viewbox-x: -26;
+                viewbox-y: -26;
+                viewbox-width: 52;
+                viewbox-height: 52;
+                fill: #a259ff;
+                commands: "M0 0 L23.91 10.2 L20.8 15.6 Z M0 0 L3.13 25.81 L-3.09 25.82 Z M0 0 L-20.78 15.63 L-23.9 10.24 Z M0 0 L-23.93 -10.17 L-20.83 -15.56 Z M0 0 L-3.17 -25.81 L3.05 -25.82 Z M0 0 L20.75 -15.66 L23.88 -10.28 Z";
+            }
+        }
+    }
+    // concentrazione: due nastri blu tesi dietro l'alettone (DRS)...
     if root.fx-focus: Rectangle {
-        x: -7px;
-        y: -6px;
-        width: 50px;
-        height: 32px;
-        border-radius: 16px;
-        background: #2979ff;
-        opacity: 0.16 + 0.1 * (0.5 + 0.5 * sin(root.tk * 360deg));
+        x: -28px;
+        y: 0px;
+        width: 28px;
+        height: 20px;
+        transform-origin: { x: 28px, y: 10px };
+        transform-scale-x: 1 + 0.06 * (0.5 - 0.5 * cos(root.tk * 360deg));
+        Path {
+            width: 28px;
+            height: 20px;
+            viewbox-x: -28;
+            viewbox-y: 0;
+            viewbox-width: 28;
+            viewbox-height: 20;
+            fill: #4f8df5;
+            commands: "M-0.5 3 L-28 4.3 L-28 5.3 L-0.5 4.7 Z M-0.5 17 L-28 15.7 L-28 14.7 L-0.5 15.3 Z";
+        }
     }
-    if root.fx-focus: Rectangle {
-        x: -34px;
-        y: 4px;
-        width: 34px;
-        height: 12px;
-        border-radius: 6px;
-        background: @linear-gradient(90deg, #2979ff00 0%, #448aff88 100%);
+    // ...e una linea d'aria per lato che scorre liscia attorno alla macchina
+    for i in (root.fx-focus ? 8 : 0): Rectangle {
+        property <float> p: mod(root.ms / 1300 + mod(i, 4) / 4, 1);
+        property <length> cx: 48px - 100px * self.p;
+        property <float> bump: self.cx > 0px && self.cx < 32px ? sin(self.cx / 32px * 180deg) : 0;
+        x: self.cx - 9px;
+        y: i < 4 ? -3.4px - 1.4px * self.bump : 22.6px + 1.4px * self.bump;
+        width: 18px;
+        height: 0.8px;
+        background: #5b9bff;
+        opacity: self.cx < -36px ? 0 : 1;
     }
-    for i in (root.fx-focus ? 4 : 0): Rectangle {
-        property <float> p: mod(root.tk * 2 + i / 4, 1);
-        x: -4px - 28px * self.p;
-        y: 5px + mod(i * 5, 11) * 1px;
-        width: 8px;
-        height: 1.5px;
-        border-radius: 1px;
-        background: #bbdefb;
-        opacity: 1 - self.p;
+    // ritmo: fiamme piatte dallo scarico, una per livello, che guizzano
+    if root.fx-flame: Rectangle {
+        x: -20px;
+        y: 0px;
+        width: 20px;
+        height: 20px;
+        transform-origin: { x: 20px, y: 10px };
+        transform-scale-x: root.flick;
+        transform-scale-y: root.flick < 1 ? 0.9 : 1;
+        if root.lv == 1: Path {
+            width: 20px;
+            height: 20px;
+            viewbox-x: -20;
+            viewbox-width: 20;
+            viewbox-height: 20;
+            fill: #ffd23f;
+            commands: "M0 8.2 C-3.15 7.4 -6.75 9 -9 10 C-6.75 11 -3.15 12.6 0 11.8 Z";
+        }
+        if root.lv == 2: Path {
+            width: 20px;
+            height: 20px;
+            viewbox-x: -20;
+            viewbox-width: 20;
+            viewbox-height: 20;
+            fill: #ff8a1f;
+            commands: "M0 8.2 C-4.9 7.4 -10.5 9 -14 10 C-10.5 11 -4.9 12.6 0 11.8 Z";
+        }
+        if root.lv == 2: Path {
+            width: 20px;
+            height: 20px;
+            viewbox-x: -20;
+            viewbox-width: 20;
+            viewbox-height: 20;
+            fill: #ffd23f;
+            commands: "M0 7.5 C-3.15 6.8 -6.75 9 -9 10 C-6.75 11 -3.15 13.2 0 12.5 Z";
+        }
+        if root.lv == 3: Path {
+            width: 20px;
+            height: 20px;
+            viewbox-x: -20;
+            viewbox-width: 20;
+            viewbox-height: 20;
+            fill: #ff3b1f;
+            commands: "M0 8.2 C-6.65 7.4 -14.25 9 -19 10 C-14.25 11 -6.65 12.6 0 11.8 Z";
+        }
+        if root.lv == 3: Path {
+            width: 20px;
+            height: 20px;
+            viewbox-x: -20;
+            viewbox-width: 20;
+            viewbox-height: 20;
+            fill: #ff8a1f;
+            commands: "M0 7.5 C-4.9 6.8 -10.5 9 -14 10 C-10.5 11 -4.9 13.2 0 12.5 Z";
+        }
+        if root.lv == 3: Path {
+            width: 20px;
+            height: 20px;
+            viewbox-x: -20;
+            viewbox-width: 20;
+            viewbox-height: 20;
+            fill: #ffd23f;
+            commands: "M0 6.8 C-3.15 6.2 -6.75 9 -9 10 C-6.75 11 -3.15 13.8 0 13.2 Z";
+        }
     }
-    // ritmo: fiamme dallo scarico, più lunghe con il ritmo
-    for i in (root.fx-flame ? 2 : 0): Rectangle {
-        property <length> len: (7px + 20px * root.car.level) * (0.8 + 0.4 * (i == 0 ? root.fl : 1 - root.fl));
-        x: 1px - self.len;
-        y: i == 0 ? 5px : 11px;
-        width: self.len;
-        height: 4px;
-        border-radius: 2px;
-        background: @linear-gradient(90deg, #ff3d0000 0%, #ff6d00 45%, #ffd600 100%);
-    }
-    if root.fx-flame && root.car.level > 0.6: Rectangle {
-        property <length> len: (14px + 18px * root.car.level) * (0.85 + 0.3 * root.fl);
-        x: 1px - self.len;
-        y: 7px;
-        width: self.len;
-        height: 6px;
-        border-radius: 3px;
-        background: @linear-gradient(90deg, #d5000000 0%, #ff3d00aa 60%, #fff59d 100%);
-    }
-    // penalità: sbuffi di fumo grigio che si allargano e svaniscono
-    for i in (root.fx-smoke ? 5 : 0): Rectangle {
-        property <float> p: mod(root.tk + i / 5, 1);
-        property <length> r: 3px + 9px * self.p;
-        x: -2px - 30px * self.p - self.r;
-        y: 10px - self.r + (mod(i, 2) == 0 ? -3px : 3px) * self.p;
+    // bloccaggio: sbuffi grigi dalle ruote anteriori
+    for i in (root.fx-smoke ? 6 : 0): Rectangle {
+        property <float> p: mod(root.ms / 1200 + i / 6, 1);
+        property <length> r: 2px * (0.4 + 1.4 * self.p);
+        x: 26px - 22px * self.p - self.r;
+        y: (mod(i, 2) == 1 ? 20px : 0px) + (mod(i, 2) == 1 ? 1px : -1px) * (2 + i) * self.p - self.r;
         width: self.r * 2;
         height: self.r * 2;
         border-radius: self.r;
-        background: #757575;
-        opacity: 0.55 * (1 - self.p);
-    }
-    // scia di gruppo: filetti di vento ai lati
-    for i in (root.fx-draft ? 4 : 0): Rectangle {
-        property <float> p: mod(root.tk * 1.5 + i / 4, 1);
-        x: 44px - 60px * self.p;
-        y: mod(i, 2) == 0 ? -5px : 24px;
-        width: 14px;
-        height: 1.5px;
-        border-radius: 1px;
-        background: #26c6da;
-        opacity: 0.9 * (1 - self.p);
+        background: #a3a8b1;
+        opacity: 0.85 * (1 - self.p);
     }
     // piazzola del box: un fondo arrotondato poco più grande della monoposto, senza bordi né
     // segni; compare quando la macchina si ferma e sparisce quando riparte
@@ -227,74 +336,172 @@ component Car inherits Rectangle {
         background: root.road;
         opacity: root.crew;
     }
-    // scia normale, solo in pista e senza effetti (un effetto la sostituisce)
-    if root.car.racing && root.on-road && !root.fx-trail: Rectangle {
-        x: -10px - 5px * root.phase;
+    // scia: corta nel colore della macchina, d'oro per chi è primo in classifica (resta anche
+    // con le fiamme e i nastri); in pista e senza la scia della concentrazione o del ritmo
+    property <bool> trail: root.car.racing && root.on-road && (root.fx-lead || !(root.fx-flame || root.fx-focus));
+    if root.trail: Rectangle {
+        x: root.fx-lead ? -10px : -10px - 5px * root.phase;
         y: 6px;
-        width: 8px + 5px * root.phase;
+        width: root.fx-lead ? 8px : 8px + 5px * root.phase;
         height: 2px;
         border-radius: 1px;
-        background: root.c;
-        opacity: 0.2 + 0.35 * root.phase;
+        background: root.fx-lead ? #f5c542 : root.c;
+        opacity: root.fx-lead ? 1 : 0.2 + 0.35 * root.phase;
     }
-    if root.car.racing && root.on-road && !root.fx-trail: Rectangle {
-        x: -8px - 6px * (1 - root.phase);
+    if root.trail: Rectangle {
+        x: root.fx-lead ? -8px : -8px - 6px * (1 - root.phase);
         y: 12px;
-        width: 6px + 6px * (1 - root.phase);
+        width: root.fx-lead ? 6px : 6px + 6px * (1 - root.phase);
         height: 2px;
         border-radius: 1px;
-        background: root.c;
-        opacity: 0.2 + 0.35 * (1 - root.phase);
+        background: root.fx-lead ? #f5c542 : root.c;
+        opacity: root.fx-lead ? 1 : 0.2 + 0.35 * (1 - root.phase);
     }
-    // alettone posteriore
-    Rectangle { x: 0px; y: 3px; width: 3px; height: 14px; border-radius: 1px; background: root.c; }
-    // ruote posteriori e anteriori
-    Rectangle { x: 4px; y: 0px; width: 7px; height: 5px; border-radius: 1.5px; background: root.c; }
-    Rectangle { x: 4px; y: 15px; width: 7px; height: 5px; border-radius: 1.5px; background: root.c; }
-    Rectangle { x: 23px; y: 1px; width: 6px; height: 4px; border-radius: 1.5px; background: root.c; }
-    Rectangle { x: 23px; y: 15px; width: 6px; height: 4px; border-radius: 1.5px; background: root.c; }
-    // scocca con le pance laterali
-    Rectangle { x: 6px; y: 6px; width: 16px; height: 8px; border-radius: 4px; background: root.c; }
-    // muso affilato e alettone anteriore
-    Rectangle { x: 20px; y: 8.5px; width: 13px; height: 3px; border-radius: 1.5px; background: root.c; }
-    Rectangle { x: 32px; y: 2px; width: 3px; height: 16px; border-radius: 1px; background: root.c; }
-    // abitacolo (halo): nel colore della strada, della stessa misura su tutte le monoposto
+    // la monoposto (trema appena con il bloccaggio); nel paddock solo il contorno
     Rectangle {
-        x: 15.5px;
-        y: 8px;
-        width: 4px;
-        height: 4px;
-        border-radius: 2px;
-        background: root.road;
-    }
-    // gomme nuove: scintille che si accendono a turno attorno alle ruote
-    for i in (root.fx-tyres ? 6 : 0): Rectangle {
-        property <float> p: mod(root.tk * 1.4 + i / 6, 1);
-        x: (mod(i, 3) == 0 ? 2px : mod(i, 3) == 1 ? 13px : 27px) + 4px * self.p;
-        y: i < 3 ? -6px - 4px * self.p : 22px + 4px * self.p;
-        width: 6px;
-        height: 6px;
-        border-width: 1px;
-        border-color: #e65100;
-        background: mod(i, 2) == 0 ? #ffd600 : #fff176;
-        transform-rotation: 45deg + 90deg * self.p;
-        opacity: 1 - self.p;
-    }
-    // bandiera gialla: bonus sospeso (uscito dalla concentrazione prima del previsto)
-    if root.fx-flag: Rectangle {
-        x: 14px;
-        y: -16px;
-        width: 12px;
-        height: 14px;
-        Rectangle { x: 0px; y: 0px; width: 1.5px; height: 14px; background: #424242; }
-        Rectangle {
-            x: 1.5px;
-            y: 0px;
-            width: 10px;
-            height: 7px;
-            background: #ffd600;
-            transform-rotation: 6deg * sin(root.tk * 720deg);
+        x: 0.35px * root.sh;
+        y: -0.3px * root.sh;
+        width: 36px;
+        height: 20px;
+        // alettone posteriore (si apre con il DRS)
+        Rectangle { x: root.drs; y: 3px; width: 3px; height: 14px; border-radius: 1px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        // ruote posteriori e anteriori (rosse con le gomme soft)
+        Rectangle { x: 4px; y: 0px; width: 7px; height: 5px; border-radius: 1.5px; background: root.outline ? transparent : root.wheel; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        Rectangle { x: 4px; y: 15px; width: 7px; height: 5px; border-radius: 1.5px; background: root.outline ? transparent : root.wheel; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        Rectangle { x: 23px; y: 1px; width: 6px; height: 4px; border-radius: 1.5px; background: root.outline ? transparent : root.wheel; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        Rectangle { x: 23px; y: 15px; width: 6px; height: 4px; border-radius: 1.5px; background: root.outline ? transparent : root.wheel; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        // scocca con le pance laterali
+        Rectangle { x: 6px; y: 6px; width: 16px; height: 8px; border-radius: 4px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        // muso affilato e alettone anteriore
+        Rectangle { x: 20px; y: 8.5px; width: 13px; height: 3px; border-radius: 1.5px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        Rectangle { x: 32px; y: 2px; width: 3px; height: 16px; border-radius: 1px; background: root.outline ? transparent : root.c; border-width: root.outline ? 0.7px : 0px; border-color: root.c; }
+        // abitacolo (halo): nel colore della strada, della stessa misura su tutte le monoposto
+        if !root.outline: Rectangle {
+            x: 15.5px;
+            y: 8px;
+            width: 4px;
+            height: 4px;
+            border-radius: 2px;
+            background: root.road;
         }
+    }
+    // scia dei compagni: una raffica per compagno contro l'alettone anteriore, che poi si
+    // apre ai lati della macchina
+    for i in (root.fx-draft ? max(1, min(3, root.car.others)) : 0): Rectangle {
+        property <length> gy: i == 0 ? 4px : i == 1 ? 16px : 10px;
+        property <float> g: mod(root.ms / 1400 - i * 0.25, 1);
+        x: 38px + 26px * (1 - self.g * self.g);
+        y: self.gy - 0.4px;
+        width: 10px;
+        height: 0.8px;
+        border-radius: 0.4px;
+        background: #9fe6ff;
+        opacity: self.g < 0.15 ? self.g / 0.15 : 1;
+    }
+    for j in (root.fx-draft ? 2 * max(1, min(3, root.car.others)) : 0): Rectangle {
+        property <int> i: floor(j / 2);
+        property <float> top: self.i == 0 ? 1 : 0;
+        property <length> y0: self.i == 0 ? 4px : self.i == 1 ? 16px : 10px;
+        property <float> s: clamp(mod(root.ms / 1400 - (self.i * 0.35 + 0.9) / 1.4, 1) - mod(j, 2) * 0.06, 0, 1);
+        property <float> u: 1 - self.s;
+        // curva da (36, y) verso il lato: sopra per la raffica alta, sotto per le altre
+        property <length> bx: 36px * self.u * self.u * self.u + 3 * 30px * self.u * self.u * self.s + 3 * 18px * self.u * self.s * self.s - 8px * self.s * self.s * self.s;
+        property <length> by: self.y0 * self.u * self.u * self.u + 3 * (self.top > 0 ? -3px : 23px) * self.u * self.u * self.s + 3 * (self.top > 0 ? -5px : 25px) * self.u * self.s * self.s + (self.top > 0 ? -6px : 26px) * self.s * self.s * self.s;
+        x: self.bx - 1.5px;
+        y: self.by - 0.4px;
+        width: 3.5px;
+        height: 0.8px;
+        border-radius: 0.4px;
+        background: #9fe6ff;
+        opacity: (self.s < 0.1 ? self.s / 0.1 : 1 - self.s) * (mod(j, 2) == 0 ? 1 : 0.6);
+    }
+    // piano fatto: ogni tanto un lancio di coriandoli nei colori delle materie
+    property <float> cf: mod(root.ms, 8000) / 2400;
+    for i in (root.fx-plan && root.cf < 1 ? 22 : 0): Rectangle {
+        property <angle> a: i / 22 * 360deg;
+        property <float> e: 1 - (1 - root.cf) * (1 - root.cf) * (1 - root.cf);
+        x: 17px + cos(self.a) * (22 + mod(i, 4) * 5) * 1px * self.e;
+        y: 9px + (sin(self.a) * (13 + mod(i, 3) * 3) - 6) * 1px * self.e;
+        width: mod(i, 3) != 0 ? 1.4px : 2px;
+        height: mod(i, 3) != 0 ? 0.8px : 1px;
+        background: mod(i, 5) == 0 ? #ff4d6d : mod(i, 5) == 1 ? #ffd23f : mod(i, 5) == 2 ? #2fd27a : mod(i, 5) == 3 ? #38c6e8 : #a259ff;
+        transform-rotation: (mod(i, 2) == 1 ? 1 : -1) * (240 + i * 20) * 1deg * self.e;
+        opacity: root.cf < 0.06 ? root.cf / 0.06 : root.cf > 0.7 ? (1 - root.cf) / 0.3 : 1;
+    }
+    // bandiera gialla: pannello giallo con «!» che lampeggia sopra la macchina
+    if root.fx-flag: Rectangle { x: 17.6px; y: -5px; width: 0.8px; height: 3.4px; background: #d0d4da; }
+    if root.fx-flag && mod(root.ms, 700) < 350: Rectangle {
+        x: 13px;
+        y: -12px;
+        width: 10px;
+        height: 7px;
+        border-radius: 1.4px;
+        background: #ffd400;
+        Text {
+            text: "!";
+            font-size: 5px;
+            font-weight: 900;
+            color: #2a2300;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    // record: medaglia «PB» che scende sopra la macchina
+    if root.fx-pb && root.pb-p < 1: Rectangle {
+        property <float> k: root.pb-p < 0.12 ? root.pb-p / 0.12 : 1;
+        x: 13.8px;
+        y: -11.2px - 6px * (1 - self.k);
+        width: 8.4px;
+        height: 12px;
+        opacity: root.pb-p < 0.12 ? self.k : root.pb-p < 0.8 ? 1 : (1 - root.pb-p) / 0.2;
+        Rectangle { x: 1.6px; y: 7.6px; width: 0.8px; height: 3.4px; background: #a259ff; transform-rotation: 16deg; }
+        Rectangle { x: 6px; y: 7.6px; width: 0.8px; height: 3.4px; background: #a259ff; transform-rotation: -16deg; }
+        Rectangle {
+            width: 8.4px;
+            height: 8.4px;
+            y: 0px;
+            border-radius: 4.2px;
+            background: #a259ff;
+            Rectangle { width: 6.4px; height: 6.4px; border-radius: 3.2px; border-width: 0.5px; border-color: #e3ccff; }
+            Text {
+                text: "PB";
+                font-size: 3.2px;
+                font-weight: 900;
+                color: #ffffff;
+            }
+        }
+    }
+    // giro completato: bandierina a scacchi con il numero del giro
+    if root.lap-p >= 0 && root.lap-p < 1: Rectangle {
+        x: 10px;
+        y: -9px + 3px * (root.lap-p < 0.15 ? 1 - root.lap-p / 0.15 : 0);
+        width: 16px;
+        height: 4px;
+        opacity: root.lap-p < 0.15 ? root.lap-p / 0.15 : root.lap-p < 0.7 ? 1 : (1 - root.lap-p) / 0.3;
+        for q in 8: Rectangle {
+            x: mod(q, 4) * 1.5px;
+            y: floor(q / 4) * 1.5px;
+            width: 1.5px;
+            height: 1.5px;
+            background: mod(mod(q, 4) + floor(q / 4), 2) == 1 ? #111111 : #f2f2f2;
+        }
+        Text {
+            x: 7px;
+            y: -0.6px;
+            text: root.lap;
+            font-size: 3px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+    }
+    // sorpasso: «+1» o «−1» sopra la propria macchina
+    if root.fx-up || root.fx-down: Text {
+        x: 38px;
+        y: -12px;
+        text: root.fx-up ? "+1" : "−1";
+        font-size: 4px;
+        font-weight: 800;
+        color: root.fx-up ? #38c6e8 : #ff8a80;
     }
     // squadra dei box: numero e posti a caso (fissi per ogni sosta), sempre sul lato esterno
     for m in root.car.crew: Crew {
@@ -1834,7 +2041,7 @@ export component GroupPage inherits Page {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: AppState.focus-active ? "Concentrazione · scia blu" : AppState.study-state == 2 ? "Pit stop · gomme nuove" : AppState.study-today;
+                                text: AppState.focus-active ? "Concentrazione · DRS aperto" : AppState.study-state == 2 ? "Pit stop · gomme soft" : AppState.study-today;
                                 font-size: 15px;
                                 font-weight: 800;
                                 color: M3.on-surface;
@@ -2588,7 +2795,7 @@ export component GroupPage inherits Page {
                 for st[i] in [
                     { t: "Esce dalla pista", d: "Dopo almeno 25 minuti di studio, la pausa breve porta la monoposto nella piazzola: rallenta e si ferma accanto al rettilineo, fuori dall'asfalto." },
                     { t: "Sosta, fino a 10′", d: "I meccanici cambiano le gomme. Resti in gara: la piazzola sta sul circuito, non nel paddock." },
-                    { t: "Rientra con gomme nuove", d: "Riparte e torna sul rettilineo con le scintille: ×1,2 per 25 minuti." },
+                    { t: "Rientra con le gomme soft", d: "Riparte con le ruote rosse: ×1,2 per 25 minuti." },
                 ]: Rectangle {
                     border-radius: 24px;
                     background: i == 2 ? M3.success-container : M3.surface-container;
@@ -2642,16 +2849,20 @@ export component GroupPage inherits Page {
                 VerticalLayout {
                     spacing: 3px;
                     for e[i] in [
-                        { c: #4F8DF5, t: "Scia blu · concentrazione", d: "Concentrazione attiva: le altre app sono bloccate e il ritmo prende +1,0 (da ×1 a ×2)." },
-                        { c: #F2853A, t: "Fiamme · ritmo", d: "+0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3." },
-                        { c: #F2C94C, t: "Scintille · ×1,2", d: "Gomme nuove dopo un pit stop, per 25 minuti." },
-                        { c: #9E9E9E, t: "Vento · +0,1", d: "Per ogni altro membro in pista con te, fino a ×1,4." },
-                        { c: #6D6D6D, t: "Fumo · ×0,8", d: "Più di 2 pause in 30 minuti, per 15 minuti." },
+                        { c: #FF8A1F, t: "Fiamme · ritmo", d: "+0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3: una fiamma in più a ogni livello." },
+                        { c: #4F8DF5, t: "DRS e nastri blu · concentrazione", d: "Blocco delle altre app attivo: +1,0 al ritmo (subito ×2); +0,1 per ogni altro tuo dispositivo in concentrazione." },
+                        { c: #E8322B, t: "Ruote rosse · gomme soft ×1,2", d: "Pit stop entro 10 minuti dopo almeno 25 di studio: per 25 minuti, con le strisce di gomma dietro." },
+                        { c: #9FE6FF, t: "Raffiche · scia dei compagni", d: "+0,1 per ogni compagno in pista, fino a ×1,4: il loro vento si infrange sull'alettone." },
+                        { c: #2FD27A, t: "Coriandoli · piano fatto ×1,1", d: "Obiettivi di oggi completati: ×1,1 fino a mezzanotte." },
+                        { c: #F5C542, t: "Scia d'oro · primo in classifica", d: "Chi è in testa oggi. Solo da vedere: il punteggio non cambia." },
+                        { c: #FFD400, t: "Pannello giallo · bandiera gialla", d: "Uscito dalla concentrazione prima del tempo: bonus sospeso e DRS chiuso fino alla fine prevista o al rientro." },
+                        { c: #A3A8B1, t: "Fumo davanti · bloccaggio ×0,8", d: "Più di 2 pause in 30 minuti, per 15 minuti: la macchina trema." },
+                        { c: #A259FF, t: "Raggiera e «PB» · record", d: "Hai superato il tuo miglior giorno. Poi la bandierina a ogni giro e «+1»/«−1» a ogni sorpasso." },
                     ]: Rectangle {
                         border-top-left-radius: i == 0 ? 24px : 6px;
                         border-top-right-radius: i == 0 ? 24px : 6px;
-                        border-bottom-left-radius: i == 4 ? 24px : 6px;
-                        border-bottom-right-radius: i == 4 ? 24px : 6px;
+                        border-bottom-left-radius: i == 8 ? 24px : 6px;
+                        border-bottom-right-radius: i == 8 ? 24px : 6px;
                         background: M3.surface-container;
                         min-height: er.preferred-height;
                         er := HorizontalLayout {

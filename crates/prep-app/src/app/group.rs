@@ -1506,11 +1506,58 @@ impl Ctrl {
                 px,
                 py,
                 fx: if racing { s.fx as i32 } else { 0 },
+                others: 0,
                 mult: if racing { m as f32 } else { 1.0 },
                 level: s.level,
             });
             if let Some(c) = cars.last() {
                 racers.push((s.name.clone(), c.f, c.v, c.me, c.racing));
+            }
+        }
+        // effetti calcolati qui: compagni in pista (raffiche), primo in classifica (scia d'oro),
+        // sorpasso (±1 sulla propria macchina), record personale del giorno
+        let in_race = cars.iter().filter(|c| c.racing).count();
+        for c in cars.iter_mut().filter(|c| c.racing) {
+            c.others = (in_race as i32 - 1).clamp(0, 3);
+        }
+        if cars.iter().filter(|c| c.f > 0.0).count() >= 2 {
+            let lead = cars
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| !c.parked)
+                .max_by(|a, b| a.1.f.total_cmp(&b.1.f))
+                .map(|(i, _)| i);
+            if let Some(c) = lead.and_then(|i| cars.get_mut(i)).filter(|c| c.racing) {
+                c.fx |= 256;
+            }
+        }
+        let now_ms = Utc::now().timestamp_millis();
+        if let Some(my_f) = cars.iter().find(|c| c.me && c.racing).map(|c| c.f) {
+            let rank = cars.iter().filter(|c| !c.me && (c.racing || c.pit) && c.f > my_f).count();
+            if let Some(prev) = self.last_rank {
+                if rank != prev {
+                    self.pass_sign = if rank < prev { 1 } else { -1 };
+                    self.pass_until = now_ms + 1600;
+                }
+            }
+            self.last_rank = Some(rank);
+            // record: oggi più punti del miglior giorno precedente (una volta al giorno)
+            let log = self.study_log.combined();
+            let today_key = ck.today.format("%Y-%m-%d").to_string();
+            let best = log.pts.iter().filter(|(d, _)| **d != today_key).map(|(_, v)| *v).fold(0.0, f64::max);
+            if best > 0.0 && my_pts[0] > best && self.pb_day != Some(ck.today) {
+                self.pb_day = Some(ck.today);
+                self.pb_until = now_ms + 2400;
+            }
+        } else {
+            self.last_rank = None;
+        }
+        if let Some(me) = cars.iter_mut().find(|c| c.me) {
+            if self.pass_until > now_ms {
+                me.fx |= if self.pass_sign > 0 { 512 } else { 1024 };
+            }
+            if self.pb_until > now_ms && me.racing {
+                me.fx |= prep_core::score::FX_PB as i32;
             }
         }
         // modalità dimostrativa degli effetti: altre monoposto attorno alla propria
@@ -2306,17 +2353,18 @@ impl Ctrl {
 /// concentrazione, e attorno una macchina per effetto.
 fn fx_showcase(cars: &mut Vec<CarVM>) {
     let Some(me) = cars.iter_mut().find(|c| c.me) else { return };
-    me.fx = 1 | 4;
+    // la propria: ritmo al massimo, concentrazione e primo in classifica; attorno gli altri
+    me.fx = 1 | 4 | 256;
     me.mult = 4.5;
     me.level = 1.0;
     let base = me.clone();
     let list: [(&str, u32, f32, f32, i32, f32, f32); 6] = [
-        ("A", 0xffe53935, 0.012, -1.0, 1, 2.5, 0.5),
-        ("B", 0xff43a047, -0.012, 1.0, 2, 1.2, 0.0),
+        ("A", 0xffe53935, 0.012, -1.0, 2 | 1, 2.5, 0.3),
+        ("B", 0xff43a047, -0.012, 1.0, 64, 1.2, 0.0),
         ("C", 0xff8e24aa, 0.024, 1.0, 8, 0.8, 0.0),
-        ("D", 0xfffb8c00, -0.024, -1.0, 16 | 1, 1.6, 0.2),
+        ("D", 0xfffb8c00, -0.024, -1.0, 16, 1.6, 0.0),
         ("E", 0xff00acc1, 0.036, 0.0, 32, 1.0, 0.0),
-        ("F", 0xff6d4c41, -0.036, 0.0, 0, 1.0, 0.0),
+        ("F", 0xff6d4c41, -0.036, 0.0, 128 | 512, 1.0, 0.0),
     ];
     for (label, color, df, lane, fx, mult, level) in list {
         let mut c = base.clone();
@@ -2327,6 +2375,7 @@ fn fx_showcase(cars: &mut Vec<CarVM>) {
         c.f += df;
         c.lane = lane;
         c.fx = fx;
+        c.others = 3;
         c.mult = mult;
         c.level = level;
         cars.push(c);
@@ -2415,8 +2464,17 @@ impl Ctrl {
 
 /// Effetti in corso di una monoposto, a parole (vuoto se nessuno).
 fn fx_text(c: &CarVM) -> String {
-    const NAMES: [&str; 6] =
-        ["ritmo", "gomme nuove", "concentrazione", "penalità", "scia di gruppo", "bandiera gialla"];
+    const NAMES: [&str; 9] = [
+        "ritmo",
+        "gomme soft",
+        "concentrazione",
+        "bloccaggio",
+        "scia dei compagni",
+        "bandiera gialla",
+        "piano fatto",
+        "record personale",
+        "primo in classifica",
+    ];
     let names: Vec<&str> = NAMES.iter().enumerate().filter(|(i, _)| c.fx & (1 << i) != 0).map(|(_, n)| *n).collect();
     if names.is_empty() && (c.mult - 1.0).abs() < 0.04 {
         return String::new();
@@ -2618,7 +2676,15 @@ impl Ctrl {
         let today = self.study_log.combined().day(Local::now().date_naive())
             + self.study_since.map(|t| (now - t).max(0) as u64).unwrap_or(0);
         let focus = u32::from(self.focus_on) + self.twin_focus(now);
-        self.run.score(now, focus, self.racing_others, today)
+        let mut s = self.run.score_plan(now, focus, self.racing_others, today, self.plan_done);
+        let now_ms = Utc::now().timestamp_millis();
+        if self.yellow_until > now_ms && !self.focus_on {
+            s.fx |= prep_core::score::FX_YELLOW;
+        }
+        if self.pb_until > now_ms {
+            s.fx |= prep_core::score::FX_PB;
+        }
+        s
     }
 
     /// Altri propri dispositivi in concentrazione (sentiti da poco): si sommano alla sessione

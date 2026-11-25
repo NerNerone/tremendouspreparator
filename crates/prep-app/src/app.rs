@@ -448,6 +448,19 @@ pub struct Ctrl {
     /// concentrazione attiva (scia blu) e altri membri in pista (scia di gruppo)
     focus_on: bool,
     racing_others: usize,
+    /// obiettivi di oggi completati (piano fatto: ×1,1 e coriandoli)
+    plan_done: bool,
+    /// fine prevista della concentrazione in corso (ms) e bandiera gialla fino a (ms): uscita
+    /// dalla concentrazione prima del tempo
+    focus_planned: i64,
+    yellow_until: i64,
+    /// record personale: medaglia fino a (ms) e giorno in cui è già stata mostrata
+    pb_until: i64,
+    pb_day: Option<NaiveDate>,
+    /// sorpasso: «+1»/«−1» fino a (ms), segno, posizione precedente tra chi corre
+    pass_until: i64,
+    pass_sign: i32,
+    last_rank: Option<usize>,
     /// ultima notifica della sessione: (istante, stato)
     study_notified: (i64, i32),
     /// APK della versione più nuova trovata (vedi `updates`)
@@ -1260,6 +1273,14 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         run: Default::default(),
         focus_on: false,
         racing_others: 0,
+        plan_done: false,
+        focus_planned: 0,
+        yellow_until: 0,
+        pb_until: 0,
+        pb_day: None,
+        pass_until: 0,
+        pass_sign: 0,
+        last_rank: None,
         study_notified: (0, -1),
         update_url: String::new(),
         gh_branches: Vec::new(),

@@ -125,6 +125,7 @@ impl Ctrl {
                 })
                 .collect();
             let left: u32 = items.iter().map(|g| (g.target - g.done).max(0) as u32).sum();
+            self.plan_done = !items.is_empty() && left == 0;
             st.set_goals_status(ss(if left == 0 {
                 "Obiettivi di oggi completati. Ottimo lavoro!".to_string()
             } else {
