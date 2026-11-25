@@ -348,7 +348,14 @@ impl Ctrl {
                     with_ctrl(|c| {
                         c.ui().global::<AppState>().set_update_busy(false);
                         match r {
-                            Ok(_) => c
+                            // installato: l'app si chiude e la nuova versione parte da sola
+                            Ok(true) => {
+                                c.ui().global::<AppState>().set_update_phase(ss("Installato: riavvio…"));
+                                slint::Timer::single_shot(std::time::Duration::from_millis(400), || {
+                                    std::process::exit(0);
+                                });
+                            }
+                            Ok(false) => c
                                 .ui()
                                 .global::<AppState>()
                                 .set_update_phase(ss("Conferma l'aggiornamento nel gestore di software")),
