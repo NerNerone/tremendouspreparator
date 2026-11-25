@@ -172,13 +172,6 @@ component DestRow inherits Rectangle {
                 height: 36px;
                 border-radius: 18px;
                 background: M3.secondary-container;
-                Text {
-                    text: root.name.character-count > 0 ? root.name : "?";
-                    width: 30px;
-                    overflow: clip;
-                    horizontal-alignment: center;
-                    font-size: 0px;
-                }
                 Icon {
                     x: 8px;
                     y: 8px;
@@ -721,7 +714,7 @@ export component ContentsPage inherits Page {
                     }
                     SheetAction {
                         icon: Icons.share;
-                        text: "Condividi solo questo strumento";
+                        text: "Salva come file da condividere";
                         clicked => {
                             AppState.ct-tool-share();
                         }

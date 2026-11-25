@@ -86,6 +86,17 @@ pub fn maybe_run(ui: &AppWindow) {
                 }
                 "cttools" => st.invoke_ct_tools_add_open(),
                 "cttool" => st.invoke_ct_tool_menu(arg.into()),
+                // cttooladd:n (n-esimo del foglio «Aggiungi»), cttoolcopy:n (n-esimo pacchetto)
+                "cttooladd" => {
+                    if let Some(r) = slint::Model::row_data(&st.get_ct_tool_src(), arg.parse().unwrap_or(0)) {
+                        st.invoke_ct_tool_add(r.pkg, r.id)
+                    }
+                }
+                "cttoolcopy" => {
+                    if let Some(r) = slint::Model::row_data(&st.get_ct_dests(), arg.parse().unwrap_or(0)) {
+                        st.invoke_ct_tool_copy(r.id)
+                    }
+                }
                 "link" => st.invoke_open_subject_link(arg.parse().unwrap_or(0)),
                 "fbpage" => st.invoke_open_feedback(),
                 "wait" => {}

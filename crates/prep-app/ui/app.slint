@@ -23,8 +23,8 @@ export component AppWindow inherits Window {
     default-font-size: 14px;
 
     // schermi larghi (desktop, browser): il contenuto sta in una colonna centrata, come su un
-    // telefono; la tavola periodica ha più spazio
-    property <length> column-max: AppState.page == 12 ? 1240px : 720px;
+    // telefono; le griglie degli strumenti (tavola periodica) hanno più spazio
+    property <length> column-max: AppState.page == 12 && AppState.tl-kind == 0 ? 1240px : 720px;
     property <length> side: max(0px, (root.width - root.column-max) / 2);
     // senza barra quando il foglio della concentrazione è aperto: arriva fino in fondo allo schermo
     property <bool> show-nav: !AppState.focus-open && (AppState.page == 0 || AppState.page == 1 || AppState.page == 2 || AppState.page == 6 || AppState.page == 8 || AppState.page == 11 || AppState.page == 13 || AppState.page == 18);

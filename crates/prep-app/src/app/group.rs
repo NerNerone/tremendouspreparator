@@ -1995,6 +1995,20 @@ impl Ctrl {
         }
         let next = files.into_iter().find(|p| !vfs::is_dir(p) && p.extension().is_none_or(|x| x != "tmp"));
         if let Some(p) = next {
+            // «Apri con» su Android consegna tutto come pacchetto: un file JSON singolo (uno
+            // strumento condiviso, un file di quiz) va invece tra i file del pacchetto
+            let head = vfs::read(&p).unwrap_or_default();
+            let single = !head.starts_with(&[0x1f, 0x8b])
+                && head.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'{')
+                && prep_core::contents::classify("file.json", &head)
+                    .is_ok_and(|k| k != prep_core::contents::Kind::Pack);
+            if single {
+                let to = p.with_file_name(format!("file-{}--file.json", chrono::Utc::now().timestamp_millis()));
+                if vfs::rename(&p, &to).is_ok() {
+                    self.contents_import(to);
+                    return;
+                }
+            }
             self.import_pack_file(p, true);
         }
     }

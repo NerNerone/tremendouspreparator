@@ -16,6 +16,11 @@ fn builtin_head(id: &str) -> Option<(&'static str, &'static str, i32)> {
     (id == TOOL_PERIODIC_TABLE).then_some(("Tavola periodica", "Elementi, famiglie e proprietà", 0))
 }
 
+fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+}
+
 fn kind_n(t: &Tool) -> i32 {
     match t.body {
         ToolBody::Grid(_) => 0,
@@ -585,8 +590,8 @@ impl Ctrl {
         match res {
             Ok(a) if dest == self.exams.active => self.contents_changed(format!("Aggiunto: {}.", a.summary)),
             Ok(a) => {
-                let what = if title.is_empty() { a.summary } else { format!("«{title}»") };
-                self.toast(format!("Strumento {what} copiato in «{name}»"));
+                let what = if title.is_empty() { a.summary } else { format!("strumento «{title}»") };
+                self.toast(format!("{} copiato in «{name}»", capitalize(&what)));
                 self.refresh_ct_tools();
             }
             Err(e) => self.toast(format!("Strumento non copiato: {e}")),
@@ -600,7 +605,19 @@ impl Ctrl {
             self.toast("È inclusa nell'app: per toglierla da una materia modifica la definizione dell'esame");
             return;
         }
-        self.contents_remove_ask(&format!("content/tools/{}.json", it.id));
+        // il file vero (in un pacchetto scritto a mano il nome può non coincidere con l'id)
+        let dir = self.store.root.join("mirror").join("content").join("tools");
+        let path = vfs::list_dir(&dir)
+            .into_iter()
+            .find(|p| {
+                vfs::read_to_string(p)
+                    .ok()
+                    .and_then(|t| serde_json::from_str::<Tool>(&t).ok())
+                    .is_some_and(|t| t.id == it.id.as_str())
+            })
+            .and_then(|p| p.file_name().map(|n| format!("content/tools/{}", n.to_string_lossy())))
+            .unwrap_or_else(|| format!("content/tools/{}.json", it.id));
+        self.contents_remove_ask(&path);
     }
 
     /// Uno strumento ricevuto (file singolo): si sceglie in quale pacchetto metterlo.

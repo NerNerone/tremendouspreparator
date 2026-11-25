@@ -776,8 +776,22 @@ impl Ctrl {
         self.from_repo = self.store.index().synced_once;
         self.content = Content::from_files(files.iter().map(|(a, b)| (a.as_str(), b.as_str())));
         if self.content.syllabus.is_none() {
-            // contenuti installati rotti: quelli inclusi nell'app, se ci sono
+            // contenuti installati rotti (o esame ancora da definire): quelli inclusi nell'app, se
+            // ci sono; gli strumenti del pacchetto restano (si possono aggiungere prima dell'esame)
             self.content = Content::from_files(crate::bundled::BUNDLED.iter().copied());
+            if self.content.tools.is_empty() {
+                let dir = self.store.root.join("mirror").join("content").join("tools");
+                let files: Vec<(String, String)> = vfs::list_dir(&dir)
+                    .into_iter()
+                    .filter_map(|p| {
+                        let name = p.file_name()?.to_string_lossy().to_string();
+                        Some((format!("content/tools/{name}"), vfs::read_to_string(&p).ok()?))
+                    })
+                    .collect();
+                let mut warn = Vec::new();
+                self.content.tools =
+                    prep_core::tools::from_files(files.iter().map(|(a, b)| (a.as_str(), b.as_str())), &mut warn);
+            }
             self.from_repo = false;
         }
         if self.content.syllabus.is_none() {

@@ -350,10 +350,10 @@ Lo strumento è un file di DATI (niente codice, niente HTML, niente Slint): l'ap
 - \"list\": schede in sezioni con la ricerca (costanti, formule da ricordare, glossario, prefissi).
 - \"calc\": campi numerici e risultati calcolati con formule (leggi dei gas, diluizioni, pH, cinematica, conversioni).
 
-REGOLE SEVERE (un file che ne viola una viene rifiutato):
+REGOLE SEVERE (l'app controlla il file e rifiuta quello con errori: griglia fuori misura, famiglie non definite, formule che non si calcolano, id non validi):
 1. Un solo blocco ```json con un solo oggetto; nient'altro dentro il blocco. Fuori dal blocco, al massimo «DUBBI:» con i punti incerti.
 2. Campi comuni: \"schema\": 1, \"id\" (solo minuscole, cifre e trattini, es. \"gas-perfetti\"), \"title\" (breve), \"subtitle\" (facoltativo, una riga), \"info\" (facoltativo: come si legge o si usa, 1-4 frasi), \"kind\".
-3. Nessun campo inventato: solo quelli scritti qui sotto. Testi in italiano corretto; simboli e unità in Unicode (m/s², H₃O⁺, 10⁻³), mai LaTeX né Markdown.
+3. Nessun campo inventato: solo quelli scritti qui sotto (gli altri l'app li ignora, e il loro contenuto va perso). Testi in italiano corretto; simboli e unità in Unicode (m/s², H₃O⁺, 10⁻³), mai LaTeX né Markdown.
 4. Dati verificati: ogni valore, ogni formula e ogni classificazione deve essere quella dei libri di testo; se un dato è incerto non metterlo e scrivilo nei DUBBI.
 
 GRIGLIA (\"kind\": \"grid\"):

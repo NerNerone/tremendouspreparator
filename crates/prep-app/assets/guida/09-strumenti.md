@@ -72,7 +72,7 @@ Le voci si cercano per titolo, valore e testo. `value` è il dato in evidenza, `
 
 In **Gestisci contenuti › Strumenti** ci sono quelli del pacchetto. Con **Aggiungi strumento** se
 ne copia uno da un altro pacchetto installato o da quelli inclusi nell'app; con **⋮** uno si
-condivide da solo (un file `.json`), si copia in un altro pacchetto o si toglie. Chi riceve il
+salva da solo come file `.json` (da mandare a chi vuoi), si copia in un altro pacchetto o si toglie. Chi riceve il
 file lo apre con l'app (o lo aggiunge con «+») e sceglie in quale pacchetto metterlo.
 
 Il controllo dei contenuti (e `prep check`) segnala caselle fuori dalla griglia, famiglie non

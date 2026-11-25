@@ -182,10 +182,20 @@ impl Tool {
         if !self.icon.is_empty() && crate::icons::lookup(&self.icon).is_none() {
             out.push(format!("strumento {id}: icona «{}» sconosciuta", self.icon));
         }
+        let long = |s: &str| s.chars().count() > 4000;
+        if long(&self.info) || long(&self.subtitle) {
+            out.push(format!("strumento {id}: testo troppo lungo"));
+        }
         match &self.body {
             ToolBody::Grid(g) => {
                 if g.columns == 0 || g.rows == 0 || g.columns > 40 || g.rows > 40 {
                     out.push(format!("strumento {id}: griglia da 1 a 40 colonne e righe"));
+                }
+                if g.categories.len() > 24 || g.column_labels.len() > 40 || g.row_labels.len() > 40 {
+                    out.push(format!("strumento {id}: al massimo 24 famiglie e 40 etichette per lato"));
+                }
+                if g.cells.iter().any(|c| c.details.len() > 80 || long(&c.text)) {
+                    out.push(format!("strumento {id}: scheda di una casella troppo lunga (max 80 righe)"));
                 }
                 let names: Vec<&str> = g.categories.iter().map(|c| c.name.as_str()).collect();
                 for c in &g.categories {
@@ -216,11 +226,17 @@ impl Tool {
                 }
             }
             ToolBody::List(l) => {
+                if l.sections.len() > 200 || l.sections.iter().map(|s| s.items.len()).sum::<usize>() > 5000 {
+                    out.push(format!("strumento {id}: elenco troppo lungo (max 5000 voci)"));
+                }
                 if l.sections.iter().all(|s| s.items.is_empty()) {
                     out.push(format!("strumento {id}: elenco vuoto"));
                 }
             }
             ToolBody::Calc(c) => {
+                if c.inputs.len() > 40 || c.outputs.len() > 40 {
+                    out.push(format!("strumento {id}: al massimo 40 campi e 40 risultati"));
+                }
                 let mut vars: HashMap<String, f64> = HashMap::new();
                 for i in &c.inputs {
                     if !is_name(&i.id) {
@@ -538,10 +554,15 @@ pub fn from_files<'a>(files: impl IntoIterator<Item = (&'a str, &'a str)>, warni
             continue;
         }
         match serde_json::from_str::<Tool>(text) {
-            Ok(t) => {
-                out.retain(|x| x.id != t.id);
-                out.push(t);
-            }
+            // uno strumento con errori (griglia enorme, formule rotte…) non entra: l'app non lo
+            // apre, il controllo dei contenuti spiega perché
+            Ok(t) => match t.problems().into_iter().next() {
+                Some(p) => warnings.push(format!("{path}: {p} (strumento ignorato)")),
+                None => {
+                    out.retain(|x| x.id != t.id);
+                    out.push(t);
+                }
+            },
             Err(e) => warnings.push(format!("{path}: {e}")),
         }
     }
@@ -604,16 +625,21 @@ mod tests {
             ],
             &mut w,
         );
-        assert_eq!(tools.len(), 3);
-        assert_eq!(w.len(), 1);
+        // la griglia con errori resta fuori, con il suo avviso
+        assert_eq!(tools.len(), 2);
+        assert_eq!(w.len(), 2, "{w:?}");
+        let huge = r#"{"id":"enorme","title":"E","kind":"grid","columns":40,"rows":4000000000,"cells":[{"x":1,"y":1,"label":"A"}]}"#;
+        let mut w2 = Vec::new();
+        assert!(from_files([("content/tools/e.json", huge)], &mut w2).is_empty() && w2.len() == 1);
         let gas = &tools[0];
         assert!(gas.problems().is_empty(), "{:?}", gas.problems());
         let ToolBody::Calc(c) = &gas.body else { panic!() };
         let r = Tool::compute(c, &[1.0, 273.15, 22.4]);
         assert_eq!(format_number(*r[0].as_ref().unwrap(), 3), "1");
         assert!((r[1].as_ref().unwrap() - 101.325).abs() < 0.1);
-        let p = tools[1].problems().join("\n");
+        let mini: Tool = serde_json::from_str(grid).unwrap();
+        let p = mini.problems().join("\n");
         assert!(p.contains("fuori dalla griglia") && p.contains("categoria «B» non definita"), "{p}");
-        assert!(tools[2].problems().is_empty());
+        assert!(tools[1].problems().is_empty());
     }
 }
