@@ -207,4 +207,9 @@ jobs:
           grep -v 'TremendousPreparator-x86_64.flatpak$' SHA256SUMS > SHA256SUMS.tmp || true
           sha256sum TremendousPreparator-x86_64.flatpak >> SHA256SUMS.tmp
           mv SHA256SUMS.tmp SHA256SUMS
-          gh release upload "$TAG" TremendousPreparator-x86_64.flatpak SHA256SUMS --clobber
+          # GitHub a volte risponde 404 sul caricamento appena dopo la creazione della release: riprova
+          for i in 1 2 3 4; do
+            gh release upload "$TAG" TremendousPreparator-x86_64.flatpak SHA256SUMS --clobber && exit 0
+            sleep $((i * 15))
+          done
+          exit 1

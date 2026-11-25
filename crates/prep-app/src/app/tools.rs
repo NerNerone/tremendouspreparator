@@ -471,7 +471,8 @@ impl Ctrl {
     pub(super) fn ct_tools_add_open(&mut self) {
         let mut src: Vec<ToolItemVM> = Vec::new();
         let here: Vec<String> = self.content.tools.iter().map(|t| t.id.clone()).collect();
-        for (id, _) in [(TOOL_PERIODIC_TABLE, ())] {
+        // strumenti inclusi nell'app (oggi la tavola periodica) che qui non ci sono ancora
+        for id in prep_core::model::KNOWN_TOOLS.iter().copied() {
             if !here.iter().any(|h| h == id) {
                 if let Some(t) = self.builtin_tool(id) {
                     let mut it = Self::item(&t, "", "Inclusi nell'app", true, t.subtitle.clone());

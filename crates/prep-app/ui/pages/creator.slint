@@ -674,7 +674,7 @@ export component CreatorPage inherits Page {
                 TouchArea { }
                 Flickable {
                     interactive: true;
-                    viewport-height: max(self.height, ul.preferred-height);
+                    content-height: max(self.height, ul.preferred-height);
                     ul := VerticalLayout {
                         padding: 16px;
                         padding-top: 10px;

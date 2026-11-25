@@ -643,7 +643,7 @@ export component ContentsPage inherits Page {
         TouchArea { }
         Flickable {
             interactive: true;
-            viewport-height: max(self.height, sl.preferred-height);
+            content-height: max(self.height, sl.preferred-height);
             sl := VerticalLayout {
                 padding: 16px;
                 padding-top: 10px;
