@@ -85,8 +85,9 @@ fn always_allowed(a: &App) -> bool {
         "xterm",
         "tilix",
     ];
-    let k = format!("{} {}", a.id, a.exe).to_lowercase();
-    KEEP.iter().any(|w| k.contains(w))
+    // per parole (id con i punti, eseguibile): «foot» non deve tenere aperto «football-manager»
+    let k = format!("{}.{}", a.id, a.exe).to_lowercase();
+    KEEP.iter().any(|w| (w.len() > 8 && k.contains(w)) || k.split(['.', '-', '_', ' ']).any(|p| p == *w))
 }
 
 /// Le app del menu (file .desktop visibili), lette una volta e poi tenute.
@@ -236,20 +237,20 @@ fn monitor() {
             return;
         }
         let running = running_apps();
-        let bad: Vec<(&App, Vec<u32>)> =
+        let bad: Vec<(&App, Running)> =
             running.into_iter().filter(|(a, _)| !allowed.contains(&a.id) && !always_allowed(a)).collect();
         let mut s = state().lock().unwrap();
         let ids: HashSet<String> = bad.iter().map(|(a, _)| a.id.clone()).collect();
         s.seen.retain(|k, _| ids.contains(k));
         let mut warn = String::new();
         let mut left = 0;
-        for (a, pids) in &bad {
+        for (a, r) in &bad {
             let since = *s.seen.entry(a.id.clone()).or_insert_with(Instant::now);
             let secs = since.elapsed().as_secs() as i64;
             if secs >= 15 {
-                kill(a, pids, true);
+                kill(a, r, true);
             } else if secs >= 10 {
-                kill(a, pids, false);
+                kill(a, r, false);
             }
             if warn.is_empty() {
                 warn = a.name.clone();
@@ -261,37 +262,121 @@ fn monitor() {
     }
 }
 
-/// App del menu aperte adesso, con i loro processi.
-fn running_apps() -> Vec<(&'static App, Vec<u32>)> {
+/// Un'app aperta: le unità systemd in cui gira (KDE e GNOME avviano ogni app in una sua
+/// unità `app-…-<id del menu>-….scope`) e, in mancanza, i processi trovati per nome.
+#[derive(Default)]
+struct Running {
+    units: Vec<String>,
+    pids: Vec<u32>,
+}
+
+/// id del menu come compare nei nomi delle unità systemd («-» diventa «\x2d»)
+fn unit_escape(id: &str) -> String {
+    id.replace('-', "\\x2d")
+}
+
+/// l'unità `unit` è stata avviata per l'app `id`? (`app[-<lanciatore>]-<id>[-<n>.scope|@<n>.service|.service]`)
+fn unit_is(unit: &str, id: &str) -> bool {
+    let e = unit_escape(id);
+    let body = unit.strip_suffix(".scope").or_else(|| unit.strip_suffix(".service")).unwrap_or(unit);
+    let body = body.split('@').next().unwrap_or(body);
+    body == format!("app-{e}")
+        || body.ends_with(&format!("-{e}"))
+        || body.contains(&format!("-{e}-"))
+        || body.starts_with(&format!("app-{e}-"))
+}
+
+/// nome di programma senza estensioni da avvio (`soffice.bin`, `code-bin`, `run.sh`)
+fn bare(name: &str) -> String {
+    let n = name.rsplit('/').next().unwrap_or(name).to_lowercase();
+    for suf in [".bin", "-bin", ".sh", ".py", ".exe", "-wrapper"] {
+        if let Some(x) = n.strip_suffix(suf) {
+            return x.to_string();
+        }
+    }
+    n
+}
+
+/// App del menu aperte adesso.
+fn running_apps() -> Vec<(&'static App, Running)> {
     let list = apps();
-    let mut out: Vec<(&App, Vec<u32>)> = Vec::new();
-    // app Flatpak in esecuzione
-    if let Some(ps) = host(&["flatpak", "ps", "--columns=application,pid"]) {
+    let mut out: Vec<(&App, Running)> = Vec::new();
+    let mut add = |a: &'static App, unit: Option<String>, pid: Option<u32>| {
+        let i = match out.iter().position(|(x, _)| x.id == a.id) {
+            Some(i) => i,
+            None => {
+                out.push((a, Running::default()));
+                out.len() - 1
+            }
+        };
+        let r = &mut out[i].1;
+        if let Some(u) = unit {
+            if !r.units.contains(&u) {
+                r.units.push(u);
+            }
+        }
+        if let Some(p) = pid {
+            r.pids.push(p);
+        }
+    };
+    // 1. unità systemd delle app (il modo più affidabile: prende anche i processi figli)
+    if let Some(units) = host(&["systemctl", "--user", "list-units", "--type=scope,service", "--state=running", "--no-legend", "--plain", "app-*"]) {
+        for l in units.lines() {
+            let Some(unit) = l.split_whitespace().next() else { continue };
+            if let Some(a) = list.iter().find(|a| unit_is(unit, &a.id) || a.flatpak.as_deref().is_some_and(|f| unit_is(unit, f))) {
+                add(a, Some(unit.to_string()), None);
+            }
+        }
+    }
+    // 2. app Flatpak in esecuzione: la sandbox (bwrap) e il programma dentro
+    if let Some(ps) = host(&["flatpak", "ps", "--columns=application,pid,child-pid"]) {
         for l in ps.lines() {
             let mut it = l.split_whitespace();
-            let (Some(app), Some(pid)) = (it.next(), it.next().and_then(|p| p.parse::<u32>().ok())) else { continue };
-            if let Some(a) = list.iter().find(|a| a.flatpak.as_deref() == Some(app)) {
-                match out.iter_mut().find(|(x, _)| x.id == a.id) {
-                    Some((_, p)) => p.push(pid),
-                    None => out.push((a, vec![pid])),
+            let Some(app) = it.next() else { continue };
+            if let Some(a) = list.iter().find(|a| a.flatpak.as_deref() == Some(app) || a.id == app) {
+                for pid in it.filter_map(|p| p.parse::<u32>().ok()) {
+                    add(a, None, Some(pid));
                 }
             }
         }
     }
-    // programmi del sistema: per nome dell'eseguibile
+    // 3. programmi del sistema per nome: eseguibile, primo argomento o nome dell'id del menu
     let me = std::process::id();
-    if let Some(ps) = host(&["ps", "-u", &whoami(), "-o", "pid=,comm=,args="]) {
+    let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
+    if let Some(ps) = host(&["ps", "-u", &whoami(), "-o", "pid=,ppid=,comm=,args="]) {
         for l in ps.lines() {
             let mut it = l.split_whitespace();
-            let (Some(pid), Some(comm)) = (it.next().and_then(|p| p.parse::<u32>().ok()), it.next()) else { continue };
+            let (Some(pid), Some(ppid), Some(comm)) =
+                (it.next().and_then(|p| p.parse::<u32>().ok()), it.next().and_then(|p| p.parse::<u32>().ok()), it.next())
+            else {
+                continue;
+            };
+            children.entry(ppid).or_default().push(pid);
             if pid == me {
                 continue;
             }
-            let arg0 = it.next().unwrap_or_default().rsplit('/').next().unwrap_or_default();
-            if let Some(a) = list.iter().find(|a| a.flatpak.is_none() && (a.exe == arg0 || a.exe == comm)) {
-                match out.iter_mut().find(|(x, _)| x.id == a.id) {
-                    Some((_, p)) => p.push(pid),
-                    None => out.push((a, vec![pid])),
+            let names = [bare(comm), bare(it.next().unwrap_or_default()), bare(it.next().unwrap_or_default())];
+            let hit = list.iter().find(|a| {
+                if a.flatpak.is_some() {
+                    return false;
+                }
+                let exe = bare(&a.exe);
+                let tail = a.id.rsplit('.').next().unwrap_or(&a.id).to_lowercase();
+                names.iter().any(|n| !n.is_empty() && (*n == exe || (exe.len() > 3 && *n == tail)))
+            });
+            if let Some(a) = hit {
+                add(a, None, Some(pid));
+            }
+        }
+    }
+    // con i processi figli (Steam, browser, giochi lanciati da un launcher): si chiude tutto
+    for (_, r) in out.iter_mut() {
+        let mut todo = r.pids.clone();
+        while let Some(p) = todo.pop() {
+            for c in children.get(&p).into_iter().flatten() {
+                if *c != me && !r.pids.contains(c) {
+                    r.pids.push(*c);
+                    todo.push(*c);
                 }
             }
         }
@@ -303,21 +388,44 @@ fn whoami() -> String {
     std::env::var("USER").unwrap_or_else(|_| host(&["id", "-un"]).unwrap_or_default().trim().to_string())
 }
 
-fn kill(a: &App, pids: &[u32], hard: bool) {
-    if let (Some(app), false) = (&a.flatpak, hard) {
-        let _ = host(&["flatpak", "kill", app]);
-        return;
+/// Chiude l'app: prima con garbo (SIGTERM, come la chiusura normale), poi `hard` (SIGKILL).
+fn kill(a: &App, r: &Running, hard: bool) {
+    let sig = if hard { "SIGKILL" } else { "SIGTERM" };
+    for u in &r.units {
+        let _ = host(&["systemctl", "--user", "kill", &format!("--signal={sig}"), u]);
     }
-    let sig = if hard { "-KILL" } else { "-TERM" };
-    let mut args = vec!["kill", sig];
-    let p: Vec<String> = pids.iter().map(u32::to_string).collect();
-    args.extend(p.iter().map(String::as_str));
-    let _ = host(&args);
+    if let Some(app) = &a.flatpak {
+        let _ = host(&["flatpak", "kill", app]);
+    }
+    if !r.pids.is_empty() {
+        let flag = if hard { "-KILL" } else { "-TERM" };
+        let mut args = vec!["kill", flag];
+        let p: Vec<String> = r.pids.iter().map(u32::to_string).collect();
+        args.extend(p.iter().map(String::as_str));
+        let _ = host(&args);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn units() {
+        assert!(unit_is("app-org.kde.konsole-12345.scope", "org.kde.konsole"));
+        assert!(unit_is("app-gnome-firefox-4321.scope", "firefox"));
+        assert!(unit_is("app-flatpak-com.discordapp.Discord-777.scope", "com.discordapp.Discord"));
+        assert!(unit_is("app-org.gnome.Nautilus@abc.service", "org.gnome.Nautilus"));
+        assert!(unit_is("app-gnome-libreoffice\\x2dwriter-99.scope", "libreoffice-writer"));
+        assert!(!unit_is("app-gnome-firefox-4321.scope", "fire"));
+        assert_eq!(bare("/usr/lib/libreoffice/program/soffice.bin"), "soffice");
+        assert_eq!(bare("Discord"), "discord");
+        let app = |id: &str, exe: &str| App { id: id.into(), name: id.into(), exe: exe.into(), flatpak: None };
+        assert!(always_allowed(&app("org.gnome.Settings", "gnome-control-center")));
+        assert!(always_allowed(&app("org.kde.konsole", "konsole")));
+        assert!(!always_allowed(&app("football-manager", "fm")));
+        assert!(!always_allowed(&app("steam", "steam")));
+    }
 
     #[test]
     fn exec_lines() {
