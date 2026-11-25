@@ -5,6 +5,7 @@ l'aggiornamento che lo porta.
 
 ## 25 novembre 2026
 
+- Computer (Linux e Flatpak): l'icona dell'app, la nuova con il segnalibro a scacchi, prende il colore scelto in Aspetto e lo segue quando lo cambi (anche nella barra delle app di KDE).
 - Squadra, effetti nuovi in pista: fiamme a livelli per il ritmo, DRS e nastri blu per la concentrazione, ruote rosse con le strisce di gomma per le gomme soft, raffiche dei compagni che si infrangono davanti, fumo dalle ruote anteriori per il bloccaggio, solo il contorno nel paddock.
 - Piano del giorno: ogni obiettivo fatto aggiunge al ritmo, fino a +0,5 con tutti gli obiettivi di oggi (in proporzione a quanti sono), e ogni tanto i coriandoli, più fitti man mano.
 - Primo in classifica: alettoni d'oro. Bandiera gialla: se esci dalla concentrazione prima del tempo, pannello giallo «!» e DRS chiuso. Record del giorno: raggiera viola e medaglia «PB»; a ogni giro la bandierina con il numero, a ogni sorpasso «+1» o «−1».

@@ -8,6 +8,8 @@ pub mod bundled {
 slint::include_modules!();
 
 mod app;
+#[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
+mod appicon;
 mod crash;
 mod demo;
 #[cfg(target_os = "linux")]

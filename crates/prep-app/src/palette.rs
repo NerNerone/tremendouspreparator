@@ -23,6 +23,14 @@ fn at(tones: &[u32], p: Pal, shade: u32) -> u32 {
     tones.get(p as usize * 13 + i).copied().unwrap_or(0xff808080)
 }
 
+/// Colori dell'icona dell'app (fondo, pagina sinistra, pagina destra, inchiostro) dalle tonalità,
+/// come `system_accent1_500/10/100/700` su Android.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn icon_colors(tones: &[u32]) -> Option<[u32; 4]> {
+    (tones.len() >= 65)
+        .then(|| [at(tones, Pal::A1, 500), at(tones, Pal::A1, 10), at(tones, Pal::A1, 100), at(tones, Pal::A1, 700)])
+}
+
 /// Miscela di due colori ARGB (t = quota del secondo).
 fn mix(a: u32, b: u32, t: f32) -> u32 {
     let ch = |c: u32, s: u32| ((c >> s) & 0xff) as f32;

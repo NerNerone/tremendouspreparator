@@ -38,6 +38,11 @@ impl Ctrl {
             (_, 0) => crate::palette::tones_from_seed(crate::palette::DEFAULT_SEED),
             (_, c) => crate::palette::tones_from_seed(c),
         };
+        // computer: l'icona dell'app nel colore scelto
+        #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
+        if let Some(c) = crate::palette::icon_colors(&tones) {
+            crate::appicon::install(self.store.base.clone(), c);
+        }
         if let Some((light, dark)) = crate::palette::dyn_roles(&tones) {
             self.accent = Some(light[0]);
             let ui = self.ui();
