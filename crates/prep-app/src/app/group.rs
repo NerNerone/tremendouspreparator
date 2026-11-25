@@ -498,8 +498,17 @@ impl Ctrl {
         // gruppi cambiati qui (creati, lasciati, rinominati, nuova foto): lo si dice subito agli
         // altri propri dispositivi
         // (anche il proprio studio: gli altri propri dispositivi sommano i tempi)
-        let sig =
-            serde_json::to_string(&(self.groups.refs(), &self.groups.left, self.study_log.total())).unwrap_or_default();
+        // firma leggera: le foto (anche centinaia di kB) contano solo per lunghezza e data
+        let refs: Vec<_> = self
+            .groups
+            .refs()
+            .into_iter()
+            .map(|mut r| {
+                r.photo = r.photo.len().to_string();
+                r
+            })
+            .collect();
+        let sig = serde_json::to_string(&(refs, &self.groups.left, self.study_log.total())).unwrap_or_default();
         if sig != self.groups_sig {
             let first = self.groups_sig.is_empty();
             self.groups_sig = sig;
@@ -1341,19 +1350,24 @@ impl Ctrl {
             format!("Oggi {} · {} punti", fmt_secs(t), fmt_pts(my_pts[0]))
         }));
         st.set_study_lap((my_pts[0] % LAP_PTS / LAP_PTS) as f32);
-        st.set_groups(model(
+        if let Some(m) = sync_model(
+            st.get_groups(),
             self.groups
                 .groups
                 .iter()
                 .map(|g| GroupVM { id: ss(&g.code), name: ss(&g.name), active: g.code == self.groups.active })
                 .collect::<Vec<_>>(),
-        ));
+        ) {
+            st.set_groups(m);
+        }
         let solo = prep_core::group::Group::default();
         let has = self.groups.active().is_some();
         let g = self.groups.active().unwrap_or(&solo);
         st.set_group_has(has);
         if !has {
-            st.set_ranking(model(Vec::<RankVM>::new()));
+            if let Some(m) = sync_model(st.get_ranking(), Vec::<RankVM>::new()) {
+                st.set_ranking(m);
+            }
             st.set_home_race_title(ss(""));
             st.set_home_race_sub(ss(""));
         }
@@ -1625,7 +1639,9 @@ impl Ctrl {
                     .filter(|l| !l.starts_with("Studio: "))
                     .map(|l| ss(l.strip_prefix("In pista · g").map(|r| format!("G{r}")).unwrap_or_else(|| l.clone())))
                     .collect();
-                st.set_car_info_lines(model(details));
+                if let Some(m) = sync_model(st.get_car_info_lines(), details) {
+                    st.set_car_info_lines(m);
+                }
                 st.set_car_info_me(me);
                 st.set_car_info_racing(*on && s.state == State::Studying);
                 st.set_car_info_following(self.cam_follow.as_deref() == Some(id.as_str()));
@@ -1653,7 +1669,9 @@ impl Ctrl {
                 st.set_car_info_body(ss(format!("In pista\n{}", fx_text(&c))));
                 st.set_car_info_kind(1);
                 st.set_car_info_state(ss("In pista"));
-                st.set_car_info_lines(model(vec![ss(fx_text(&c))]));
+                if let Some(m) = sync_model(st.get_car_info_lines(), vec![ss(fx_text(&c))]) {
+                    st.set_car_info_lines(m);
+                }
                 st.set_car_info_me(false);
                 st.set_car_info_racing(false);
                 st.set_car_sel(c.id.clone());
@@ -1675,7 +1693,9 @@ impl Ctrl {
             })
             .collect();
         let hm = heat_month(&my_long, today, self.heat_back[0]);
-        st.set_my_heat(model(hm.cells));
+        if let Some(m) = sync_model(st.get_my_heat(), hm.cells) {
+            st.set_my_heat(m);
+        }
         st.set_my_heat_total(ss(hm.total));
         st.set_my_heat_title(ss(hm.title));
         st.set_my_heat_prev(hm.can_prev);
@@ -1696,8 +1716,12 @@ impl Ctrl {
             self.cal_sel.clear();
         }
         let idx = ids.iter().position(|i| i.as_str() == self.cal_sel).unwrap_or(0);
-        st.set_cal_labels(model(labels));
-        st.set_cal_ids(model(ids));
+        if let Some(m) = sync_model(st.get_cal_labels(), labels) {
+            st.set_cal_labels(m);
+        }
+        if let Some(m) = sync_model(st.get_cal_ids(), ids) {
+            st.set_cal_ids(m);
+        }
         st.set_cal_index(idx as i32);
         let sel = if self.cal_sel == "*" { String::new() } else { self.cal_sel.clone() };
         if sel != self.heat_member {
@@ -1708,11 +1732,17 @@ impl Ctrl {
         match member_hist {
             Some(h) => {
                 let hm = heat_month(&h.on(today), today, self.heat_back[1]);
-                st.set_member_heat(model(hm.cells));
+                if let Some(m) = sync_model(st.get_member_heat(), hm.cells) {
+                    st.set_member_heat(m);
+                }
                 st.set_member_heat_title(ss(hm.title));
                 st.set_member_heat_prev(hm.can_prev);
             }
-            None => st.set_member_heat(model(Vec::new())),
+            None => {
+                if let Some(m) = sync_model(st.get_member_heat(), Vec::new()) {
+                    st.set_member_heat(m);
+                }
+            }
         }
         st.set_member_heat_next(self.heat_back[1] > 0);
         self.refresh_group_calendar(&all, today);
@@ -1852,7 +1882,9 @@ impl Ctrl {
         });
         st.set_ahead_text(ss(ahead.unwrap_or_default()));
         st.set_paddock_n(cars.iter().filter(|c| c.parked).count() as i32);
-        st.set_paddock_cars(model(cars.iter().filter(|c| c.parked).cloned().collect()));
+        if let Some(m) = sync_model(st.get_paddock_cars(), cars.iter().filter(|c| c.parked).cloned().collect()) {
+            st.set_paddock_cars(m);
+        }
         let m = &self.cars_model;
         for (i, c) in cars.into_iter().enumerate() {
             if i < m.row_count() {
@@ -1866,7 +1898,9 @@ impl Ctrl {
         while m.row_count() > n_cars {
             m.remove(m.row_count() - 1);
         }
-        st.set_ranking(model(ranking));
+        if let Some(m) = sync_model(st.get_ranking(), ranking) {
+            st.set_ranking(m);
+        }
     }
 
     pub(super) fn show_legal_if_needed(&mut self) {
@@ -2221,10 +2255,14 @@ impl Ctrl {
         }
         let ui = self.ui();
         let st = ui.global::<AppState>();
-        st.set_gcal_cells(model(cells));
+        if let Some(m) = sync_model(st.get_gcal_cells(), cells) {
+            st.set_gcal_cells(m);
+        }
         st.set_gcal_title(ss(title));
         st.set_gcal_month(self.gcal_month);
-        st.set_gcal_lines(model(lines.iter().map(ss).collect::<Vec<_>>()));
+        if let Some(m) = sync_model(st.get_gcal_lines(), lines.iter().map(ss).collect::<Vec<_>>()) {
+            st.set_gcal_lines(m);
+        }
         // si torna indietro finché c'è storia (12 settimane)
         st.set_gcal_can_prev((today - first).num_days() + 7 < HIST_DAYS as i64);
         st.set_gcal_can_next(self.gcal_off > 0);
@@ -2439,15 +2477,23 @@ impl Ctrl {
         st.set_profile_photo(photo.unwrap_or_default());
         st.set_profile_initial(ss(s.name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default()));
         st.set_profile_color(slint::Color::from_argb_encoded(s.color));
-        st.set_profile_lines(model(lines.iter().map(ss).collect::<Vec<_>>()));
+        if let Some(m) = sync_model(st.get_profile_lines(), lines.iter().map(ss).collect::<Vec<_>>()) {
+            st.set_profile_lines(m);
+        }
         match hist {
             Some(h) => {
                 let hm = heat_month(&h, ck.today, self.heat_back[2]);
-                st.set_profile_heat(model(hm.cells));
+                if let Some(m) = sync_model(st.get_profile_heat(), hm.cells) {
+                    st.set_profile_heat(m);
+                }
                 st.set_profile_heat_title(ss(hm.title));
                 st.set_profile_heat_prev(hm.can_prev);
             }
-            None => st.set_profile_heat(model(Vec::new())),
+            None => {
+                if let Some(m) = sync_model(st.get_profile_heat(), Vec::new()) {
+                    st.set_profile_heat(m);
+                }
+            }
         }
         st.set_profile_heat_next(self.heat_back[2] > 0);
         st.set_profile_racing(on && s.state == State::Studying);

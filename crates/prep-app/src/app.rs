@@ -160,6 +160,29 @@ fn model<T: Clone + 'static>(v: Vec<T>) -> ModelRc<T> {
     ModelRc::new(VecModel::from(v))
 }
 
+/// Aggiorna sul posto un elenco già mostrato: cambia solo le righe diverse, così l'interfaccia
+/// non ricrea ogni volta tutti gli elementi (la Squadra si aggiorna ogni secondo). Se l'elenco
+/// attuale non è un `VecModel` ne restituisce uno nuovo da impostare.
+fn sync_model<T: Clone + PartialEq + 'static>(cur: ModelRc<T>, v: Vec<T>) -> Option<ModelRc<T>> {
+    let Some(m) = cur.as_any().downcast_ref::<VecModel<T>>() else {
+        return Some(model(v));
+    };
+    let n = v.len();
+    for (i, x) in v.into_iter().enumerate() {
+        if i < m.row_count() {
+            if m.row_data(i).as_ref() != Some(&x) {
+                m.set_row_data(i, x);
+            }
+        } else {
+            m.push(x);
+        }
+    }
+    while m.row_count() > n {
+        m.remove(m.row_count() - 1);
+    }
+    None
+}
+
 struct Quiz {
     kind: SessionKind,
     subject: Option<String>,
@@ -705,7 +728,11 @@ thread_local! {
     static CTRL: RefCell<Option<Rc<RefCell<Ctrl>>>> = const { RefCell::new(None) };
 }
 
+#[track_caller]
 fn with_ctrl(f: impl FnOnce(&mut Ctrl)) {
+    // PREP_TIMING=1: segnala sul terminale le azioni che bloccano l'interfaccia più di 8 ms
+    #[cfg(not(target_arch = "wasm32"))]
+    let (start, at) = (std::time::Instant::now(), std::panic::Location::caller());
     CTRL.with(|c| {
         if let Some(rc) = c.borrow().as_ref() {
             if let Ok(mut ctrl) = rc.try_borrow_mut() {
@@ -713,6 +740,14 @@ fn with_ctrl(f: impl FnOnce(&mut Ctrl)) {
             }
         }
     });
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        static TIMING: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let ms = start.elapsed().as_secs_f64() * 1000.0;
+        if ms > 8.0 && *TIMING.get_or_init(|| std::env::var_os("PREP_TIMING").is_some()) {
+            eprintln!("lento: {ms:.0} ms da {}:{}", at.file(), at.line());
+        }
+    }
 }
 
 impl Ctrl {

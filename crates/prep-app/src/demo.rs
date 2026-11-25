@@ -27,6 +27,19 @@ pub fn maybe_run(ui: &AppWindow) {
         ui.global::<AppState>().set_drag_pan(true);
     }
     let steps: Vec<String> = script.split(';').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+    // PREP_TIMING=1: per ogni comando, il tempo fino al primo fotogramma disegnato dopo
+    // (creazione della pagina, impaginazione e disegno): così si vede cosa si apre lento
+    let pending: std::rc::Rc<std::cell::RefCell<Option<(std::time::Instant, String)>>> = Default::default();
+    if std::env::var_os("PREP_TIMING").is_some() {
+        let p = pending.clone();
+        let _ = ui.window().set_rendering_notifier(move |state, _| {
+            if matches!(state, slint::RenderingState::AfterRendering) {
+                if let Some((t, cmd)) = p.borrow_mut().take() {
+                    eprintln!("fotogramma: {:>5.0} ms dopo «{cmd}»", t.elapsed().as_secs_f64() * 1000.0);
+                }
+            }
+        });
+    }
     let weak = ui.as_weak();
     let step = std::rc::Rc::new(std::cell::Cell::new(0usize));
     let timer = Box::leak(Box::new(slint::Timer::default()));
@@ -38,6 +51,9 @@ pub fn maybe_run(ui: &AppWindow) {
             let _ = slint::quit_event_loop();
             return;
         };
+        if !cmd.starts_with("shot") && !cmd.starts_with("wait") {
+            *pending.borrow_mut() = Some((std::time::Instant::now(), cmd.clone()));
+        }
         for cmd in cmd.split('&') {
             let (op, arg) = cmd.split_once(':').unwrap_or((cmd, ""));
             let st = ui.global::<AppState>();
@@ -46,6 +62,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "subject" => st.invoke_select_subject(arg.into()),
                 "unit" => st.invoke_open_unit(arg.into()),
                 "goals" => st.invoke_goals_confirm(),
+                "goalspage" => st.invoke_open_goals(),
                 "gopen" => {
                     // gopen:N — espande l'N-esimo obiettivo
                     let i: usize = arg.parse().unwrap_or(0);
