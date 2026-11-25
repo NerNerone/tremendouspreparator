@@ -156,7 +156,7 @@ impl Ctrl {
             hm(now_ms + minutes as i64 * 60_000)
         )));
         // gli elenchi si aggiornano sul posto: solo le righe cambiate (niente sfarfallii ogni secondo)
-        st.set_focus_apps_hidden(hidden as i32);
+        st.set_focus_apps_hidden(hidden);
         if let Some(m) = sync_model(st.get_focus_apps(), all) {
             st.set_focus_apps(m);
         }
