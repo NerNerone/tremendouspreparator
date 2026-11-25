@@ -309,6 +309,8 @@ export struct CarVM {
     fx: int,
     // compagni in pista (raffiche della scia, al massimo 3)
     others: int,
+    // parte degli obiettivi di oggi fatti (0..1): coriandoli in proporzione
+    plan: float,
     // moltiplicatore dei punti (velocità) e intensità del ritmo (0..1)
     mult: float,
     level: float,

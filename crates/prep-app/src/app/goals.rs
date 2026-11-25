@@ -125,7 +125,11 @@ impl Ctrl {
                 })
                 .collect();
             let left: u32 = items.iter().map(|g| (g.target - g.done).max(0) as u32).sum();
-            self.plan_done = !items.is_empty() && left == 0;
+            self.plan_frac = if items.is_empty() {
+                0.0
+            } else {
+                items.iter().filter(|g| g.done >= g.target).count() as f64 / items.len() as f64
+            };
             st.set_goals_status(ss(if left == 0 {
                 "Obiettivi di oggi completati. Ottimo lavoro!".to_string()
             } else {

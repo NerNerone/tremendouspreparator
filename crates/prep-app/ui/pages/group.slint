@@ -422,7 +422,8 @@ component Car inherits Rectangle {
     }
     // piano fatto: ogni tanto un lancio di coriandoli nei colori delle materie
     property <float> cf: mod(root.ms, 8000) / 2400;
-    for i in (root.fx-plan && root.cf < 1 ? 22 : 0): Rectangle {
+    // tanti coriandoli quanti gli obiettivi fatti: il lancio pieno con il piano completato
+    for i in (root.fx-plan && root.cf < 1 ? max(6, round(22 * min(1, root.car.plan > 0 ? root.car.plan : 1))) : 0): Rectangle {
         property <angle> a: i / 22 * 360deg;
         property <float> e: 1 - (1 - root.cf) * (1 - root.cf) * (1 - root.cf);
         x: 17px + cos(self.a) * (22 + mod(i, 4) * 5) * 1px * self.e;
@@ -2858,7 +2859,7 @@ export component GroupPage inherits Page {
                         { c: #4F8DF5, t: "DRS e nastri blu · concentrazione", d: "Blocco delle altre app attivo: +1,0 al ritmo (subito ×2); +0,1 per ogni altro tuo dispositivo in concentrazione." },
                         { c: #E8322B, t: "Ruote rosse · gomme soft ×1,2", d: "Pit stop entro 10 minuti dopo almeno 25 di studio: per 25 minuti, con le strisce di gomma dietro." },
                         { c: #9FE6FF, t: "Raffiche · scia dei compagni", d: "+0,1 per ogni compagno in pista, fino a ×1,4: il loro vento si infrange sull'alettone." },
-                        { c: #2FD27A, t: "Coriandoli · piano fatto ×1,1", d: "Obiettivi di oggi completati: ×1,1 fino a mezzanotte." },
+                        { c: #2FD27A, t: "Coriandoli · piano del giorno", d: "Fino a +0,5 al ritmo in proporzione agli obiettivi di oggi fatti (tutti: +0,5), con più coriandoli man mano." },
                         { c: #F5C542, t: "Alettoni d'oro · primo in classifica", d: "Chi è in testa oggi. Solo da vedere: il punteggio non cambia." },
                         { c: #FFD400, t: "Pannello giallo · bandiera gialla", d: "Uscito dalla concentrazione prima del tempo: bonus sospeso e DRS chiuso fino alla fine prevista o al rientro." },
                         { c: #A3A8B1, t: "Fumo davanti · bloccaggio ×0,8", d: "Più di 2 pause in 30 minuti, per 15 minuti: la macchina trema." },

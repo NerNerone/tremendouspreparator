@@ -110,6 +110,9 @@ pub struct Status {
     /// intensità del ritmo (0..1)
     #[serde(default)]
     pub level: f32,
+    /// parte degli obiettivi di oggi fatti (0..1): coriandoli in proporzione
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub plan: f32,
     /// concentrazione attiva su questo dispositivo: vale anche per la sessione di studio aperta
     /// su un altro dispositivo dello stesso utente (i moltiplicatori si sommano)
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -299,7 +302,7 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
     let mut out = latest.0.clone();
     let (mut t, mut w, mut m, mut tot) = (0, 0, 0, 0);
     let mut pts = [0.0f64; 4];
-    let (mut mult, mut fx, mut level) = (0.0f32, 0u8, 0.0f32);
+    let (mut mult, mut fx, mut level, mut plan) = (0.0f32, 0u8, 0.0f32, 0.0f32);
     let mut hist = vec![0u32; HIST_DAYS];
     let mut what: Vec<BTreeMap<String, u64>> = vec![BTreeMap::new(); WHAT_DAYS];
     let mut any_hist = false;
@@ -322,6 +325,7 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
             mult = s.mult;
             fx = s.fx;
             level = s.level;
+            plan = s.plan;
         }
         t += a;
         w += b;
@@ -364,6 +368,7 @@ pub fn combine(devs: &[(Status, bool)], c: &Clock) -> (Status, bool) {
     out.mult = if mult > 0.0 { mult } else { 1.0 };
     out.fx = fx;
     out.level = level;
+    out.plan = plan;
     out.day = today.format("%Y-%m-%d").to_string();
     out.at = now;
     out.hist = any_hist.then(|| Hist { day: out.day.clone(), secs: hist, what: what.iter().map(top).collect() });
@@ -1384,6 +1389,7 @@ pub fn my_status(
         mult: if state == State::Studying { score.mult as f32 } else { 1.0 },
         fx: if state == State::Studying { score.fx } else { 0 },
         level: score.level,
+        plan: if state == State::Studying { score.plan } else { 0.0 },
         hist: hist.then(|| {
             let mut h = log.hist(today);
             h[0] = t.min(u32::MAX as u64) as u32;
@@ -1926,6 +1932,10 @@ fn screen_ccw(pts: &[(f64, f64)]) -> bool {
     a < 0.0
 }
 
+fn is_zero_f32(v: &f32) -> bool {
+    *v == 0.0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1944,7 +1954,7 @@ mod tests {
         assert_eq!(room(&code).tag, room(&code.to_lowercase()).tag);
     }
 
-    const ONE: crate::score::Score = crate::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+    const ONE: crate::score::Score = crate::score::Score::ONE;
 
     #[test]
     fn cards_reach_who_was_offline() {

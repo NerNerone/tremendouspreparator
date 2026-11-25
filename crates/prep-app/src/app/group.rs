@@ -1311,7 +1311,7 @@ impl Ctrl {
                     _ => {
                         if let Some(l) = self.study_log.others.get(d) {
                             let log: prep_core::group::StudyLog = l.clone().into();
-                            let idle = prep_core::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+                            let idle = prep_core::score::Score::ONE;
                             let s = prep_core::group::my_status("", 0, State::Idle, &log, None, &ck, false, idle);
                             devs.push((s, false));
                         }
@@ -1507,6 +1507,7 @@ impl Ctrl {
                 py,
                 fx: if racing { s.fx as i32 } else { 0 },
                 others: 0,
+                plan: if racing { s.plan } else { 0.0 },
                 mult: if racing { m as f32 } else { 1.0 },
                 level: s.level,
             });
@@ -2375,8 +2376,9 @@ fn fx_showcase(cars: &mut Vec<CarVM>) {
         c.f += df;
         c.lane = lane;
         c.fx = fx;
-        // la scia dei compagni come con un solo compagno in pista
+        // la scia dei compagni come con un solo compagno in pista; il piano fatto a metà
         c.others = 1;
+        c.plan = 0.5;
         c.mult = mult;
         c.level = level;
         cars.push(c);
@@ -2672,12 +2674,12 @@ impl Ctrl {
     pub(super) fn score_now(&self, now: i64) -> prep_core::score::Score {
         use prep_core::group::State;
         if self.study_state != State::Studying {
-            return prep_core::score::Score { mult: 1.0, fx: 0, level: 0.0 };
+            return prep_core::score::Score::ONE;
         }
         let today = self.study_log.combined().day(Local::now().date_naive())
             + self.study_since.map(|t| (now - t).max(0) as u64).unwrap_or(0);
         let focus = u32::from(self.focus_on) + self.twin_focus(now);
-        let mut s = self.run.score_plan(now, focus, self.racing_others, today, self.plan_done);
+        let mut s = self.run.score_plan(now, focus, self.racing_others, today, self.plan_frac);
         let now_ms = Utc::now().timestamp_millis();
         if self.yellow_until > now_ms && !self.focus_on {
             s.fx |= prep_core::score::FX_YELLOW;

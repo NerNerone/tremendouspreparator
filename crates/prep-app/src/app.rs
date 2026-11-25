@@ -448,8 +448,8 @@ pub struct Ctrl {
     /// concentrazione attiva (scia blu) e altri membri in pista (scia di gruppo)
     focus_on: bool,
     racing_others: usize,
-    /// obiettivi di oggi completati (piano fatto: ×1,1 e coriandoli)
-    plan_done: bool,
+    /// parte degli obiettivi di oggi fatti, 0..1 (piano: fino a +0,5 al ritmo e coriandoli)
+    plan_frac: f64,
     /// fine prevista della concentrazione in corso (ms) e bandiera gialla fino a (ms): uscita
     /// dalla concentrazione prima del tempo
     focus_planned: i64,
@@ -1273,7 +1273,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         run: Default::default(),
         focus_on: false,
         racing_others: 0,
-        plan_done: false,
+        plan_frac: 0.0,
         focus_planned: 0,
         yellow_until: 0,
         pb_until: 0,
