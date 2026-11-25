@@ -13,6 +13,8 @@ l'aggiornamento che lo porta.
 - Il pulsante «Studia ora» si riduce al simbolo scorrendo e sparisce sul profilo di un membro; con la concentrazione già attiva «Scendi in pista» parte subito e propone le attività.
 - Pacchetto importato o ricevuto con un codice: con GitHub configurato l'app propone di salvarlo in un ramo nuovo.
 - Novità: testo intero, senza tagli; dalle Opzioni si apre dall'inizio.
+- Schermo largo (tablet, computer): barra laterale al posto di quella in basso; tieni premuta una scheda (o clic destro) e «Apri accanto» per vederne due insieme, per esempio Squadra e Studia.
+- Squadra: l'abitacolo è della stessa misura su tutte le monoposto.
 - Obiettivi ridisegnati: riepilogo del piano in alto, argomenti con il simbolo della materia e un solo comando per riga, barra in basso con «Conferma» o «Continua» (riparte dall'argomento giusto), ripasso nella stessa lista, «Aggiungi un argomento» con ricerca.
 - Concentrazione: +1,0 al ritmo (da ×1 a ×2 appena parti), oltre alla scia blu e al blocco delle altre app.
 - «Scegli durata e app» si apre subito: l'elenco delle app si prepara in background all'avvio.

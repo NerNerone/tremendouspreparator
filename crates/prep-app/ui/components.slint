@@ -658,7 +658,20 @@ export component NavItem inherits Rectangle {
     in property <string> label;
     in property <bool> active;
     in property <int> badge: 0;
+    // schermo largo: questa scheda è aperta accanto (bordo invece del fondo pieno)
+    in property <bool> beside;
     callback clicked;
+    // tenuta premuta o clic destro (schermo largo: «Apri accanto»)
+    callback menu;
+    property <bool> long-fired;
+    Timer {
+        interval: 500ms;
+        running: ta.pressed && !root.long-fired;
+        triggered => {
+            root.long-fired = true;
+            root.menu();
+        }
+    }
     VerticalLayout {
         alignment: center;
         spacing: 4px;
@@ -669,10 +682,12 @@ export component NavItem inherits Rectangle {
                 Rectangle {
                     width: 56px;
                     Rectangle {
-                        width: root.active ? 56px : ta.pressed ? 40px : 0px;
+                        width: root.active || root.beside ? 56px : ta.pressed ? 40px : 0px;
                         x: (parent.width - self.width) / 2;
                         border-radius: 16px;
-                        background: root.active ? M3.secondary-container : M3.on-surface.with-alpha(0.08);
+                        border-width: root.beside && !root.active ? 2px : 0px;
+                        border-color: M3.primary;
+                        background: root.active ? M3.secondary-container : root.beside ? transparent : M3.on-surface.with-alpha(0.08);
                         animate width {
                             duration: Motion.fast-spatial;
                             easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
@@ -721,8 +736,19 @@ export component NavItem inherits Rectangle {
     }
 
     ta := TouchArea {
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down) {
+                root.long-fired = false;
+                if (e.button == PointerEventButton.right) {
+                    root.long-fired = true;
+                    root.menu();
+                }
+            }
+        }
         clicked => {
-            root.clicked();
+            if (!root.long-fired) {
+                root.clicked();
+            }
         }
     }
 }

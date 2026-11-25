@@ -113,6 +113,7 @@ pub fn maybe_run(ui: &AppWindow) {
                 "qzstart" => st.invoke_qz_start(),
                 "exammenu" => st.set_exam_menu(true),
                 "nonews" => st.set_news_visible(false),
+                "side" => st.set_side_page(arg.parse().unwrap_or(-1)),
                 "offerbranch" => {
                     st.set_offer_branch_name("semestre-aperto".into());
                     st.set_offer_branch(true);

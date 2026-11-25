@@ -433,6 +433,9 @@ export global AppState {
     // navigazione: 0 home, 1 studio, 2 unità, 3 quiz, 4 risultati, 5 flashcard, 6 insicure, 7 impostazioni, 8 mazzi, 9 lettore, 10 feedback, 11 obiettivi, 12 tavola periodica
     in-out property <int> page: 0;
     in-out property <int> tab: 0;
+    // schermo largo: scheda principale aperta accanto (pagina, -1 nessuna) e menu «Apri accanto»
+    in-out property <int> side-page: -1;
+    in-out property <int> side-menu: -1;
 
     // home
     in property <float> overall;
