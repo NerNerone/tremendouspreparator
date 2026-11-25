@@ -258,13 +258,13 @@ component Car inherits Rectangle {
     // muso affilato e alettone anteriore
     Rectangle { x: 20px; y: 8.5px; width: 13px; height: 3px; border-radius: 1.5px; background: root.c; }
     Rectangle { x: 32px; y: 2px; width: 3px; height: 16px; border-radius: 1px; background: root.c; }
-    // abitacolo (halo): nel colore della strada; più grande sulla propria macchina
+    // abitacolo (halo): nel colore della strada, della stessa misura su tutte le monoposto
     Rectangle {
-        x: root.car.me ? 15px : 16px;
-        y: root.car.me ? 7.5px : 8.5px;
-        width: root.car.me ? 5px : 3px;
-        height: self.width;
-        border-radius: self.width / 2;
+        x: 15.5px;
+        y: 8px;
+        width: 4px;
+        height: 4px;
+        border-radius: 2px;
         background: root.road;
     }
     // gomme nuove: scintille che si accendono a turno attorno alle ruote
