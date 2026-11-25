@@ -354,34 +354,53 @@ pub fn remove_file(store: &Store, path: &str) -> Result<(), String> {
 
 /// Elenco dei file dei contenuti, con tipo e riassunto.
 pub fn list(store: &Store) -> Vec<Entry> {
+    use std::collections::{HashMap, HashSet};
     let files = files_of(store);
     let cat = files
         .iter()
         .find(|(p, _)| p == "content/books.json")
         .and_then(|(_, t)| serde_json::from_str::<BookCatalog>(t).ok())
         .unwrap_or_default();
+    // una passata sola: quali file ci sono e quali figure usa ogni capitolo (prima per ogni
+    // figura si rileggevano tutti i capitoli: con centinaia di figure l'apertura era lenta)
+    let present: HashSet<&str> = files.iter().map(|(p, _)| p.as_str()).collect();
+    let chapter_of = |p: &str| cat.books.iter().flat_map(|b| &b.chapters).find(|c| c.file == p);
+    let mut owner: HashMap<String, (String, String)> = HashMap::new();
+    let mut refs_of: HashMap<&str, Vec<(String, String)>> = HashMap::new();
+    for (p, t) in files.iter().filter(|(p, _)| p.ends_with(".md")) {
+        let refs = figure_refs(t);
+        for (alt, f) in &refs {
+            owner.entry(f.clone()).or_insert_with(|| {
+                let ch = chapter_of(p).map(|c| c.title.clone()).unwrap_or_else(|| chapter_title(t, p));
+                (alt.clone(), ch)
+            });
+        }
+        refs_of.insert(p.as_str(), refs);
+    }
     let mut out: Vec<Entry> = files
         .iter()
         .map(|(path, text)| {
-            let v: Value =
-                if path.ends_with(".json") { serde_json::from_str(text).unwrap_or(Value::Null) } else { Value::Null };
-            let count = |k: &str| v.get(k).and_then(|a| a.as_array()).map(|a| a.len()).unwrap_or(0);
             let file = path.rsplit('/').next().unwrap_or(path).to_string();
             let (kind, name, info) = if path == "content/syllabus.json" {
+                let v: Value = serde_json::from_str(text).unwrap_or(Value::Null);
                 let title = v.get("title").and_then(|t| t.as_str()).unwrap_or("esame").to_string();
-                (Kind::Exam, title, format!("{} materie", count("subjects")))
+                let n = v.get("subjects").and_then(|a| a.as_array()).map(|a| a.len()).unwrap_or(0);
+                (Kind::Exam, title, format!("{n} materie"))
             } else if path == "content/books.json" {
-                (Kind::Books, file, format!("{} libri", count("books")))
+                (Kind::Books, file, format!("{} libri", cat.books.len()))
             } else if path.starts_with("content/questions/") {
-                (Kind::Questions, file, format!("{} domande", count("questions")))
+                (Kind::Questions, file, format!("{} domande", count_items(text, "questions")))
             } else if path.starts_with("content/flashcards/") {
-                (Kind::Cards, file, format!("{} flashcard", count("cards")))
+                (Kind::Cards, file, format!("{} flashcard", count_items(text, "cards")))
             } else if path.ends_with(".md") {
-                let found = cat.books.iter().find_map(|b| {
-                    b.chapters.iter().find(|c| c.file == *path).map(|c| (b.title.clone(), c.title.clone()))
+                let found = chapter_of(path).and_then(|c| {
+                    cat.books
+                        .iter()
+                        .find(|b| b.chapters.iter().any(|x| x.file == c.file))
+                        .map(|b| (b.title.clone(), c.title.clone()))
                 });
-                let refs = figure_refs(text);
-                let missing = refs.iter().filter(|(_, p)| !files.iter().any(|(q, _)| q == p)).count();
+                let refs = refs_of.get(path.as_str()).map(|v| v.as_slice()).unwrap_or(&[]);
+                let missing = refs.iter().filter(|(_, p)| !present.contains(p.as_str())).count();
                 let figs = match (refs.len(), missing) {
                     (0, _) => String::new(),
                     (n, 0) => format!(" · {n} figure"),
@@ -392,22 +411,9 @@ pub fn list(store: &Store) -> Vec<Entry> {
                     None => (Kind::Chapter, file, format!("non collegato a un libro{figs}")),
                 }
             } else if path.ends_with(".svg") {
-                // di quale capitolo è
-                let owner = files.iter().filter(|(p, _)| p.ends_with(".md")).find_map(|(p, t)| {
-                    figure_refs(t).into_iter().find(|(_, f)| f == path).map(|(alt, _)| {
-                        let ch = cat
-                            .books
-                            .iter()
-                            .flat_map(|b| &b.chapters)
-                            .find(|c| c.file == *p)
-                            .map(|c| c.title.clone())
-                            .unwrap_or_else(|| chapter_title(t, p));
-                        (alt, ch)
-                    })
-                });
-                match owner {
+                match owner.get(path.as_str()) {
                     Some((alt, ch)) => {
-                        (Kind::Figure, if alt.is_empty() { file } else { alt }, format!("figura di «{ch}»"))
+                        (Kind::Figure, if alt.is_empty() { file } else { alt.clone() }, format!("figura di «{ch}»"))
                     }
                     None => (Kind::Figure, file, "non usata in nessun capitolo".into()),
                 }
@@ -428,6 +434,22 @@ pub fn list(store: &Store) -> Vec<Entry> {
     };
     out.sort_by(|a, b| rank(a.kind).cmp(&rank(b.kind)).then(a.path.cmp(&b.path)));
     out
+}
+
+/// Quanti elementi ha l'elenco `key` di un file JSON, senza costruirne l'albero (i file delle
+/// domande pesano diversi MB).
+fn count_items(text: &str, key: &str) -> usize {
+    use serde::de::IgnoredAny;
+    #[derive(serde::Deserialize)]
+    struct Items {
+        #[serde(default)]
+        questions: Vec<IgnoredAny>,
+        #[serde(default)]
+        cards: Vec<IgnoredAny>,
+    }
+    serde_json::from_str::<Items>(text)
+        .map(|i| if key == "cards" { i.cards.len() } else { i.questions.len() })
+        .unwrap_or(0)
 }
 
 /// Il pacchetto (`.json.gz`) con i contenuti attuali dell'esame.
