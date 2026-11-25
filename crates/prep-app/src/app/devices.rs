@@ -501,6 +501,7 @@ impl Ctrl {
                             self.refresh_all();
                         }
                         self.toast(format!("Esame «{name}» ricevuto e installato"));
+                        self.offer_branch(&exam);
                     }
                     Err(e) => self.toast(format!("Esame non ricevuto: {e}")),
                 },

@@ -96,6 +96,10 @@ pub fn maybe_run(ui: &AppWindow) {
                 "qzstart" => st.invoke_qz_start(),
                 "exammenu" => st.set_exam_menu(true),
                 "nonews" => st.set_news_visible(false),
+                "offerbranch" => {
+                    st.set_offer_branch_name("semestre-aperto".into());
+                    st.set_offer_branch(true);
+                }
                 "fab" => st.set_fab_open(!st.get_fab_open()),
                 "setting" => st.invoke_open_setting(arg.parse().unwrap_or(0)),
                 // sincronizzazione tra dispositivi: user:nome; p2prelay:ws://…; p2p:password; p2pget

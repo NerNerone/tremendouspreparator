@@ -214,7 +214,7 @@ export struct FocusAppVM {
 
 // colore selezionabile (monoposto); auto = accento di sistema
 // uno strumento della materia in Studia: 0 quiz, 1 flashcard, 2 simulazioni, 3 prova ufficiale
-// (id = tag), 4 tavola periodica, 5 collegamento del pacchetto (id = indice), 6 crea con l'AI
+// (id = tag), 4 tavola periodica, 5 collegamento del pacchetto (id = indice), 6 crea con l'AI, 7 «Strumenti» (apre gli altri)
 export struct ToolVM {
     kind: int,
     id: string,
@@ -447,6 +447,10 @@ export global AppState {
     // Oggi, scorrendo: settimana di studio, serie di giorni, posizione in gara
     in property <[float]> week-bars;
     in property <int> week-today;
+    // per giorno: «Mercoledì 25» e «tempo · domande · flashcard»; il giorno toccato (-1 nessuno)
+    in property <[string]> week-day;
+    in property <[string]> week-info;
+    in-out property <int> week-sel: -1;
     in property <string> week-total;
     in property <int> streak-days;
     in property <string> home-race-title;
@@ -504,6 +508,8 @@ export global AppState {
     in property <[QzOptVM]> official-tests;
     // strumenti della materia in Studia, in una griglia che va a capo
     in property <[ToolVM]> study-tools;
+    // gli strumenti della materia (tavola, testi, crea con l'AI), nel foglio «Strumenti»
+    in property <[ToolVM]> study-extra;
     in-out property <string> toast;
 
     // studio
@@ -663,7 +669,7 @@ export global AppState {
     // qualcuno sta studiando adesso (bollino LIVE sulla gara)
     in property <bool> race-live;
     // vista d'insieme del circuito (chi è in pausa o fermo) invece della telecamera ravvicinata
-    in property <bool> race-overview: true;
+    in-out property <bool> race-overview: true;
     in property <[RankVM]> ranking;
     in property <int> study-state;
     in property <string> study-today;
@@ -841,8 +847,14 @@ export global AppState {
     in property <[string]> circuit-names;
     in property <int> circuit-fixed: -1;
     callback group-set-circuit(int);
+    callback race-view-toggle();
+    // pit stop: quanto manca ai 10′ delle gomme nuove (1 → 0) e lo stesso in «m:ss»
+    in property <float> pit-frac;
+    in property <string> pit-left;
     // un foglio dal basso aperto sopra la pagina: il pulsante «Studia ora» si nasconde
     in-out property <bool> sheet-open;
+    // la pagina è stata fatta scorrere in giù: il pulsante «Studia ora» resta solo simbolo
+    in-out property <bool> fab-mini;
     callback group-ping(string);
     in property <image> my-photo;
     in property <bool> my-has-photo;
@@ -867,6 +879,11 @@ export global AppState {
     // GitHub: nuovo ramo dal modello, o l'esame in uso salvato in un ramo nuovo
     callback gh-new-branch(string);
     callback gh-save-branch(string);
+    // dopo un pacchetto importato o ricevuto: proposta di salvarlo in un ramo nuovo (con GitHub)
+    in-out property <bool> offer-branch;
+    in property <string> offer-branch-exam;
+    in-out property <string> offer-branch-name;
+    callback offer-branch-save(string);
     in-out property <string> s-username;
     in property <[SwatchVM]> car-swatches;
     callback car-color(int);

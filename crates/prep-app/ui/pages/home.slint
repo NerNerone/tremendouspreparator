@@ -156,10 +156,12 @@ export component HomePage inherits Page {
             AppState.home-intro-done = true;
         }
     }
-    // la fascia compatta compare quando quella grande è uscita in alto
-    // quanto della fascia grande è ancora in vista (scorrendo cala fino a 0)
-    property <length> band-left: band.height + sv.content-y;
-    property <bool> compact: root.band-left <= 84px;
+    // testata della preparazione: alta top-h in cima, scorrendo si restringe fino a 84 px.
+    // t va da 0 (grande) a 1 (compatta); percentuale, giorni e barra ondulata si spostano e si
+    // rimpiccioliscono con continuità (niente fascia compatta che compare all'improvviso)
+    property <length> top-h: 196px;
+    property <length> head-h: max(84px, root.top-h + sv.content-y);
+    property <float> t: clamp(-sv.content-y / (root.top-h - 84px), 0, 1);
 
     sv := Scroller {
         width: 100%;
@@ -181,133 +183,10 @@ export component HomePage inherits Page {
                 padding-top: 4px;
                 padding-bottom: 20px;
                 spacing: 0px;
-                // selettore dell'esame e profilo
-                HorizontalLayout {
-                    height: 52px;
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        HorizontalLayout {
-                            alignment: start;
-                            Rectangle {
-                                border-radius: 20px;
-                                background: sel-ta.pressed || AppState.exam-menu ? M3.on-primary-container.with-alpha(0.08) : transparent;
-                                HorizontalLayout {
-                                    padding-right: 8px;
-                                    spacing: 6px;
-                                    Text {
-                                        text: AppState.exam-name;
-                                        font-size: 17px;
-                                        font-weight: 700;
-                                        color: M3.on-primary-container;
-                                        vertical-alignment: center;
-                                        overflow: elide;
-                                        max-width: root.width - 120px;
-                                    }
-                                    Rectangle {
-                                        width: 14px;
-                                        Path {
-                                            width: 12px;
-                                            height: 7px;
-                                            viewbox-width: 14;
-                                            viewbox-height: 8;
-                                            commands: AppState.exam-menu ? "M 1 7 L 7 1 L 13 7" : "M 1 1 L 7 7 L 13 1";
-                                            stroke: M3.on-primary-container;
-                                            stroke-width: 2px;
-                                        }
-                                    }
-                                }
-                                sel-ta := TouchArea {
-                                    clicked => {
-                                        AppState.exam-menu = !AppState.exam-menu;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Rectangle {
-                        width: 40px;
-                        Avatar {
-                            width: 36px;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                            photo: AppState.my-photo;
-                            has-photo: AppState.my-has-photo;
-                            initial: AppState.my-initial;
-                        }
-                        TouchArea {
-                            clicked => {
-                                AppState.go-tab(3);
-                            }
-                        }
-                    }
-                }
-                // percentuale grande a sinistra, giorni al prossimo appello a destra
-                HorizontalLayout {
-                    spacing: 12px;
-                    VerticalLayout {
-                        alignment: start;
-                        Text {
-                            text: "PREPARAZIONE";
-                            font-size: 12px;
-                            font-weight: 800;
-                            letter-spacing: 1px;
-                            color: M3.primary;
-                        }
-                        Text {
-                            text: round(AppState.overall * 100) + "%";
-                            font-size: 88px;
-                            font-weight: 900;
-                            letter-spacing: -3px;
-                            color: M3.on-primary-container;
-                        }
-                    }
-                    Rectangle {
-                        horizontal-stretch: 1;
-                    }
-                    if AppState.hero-days >= 0: VerticalLayout {
-                        alignment: start;
-                        padding-top: 20px;
-                        Text {
-                            horizontal-alignment: right;
-                            text: AppState.hero-days == 0 ? "Oggi" : AppState.hero-days;
-                            font-size: 40px;
-                            font-weight: 900;
-                            color: AppState.hero-days <= 7 ? M3.error : M3.on-primary-container;
-                        }
-                        Text {
-                            horizontal-alignment: right;
-                            text: AppState.hero-days-label;
-                            font-size: 12px;
-                            color: M3.on-primary-container;
-                        }
-                        if AppState.hero-days-sub != "": Text {
-                            horizontal-alignment: right;
-                            text: AppState.hero-days-sub;
-                            font-size: 12px;
-                            color: M3.on-primary-container;
-                        }
-                    }
-                }
-                // barra ondulata con la soglia
+                // selettore, percentuale, giorni e barra ondulata stanno nella testata fissa qui
+                // sotto, che si restringe scorrendo; qui resta il loro posto
                 Rectangle {
-                    height: wave.height;
-                    wave := WavyProgress {
-                        width: parent.width;
-                        intro: !AppState.home-intro-done;
-                        value: AppState.overall;
-                        fill: M3.primary;
-                        track: M3.surface.with-alpha(0.75);
-                        amp: 6px;
-                        wavelength: 44px;
-                        thickness: 7px;
-                    }
-                    if AppState.pass-frac > 0: Rectangle {
-                        x: parent.width * AppState.pass-frac - 1px;
-                        y: 0px;
-                        width: 2px;
-                        height: parent.height;
-                        background: AppState.pass-ok ? M3.success : M3.on-primary-container;
-                    }
+                    height: root.top-h - 4px;
                 }
                 Rectangle {
                     height: 22px;
@@ -646,24 +525,61 @@ export component HomePage inherits Page {
                             vertical-alignment: center;
                         }
                     }
+                    // un tocco su un giorno ne mostra i numeri; un altro tocco li chiude
                     HorizontalLayout {
                         height: 96px;
                         spacing: 8px;
-                        for v[i] in AppState.week-bars: VerticalLayout {
+                        for v[i] in AppState.week-bars: Rectangle {
                             horizontal-stretch: 1;
-                            spacing: 6px;
-                            alignment: end;
-                            Rectangle {
-                                height: max(i <= AppState.week-today ? 6px : 3px, 70px * v);
-                                border-radius: 12px;
-                                background: i == AppState.week-today ? M3.primary : i < AppState.week-today ? M3.primary-container : M3.surface-container-highest;
+                            border-radius: 14px;
+                            background: AppState.week-sel == i ? M3.secondary-container.with-alpha(0.55) : transparent;
+                            animate background { duration: 160ms; }
+                            VerticalLayout {
+                                padding-left: 3px;
+                                padding-right: 3px;
+                                padding-bottom: 2px;
+                                spacing: 6px;
+                                alignment: end;
+                                Rectangle {
+                                    height: max(i <= AppState.week-today ? 6px : 3px, 70px * v);
+                                    border-radius: 12px;
+                                    background: i == AppState.week-today ? M3.primary : i < AppState.week-today ? M3.primary-container : M3.surface-container-highest;
+                                }
+                                Text {
+                                    horizontal-alignment: center;
+                                    text: i == 0 ? "L" : i == 1 ? "M" : i == 2 ? "M" : i == 3 ? "G" : i == 4 ? "V" : i == 5 ? "S" : "D";
+                                    font-size: 12px;
+                                    font-weight: i == AppState.week-today || AppState.week-sel == i ? 800 : 500;
+                                    color: i == AppState.week-today || AppState.week-sel == i ? M3.on-surface : M3.on-surface-variant;
+                                }
+                            }
+                            TouchArea {
+                                enabled: i <= AppState.week-today;
+                                clicked => {
+                                    AppState.week-sel = AppState.week-sel == i ? -1 : i;
+                                }
+                            }
+                        }
+                    }
+                    if AppState.week-sel >= 0 && AppState.week-sel < AppState.week-info.length: Rectangle {
+                        border-radius: 18px;
+                        background: M3.surface-container-high;
+                        height: wd.preferred-height;
+                        wd := VerticalLayout {
+                            padding: 12px;
+                            padding-left: 14px;
+                            spacing: 2px;
+                            Text {
+                                text: AppState.week-day[AppState.week-sel];
+                                font-size: 14px;
+                                font-weight: 800;
+                                color: M3.on-surface;
                             }
                             Text {
-                                horizontal-alignment: center;
-                                text: i == 0 ? "L" : i == 1 ? "M" : i == 2 ? "M" : i == 3 ? "G" : i == 4 ? "V" : i == 5 ? "S" : "D";
-                                font-size: 12px;
-                                font-weight: i == AppState.week-today ? 800 : 500;
-                                color: i == AppState.week-today ? M3.on-surface : M3.on-surface-variant;
+                                text: AppState.week-info[AppState.week-sel];
+                                font-size: 13px;
+                                color: M3.on-surface-variant;
+                                wrap: word-wrap;
                             }
                         }
                     }
@@ -772,58 +688,169 @@ export component HomePage inherits Page {
         }
     }
 
-    // fascia compatta, scorrendo (Traguardo: «Preparazione · 21 g · 38 %»)
-    // compare quando della fascia grande resta in vista meno della sua altezza: stesso colore,
-    // stessi angoli, attaccata alla barra di stato (colorata anche lei): la fascia grande sembra
-    // ridursi fino a questa, senza salti; il contenuto entra in dissolvenza
+    // testata fissa della preparazione (Traguardo): grande in cima, «Preparazione · 21 g · 38 %»
+    // scorrendo. Stesso colore della barra di stato e della fascia sotto: si restringe senza stacchi
     Rectangle {
         x: 0px;
         y: 0px;
-        visible: root.compact;
         width: root.width;
-        height: 84px;
+        height: root.head-h;
         background: M3.primary-container;
         border-bottom-left-radius: 32px;
         border-bottom-right-radius: 32px;
-        VerticalLayout {
-            opacity: clamp((84px - root.band-left) / 28px, 0, 1);
-            padding-bottom: 18px;
-            padding-left: 24px;
-            padding-right: 24px;
-            padding-top: 8px;
-            alignment: center;
-            spacing: 6px;
-            HorizontalLayout {
-                spacing: 10px;
-                Text {
-                    horizontal-stretch: 1;
-                    text: "Preparazione";
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: M3.on-primary-container;
-                    vertical-alignment: center;
-                }
-                if AppState.hero-days >= 0: Text {
-                    text: AppState.hero-days + " g";
-                    font-size: 13px;
-                    color: M3.on-primary-container;
-                    vertical-alignment: center;
-                }
-                Text {
-                    text: round(AppState.overall * 100) + "%";
-                    font-size: 26px;
-                    font-weight: 900;
-                    color: M3.on-primary-container;
+        clip: true;
+        // selettore dell'esame e profilo: salgono e spariscono
+        HorizontalLayout {
+            x: 20px;
+            y: 4px - root.t * 60px;
+            width: root.width - 40px;
+            height: 52px;
+            opacity: max(0, 1 - root.t * 2.5);
+            Rectangle {
+                horizontal-stretch: 1;
+                HorizontalLayout {
+                    alignment: start;
+                    Rectangle {
+                        border-radius: 20px;
+                        background: sel-ta.pressed || AppState.exam-menu ? M3.on-primary-container.with-alpha(0.08) : transparent;
+                        HorizontalLayout {
+                            padding-right: 8px;
+                            spacing: 6px;
+                            Text {
+                                text: AppState.exam-name;
+                                font-size: 17px;
+                                font-weight: 700;
+                                color: M3.on-primary-container;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                max-width: root.width - 120px;
+                            }
+                            Rectangle {
+                                width: 14px;
+                                Path {
+                                    width: 12px;
+                                    height: 7px;
+                                    viewbox-width: 14;
+                                    viewbox-height: 8;
+                                    commands: AppState.exam-menu ? "M 1 7 L 7 1 L 13 7" : "M 1 1 L 7 7 L 13 1";
+                                    stroke: M3.on-primary-container;
+                                    stroke-width: 2px;
+                                }
+                            }
+                        }
+                        sel-ta := TouchArea {
+                            enabled: root.t < 0.4;
+                            clicked => {
+                                AppState.exam-menu = !AppState.exam-menu;
+                            }
+                        }
+                    }
                 }
             }
-            WavyProgress {
-                intro: false;
+            Rectangle {
+                width: 40px;
+                Avatar {
+                    width: 36px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    photo: AppState.my-photo;
+                    has-photo: AppState.my-has-photo;
+                    initial: AppState.my-initial;
+                }
+                TouchArea {
+                    enabled: root.t < 0.4;
+                    clicked => {
+                        AppState.go-tab(3);
+                    }
+                }
+            }
+        }
+        // «PREPARAZIONE» diventa «Preparazione» (dissolvenza incrociata mentre si sposta)
+        Text {
+            x: 20px + root.t * 4px;
+            y: 58px - root.t * 38px;
+            text: "PREPARAZIONE";
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: M3.primary;
+            opacity: max(0, 1 - root.t * 2);
+        }
+        Text {
+            x: 20px + root.t * 4px;
+            y: 52px - root.t * 33px;
+            text: "Preparazione";
+            font-size: 16px;
+            font-weight: 700;
+            color: M3.on-primary-container;
+            opacity: clamp(root.t * 2 - 1, 0, 1);
+        }
+        // la percentuale: da 88 px a sinistra a 26 px a destra
+        pct := Text {
+            x: 20px + root.t * (root.width - 44px - self.width);
+            y: 72px - root.t * 60px;
+            text: round(AppState.overall * 100) + "%";
+            font-size: 88px - root.t * 62px;
+            font-weight: 900;
+            letter-spacing: -3px + root.t * 3px;
+            color: M3.on-primary-container;
+        }
+        // giorni al prossimo appello: grandi a destra, poi «21 g» accanto alla percentuale
+        if AppState.hero-days >= 0: VerticalLayout {
+            x: root.width - 20px - self.width;
+            y: 76px - root.t * 40px;
+            opacity: max(0, 1 - root.t * 3);
+            Text {
+                horizontal-alignment: right;
+                text: AppState.hero-days == 0 ? "Oggi" : AppState.hero-days;
+                font-size: 40px;
+                font-weight: 900;
+                color: AppState.hero-days <= 7 ? M3.error : M3.on-primary-container;
+            }
+            Text {
+                horizontal-alignment: right;
+                text: AppState.hero-days-label;
+                font-size: 12px;
+                color: M3.on-primary-container;
+            }
+            if AppState.hero-days-sub != "": Text {
+                horizontal-alignment: right;
+                text: AppState.hero-days-sub;
+                font-size: 12px;
+                color: M3.on-primary-container;
+            }
+        }
+        if AppState.hero-days >= 0: Text {
+            x: pct.x - 10px - self.width;
+            y: 21px;
+            text: AppState.hero-days + " g";
+            font-size: 13px;
+            color: M3.on-primary-container;
+            opacity: clamp(root.t * 3 - 2, 0, 1);
+        }
+        // barra ondulata con la soglia: sale e si assottiglia
+        Rectangle {
+            x: 20px + root.t * 4px;
+            y: 175px - root.t * 123px;
+            width: root.width - 40px - root.t * 8px;
+            height: wave.height;
+            wave := WavyProgress {
+                width: parent.width;
+                intro: !AppState.home-intro-done;
                 value: AppState.overall;
                 fill: M3.primary;
                 track: M3.surface.with-alpha(0.75);
-                amp: 3px;
-                wavelength: 32px;
-                thickness: 4px;
+                amp: 6px - root.t * 3px;
+                wavelength: 44px - root.t * 12px;
+                thickness: 7px - root.t * 3px;
+            }
+            if AppState.pass-frac > 0: Rectangle {
+                x: parent.width * AppState.pass-frac - 1px;
+                y: 0px;
+                width: 2px;
+                height: parent.height;
+                opacity: max(0, 1 - root.t * 2);
+                background: AppState.pass-ok ? M3.success : M3.on-primary-container;
             }
         }
     }

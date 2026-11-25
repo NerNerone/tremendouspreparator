@@ -1031,6 +1031,13 @@ impl Ctrl {
     /// tutti con le impostazioni dell'amministratore. Nei gruppi senza amministratore noto
     /// (creati con versioni precedenti) chi rinomina per primo lo diventa.
     /// L'amministratore fissa il circuito (`-1` = uno diverso ogni giorno).
+    /// «Segui» / «Tutto il circuito»: la vista scelta a mano vale finché non cambia lo stato
+    pub(super) fn race_view_toggle(&mut self) {
+        let now = self.ui().global::<AppState>().get_race_overview();
+        self.race_view = Some((self.study_state, !now));
+        self.ui().global::<AppState>().set_race_overview(!now);
+    }
+
     pub(super) fn group_set_circuit(&mut self, c: i32) {
         if !self.can_admin_group() {
             self.toast("Solo l'amministratore sceglie il circuito");
@@ -1489,7 +1496,22 @@ impl Ctrl {
             fx_showcase(&mut cars);
         }
         // telecamera sulla propria macchina mentre si studia; altrimenti tutto il circuito
-        st.set_race_overview(self.study_state != State::Studying);
+        let auto = self.study_state != State::Studying;
+        let overview = match self.race_view {
+            Some((s, v)) if s == self.study_state => v,
+            _ => auto,
+        };
+        st.set_race_overview(overview);
+        // pit stop: i 10 minuti per rientrare con le gomme nuove
+        let (pit_frac, pit_left) = match (self.study_state, self.pit_since) {
+            (State::Pause, Some(t)) => {
+                let left = (600 - (Utc::now().timestamp() - t)).max(0);
+                (left as f32 / 600.0, format!("{}:{:02}", left / 60, left % 60))
+            }
+            _ => (0.0, String::new()),
+        };
+        st.set_pit_frac(pit_frac);
+        st.set_pit_left(ss(&pit_left));
         let my_m = if self.study_state == State::Studying { sc.mult } else { 1.0 };
         let my_secs = my_pts[0] + if self.study_state == State::Studying { frac * my_m } else { 0.0 };
         st.set_cam_f((my_secs / LAP_PTS) as f32);
@@ -1783,7 +1805,7 @@ impl Ctrl {
             .map(|c| c.to_uppercase().to_string())
             .unwrap_or_default()));
         st.set_race_hud(ss(match self.study_state {
-            State::Idle => format!("Circuito {} · un giro = 60 punti", circuit.name),
+            State::Idle => format!("Circuito {}", circuit.name),
             State::Pause => format!("Pit stop · giro {} · {}° su {}", laps + 1, my_pos, all.len()),
             State::Studying => format!("Giro {} · {}° su {} · {}", laps + 1, my_pos, all.len(), fmt_secs(t)),
         }));

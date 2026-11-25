@@ -732,19 +732,21 @@ component RaceView inherits Rectangle {
 // app da aprire (lanciatore della concentrazione): icona e nome
 component AppChip inherits Rectangle {
     in property <FocusAppVM> app;
+    // nel piede della gara: più bassa, con l'icona più piccola
+    in property <bool> small;
     callback clicked;
-    height: 40px;
+    height: root.small ? 32px : 40px;
     width: chip-row.preferred-width;
-    border-radius: 20px;
-    background: M3.secondary-container;
+    border-radius: self.height / 2;
+    background: ta.pressed ? M3.secondary-container.darker(0.08) : M3.secondary-container;
     chip-row := HorizontalLayout {
-        padding-left: 6px;
+        padding-left: root.app.has-icon ? 4px : 14px;
         padding-right: 14px;
         spacing: 8px;
         if root.app.has-icon: Image {
-            y: 6px;
-            width: 28px;
-            height: 28px;
+            y: (root.height - self.height) / 2;
+            width: root.height - 8px;
+            height: root.height - 8px;
             source: root.app.icon;
         }
         Text {
@@ -752,9 +754,10 @@ component AppChip inherits Rectangle {
             vertical-alignment: center;
             color: M3.on-secondary-container;
             font-weight: 600;
+            font-size: root.small ? 13px : 14px;
         }
     }
-    TouchArea {
+    ta := TouchArea {
         clicked => {
             root.clicked();
         }
@@ -1277,58 +1280,6 @@ component Segmented inherits Rectangle {
     }
 }
 
-// codice del gruppo che si copia con un tocco (negli appunti) — comodo dal telefono
-component CodeCopy inherits Rectangle {
-    in property <string> code;
-    in property <length> code-size: Type.body;
-    // con il pulsante «Copia» sotto il codice (scheda dell'invito), o solo il codice toccabile
-    in property <bool> button: false;
-    min-height: lay.preferred-height;
-    buf := TextInput {
-        x: 0px;
-        y: 0px;
-        width: 0px;
-        height: 0px;
-        text: root.code;
-        read-only: true;
-        enabled: false;
-        opacity: 0;
-    }
-    function copy() {
-        buf.select-all();
-        buf.copy();
-        buf.clear-selection();
-        AppState.notify("Codice copiato: incollalo a chi vuoi invitare");
-    }
-    lay := VerticalLayout {
-        spacing: 8px;
-        Rectangle {
-            border-radius: 8px;
-            background: ta.pressed ? M3.primary.with-alpha(0.12) : transparent;
-            min-height: code-text.preferred-height + 4px;
-            code-text := Text {
-                x: 0px;
-                width: parent.width;
-                text: root.code;
-                font-size: root.code-size;
-                font-weight: 700;
-                color: M3.primary;
-                wrap: word-wrap;
-            }
-            ta := TouchArea {
-                clicked => {
-                    root.copy();
-                }
-            }
-        }
-        if !root.button: Text {
-            text: "Tocca il codice per copiarlo";
-            font-size: 11px;
-            color: M3.on-surface-variant;
-        }
-    }
-}
-
 // matitina tonda per modificare (nome, foto)
 component EditBadge inherits Rectangle {
     callback clicked;
@@ -1355,53 +1306,34 @@ component EditBadge inherits Rectangle {
     }
 }
 
-// Paddock flottante (Traguardo): chi non è in gara ha un posto fisso qui, a cavallo del bordo
-// basso della finestra della gara; i posti crescono e calano con le persone fuori gara.
+// Paddock (Traguardo, proposta A): ultima riga del piede della gara. Chi non è in gara ha un
+// cerchio nel colore della sua monoposto; si tocca per vederne la scheda.
 component Paddock inherits Rectangle {
     in property <[CarVM]> cars;
-    in property <length> max-w: 360px;
     // quante monoposto si vedono; le altre diventano «+N»
-    property <int> shown: min(root.cars.length, 6);
-    height: 48px;
-    width: min(pl.preferred-width, root.max-w);
-    border-radius: 24px;
-    background: M3.surface-container-low;
-    border-width: 1px;
-    border-color: M3.outline-variant;
-    drop-shadow-blur: 12px;
-    drop-shadow-offset-y: 3px;
-    drop-shadow-color: #0000001f;
-    clip: true;
+    property <int> shown: min(root.cars.length, 5);
+    height: 44px;
     pl := HorizontalLayout {
-        padding-left: 18px;
-        padding-right: 8px;
         spacing: 10px;
-        alignment: start;
-        VerticalLayout {
-            alignment: center;
-            Text {
-                text: "Paddock";
-                font-size: 14px;
-                font-weight: 700;
-                color: M3.on-surface;
-            }
-            Text {
-                text: root.cars.length == 1 ? "1 fuori gara" : root.cars.length + " fuori gara";
-                font-size: 11px;
-                color: M3.on-surface-variant;
-            }
+        Text {
+            horizontal-stretch: 1;
+            text: "Paddock · " + (root.cars.length == 1 ? "1 fuori gara" : root.cars.length + " fuori gara");
+            font-size: 13px;
+            color: M3.on-surface-variant;
+            vertical-alignment: center;
+            overflow: elide;
         }
         // cerchi sovrapposti, uno per persona, nel colore della sua monoposto
         Rectangle {
-            width: root.shown * 26px + 10px;
+            width: (root.shown - 1) * 24px + 36px;
             for c[i] in root.cars: Rectangle {
                 visible: i < root.shown;
-                x: i * 26px;
+                x: i * 24px;
                 y: (parent.height - self.height) / 2;
                 width: 36px;
                 height: 36px;
                 border-radius: 18px;
-                background: M3.surface-container-low;
+                background: M3.surface;
                 Rectangle {
                     x: 2px;
                     y: 2px;
@@ -1693,13 +1625,13 @@ export component GroupPage inherits Page {
             opacity: 0;
         }
 
-        // la gara: riquadro grande con titolo, stato e il paddock flottante sul bordo basso
+        // la gara: riquadro grande con titolo, stato e il piede (tempo, pit stop, paddock)
         Rectangle {
-            height: min(400px, parent.height * 0.52) + (AppState.paddock-n > 0 ? 28px : 0px);
+            height: min(400px + (AppState.paddock-n > 0 ? 44px : 0px), parent.height * 0.56);
             race-box := Rectangle {
                 x: 8px;
                 width: parent.width - 16px;
-                height: parent.height - (AppState.paddock-n > 0 ? 28px : 0px);
+                height: parent.height;
                 border-radius: 32px;
                 clip: true;
                 background: M3.surface-container;
@@ -1720,10 +1652,45 @@ export component GroupPage inherits Page {
                                 overflow: elide;
                             }
                             Text {
-                                text: AppState.race-hud + (has-group && AppState.study-state == 0 ? (AppState.circuit-fixed < 0 ? " · cambia ogni giorno" : " · scelto dall'amministratore") : "");
+                                text: AppState.race-hud;
                                 font-size: 13px;
                                 color: M3.on-surface-variant;
                                 overflow: elide;
+                            }
+                        }
+                        // «Segui» la propria monoposto o «Tutto il circuito»
+                        if AppState.study-state != 0 || AppState.cars.length > 1: VerticalLayout {
+                            alignment: start;
+                            Rectangle {
+                                height: 34px;
+                                width: vw.preferred-width + 24px;
+                                border-radius: 17px;
+                                background: vwa.pressed ? M3.surface-container-highest.darker(0.06) : M3.surface-container-highest;
+                                vw := HorizontalLayout {
+                                    x: 12px;
+                                    spacing: 5px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Icon {
+                                            width: 16px;
+                                            height: 16px;
+                                            source: Icons.focus;
+                                            tint: M3.on-surface;
+                                        }
+                                    }
+                                    Text {
+                                        text: AppState.race-overview ? "Segui" : "Tutto il circuito";
+                                        font-size: 12px;
+                                        font-weight: 800;
+                                        color: M3.on-surface;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                vwa := TouchArea {
+                                    clicked => {
+                                        AppState.race-view-toggle();
+                                    }
+                                }
                             }
                         }
                         // l'amministratore sceglie il circuito (o la rotazione giornaliera)
@@ -1808,26 +1775,30 @@ export component GroupPage inherits Page {
                     x: 10px;
                     width: parent.width - 20px;
                     height: foot.preferred-height;
-                    y: parent.height - self.height - (AppState.paddock-n > 0 ? 36px : 10px);
+                    y: parent.height - self.height - 10px;
                     border-radius: 22px;
                     background: M3.surface;
-                    foot := HorizontalLayout {
-                        padding: 10px;
-                        padding-left: 14px;
+                    foot := VerticalLayout {
+                    padding: 10px;
+                    padding-left: 14px;
+                    padding-bottom: AppState.paddock-n > 0 ? 0px : 10px;
+                    spacing: 6px;
+                    HorizontalLayout {
                         spacing: 12px;
-                        if AppState.focus-active: Rectangle {
+                        // concentrazione: il tempo che manca; pit stop: i 10′ delle gomme nuove
+                        if AppState.focus-active || (AppState.study-state == 2 && AppState.pit-left != ""): Rectangle {
                             width: 58px;
                             height: 58px;
                             RingProgress {
                                 width: 58px;
                                 height: 58px;
-                                value: AppState.focus-left != "" ? AppState.focus-left-frac : 1;
+                                value: AppState.focus-active ? (AppState.focus-left != "" ? AppState.focus-left-frac : 1) : AppState.pit-frac;
                                 thickness: 6px;
-                                fill: M3.primary;
-                                track: M3.primary.with-alpha(0.18);
+                                fill: AppState.focus-active ? M3.primary : M3.warn;
+                                track: (AppState.focus-active ? M3.primary : M3.warn).with-alpha(0.18);
                             }
                             Text {
-                                text: AppState.focus-left != "" ? AppState.focus-left : "∞";
+                                text: AppState.focus-active ? (AppState.focus-left != "" ? AppState.focus-left : "∞") : AppState.pit-left;
                                 font-size: self.text.character-count > 5 ? 10px : 13px;
                                 font-weight: 900;
                                 color: M3.on-surface;
@@ -1838,7 +1809,7 @@ export component GroupPage inherits Page {
                             alignment: center;
                             spacing: 2px;
                             Text {
-                                text: AppState.focus-active ? "Concentrazione · scia blu" : AppState.study-state == 2 ? "Pit stop" : AppState.study-today;
+                                text: AppState.focus-active ? "Concentrazione · scia blu" : AppState.study-state == 2 ? "Pit stop · gomme nuove" : AppState.study-today;
                                 font-size: 15px;
                                 font-weight: 800;
                                 color: M3.on-surface;
@@ -1847,7 +1818,7 @@ export component GroupPage inherits Page {
                             Text {
                                 text: AppState.study-elsewhere ? "Sessione aperta su un altro tuo dispositivo"
                                     : AppState.focus-active ? (AppState.ahead-text != "" ? AppState.ahead-text : AppState.focus-until-label)
-                                    : AppState.study-state == 2 ? "gomme nuove ×1,2 se rientri entro 10′ · " + AppState.study-today
+                                    : AppState.study-state == 2 ? (AppState.pit-left != "" && AppState.pit-frac > 0 ? "rientra entro " + AppState.pit-left + " per il ×1,2 · " : "") + AppState.study-today
                                     : AppState.study-state == 1 ? (AppState.ahead-text != "" ? AppState.ahead-text : "in pista")
                                     : "al paddock · «Scendi in pista» col pulsante in basso";
                                 font-size: 12px;
@@ -1859,7 +1830,7 @@ export component GroupPage inherits Page {
                                 font-size: 12px;
                                 color: M3.on-surface-variant;
                             }
-                            if !AppState.focus-active: Rectangle {
+                            if !AppState.focus-active && AppState.study-state != 2: Rectangle {
                                 height: 6px;
                                 border-radius: 3px;
                                 background: M3.surface-container-highest;
@@ -1872,7 +1843,7 @@ export component GroupPage inherits Page {
                             }
                         }
                         // in pista senza concentrazione: si attiva da qui, senza fermarsi
-                        if !AppState.focus-active && AppState.focus-available && AppState.study-state != 0: VerticalLayout {
+                        if !AppState.focus-active && AppState.focus-available && AppState.study-state == 1: VerticalLayout {
                             alignment: center;
                             Rectangle {
                                 width: fcr.preferred-width + 20px;
@@ -1927,13 +1898,43 @@ export component GroupPage inherits Page {
                             }
                         }
                     }
+                    // concentrazione: le app permesse, da aprire senza uscire dalla gara
+                    if AppState.focus-active: Flickable {
+                        height: 36px;
+                        interactive: true;
+                        content-width: max(self.width, apps.preferred-width);
+                        content-height: 36px;
+                        apps := HorizontalLayout {
+                            x: 0px;
+                            height: 36px;
+                            spacing: 6px;
+                            alignment: start;
+                            for a[ai] in AppState.focus-launcher: AppChip {
+                                app: a;
+                                small: true;
+                                clicked => {
+                                    AppState.focus-launch(a.pkg);
+                                }
+                            }
+                            AppChip {
+                                app: { label: "Telefono" };
+                                small: true;
+                                clicked => {
+                                    AppState.focus-dial();
+                                }
+                            }
+                        }
+                    }
+                    // il paddock: ultima riga del piede, sotto una linea sottile
+                    if AppState.paddock-n > 0: Rectangle {
+                        height: 1px;
+                        background: M3.outline-variant;
+                    }
+                    if AppState.paddock-n > 0: Paddock {
+                        cars: AppState.paddock-cars;
+                    }
+                    }
                 }
-            }
-            if AppState.paddock-n > 0 && AppState.car-sel == "": Paddock {
-                cars: AppState.paddock-cars;
-                max-w: parent.width - 32px;
-                x: (parent.width - self.width) / 2;
-                y: race-box.height - 28px;
             }
         }
 
@@ -1944,30 +1945,6 @@ export component GroupPage inherits Page {
             pad-top: 4px;
             gap: 12px;
 
-            // Traguardo: concentrazione in corso. La finestra della gara qui sopra segue la propria
-            // monoposto (scia blu); qui il tempo che manca e chi ti precede.
-
-
-
-            // concentrazione attiva: le app permesse, da aprire
-            if AppState.focus-active: HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
-                for a[ai] in AppState.focus-launcher: HorizontalLayout {
-                    if ai < 3: AppChip {
-                        app: a;
-                        clicked => {
-                            AppState.focus-launch(a.pkg);
-                        }
-                    }
-                }
-                Chip {
-                    text: "Telefono";
-                    clicked => {
-                        AppState.focus-dial();
-                    }
-                }
-            }
             // classifica: come si fanno i punti (pagina apposta) e «Avvisa tutti»
             if has-group: HorizontalLayout {
                 spacing: 8px;
@@ -2199,6 +2176,10 @@ export component GroupPage inherits Page {
                         }
                     }
                 }
+            }
+            // spazio per il pulsante della gara (e «Termina» sopra) nell'angolo in basso
+            Rectangle {
+                height: AppState.study-state != 0 ? 148px : 84px;
             }
         }
     }
@@ -2755,7 +2736,7 @@ export component GroupPage inherits Page {
                             Rectangle {
                                 height: 22px;
                                 border-radius: 11px;
-                                background: AppState.car-info-kind == 1 ? AppState.car-info-color.with-alpha(0.22) : AppState.car-info-kind == 2 ? M3.tertiary-container : M3.surface-container-highest;
+                                background: AppState.car-info-kind == 1 ? AppState.car-info-color.with-alpha(0.22) : AppState.car-info-kind == 2 ? M3.warn-container : M3.surface-container-highest;
                                 width: state-text.preferred-width + 16px;
                                 state-text := Text {
                                     text: AppState.car-info-state;

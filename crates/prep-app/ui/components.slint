@@ -1049,6 +1049,9 @@ export component FullScroll {
 }
 
 export component Scroller inherits FullScroll {
+    changed content-y => {
+        AppState.fab-mini = self.content-y < -24px;
+    }
     in property <length> pad: 0px;
     in property <length> pad-top: root.pad;
     in property <length> pad-bottom: root.pad;
@@ -1395,6 +1398,10 @@ export component FabMenu inherits Rectangle {
                                 AppState.study-pause();
                             } else if (root.rs == 2) {
                                 AppState.study-start();
+                            } else if (AppState.focus-active) {
+                                // concentrazione già attiva: si parte subito e si sceglie cosa fare
+                                AppState.study-start();
+                                AppState.fab-open = true;
                             } else if (AppState.focus-available) {
                                 // partenza: si sceglie tra sessione libera e concentrazione
                                 AppState.fab-open = true;

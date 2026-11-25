@@ -3,6 +3,17 @@
 Le novità più recenti in alto. Ogni punto compare una volta sola, alla prima apertura dopo
 l'aggiornamento che lo porta.
 
+## 25 novembre 2026
+
+- Studia: in vista solo Quiz, Flashcard, Simulazione e «Strumenti»; tavola periodica, testi della materia e «Crea con l'AI» stanno nel foglio Strumenti. Le prove ufficiali si scelgono dentro Simulazione.
+- Tavola periodica come pagina a sé, senza altre schede in alto.
+- Oggi: la fascia della preparazione si restringe con continuità scorrendo (percentuale, giorni e barra si spostano fino alla fascia compatta); niente più stacco dalla barra di stato cambiando scheda.
+- Oggi: in «Questa settimana» tocca un giorno per vederne tempo, domande, giuste e flashcard.
+- Squadra: il paddock è l'ultima riga del piede della gara; «Segui» / «Tutto il circuito» in alto a destra; al pit stop l'anello dei 10′ per rientrare con le gomme nuove; le app permesse della concentrazione stanno nel piede.
+- Il pulsante «Studia ora» si riduce al simbolo scorrendo e sparisce sul profilo di un membro; con la concentrazione già attiva «Scendi in pista» parte subito e propone le attività.
+- Pacchetto importato o ricevuto con un codice: con GitHub configurato l'app propone di salvarlo in un ramo nuovo.
+- Novità: testo intero, senza tagli; dalle Opzioni si apre dall'inizio.
+
 ## 24 novembre 2026
 
 - Aggiornamenti obbligatori: quando esce una versione nuova l'app la installa prima di continuare, con la barra ondulata dello scaricamento.

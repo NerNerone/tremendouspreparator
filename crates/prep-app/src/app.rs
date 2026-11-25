@@ -329,6 +329,8 @@ pub struct Ctrl {
     last_doing: String,
     /// circuito mostrato (indice), per non ricalcolarlo a ogni secondo
     circuit_shown: Option<usize>,
+    /// vista della gara scelta a mano (true = tutto il circuito), valida finché non cambia lo stato
+    race_view: Option<(prep_core::group::State, bool)>,
     /// monoposto in pista: modello aggiornato riga per riga (sostituirlo ricreerebbe gli
     /// elementi e farebbe ripartire le animazioni)
     cars_model: Rc<VecModel<CarVM>>,
@@ -785,7 +787,9 @@ impl Ctrl {
         if page != P_FLAGS && page != P_RESULTS {
             self.flush_flags();
         }
-        self.ui().global::<AppState>().set_page(page);
+        let ui = self.ui();
+        ui.global::<AppState>().set_fab_mini(false);
+        ui.global::<AppState>().set_page(page);
     }
 
     fn go_tab(&mut self, tab: i32) {
@@ -1137,6 +1141,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         car_sel: String::new(),
         last_doing: String::new(),
         circuit_shown: None,
+        race_view: None,
         cars_model: Rc::new(VecModel::default()),
         crews: BTreeMap::new(),
         pit_cache: None,
@@ -1664,11 +1669,13 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_theme_set_mode(|v| with_ctrl(|c| c.set_theme_mode(v)));
     st.on_focus_extend(|m| with_ctrl(|c| c.focus_extend(m as i64)));
     st.on_group_set_circuit(|i| with_ctrl(|c| c.group_set_circuit(i)));
+    st.on_race_view_toggle(|| with_ctrl(|c| c.race_view_toggle()));
     st.set_circuit_names(model(
         (0..prep_core::group::circuits()).map(|i| ss(prep_core::group::circuit_name(i))).collect::<Vec<_>>(),
     ));
     st.on_gh_new_branch(|n| with_ctrl(|c| c.gh_new_branch(&n)));
     st.on_gh_save_branch(|n| with_ctrl(|c| c.gh_save_branch(&n)));
+    st.on_offer_branch_save(|n| with_ctrl(|c| c.offer_branch_save(&n)));
     st.on_rem_toggle(|i, on| with_ctrl(|c| c.rem_toggle(i.max(0) as usize, on)));
     st.on_rem_set_time(|i, t| with_ctrl(|c| c.rem_time(i.max(0) as usize, &t)));
     st.on_open_goals(|| with_ctrl(|c| c.set_page(P_GOALS)));

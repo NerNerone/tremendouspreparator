@@ -104,13 +104,13 @@ export component PeriodicPage inherits Page {
         easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
     }
     VerticalLayout {
-        // testata «Strumenti»: questo e gli altri strumenti della materia in una fila di schede
+        // testata: la tavola è una pagina a sé (dagli «Strumenti» della materia in Studia)
         HorizontalLayout {
             padding-right: 4px;
             BigHeader {
                 horizontal-stretch: 1;
-                title: "Strumenti";
-                subtitle: "Tavola periodica, testi e libri della materia";
+                title: "Tavola periodica";
+                subtitle: "Tocca un elemento per i dettagli";
                 back => {
                     AppState.back();
                 }
@@ -122,38 +122,6 @@ export component PeriodicPage inherits Page {
                     filled: root.info-open;
                     clicked => {
                         root.info-open = !root.info-open;
-                    }
-                }
-            }
-        }
-        Flickable {
-            height: 44px;
-            interactive: true;
-            content-width: max(self.width, tools.preferred-width + 32px);
-            content-height: 44px;
-            tools := HorizontalLayout {
-                x: 16px;
-                y: 2px;
-                height: 36px;
-                spacing: 8px;
-                alignment: start;
-                ToolChip {
-                    text: "Tavola periodica";
-                    icon: Icons.apps;
-                    on: true;
-                }
-                for l[i] in AppState.subject-links: ToolChip {
-                    text: l;
-                    icon: Icons.description;
-                    clicked => {
-                        AppState.open-subject-link(i);
-                    }
-                }
-                ToolChip {
-                    text: "Estrai il testo";
-                    icon: Icons.description;
-                    clicked => {
-                        AppState.open-pdf-tools();
                     }
                 }
             }

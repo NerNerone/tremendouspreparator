@@ -66,6 +66,7 @@ impl Ctrl {
                     info.questions,
                     info.flashcards
                 ));
+                self.offer_branch(&id);
             }
             Err(e) => self.toast(format!("Pacchetto non importato: {e}")),
         }

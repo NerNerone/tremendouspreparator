@@ -200,6 +200,31 @@ impl Ctrl {
         });
     }
 
+    /// Dopo un pacchetto importato (da file o ricevuto con un codice): con GitHub configurato e
+    /// l'esame non ancora in un ramo, propone di salvarlo in un ramo nuovo del repository.
+    pub(super) fn offer_branch(&mut self, id: &str) {
+        if self.gh_client().is_none() || !self.exam_store(id).exam_branch().is_empty() {
+            return;
+        }
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_offer_branch_exam(ss(id));
+        st.set_offer_branch_name(ss(Self::branch_name(id)));
+        st.set_offer_branch(true);
+    }
+
+    /// «Salva nel ramo» dalla proposta: l'esame importato diventa quello in uso e va nel ramo.
+    pub(super) fn offer_branch_save(&mut self, raw: &str) {
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        st.set_offer_branch(false);
+        let id = st.get_offer_branch_exam().to_string();
+        if !id.is_empty() && self.exams.active != id && self.exams.get(&id).is_some() {
+            self.open_exam(&id);
+        }
+        self.gh_save_branch(raw);
+    }
+
     /// Salva l'esame in uso (contenuti, libri e progressi, per esempio importati da un
     /// pacchetto locale) in un ramo nuovo basato sul modello, e da lì in poi lo sincronizza.
     pub(super) fn gh_save_branch(&mut self, raw: &str) {

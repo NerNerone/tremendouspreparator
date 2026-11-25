@@ -88,6 +88,10 @@ export component SettingsPage inherits Page {
     property <int> grp: sec == 1 ? 0 : sec == 3 ? 2 : sec == 5 ? 6 : sec == 7 ? 4 : sec < 0 ? 4 : sec;
     // repository GitHub: aperto toccando la matita (subito aperto se si arriva da «Da un ramo»)
     property <bool> gh-open: AppState.settings-sec == 7;
+    // cambiando pagina (es. App › Novità) si riparte dall'inizio
+    changed grp => {
+        sc.content-y = 0;
+    }
     property <bool> legacy-open: false;
 
     VerticalLayout {
@@ -99,7 +103,7 @@ export component SettingsPage inherits Page {
             }
         }
 
-        Scroller {
+        sc := Scroller {
             vertical-stretch: 1;
             align: start;
             pad: 16px;

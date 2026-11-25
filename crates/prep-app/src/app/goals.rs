@@ -663,6 +663,52 @@ impl Ctrl {
             let max = secs.iter().copied().max().unwrap_or(0).max(1);
             st.set_week_bars(model(secs.iter().map(|s| *s as f32 / max as f32).collect()));
             st.set_week_today(today.weekday().num_days_from_monday() as i32);
+            // i numeri di ogni giorno, per il tocco sulla sua barra
+            let mut q = [(0u32, 0u32); 7];
+            let mut c = [0u32; 7];
+            let idx = |at: &chrono::DateTime<Utc>| {
+                let d = (at.with_timezone(&Local).date_naive() - monday).num_days();
+                (0..7).contains(&d).then_some(d as usize)
+            };
+            for a in self.history.questions.values().flatten() {
+                if let Some(i) = idx(&a.at) {
+                    q[i].0 += 1;
+                    q[i].1 += u32::from(a.score >= 0.999);
+                }
+            }
+            for a in self.history.cards.values().flatten() {
+                if let Some(i) = idx(&a.at) {
+                    c[i] += 1;
+                }
+            }
+            const DAYS: [&str; 7] = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+            let info: Vec<(SharedString, SharedString)> = (0..7)
+                .map(|i| {
+                    let d = monday + chrono::Duration::days(i as i64);
+                    let mut parts = Vec::new();
+                    if secs[i] > 0 {
+                        parts.push(format!("{} di studio", hm(secs[i])));
+                    }
+                    if q[i].0 > 0 {
+                        parts.push(format!(
+                            "{} {} · {}% giuste",
+                            q[i].0,
+                            if q[i].0 == 1 { "domanda" } else { "domande" },
+                            q[i].1 * 100 / q[i].0
+                        ));
+                    }
+                    if c[i] > 0 {
+                        parts.push(format!("{} flashcard", c[i]));
+                    }
+                    if parts.is_empty() {
+                        parts.push("niente studio".to_string());
+                    }
+                    let when = if d == today { "Oggi".to_string() } else { format!("{} {}", DAYS[i], d.day()) };
+                    (ss(when), ss(parts.join(" · ")))
+                })
+                .collect();
+            st.set_week_day(model(info.iter().map(|(a, _)| a.clone()).collect::<Vec<_>>()));
+            st.set_week_info(model(info.into_iter().map(|(_, b)| b).collect::<Vec<_>>()));
             let total: u64 = secs.iter().sum();
             let days = secs.iter().filter(|s| **s > 0).count() as u64;
             st.set_week_total(ss(if total == 0 {
@@ -804,22 +850,24 @@ impl Ctrl {
         ));
         let officials = self.official_tests(&cur);
         {
-            // strumenti della materia: in Studia vanno a capo (una fila che scorre di lato non si
-            // muove sul telefono dentro la pagina che scorre in verticale)
+            // Studia: Quiz, Flashcard e Simulazione (le prove ufficiali si scelgono dentro
+            // Simulazione); gli strumenti della materia stanno a parte, dietro «Strumenti»
             let t = |kind: i32, id: &str, label: &str| ToolVM { kind, id: ss(id), label: ss(label) };
             let mut tools = vec![t(0, "", "Quiz"), t(1, "", "Flashcard")];
-            if self.content.syllabus().exam.questions > 0 {
+            if self.content.syllabus().exam.questions > 0 || !officials.is_empty() {
                 tools.push(t(2, "", "Simulazione"));
             }
-            tools.extend(officials.iter().map(|o| t(3, &o.id, &o.name)));
+            let mut extra = Vec::new();
             if subject.is_some_and(|s| s.tools.iter().any(|x| x == TOOL_PERIODIC_TABLE)) {
-                tools.push(t(4, "", "Tavola"));
+                extra.push(t(4, "", "Tavola periodica"));
             }
             if let Some(s) = subject {
-                tools.extend(s.links.iter().enumerate().map(|(i, l)| t(5, &i.to_string(), &l.label)));
+                extra.extend(s.links.iter().enumerate().map(|(i, l)| t(5, &i.to_string(), &l.label)));
             }
-            tools.push(t(6, "", "Crea con AI"));
+            extra.push(t(6, "", "Crea con l'AI"));
+            tools.push(t(7, "", "Strumenti"));
             st.set_study_tools(model(tools));
+            st.set_study_extra(model(extra));
         }
         st.set_official_tests(model(officials));
         // pagina «Simulazioni»: titolo della prova e prove ufficiali intere

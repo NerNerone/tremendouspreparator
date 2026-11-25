@@ -2,7 +2,7 @@ import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.sli
 import { M3, Icons, Type, Shape } from "../theme.slint";
 import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
 import { ChipStrip } from "hub.slint";
-import { SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
+import { GRow, SubjectIcon, Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller } from "../components.slint";
 
 // riquadro di uno strumento della materia (Traguardo: simbolo sopra, nome sotto)
 component ToolTile inherits Rectangle {
@@ -43,6 +43,13 @@ component ToolTile inherits Rectangle {
 }
 
 export component StudyPage inherits Page {
+    // foglio «Strumenti» della materia
+    in-out property <bool> tools-open;
+    property <float> sheet: root.tools-open ? 1 : 0;
+    animate sheet {
+        duration: 320ms;
+        easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+    }
     VerticalLayout {
         // intestazione (Traguardo): titolo grande, esame e materie
         VerticalLayout {
@@ -151,7 +158,7 @@ export component StudyPage inherits Page {
                         color: M3.on-surface-variant;
                     }
 
-                    // strumenti della materia: riquadri in una griglia che va a capo
+                    // Quiz, Flashcard, Simulazione e «Strumenti»: riquadri in una griglia che va a capo
                     if AppState.subjects.length > 0: Rectangle {
                         property <int> cols: max(3, floor((self.width + 8px) / 96px));
                         property <length> tw: (self.width - 8px * (self.cols - 1)) / self.cols;
@@ -160,10 +167,13 @@ export component StudyPage inherits Page {
                             x: Math.mod(i, parent.cols) * (parent.tw + 8px);
                             y: floor(i / parent.cols) * (76px + 8px);
                             width: parent.tw;
-                            icon: t.kind == 0 ? Icons.quiz : t.kind == 1 ? Icons.cards : t.kind == 2 ? Icons.timer : t.kind == 3 ? Icons.flag-outline : t.kind == 4 ? Icons.apps : t.kind == 5 ? Icons.book : Icons.ai;
+                            icon: t.kind == 0 ? Icons.quiz : t.kind == 1 ? Icons.cards : t.kind == 2 ? Icons.timer : t.kind == 7 ? Icons.build : Icons.ai;
                             label: t.label;
                             clicked => {
-                                if (t.kind == 0) {
+                                if (t.kind == 7) {
+                                    root.tools-open = true;
+                                    AppState.sheet-open = true;
+                                } else if (t.kind == 0) {
                                     AppState.open-sub(6);
                                 } else if (t.kind == 1) {
                                     AppState.open-sub(8);
@@ -347,6 +357,75 @@ export component StudyPage inherits Page {
 
                     content-end := Rectangle {
                         height: 0px;
+                    }
+                }
+            }
+        }
+    }
+
+    // «Strumenti»: tavola, testi del pacchetto e «Crea con l'AI», in un foglio dal basso
+    if root.sheet > 0.01: Rectangle {
+        background: M3.scrim.with-alpha(0.5 * root.sheet);
+        TouchArea {
+            clicked => {
+                root.tools-open = false;
+                AppState.sheet-open = false;
+            }
+        }
+        ts := Rectangle {
+            width: parent.width;
+            height: tl.preferred-height;
+            y: parent.height - self.height * root.sheet;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            background: M3.surface-container-low;
+            TouchArea { }
+            tl := VerticalLayout {
+                padding: 16px;
+                padding-top: 10px;
+                padding-bottom: 24px;
+                spacing: 3px;
+                HorizontalLayout {
+                    alignment: center;
+                    padding-bottom: 10px;
+                    Rectangle {
+                        width: 32px;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: M3.outline-variant;
+                    }
+                }
+                Text {
+                    text: "Strumenti";
+                    font-size: 22px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                }
+                Text {
+                    text: AppState.current-subject-n < AppState.subjects.length ? AppState.subjects[AppState.current-subject-n].name : AppState.exam-name;
+                    font-size: Type.label;
+                    color: M3.on-surface-variant;
+                }
+                Rectangle {
+                    height: 12px;
+                }
+                for t[i] in AppState.study-extra: GRow {
+                    first: i == 0;
+                    last: i == AppState.study-extra.length - 1;
+                    icon: t.kind == 4 ? Icons.apps : t.kind == 5 ? Icons.book : Icons.smart-toy;
+                    title: t.label;
+                    sub: t.kind == 4 ? "Elementi, famiglie e proprietà" : t.kind == 5 ? "Testo del pacchetto" : "Nuove domande e flashcard con il prompt pronto";
+                    trail: 1;
+                    clicked => {
+                        root.tools-open = false;
+                        AppState.sheet-open = false;
+                        if (t.kind == 4) {
+                            AppState.open-periodic();
+                        } else if (t.kind == 5) {
+                            AppState.open-subject-link(t.id.to-float());
+                        } else {
+                            AppState.open-creator(false);
+                        }
                     }
                 }
             }
@@ -595,4 +674,5 @@ export component UnitPage inherits Page {
             }
         }
     }
+
 }
