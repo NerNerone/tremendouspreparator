@@ -378,6 +378,9 @@ pub struct Ctrl {
     uid_cache: Option<(String, i64)>,
     /// app installate (per la concentrazione): pacchetto, nome, icona
     focus_apps: Vec<(String, String, Option<slint::Image>)>,
+    /// computer: la pillola flottante della concentrazione (finestra sempre in primo piano)
+    #[cfg(target_os = "linux")]
+    focus_pill: Option<crate::FocusPill>,
     /// elenco delle app in caricamento (in background)
     focus_loading: bool,
     /// avvio della concentrazione in attesa di conferma
@@ -1195,6 +1198,8 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         info_sent: 0,
         uid_cache: None,
         focus_apps: Vec::new(),
+        #[cfg(target_os = "linux")]
+        focus_pill: None,
         focus_loading: false,
         focus_confirm: None,
         photo_src: BTreeMap::new(),

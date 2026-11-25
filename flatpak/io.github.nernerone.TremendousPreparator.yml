@@ -14,6 +14,9 @@ finish-args:
   - --device=dri
   # promemoria giornaliero: notifiche
   - --talk-name=org.freedesktop.Notifications
+  # concentrazione sul computer: vedere le app aperte e chiudere quelle non permesse
+  # (ps, flatpak ps, kill sul sistema con flatpak-spawn --host)
+  - --talk-name=org.freedesktop.Flatpak
   # solo per cancellare l'avvio automatico creato dalle versioni precedenti; da togliere più avanti
   - --filesystem=xdg-config/autostart:create
   # importazione del pacchetto contenuti (.json.gz) da Download

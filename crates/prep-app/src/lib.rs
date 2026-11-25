@@ -10,6 +10,8 @@ slint::include_modules!();
 mod app;
 mod crash;
 mod demo;
+#[cfg(target_os = "linux")]
+mod deskfocus;
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 mod desktop_files;
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
@@ -266,9 +268,30 @@ fn android_call_str(method: &str, arg: Option<&str>) -> Result<String, String> {
 /// Modalità concentrazione (Android, `FocusService.java`). Su desktop e web non c'è; con
 /// `PREP_FOCUS_FAKE` il desktop finge di averla, per le prove dell'interfaccia.
 pub(crate) mod focus {
-    /// Disponibile su questo dispositivo.
+    /// prove dell'interfaccia sul computer: `PREP_FOCUS_FAKE` finge Android (solo debug)
+    fn fake() -> Option<String> {
+        if cfg!(debug_assertions) && !cfg!(target_os = "android") {
+            std::env::var("PREP_FOCUS_FAKE").ok()
+        } else {
+            None
+        }
+    }
+
+    /// Disponibile su questo dispositivo: Android, o Linux con accesso ai programmi del sistema
+    /// (nel Flatpak con il permesso `org.freedesktop.Flatpak`, vedi `deskfocus`).
     pub fn available() -> bool {
-        cfg!(target_os = "android") || (cfg!(debug_assertions) && std::env::var("PREP_FOCUS_FAKE").is_ok())
+        if fake().is_some() {
+            return true;
+        }
+        #[cfg(target_os = "linux")]
+        return super::deskfocus::available();
+        #[cfg(not(target_os = "linux"))]
+        cfg!(target_os = "android")
+    }
+
+    /// Sul computer (non Android): la pillola flottante e i controlli sono dell'app.
+    pub fn desktop() -> bool {
+        cfg!(target_os = "linux") && fake().is_none()
     }
 
     /// Permessi e stato in JSON (vedi `MainActivity.focusState`).
@@ -276,20 +299,21 @@ pub(crate) mod focus {
         #[cfg(target_os = "android")]
         return super::android_call_str("focusState", None).ok();
         #[cfg(not(target_os = "android"))]
-        // PREP_FOCUS_FAKE=restricted: come un APK installato da file su Android 13+
-        if cfg!(debug_assertions) {
-            // PREP_FOCUS_FAKE=active: concentrazione già in corso (16 minuti alla fine)
-            std::env::var("PREP_FOCUS_FAKE").ok().map(|v| {
-                let r = v == "restricted";
-                let on = v == "active";
-                let until = if on { chrono::Utc::now().timestamp_millis() + 962_000 } else { 0 };
-                format!(
-                    r#"{{"usage":{},"restricted":{r},"overlay":{on},"until":{until},"armed":{on},"session":{},"active":{on},"allowed":["org.wikipedia"]}}"#,
-                    !r,
-                    i32::from(on)
-                )
-            })
+        // PREP_FOCUS_FAKE=restricted: come un APK installato da file su Android 13+;
+        // PREP_FOCUS_FAKE=active: concentrazione già in corso (16 minuti alla fine)
+        if let Some(v) = fake() {
+            let r = v == "restricted";
+            let on = v == "active";
+            let until = if on { chrono::Utc::now().timestamp_millis() + 962_000 } else { 0 };
+            Some(format!(
+                r#"{{"usage":{},"restricted":{r},"overlay":{on},"until":{until},"armed":{on},"session":{},"active":{on},"allowed":["org.wikipedia"]}}"#,
+                !r,
+                i32::from(on)
+            ))
         } else {
+            #[cfg(target_os = "linux")]
+            return Some(super::deskfocus::state_json());
+            #[cfg(not(target_os = "linux"))]
             None
         }
     }
@@ -299,11 +323,12 @@ pub(crate) mod focus {
         #[cfg(target_os = "android")]
         return super::android_call_str("focusApps", None).ok();
         #[cfg(not(target_os = "android"))]
-        if cfg!(debug_assertions) {
-            std::env::var("PREP_FOCUS_FAKE").ok().map(|_| {
-                r#"[{"p":"org.wikipedia","l":"Wikipedia"},{"p":"com.google.android.calculator","l":"Calcolatrice"},{"p":"com.instagram.android","l":"Instagram"},{"p":"com.spotify.music","l":"Spotify"},{"p":"org.mozilla.firefox","l":"Firefox"}]"#.to_string()
-            })
+        if fake().is_some() {
+            Some(r#"[{"p":"org.wikipedia","l":"Wikipedia"},{"p":"com.google.android.calculator","l":"Calcolatrice"},{"p":"com.instagram.android","l":"Instagram"},{"p":"com.spotify.music","l":"Spotify"},{"p":"org.mozilla.firefox","l":"Firefox"}]"#.to_string())
         } else {
+            #[cfg(target_os = "linux")]
+            return Some(super::deskfocus::apps_json());
+            #[cfg(not(target_os = "linux"))]
             None
         }
     }
@@ -317,11 +342,19 @@ pub(crate) mod focus {
 
     /// Avvia il blocco: `{"until": ms, "allowed": [...]}`.
     pub fn start(json: &str) {
+        #[cfg(target_os = "linux")]
+        if fake().is_none() {
+            super::deskfocus::start(json);
+        }
         call("focusStart", Some(json));
     }
 
     /// Stato della sessione di studio: 0 ferma, 1 in pista, 2 pit stop.
     pub fn session(state: i32) {
+        #[cfg(target_os = "linux")]
+        if fake().is_none() {
+            super::deskfocus::session(state);
+        }
         call("focusSession", Some(&state.to_string()));
     }
 
@@ -331,6 +364,10 @@ pub(crate) mod focus {
     }
 
     pub fn launch(pkg: &str) {
+        #[cfg(target_os = "linux")]
+        if fake().is_none() {
+            super::deskfocus::launch(pkg);
+        }
         call("launchApp", Some(pkg));
     }
 

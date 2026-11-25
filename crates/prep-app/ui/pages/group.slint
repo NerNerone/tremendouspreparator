@@ -867,12 +867,14 @@ component FocusSheet inherits Rectangle {
                 }
             }
             Text {
-                text: "Per il tempo scelto il telefono resta su Tremendous e sulle app spuntate qui sotto; dopo, finché non termini la sessione (anche al pit stop). Se apri altro, torni qui con un avviso. Chiamate, numeri d'emergenza e sveglia restano sempre possibili. Il blocco non si annulla prima della scadenza.";
+                text: AppState.on-android
+                    ? "Per il tempo scelto il telefono resta su Tremendous e sulle app spuntate qui sotto; dopo, finché non termini la sessione (anche al pit stop). Se apri altro, torni qui con un avviso. Chiamate, numeri d'emergenza e sveglia restano sempre possibili. Il blocco non si annulla prima della scadenza."
+                    : "Per il tempo scelto sul computer restano aperte Tremendous e le app spuntate qui sotto (file, impostazioni e terminale sempre). Se apri un'altra app ti avviso e dopo 10 secondi la chiudo. Il tempo e le app permesse restano in una pillola in basso a destra dello schermo. Il blocco non si annulla prima della scadenza.";
                 font-size: Type.label;
                 color: M3.on-surface-variant;
                 wrap: word-wrap;
             }
-            PermRow {
+            if AppState.on-android: PermRow {
                 ok: AppState.focus-usage-ok;
                 title: "Accesso all'utilizzo";
                 detail: "Per sapere quale app è aperta (resta sul telefono)";
@@ -880,7 +882,7 @@ component FocusSheet inherits Rectangle {
                     AppState.focus-perm("usage");
                 }
             }
-            PermRow {
+            if AppState.on-android: PermRow {
                 ok: AppState.focus-overlay-ok;
                 title: "Mostra sopra altre app";
                 detail: "Per l'avviso «Rimani nell'app!» e per riportarti qui";
@@ -1924,7 +1926,7 @@ export component GroupPage inherits Page {
                                     AppState.focus-launch(a.pkg);
                                 }
                             }
-                            AppChip {
+                            if AppState.on-android: AppChip {
                                 app: { label: "Telefono" };
                                 small: true;
                                 clicked => {

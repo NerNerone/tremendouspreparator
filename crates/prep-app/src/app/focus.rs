@@ -155,6 +155,8 @@ impl Ctrl {
             "Conferma: blocco fino alle {} (non si annulla)",
             hm(now_ms + minutes as i64 * 60_000)
         )));
+        #[cfg(target_os = "linux")]
+        self.focus_pill_update(active, &j, &allowed);
         // gli elenchi si aggiornano sul posto: solo le righe cambiate (niente sfarfallii ogni secondo)
         st.set_focus_apps_hidden(hidden);
         if let Some(m) = sync_model(st.get_focus_apps(), all) {
@@ -163,6 +165,80 @@ impl Ctrl {
         if let Some(m) = sync_model(st.get_focus_launcher(), chosen) {
             st.set_focus_launcher(m);
         }
+    }
+
+    /// Computer: pillola flottante in basso a destra dello schermo mentre la concentrazione è
+    /// attiva (tempo, gara, app permesse, avviso per le app non permesse).
+    #[cfg(target_os = "linux")]
+    fn focus_pill_update(&mut self, active: bool, j: &serde_json::Value, allowed: &[String]) {
+        use slint::ComponentHandle;
+        if !crate::focus::desktop() || !active {
+            if let Some(p) = self.focus_pill.take() {
+                let _ = p.hide();
+            }
+            return;
+        }
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        if self.focus_pill.is_none() {
+            let Ok(p) = crate::FocusPill::new() else { return };
+            let weak = ui.as_weak();
+            p.on_open_app(move || {
+                if let Some(ui) = weak.upgrade() {
+                    let _ = ui.show();
+                }
+            });
+            p.on_toggle_pit(|| {
+                with_ctrl(|c| {
+                    let next = if c.study_state == prep_core::group::State::Studying {
+                        prep_core::group::State::Pause
+                    } else {
+                        prep_core::group::State::Studying
+                    };
+                    c.study_set(next);
+                })
+            });
+            let _ = p.show();
+            // in basso a destra dello schermo (dove il sistema lo permette: X11, KDE, wlroots);
+            // la finestra di sistema nasce nel giro successivo del ciclo degli eventi
+            let pw = p.as_weak();
+            slint::Timer::single_shot(Duration::from_millis(200), move || {
+                use i_slint_backend_winit::WinitWindowAccessor;
+                let Some(p) = pw.upgrade() else { return };
+                let _ = p.window().with_winit_window(|w| {
+                    let m =
+                        w.current_monitor().or_else(|| w.primary_monitor()).or_else(|| w.available_monitors().next());
+                    if let Some(m) = m {
+                        let k = w.scale_factor();
+                        let (ms, mp) = (m.size(), m.position());
+                        let (pw, ph) = ((380.0 * k) as i32, (212.0 * k) as i32);
+                        let x = mp.x + ms.width as i32 - pw - (24.0 * k) as i32;
+                        let y = mp.y + ms.height as i32 - ph - (64.0 * k) as i32;
+                        w.set_outer_position(i_slint_backend_winit::winit::dpi::PhysicalPosition::new(x, y));
+                    }
+                });
+            });
+            self.focus_pill = Some(p);
+        }
+        let Some(p) = &self.focus_pill else { return };
+        p.set_time(st.get_focus_left());
+        p.set_frac(st.get_focus_left_frac());
+        let race = match self.study_state {
+            prep_core::group::State::Studying => "in pista",
+            prep_core::group::State::Pause => "pit stop",
+            _ => "al paddock",
+        };
+        p.set_sub(ss(format!("{race} · {}", st.get_focus_until_label())));
+        p.set_pit(self.study_state == prep_core::group::State::Pause);
+        let names: Vec<&str> =
+            self.focus_apps.iter().filter(|(id, _, _)| allowed.contains(id)).map(|(_, l, _)| l.as_str()).collect();
+        p.set_apps(ss(if names.is_empty() {
+            "Nessuna altra app permessa".to_string()
+        } else {
+            format!("{} permess{}", names.join(", "), if names.len() == 1 { "a" } else { "e" })
+        }));
+        p.set_warn(ss(j["warn"].as_str().unwrap_or_default()));
+        p.set_warn_left(j["warn_left"].as_i64().unwrap_or(0) as i32);
     }
 
     /// Elenco delle app installate (con le icone), in background: su Android chiederlo al
@@ -253,10 +329,17 @@ impl Ctrl {
         self.open_dialog(
             Dialog::FocusStart,
             "Sei sicuro?",
-            &format!(
-                "La concentrazione blocca il telefono per {minutes} minuti: potrai usare solo questa app{}, il telefono per le chiamate e la sveglia. Le altre app ti riporteranno qui. Non si può annullare prima della scadenza; dopo, il telefono si libera solo con «Termina». Resta attiva anche se riavvii il telefono.",
-                if n > 0 { format!(", le {n} app che hai scelto") } else { String::new() }
-            ),
+            &if cfg!(target_os = "android") || !crate::focus::desktop() {
+                format!(
+                    "La concentrazione blocca il telefono per {minutes} minuti: potrai usare solo questa app{}, il telefono per le chiamate e la sveglia. Le altre app ti riporteranno qui. Non si può annullare prima della scadenza; dopo, il telefono si libera solo con «Termina». Resta attiva anche se riavvii il telefono.",
+                    if n > 0 { format!(", le {n} app che hai scelto") } else { String::new() }
+                )
+            } else {
+                format!(
+                    "Per {minutes} minuti sul computer restano aperte solo questa app{} (più file, impostazioni e terminale). Le altre vengono chiuse dopo un avviso di 10 secondi: salva prima il lavoro aperto. Non si può annullare prima della scadenza; dopo, si libera con «Termina».",
+                    if n > 0 { format!(" e le {n} app che hai scelto") } else { String::new() }
+                )
+            },
             "Blocca e studia",
         );
     }

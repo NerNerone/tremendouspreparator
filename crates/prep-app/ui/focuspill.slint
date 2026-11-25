@@ -1,0 +1,141 @@
+// Concentrazione sul computer: pillola flottante in basso a destra dello schermo, sempre in
+// primo piano, con il tempo che manca, la gara e le app permesse. Sopra, quando si apre
+// un'app non permessa, l'avviso con il conto alla rovescia prima della chiusura.
+import { M3, Icons } from "theme.slint";
+import { RingProgress, Icon } from "components.slint";
+
+export component FocusPill inherits Window {
+    title: "Concentrazione";
+    no-frame: true;
+    always-on-top: true;
+    background: transparent;
+    in property <string> time;
+    in property <float> frac;
+    in property <string> sub;
+    in property <string> apps;
+    in property <string> warn;
+    in property <int> warn-left;
+    in property <bool> pit;
+    callback open-app();
+    callback toggle-pit();
+    width: 380px;
+    // altezza fissa: la pillola resta in basso, l'avviso compare sopra
+    height: 212px;
+    VerticalLayout {
+        spacing: 6px;
+        alignment: end;
+        if root.warn != "": Rectangle {
+            height: 82px;
+            border-radius: 22px;
+            background: #ffdad6;
+            VerticalLayout {
+                padding: 14px;
+                padding-left: 18px;
+                spacing: 4px;
+                Text {
+                    text: root.warn + " non è tra le app permesse";
+                    font-size: 15px;
+                    font-weight: 800;
+                    color: #410002;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.warn-left > 0 ? "Lo chiudo tra " + root.warn-left + " s · torna allo studio o aggiungila la prossima volta" : "Lo sto chiudendo";
+                    font-size: 12.5px;
+                    color: #410002;
+                    wrap: word-wrap;
+                }
+                Rectangle {
+                    height: 4px;
+                    border-radius: 2px;
+                    background: #41000220;
+                    Rectangle {
+                        x: 0px;
+                        width: parent.width * max(0, root.warn-left / 10);
+                        border-radius: 2px;
+                        background: #ba1a1a;
+                    }
+                }
+            }
+        }
+        Rectangle {
+            height: 118px;
+            border-radius: 30px;
+            background: #1c1e24;
+            drop-shadow-blur: 0px;
+            HorizontalLayout {
+                padding: 14px;
+                padding-right: 16px;
+                spacing: 14px;
+                Rectangle {
+                    width: 88px;
+                    RingProgress {
+                        width: 88px;
+                        height: 88px;
+                        y: (parent.height - self.height) / 2;
+                        value: root.frac;
+                        thickness: 8px;
+                        fill: #8ab4ff;
+                        track: #ffffff1c;
+                    }
+                    Text {
+                        text: root.time;
+                        font-size: root.time.character-count > 5 ? 15px : 19px;
+                        font-weight: 900;
+                        color: #ffffff;
+                    }
+                    TouchArea {
+                        clicked => {
+                            root.open-app();
+                        }
+                    }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 3px;
+                    Text {
+                        text: "Concentrazione";
+                        font-size: 18px;
+                        font-weight: 800;
+                        color: #ffffff;
+                    }
+                    Text {
+                        text: root.sub;
+                        font-size: 12.5px;
+                        color: #c4c8d0;
+                        wrap: word-wrap;
+                    }
+                    if root.apps != "": Text {
+                        text: root.apps;
+                        font-size: 12.5px;
+                        color: #9aa0aa;
+                        overflow: elide;
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        border-radius: 22px;
+                        background: pta.pressed ? #3a3d45 : #2c2f36;
+                        Icon {
+                            x: 12px;
+                            y: 12px;
+                            width: 20px;
+                            height: 20px;
+                            source: root.pit ? Icons.play : Icons.pause;
+                            tint: #ffffff;
+                        }
+                        pta := TouchArea {
+                            clicked => {
+                                root.toggle-pit();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
