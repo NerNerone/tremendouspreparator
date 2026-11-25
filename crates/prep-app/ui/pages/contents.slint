@@ -228,6 +228,16 @@ export component ContentsPage inherits Page {
                         f: f;
                     }
                 }
+                if AppState.contents-more > 0: HorizontalLayout {
+                    alignment: center;
+                    M3Button {
+                        text: "Mostra altri " + AppState.contents-more;
+                        kind: 1;
+                        clicked => {
+                            AppState.contents-show-more();
+                        }
+                    }
+                }
                 if AppState.content-files.length == 0: Text {
                     text: AppState.contents-filter-n == 0 ? "Nessun contenuto: importa un pacchetto o aggiungi i file uno alla volta con «+»." : "Nessun file di questo tipo.";
                     wrap: word-wrap;

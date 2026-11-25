@@ -446,6 +446,8 @@ pub struct Ctrl {
     exam_minutes: Option<u64>,
     /// «Gestisci contenuti»: filtro (0 tutti, 1 domande, 2 flashcard, 3 libri, 4 altro) e file scelti
     ct_filter: i32,
+    /// quante righe dell'elenco dei file si mostrano («Mostra altri» le aumenta)
+    ct_limit: usize,
     ct_sel: std::collections::BTreeSet<String>,
     update_asset: String,
     update_sha256: Option<String>,
@@ -1225,6 +1227,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         gh_branches: Vec::new(),
         exam_minutes: None,
         ct_filter: 0,
+        ct_limit: contents::CT_PAGE,
         ct_sel: Default::default(),
         update_asset: String::new(),
         update_sha256: None,
@@ -1587,6 +1590,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     st.on_save_settings(|| with_ctrl(|c| c.save_settings()));
     st.on_import_pack(|| with_ctrl(|c| c.pick_pack()));
     st.on_open_contents(|| with_ctrl(|c| c.open_contents()));
+    st.on_contents_show_more(|| with_ctrl(|c| c.contents_show_more()));
     st.on_open_guide(|| with_ctrl(|c| c.open_guide()));
     st.on_crop_done(|x, y, s| with_ctrl(|c| c.crop_done(x, y, s)));
     st.on_crop_cancel(|| with_ctrl(|c| c.crop_cancel()));

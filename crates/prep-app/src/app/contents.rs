@@ -4,8 +4,12 @@ use super::*;
 use crate::ContentFileVM;
 use prep_core::contents::{self, Kind};
 
+/// Righe dell'elenco dei file mostrate all'apertura.
+pub(super) const CT_PAGE: usize = 60;
+
 impl Ctrl {
     pub(super) fn open_contents(&mut self) {
+        self.ct_limit = CT_PAGE;
         self.refresh_contents();
         self.ui().global::<AppState>().set_contents_status(ss(""));
         self.set_page(P_CONTENTS);
@@ -26,6 +30,10 @@ impl Ctrl {
                 _ => true,
             })
             .collect();
+        // centinaia di file (figure, capitoli): se ne mostrano i primi, gli altri a richiesta,
+        // perché ogni riga è un elemento dell'interfaccia da creare e disegnare
+        let total = shown.len();
+        let shown: Vec<_> = shown.into_iter().take(self.ct_limit.max(1)).collect();
         let n = shown.len();
         let mut last = None;
         let files: Vec<ContentFileVM> = shown
@@ -54,21 +62,44 @@ impl Ctrl {
             .collect();
         let ui = self.ui();
         let st = ui.global::<AppState>();
-        st.set_content_files(model(files));
+        if let Some(m) = sync_model(st.get_content_files(), files) {
+            st.set_content_files(m);
+        }
+        st.set_contents_more((total - n) as i32);
         st.set_contents_filter_n(f);
         st.set_contents_sel_n(self.ct_sel.len() as i32);
     }
 
     pub(super) fn contents_filter(&mut self, k: i32) {
         self.ct_filter = k.clamp(0, 4);
+        self.ct_limit = CT_PAGE;
         self.refresh_contents();
     }
 
+    /// «Mostra altri»: la pagina successiva dell'elenco dei file.
+    pub(super) fn contents_show_more(&mut self) {
+        self.ct_limit += 4 * CT_PAGE;
+        self.refresh_contents();
+    }
+
+    /// Scelta di un file: cambia solo la sua riga (senza rileggere i file).
     pub(super) fn contents_toggle(&mut self, path: &str) {
-        if !self.ct_sel.remove(path) {
+        let on = !self.ct_sel.remove(path);
+        if on {
             self.ct_sel.insert(path.to_string());
         }
-        self.refresh_contents();
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        let m = st.get_content_files();
+        for i in 0..m.row_count() {
+            if let Some(mut r) = m.row_data(i) {
+                if r.path == path {
+                    r.sel = on;
+                    m.set_row_data(i, r);
+                }
+            }
+        }
+        st.set_contents_sel_n(self.ct_sel.len() as i32);
     }
 
     pub(super) fn contents_clear_sel(&mut self) {

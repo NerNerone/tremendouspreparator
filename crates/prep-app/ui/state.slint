@@ -1062,6 +1062,9 @@ export global AppState {
     // filtro dell'elenco (0 tutti, 1 domande, 2 flashcard, 3 libri, 4 altro) e scelta multipla
     in property <int> contents-filter-n;
     in property <int> contents-sel-n;
+    // file non mostrati («Mostra altri»)
+    in property <int> contents-more;
+    callback contents-show-more();
     callback contents-filter(int);
     callback contents-toggle(string);
     callback contents-remove-selected();
