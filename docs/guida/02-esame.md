@@ -45,8 +45,9 @@
 - `official` (facoltativo): prove ufficiali da rifare così com'erano. Le loro domande hanno id `<materia>-<tag>-…`, nell'ordine della prova.
 - `subjects`: le materie, ognuna con unità e argomenti.
   - `short` (facoltativo): nome breve per le schede in alto, se il nome intero è lungo.
-  - `tools` (facoltativo): strumenti dell'app da mostrare nella pagina della materia; oggi c'è `"tavola-periodica"`.
-  - `links` (facoltativo): scorciatoie a capitoli dei libri (stessi campi di `ref`, capitolo 3.4).
+  - `tools` (facoltativo): strumenti dell'app per la materia; oggi c'è `"tavola-periodica"`.
+  - `links` (facoltativo): testi del pacchetto da aprire al volo, come una dispensa di nomenclatura: scorciatoie a capitoli dei libri (stessi campi di `ref`, capitolo 3.4) con un'etichetta breve.
+  - In Studia restano in vista solo Quiz, Flashcard e Simulazione; `tools`, `links` e «Crea con l'AI» stanno nel foglio **Strumenti** della materia, e ognuno si apre come pagina a sé. Le prove ufficiali (`official`) si scelgono dentro Simulazione: non vanno tra i `links`.
   - `cfu`: crediti dell'unità; pesano le unità nella stima della preparazione.
   - `icon` (facoltativo): il nome di un simbolo incluso nell'app, dalla lista qui sotto.
   - `icon_svg` (facoltativo): un'icona tua, come tracciato SVG a una sola tinta nel riquadro 24×24 (solo il valore dell'attributo `d`, al massimo 2048 caratteri, es. `"M2 12h4l2.5-6 4 12 3-9 1.5 3H22"`). Ha la precedenza su `icon`.

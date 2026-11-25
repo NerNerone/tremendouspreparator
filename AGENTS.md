@@ -46,8 +46,9 @@ Leggili prima di scrivere un file: i campi e i vincoli sono lì.
 
 ## Preparare il pacchetto
 
-1. **Struttura** — `content/syllabus.json` dal programma ufficiale: materie (con `icon` e
-   `color`), unità (con i CFU, che pesano la preparazione), argomenti con id `mat-u1-t1`,
+1. **Struttura** — `content/syllabus.json` dal programma ufficiale: materie (con `icon` o
+   `icon_svg` e `color`; strumenti della materia in `tools` e testi da aprire al volo in `links`,
+   che l'app mostra nel foglio «Strumenti» di Studia, mai mescolati a quiz e simulazioni), unità (con i CFU, che pesano la preparazione), argomenti con id `mat-u1-t1`,
    regole della prova (`exam`: quesiti, risposta multipla e completamento, opzioni, minuti,
    punteggi, soglia) e date degli appelli. È il primo file: gli altri usano i suoi id.
 2. **Testo dei libri** — prima il testo, poi l'AI:

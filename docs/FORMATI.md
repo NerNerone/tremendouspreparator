@@ -27,10 +27,12 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
 - `sections` (facoltativo): schede informative dell'esame mostrate nelle Opzioni, ciascuna con
   `title`, `summary` (una riga, sempre visibile) e `body` (testo completo, dietro il pulsante «i»):
   `"sections": [ { "title": "Regole d'esame", "summary": "Tre prove lo stesso giorno", "body": "…" } ]`.
-- in ogni materia, facoltativi: `short`, nome breve per i selettori (es. "Chimica"); `tools`, strumenti dell'app da mostrare nella scheda Studio; `icon`, nome di un simbolo incluso nell'app (`biotech`, `science`, `bolt`, … elenco in `crates/prep-core/src/subject_icons.rs` e nella guida 2.2); `icon_svg`, tracciato SVG 24×24 a una tinta (solo comandi di tracciato, ≤ 2048 caratteri, ha la precedenza su `icon`); `color`, `#RRGGBB`. Senza icona l'app usa le iniziali del nome breve, senza colore l'ordine delle materie; i pacchetti precedenti restano validi
-  (oggi `"tavola-periodica"`), e `links`, scorciatoie a capitoli dei libri con `label` e gli stessi
-  campi di `ref` (vedi sotto):
+- in ogni materia, facoltativi: `short`, nome breve per i selettori (es. "Chimica"); `icon`, nome di un simbolo incluso nell'app (`biotech`, `science`, `bolt`, … elenco in `crates/prep-core/src/subject_icons.rs` e nella guida 2.2); `icon_svg`, tracciato SVG 24×24 a una tinta (solo comandi di tracciato, ≤ 2048 caratteri, ha la precedenza su `icon`); `color`, `#RRGGBB`. Senza icona l'app usa le iniziali del nome breve, senza colore l'ordine delle materie; i pacchetti precedenti restano validi.
+- strumenti della materia, facoltativi: `tools`, strumenti dell'app (oggi `"tavola-periodica"`), e
+  `links`, testi del pacchetto da aprire al volo, con `label` e gli stessi campi di `ref` (vedi sotto):
   `"links": [ { "label": "Nomenclatura", "book": "chi-manuale", "file": "books/chimica/manuale/02-nomenclatura.md", "section": "2.1" } ]`.
+  In Studia stanno nel foglio «Strumenti» (con «Crea con l'AI»), separati da Quiz, Flashcard e
+  Simulazione; le prove ufficiali si scelgono dentro Simulazione e non vanno tra i `links`.
   I colori delle materie seguono il loro ordine nel file.
 - `official` (facoltativo): prove ufficiali da rifare così com'erano, con le domande che hanno id
   `<materia>-<tag>-…` (in ordine): `"official": [ { "tag": "a1", "label": "1° appello 2025" } ]`.
