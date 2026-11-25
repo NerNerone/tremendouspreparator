@@ -41,11 +41,11 @@
 - `id`: identificativo **stabile** dell'esame (minuscole, cifre, trattini). Un pacchetto con lo stesso `id` aggiorna l'esame installato; con un `id` diverso ne aggiunge un altro.
 - `title`: nome mostrato nel selettore in Home.
 - `exam` (facoltativo): regole della simulazione d'esame, **per materia**. Senza `exam` (o con 0 quesiti) l'app non propone simulazioni, solo allenamento. Contiene: numero di quesiti, quanti a risposta multipla (`mcq`) e quanti a completamento (`fill`), opzioni per domanda, minuti, punti per risposta giusta, sbagliata e omessa, soglia di superamento, date degli appelli (`AAAA-MM-GG`).
-- `sections` (facoltativo): schede informative nelle Opzioni: titolo, riassunto di una riga e testo completo.
-- `official` (facoltativo): prove ufficiali da rifare così com'erano. Le loro domande hanno id `<materia>-<tag>-…`, nell'ordine della prova.
+- `sections` (facoltativo): schede informative dell'esame (Tu › App, insieme a regole e date): titolo, riassunto di una riga e testo completo.
+- `official` (facoltativo): prove ufficiali da rifare così com'erano, da scegliere dentro Simulazione. Le loro domande hanno id `<materia>-<tag>-…`, nell'ordine della prova.
 - `subjects`: le materie, ognuna con unità e argomenti.
   - `short` (facoltativo): nome breve per le schede in alto, se il nome intero è lungo.
-  - `tools` (facoltativo): strumenti dell'app per la materia; oggi c'è `"tavola-periodica"`.
+  - `tools` (facoltativo): gli strumenti della materia, per id: quelli del pacchetto (`content/tools/<id>.json`: griglie, elenchi, calcolatori, capitolo 9) e quelli inclusi nell'app (`"tavola-periodica"`). Uno strumento del pacchetto che nessuna materia elenca vale per tutte. Un id che non esiste viene ignorato e il controllo dei contenuti lo segnala.
   - `links` (facoltativo): testi del pacchetto da aprire al volo, come una dispensa di nomenclatura: scorciatoie a capitoli dei libri (stessi campi di `ref`, capitolo 3.4) con un'etichetta breve.
   - In Studia restano in vista solo Quiz, Flashcard e Simulazione; `tools`, `links` e «Crea con l'AI» stanno nel foglio **Strumenti** della materia, e ognuno si apre come pagina a sé. Le prove ufficiali (`official`) si scelgono dentro Simulazione: non vanno tra i `links`.
   - `cfu`: crediti dell'unità; pesano le unità nella stima della preparazione.

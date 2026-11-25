@@ -24,11 +24,13 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
 - `title`: nome mostrato nel selettore.
 - `exam` (facoltativo): regole della simulazione d'esame, per materia. Senza (o con `questions` 0)
   l'app non propone simulazioni, solo allenamento.
-- `sections` (facoltativo): schede informative dell'esame mostrate nelle Opzioni, ciascuna con
+- `sections` (facoltativo): schede informative dell'esame mostrate in Tu › App, ciascuna con
   `title`, `summary` (una riga, sempre visibile) e `body` (testo completo, dietro il pulsante «i»):
   `"sections": [ { "title": "Regole d'esame", "summary": "Tre prove lo stesso giorno", "body": "…" } ]`.
 - in ogni materia, facoltativi: `short`, nome breve per i selettori (es. "Chimica"); `icon`, nome di un simbolo incluso nell'app (`biotech`, `science`, `bolt`, … elenco in `crates/prep-core/src/subject_icons.rs` e nella guida 2.2); `icon_svg`, tracciato SVG 24×24 a una tinta (solo comandi di tracciato, ≤ 2048 caratteri, ha la precedenza su `icon`); `color`, `#RRGGBB`. Senza icona l'app usa le iniziali del nome breve, senza colore l'ordine delle materie; i pacchetti precedenti restano validi.
-- strumenti della materia, facoltativi: `tools`, strumenti dell'app (oggi `"tavola-periodica"`), e
+- strumenti della materia, facoltativi: `tools`, id degli strumenti della materia: quelli del pacchetto
+  (`content/tools/<id>.json`, vedi sotto) e quelli inclusi nell'app (`"tavola-periodica"`); uno strumento
+  del pacchetto che nessuna materia elenca vale per tutte; un id inesistente si ignora e `prep check` lo segnala; e
   `links`, testi del pacchetto da aprire al volo, con `label` e gli stessi campi di `ref` (vedi sotto):
   `"links": [ { "label": "Nomenclatura", "book": "chi-manuale", "file": "books/chimica/manuale/02-nomenclatura.md", "section": "2.1" } ]`.
   In Studia stanno nel foglio «Strumenti» (con «Crea con l'AI»), separati da Quiz, Flashcard e
@@ -36,7 +38,7 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
   I colori delle materie seguono il loro ordine nel file.
 - `official` (facoltativo): prove ufficiali da rifare così com'erano, con le domande che hanno id
   `<materia>-<tag>-…` (in ordine): `"official": [ { "tag": "a1", "label": "1° appello 2025" } ]`.
-  Nella scheda Studio compaiono solo quelle che hanno domande nella materia scelta.
+  Si scelgono dentro Simulazione (Studia); compaiono solo quelle che hanno domande nella materia scelta.
 
 ## Domande — `content/questions/<qualsiasi>.json`
 
@@ -71,6 +73,26 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
 { "schema": 1, "cards": [ { "id": "bio-u3-c001", "topic": "bio-u3-t3", "front": "…", "back": "…", "source": "…" } ] }
 ```
 
+## Strumenti — `content/tools/<id>.json`
+
+Pagine da consultare (Studia › Strumenti), descritte solo con dati: l'app ne disegna tre tipi e
+scarta il resto. Campi comuni: `schema` 1, `id` (minuscole, cifre, trattini; dà il nome al file),
+`title`, `subtitle` e `info` facoltativi, `kind`.
+
+- `"grid"`: `columns`, `rows` (1–40), `categories` (`name`, `color` `#RRGGBB` facoltativo),
+  `column_labels`/`row_labels` facoltativi, `cells` con `x`, `y` (da 1), `label` (1–4 caratteri),
+  `top`, `bottom`, `category`, e la scheda: `title`, `subtitle`, `details` (`label`/`value`; senza
+  `value` è un titoletto), `text`.
+- `"list"`: `sections` con `title` e `items` (`title`, `value`, `body`); si cercano nell'app.
+- `"calc"`: `inputs` (`id`, `label`, `unit`, `default`) e `outputs` (`id` facoltativo, `label`,
+  `unit`, `formula`, `digits`). Formule: numeri col punto, `+ - * / ^`, parentesi, gli id dei campi
+  e dei risultati precedenti, `pi`, `e`, `sqrt ln log log2 exp sin cos tan asin acos atan abs round
+  min max pow`; nient'altro.
+
+Esempi in `examples/esempio/content/tools/` (tutti e tre i tipi), schema in
+`docs/schema/tools.schema.json`, guida al capitolo 9. In Gestisci contenuti si copiano tra i
+pacchetti e si condividono uno alla volta.
+
 ## Sessioni — `progress/sessions/AAAA-MM/<id>.json` (scritte dall'app)
 
 ```json
@@ -82,6 +104,20 @@ Ogni pacchetto contenuti descrive **un esame**. L'app tiene un archivio separato
 ```
 
 `kind`: `practice` · `exam` · `review` · `flashcards` (item con `grade` 0–3) · `flags` (item con `flag` true/false).
+
+## Obiettivi del giorno — `progress/goals/AAAA-MM-GG/<id>.json` (scritti dall'app)
+
+Ogni volta che si confermano o si cambiano gli obiettivi l'app crea un file nuovo (mai sovrascritto);
+vale quello con `updated_at` più recente. `topics` e `targets` sono paralleli: domande da fare oggi
+per argomento. Una versione con `topics` vuoto vuol dire «obiettivi tolti».
+
+```json
+{ "date": "2026-11-25", "topics": ["bio-u2-t3", "fis-u1-t2"], "targets": [38, 38],
+  "confirmed_at": "2026-11-25T07:40:00Z", "updated_at": "2026-11-25T07:40:00Z" }
+```
+
+Nella revisione servono a capire cosa si era deciso di studiare e quanto è stato fatto (le sessioni
+dello stesso giorno sugli stessi argomenti).
 
 ## Valutazione esterna — `progress/assessment.json` (facoltativa)
 

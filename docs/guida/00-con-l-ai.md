@@ -1,6 +1,6 @@
 # Creare un pacchetto con un'AI
 
-**Il modo più semplice è nell'app: Home › «Crea un pacchetto con l'AI»** (o Opzioni › Pacchetto contenuti). Ti guida file per file: per ognuno prepara il prompt (con gli argomenti del tuo esame, il numero di domande e gli id già pronti), tu lo dai all'AI con il tuo materiale e incolli la risposta; l'app la legge, la salva nel posto giusto e ti dice cosa correggere.
+**Il modo più semplice è nell'app: «Crea con l'AI»** (Studia › Strumenti, oppure Tu › App › Pacchetto contenuti › Gestisci contenuti; senza nessun esame, «Crea un pacchetto» in Oggi o in Studia). Ti guida file per file: per ognuno prepara il prompt (con gli argomenti del tuo esame, il numero di domande e gli id già pronti), tu lo dai all'AI con il tuo materiale e incolli la risposta; l'app la legge, la salva nel posto giusto e ti dice cosa correggere.
 
 Questa pagina è il percorso completo, in ordine: dal materiale grezzo (libri, dispense, slide) a un pacchetto con esame, quiz e flashcard. Con **Copia** nel riquadro qui sopra dai a un'AI (ChatGPT, Claude, Gemini, …) **tutta la guida in un solo testo**: istruzioni severe, formati e prompt. Con **Strumenti PDF** dividi i PDF troppo grandi ed estrai il testo.
 
@@ -39,18 +39,22 @@ Con il prompt 8.2, **un capitolo revisionato alla volta**, l'AI scrive le domand
 
 Con il prompt 8.4, dallo stesso capitolo: una carta per ogni definizione, formula, legge, eccezione da ricordare.
 
+## Passo 6 bis: strumenti (facoltativi)
+
+Tabelle da consultare (tavola periodica, codice genetico), elenchi (costanti, formule) e calcolatori (gas, diluizioni, pH) si creano con il prompt 8.9: un file `content/tools/<id>.json` per strumento, solo dati. La tavola periodica è già nell'app; gli strumenti di un altro pacchetto si copiano da Gestisci contenuti › Strumenti (capitolo 9).
+
 ## Passo 7: verifica
 
 Dai i file di quiz a **un'altra AI** (o a una chat nuova) con il prompt 8.3: risolve ogni domanda da zero, controlla chiavi, unità, italiano e formato, ed elenca le chiavi cambiate. Ricontrolla tu quelle segnate «CHIAVE».
 
 ## Passo 8: importa e prova
 
-Contenuti › «Aggiungi file»: prima `syllabus.json`, poi quiz, flashcard e capitoli. L'app segnala argomenti inesistenti, id ripetuti e file malformati: correggi e riaggiungi. Poi fai un quiz di prova.
+Gestisci contenuti › «+»: prima `syllabus.json`, poi quiz, flashcard, capitoli e strumenti. L'app segnala argomenti inesistenti, id ripetuti e file malformati: correggi e riaggiungi. Poi fai un quiz di prova.
 
 ## Usare la guida intera con un'AI
 
 1. **Copia** (o **Condividi**) nel riquadro in cima a questa pagina.
 2. Apri una chat nuova, incolla il testo e completa le due righe in cima: **il compito** e **il materiale allegato**.
 3. Allega i file: il testo `.md` del passo 2, il tuo `syllabus.json` se esiste già, e solo se serve il PDF (diviso).
-4. L'AI risponde con un file per blocco di codice, preceduto dal percorso: salva ogni blocco con quel nome e aggiungilo da *Contenuti*.
+4. L'AI risponde con un file per blocco di codice, preceduto dal percorso: salva ogni blocco con quel nome e aggiungilo da *Gestisci contenuti*.
 5. Se la risposta si interrompe scrivi «continua dall'ultimo id».

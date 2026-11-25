@@ -1,6 +1,6 @@
 # 1 Come è fatto un pacchetto
 
-Un **pacchetto contenuti** descrive un esame: le materie con unità e argomenti, le regole della prova, le domande, le flashcard e, se vuoi, i libri da leggere nell'app. È un unico file `.json.gz`, ma si costruisce da una cartella di file di testo che puoi scrivere a mano, con l'aiuto di un'AI (capitolo 8 e prima pagina) o un pezzo alla volta direttamente nell'app.
+Un **pacchetto contenuti** descrive un esame: le materie con unità e argomenti, le regole della prova, le domande, le flashcard e, se vuoi, i libri da leggere nell'app e gli strumenti da consultare (capitolo 9). È un unico file `.json.gz`, ma si costruisce da una cartella di file di testo che puoi scrivere a mano, con l'aiuto di un'AI (capitolo 8 e prima pagina) o un pezzo alla volta direttamente nell'app.
 
 ## 1.1 La cartella
 
@@ -9,6 +9,7 @@ content/syllabus.json          l'esame: regole, date, materie → unità → arg
 content/questions/*.json       le domande (quanti file vuoi)
 content/flashcards/*.json      le flashcard (quanti file vuoi)
 content/books.json             i libri e i loro capitoli (facoltativo)
+content/tools/*.json           gli strumenti: tabelle, elenchi, calcolatori (facoltativi)
 books/<materia>/<libro>/*.md   il testo dei capitoli, in Markdown
 books/<materia>/<libro>/fig/   le figure dei capitoli, in SVG
 ```
@@ -24,8 +25,8 @@ Ogni cosa ha un **id**: le materie (`fis`), le unità (`fis-u3`), gli argomenti 
 
 ## 1.3 Tre modi per crearlo
 
-1. **Nell'app, un file alla volta**: Opzioni › Pacchetto contenuti › *Gestisci contenuti* › *Aggiungi file*. Aggiungi la definizione dell'esame, poi i file di quiz e flashcard man mano che li prepari. Niente da rigenerare.
-2. **Con un'AI**: i prompt del capitolo 8 producono i file nel formato giusto a partire da programma, appunti, slide o libri. Oppure copi **tutta la guida in un colpo** (riquadro all'inizio della guida e nella pagina *Contenuti*) e la incolli in chat insieme al materiale allegato.
+1. **Nell'app, un file alla volta**: Tu › App › Pacchetto contenuti › *Gestisci contenuti* › *Aggiungi file*. Aggiungi la definizione dell'esame, poi i file di quiz e flashcard man mano che li prepari. Niente da rigenerare.
+2. **Con un'AI**: i prompt del capitolo 8 producono i file nel formato giusto a partire da programma, appunti, slide o libri. Oppure copi **tutta la guida in un colpo** (riquadro all'inizio della guida e nella pagina *Gestisci contenuti*) e la incolli in chat insieme al materiale allegato.
 3. **Al computer**, con la cartella completa e lo strumento `prep` del repository (capitolo 7) per controllarla e impacchettarla.
 
 Puoi mescolare i tre modi: per esempio esame scritto a mano, quiz generati da un'AI e controllati, capitoli importati uno alla volta.

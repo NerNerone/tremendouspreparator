@@ -12,6 +12,15 @@ Il tuo compito di solito è uno di questi tre:
 2. **«rivedi i miei progressi»**: una revisione dello studio fatto finora;
 3. **«leggi i feedback»**: correggere le domande segnalate dall'app.
 
+## Primo passo, sempre: aggiornati dal modello
+
+Prima di qualunque altra cosa (anche prima di `git pull`), se questo repository ha il remoto
+`modello` o è un repository privato creato dal modello, porta qui i commit del ramo `modello-dati`
+del repository dell'app (comandi in «Aggiornare dal modello», in fondo). Non è facoltativo: guida,
+formati, schemi, prompt e queste stesse istruzioni cambiano lì. Se il remoto manca, aggiungilo; se
+il fetch non riesce (rete, permessi), dillo all'utente e lavora con le istruzioni che hai, senza
+inventare formati.
+
 ## Regole
 
 - **Il repository deve essere privato.** Dentro ci sono progressi ed elenco dei gruppi con i loro
@@ -56,7 +65,7 @@ Leggili prima di scrivere un file: i campi e i vincoli sono lì.
      --offset N` (serve `poppler-utils`; per le scansioni passa da solo all'OCR con
      `tesseract-ocr` e `tesseract-ocr-ita`). `--offset` allinea le pagine del PDF ai numeri
      stampati, così i rimandi «Se vuoi approfondire» portano alla pagina giusta.
-   - In alternativa, nell'app: Tu › App › Gestisci contenuti › Strumenti PDF › «Estrai il
+   - In alternativa, nell'app: Tu › App › Pacchetto contenuti › Gestisci contenuti › Strumenti PDF › «Estrai il
      testo» o «Testo con l'OCR».
    - Ripulisci senza riassumere: titoli `#`/`##`/`###` con la numerazione del libro, elenchi,
      tabelle Markdown, formule leggibili (pedici e apici Unicode), **mantenendo i segnaposto
@@ -84,8 +93,8 @@ Leggili prima di scrivere un file: i campi e i vincoli sono lì.
    ```
 
    `validate` deve dare **0 avvisi** (controlla anche che i `ref` puntino a file e sezioni
-   esistenti); `check` segnala errori e consigli di qualità. Senza Rust: nell'app, Tu › App ›
-   Gestisci contenuti controlla i file importati.
+   esistenti); `check` segnala errori e consigli di qualità. Senza Rust: nell'app, Tu › App › Pacchetto
+   contenuti › Gestisci contenuti › «Controllo dei contenuti» controlla i file importati.
 7. **Commit e push** — l'app scarica il pacchetto alla sincronizzazione successiva.
 
 ## «Rivedi i miei progressi»
@@ -95,7 +104,9 @@ Leggili prima di scrivere un file: i campi e i vincoli sono lì.
    segnate insicure (`unsure: true`) e le simulazioni. Guarda il testo delle domande in
    `content/questions/` per capire *che tipo* di errore è (concetto, calcolo, unità di misura,
    distrazione). Usa la sezione **Tempi** del report: segnala gli argomenti lenti rispetto al
-   ritmo d'esame anche quando l'accuratezza è buona.
+   ritmo d'esame anche quando l'accuratezza è buona. Guarda anche gli obiettivi confermati in
+   `progress/goals/<giorno>/` (formato in `docs/FORMATI.md`): cosa si era deciso di fare e quanto è
+   stato fatto.
 3. Leggi le spiegazioni scritte sulle flashcard e confrontale con il retro: segnala gli errori
    concettuali ricorrenti.
 4. Scrivi `progress/assessment.json` (formato in `docs/FORMATI.md`): `generated_at` adesso (UTC),
