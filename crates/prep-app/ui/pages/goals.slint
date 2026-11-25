@@ -1,290 +1,537 @@
-import { ScrollView, LineEdit, Spinner, TextEdit, Switch } from "std-widgets.slint";
-import { M3, Icons, Type, Shape } from "../theme.slint";
-import { AppState, CarVM, CrewVM, FocusAppVM, RankVM, GroupVM, GoalVM, SubjectVM, UnitVM, TopicVM, OptionVM, NavRowVM, ResultItemVM, FlagVM, QzOptVM, BlockVM, TocVM, FeedbackVM } from "../state.slint";
-import { Page, Swap, Icon, VIcon, IconButton, M3Button, Chip, LinearProgress, RingProgress, WavyProgress, MorphLoader, Card, Section, Hint, SectionTitle, TopBar, ListRow, OptionTile, Pill, RefBox, StarRating, Scroller, M3Switch } from "../components.slint";
+// Traguardo: «Obiettivi». In alto il riepilogo del piano (anello, titolo, note), sotto liste
+// raggruppate con il simbolo della materia e un solo comando per riga, in basso una barra fissa
+// con l'unico pulsante principale («Conferma» sulla proposta, «Continua» sul piano).
+// «Aggiungi un argomento» apre un foglio con ricerca e materie.
+import { M3, Icons, Type } from "../theme.slint";
+import { AppState, GoalVM } from "../state.slint";
+import { Page, Icon, IconButton, M3Button, M3Switch, RingProgress, Scroller, SubjectIcon, OutlinedField } from "../components.slint";
+
+// una riga della lista: simbolo della materia, nome, dettaglio, avanzamento e un comando
+component GoalRow inherits Rectangle {
+    in property <GoalVM> g;
+    in property <bool> first;
+    in property <bool> last;
+    // 0 interruttore (proposta), 1 ▶ / ✓ (piano), 2 + / ✓ (aggiungi)
+    in property <int> mode;
+    in property <bool> review;
+    in property <bool> progress;
+    callback act;
+    property <bool> done: root.g.target > 0 && root.g.done >= root.g.target;
+    border-top-left-radius: root.first ? 24px : 6px;
+    border-top-right-radius: root.first ? 24px : 6px;
+    border-bottom-left-radius: root.last ? 24px : 6px;
+    border-bottom-right-radius: root.last ? 24px : 6px;
+    background: ta.pressed ? M3.surface-container-high : M3.surface-container;
+    opacity: root.mode == 0 && !root.g.selected ? 0.62 : 1;
+    animate opacity { duration: 160ms; }
+    min-height: max(68px, row.preferred-height);
+    ta := TouchArea {
+        clicked => {
+            root.act();
+        }
+    }
+    row := HorizontalLayout {
+        padding: 12px;
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 14px;
+        // simbolo della materia (o del ripasso)
+        VerticalLayout {
+            alignment: center;
+            if root.review: Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 13px;
+                background: M3.tertiary-container;
+                Icon {
+                    x: 9px;
+                    y: 9px;
+                    width: 22px;
+                    height: 22px;
+                    source: Icons.sync;
+                    tint: M3.on-tertiary-container;
+                }
+            }
+            if !root.review && root.g.sn >= 0: SubjectIcon {
+                width: 40px;
+                s: AppState.subjects[root.g.sn];
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.g.name;
+                font-size: 15.5px;
+                font-weight: 600;
+                color: M3.on-surface;
+                wrap: word-wrap;
+            }
+            Text {
+                text: root.progress ? root.g.done + " / " + root.g.target + (root.done ? " · fatto" : " domande") : root.g.info;
+                font-size: 12.5px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+            if root.progress: Rectangle {
+                height: 6px;
+                border-radius: 3px;
+                background: M3.surface-container-highest;
+                Rectangle {
+                    x: 0px;
+                    width: parent.width * (root.g.target > 0 ? min(1, root.g.done / root.g.target) : 0);
+                    border-radius: 3px;
+                    background: root.done ? M3.success : M3.primary;
+                }
+            }
+        }
+        // il comando, centrato sulla riga
+        VerticalLayout {
+            alignment: center;
+            if root.mode == 0: M3Switch {
+                checked: root.g.selected;
+                toggled => {
+                    root.act();
+                }
+            }
+            if root.mode != 0: Rectangle {
+                property <bool> ok: root.mode == 1 ? root.done : root.g.selected;
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: self.ok ? (root.mode == 1 ? M3.success-container : M3.primary) : (root.mode == 1 ? M3.primary : M3.secondary-container);
+                Icon {
+                    x: 11px;
+                    y: 11px;
+                    width: 22px;
+                    height: 22px;
+                    source: parent.ok ? Icons.check : root.mode == 1 ? Icons.play : Icons.add;
+                    tint: parent.ok ? (root.mode == 1 ? M3.success : M3.on-primary) : (root.mode == 1 ? M3.on-primary : M3.on-secondary-container);
+                }
+                TouchArea {
+                    clicked => {
+                        root.act();
+                    }
+                }
+            }
+        }
+    }
+}
+
+// etichetta sopra una lista, con un collegamento facoltativo a destra
+component ListLabel inherits HorizontalLayout {
+    in property <string> text;
+    in property <string> link;
+    callback link-clicked;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-top: 6px;
+    height: 34px;
+    Text {
+        horizontal-stretch: 1;
+        text: root.text;
+        font-size: 14px;
+        font-weight: 700;
+        color: M3.primary;
+        vertical-alignment: center;
+    }
+    if root.link != "": Text {
+        text: root.link;
+        font-size: 13px;
+        font-weight: 700;
+        color: M3.primary;
+        vertical-alignment: center;
+        TouchArea {
+            clicked => {
+                root.link-clicked();
+            }
+        }
+    }
+}
 
 export component GoalsPage inherits Page {
+    // foglio «Aggiungi un argomento» e spiegazione del piano (dal pulsante ⓘ)
+    property <bool> add-open;
+    property <bool> info-open;
+    property <float> sheet: root.add-open ? 1 : 0;
+    animate sheet {
+        duration: 320ms;
+        easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+    }
+    property <string> query;
     VerticalLayout {
-        TopBar {
-            title: "Obiettivi";
-            subtitle: "Argomenti di oggi: proposti in base ai progressi, o scelti da te";
-            can-back: true;
-            back => {
-                AppState.back();
+        // testata: indietro, titolo, ⓘ (proposta) o matita (piano confermato)
+        HorizontalLayout {
+            height: 64px;
+            padding-left: 4px;
+            padding-right: 8px;
+            spacing: 4px;
+            VerticalLayout {
+                alignment: center;
+                IconButton {
+                    icon: Icons.back;
+                    tint: M3.on-surface;
+                    clicked => {
+                        AppState.back();
+                    }
+                }
+            }
+            Text {
+                horizontal-stretch: 1;
+                text: "Obiettivi";
+                font-size: 28px;
+                font-weight: 900;
+                color: M3.on-surface;
+                vertical-alignment: center;
+            }
+            VerticalLayout {
+                alignment: center;
+                IconButton {
+                    icon: AppState.goals-confirmed ? Icons.edit : Icons.info;
+                    tint: M3.on-surface;
+                    filled: root.info-open;
+                    clicked => {
+                        if (AppState.goals-confirmed) {
+                            AppState.goals-edit();
+                        } else {
+                            root.info-open = !root.info-open;
+                        }
+                    }
+                }
             }
         }
 
-        Scroller {
+        Rectangle {
             vertical-stretch: 1;
-            align: start;
-            pad: 16px;
-            pad-top: 4px;
-            gap: 14px;
-            if AppState.goals.length > 0: Card {
-            VerticalLayout {
-                padding: 16px;
-                spacing: 10px;
-                HorizontalLayout {
-                    spacing: 8px;
-                    VIcon {
-                        source: Icons.check;
-                        tint: M3.primary;
-                        size: 20px;
-                    }
+            Scroller {
+                width: parent.width;
+                height: parent.height;
+                align: start;
+                pad: 16px;
+                pad-top: 4px;
+                gap: 3px;
 
-                    Text {
-                        text: AppState.goals-confirmed ? "Obiettivi di oggi" : "Proposta per oggi";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                        horizontal-stretch: 1;
-                    }
-                }
-
-                Text {
-                    text: AppState.goals-confirmed ? AppState.goals-status : AppState.goals-note;
-                    font-size: Type.label;
-                    color: M3.on-surface-variant;
-                    wrap: word-wrap;
-                }
-
-                for g[i] in AppState.goals: Rectangle {
-                    border-radius: 12px;
-                    background: g.selected || AppState.goals-confirmed ? M3.secondary-container : M3.surface-container-high;
-                    animate background { duration: 180ms; }
-                    TouchArea {
-                        clicked => {
-                            AppState.goals-open = AppState.goals-open == "g:" + g.topic ? "" : "g:" + g.topic;
-                        }
-                    }
-                    VerticalLayout {
-                        padding: 10px;
-                        spacing: 6px;
-                        HorizontalLayout {
-                            spacing: 8px;
-                            if !AppState.goals-confirmed: VerticalLayout {
-                                alignment: center;
-                                M3Switch {
-                                    checked: g.selected;
-                                    toggled => {
-                                        AppState.goals-toggle(i);
-                                    }
-                                }
+                // riepilogo del piano nella fascia tonale
+                if AppState.goals.length > 0: Rectangle {
+                    border-radius: 32px;
+                    background: M3.primary-container;
+                    height: hero.preferred-height;
+                    hero := HorizontalLayout {
+                        padding: 18px;
+                        spacing: 16px;
+                        Rectangle {
+                            width: 78px;
+                            height: 78px;
+                            RingProgress {
+                                width: 78px;
+                                height: 78px;
+                                value: AppState.goals-frac;
+                                thickness: 8px;
+                                fill: M3.primary;
+                                track: M3.primary.with-alpha(0.2);
                             }
-                            VerticalLayout {
-                                horizontal-stretch: 1;
-                                alignment: center;
-                                Text {
-                                    text: g.name;
-                                    font-weight: 600;
-                                    color: M3.on-secondary-container;
-                                    wrap: word-wrap;
-                                }
-
-                                Text {
-                                    text: g.info;
-                                    font-size: Type.label;
-                                    color: M3.on-secondary-container.with-alpha(0.8);
-                                    wrap: word-wrap;
-                                }
-                            }
-
-                            if AppState.goals-confirmed: IconButton {
-                                icon: Icons.remove;
-                                tint: M3.on-secondary-container;
-                                clicked => {
-                                    AppState.goals-remove(i);
-                                }
+                            Text {
+                                text: AppState.goals-ring;
+                                font-size: 16px;
+                                font-weight: 900;
+                                color: M3.on-primary-container;
                             }
                         }
-
-                        if AppState.goals-open == "g:" + g.topic: HorizontalLayout {
-                            spacing: 6px;
-                            alignment: end;
-                            M3Button {
-                                text: "Studia";
-                                kind: 3;
-                                small: true;
-                                has-icon: true;
-                                icon: Icons.book;
-                                clicked => {
-                                    AppState.goals-study(g.topic);
-                                }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: AppState.goals-kicker;
+                                font-size: 12px;
+                                font-weight: 800;
+                                letter-spacing: 1px;
+                                color: M3.primary;
                             }
-
-                            if AppState.goals-confirmed: M3Button {
-                                text: g.done >= g.target ? "Fatto" : "Allenati";
-                                kind: g.done >= g.target ? 3 : 1;
-                                small: true;
-                                has-icon: true;
-                                icon: g.done >= g.target ? Icons.check : Icons.play;
-                                clicked => {
-                                    AppState.goals-train(g.topic);
-                                }
+                            Text {
+                                text: AppState.goals-title;
+                                font-size: 23px;
+                                font-weight: 900;
+                                color: M3.on-primary-container;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: AppState.goals-sub;
+                                font-size: 13px;
+                                color: M3.on-primary-container;
+                                wrap: word-wrap;
                             }
                         }
-
-                        if AppState.goals-confirmed: LinearProgress {
-                            value: g.target > 0 ? min(1, g.done / g.target) : 0;
-                        }
                     }
                 }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: end;
-                    if AppState.goals-confirmed: M3Button {
-                        text: "Nuova proposta";
-                        kind: 3;
-                        clicked => {
-                            AppState.goals-edit();
-                        }
-                    }
-                    if !AppState.goals-confirmed: M3Button {
-                        text: "Conferma obiettivi";
-                        has-icon: true;
-                        icon: Icons.check;
-                        clicked => {
-                            AppState.goals-confirm();
-                        }
-                    }
-                }
-            }
-            }
-
-
-            if AppState.review-goals.length > 0: Card {
-            VerticalLayout {
-                padding: 16px;
-                spacing: 10px;
-                HorizontalLayout {
-                    spacing: 8px;
-                    VIcon {
-                        source: Icons.sync;
-                        tint: M3.on-tertiary-container;
-                        size: 20px;
-                    }
-
-                    Text {
-                        text: "Obiettivi di ripasso";
-                        font-size: Type.title;
-                        font-weight: 700;
-                        color: M3.on-surface;
-                        horizontal-stretch: 1;
-                    }
-                }
-
-                Hint {
-                    short: "Argomenti non toccati da qualche giorno: un breve ripasso li fissa.";
-                    full: "Argomenti che non tocchi da qualche giorno: un breve ripasso con domande già viste e nuove li fissa nella memoria.";
-                }
-
-                for r in AppState.review-goals: Rectangle {
-                    border-radius: 12px;
-                    background: M3.tertiary-container;
-                    TouchArea {
-                        clicked => {
-                            AppState.goals-open = AppState.goals-open == "r:" + r.topic ? "" : "r:" + r.topic;
-                        }
-                    }
-                    VerticalLayout {
-                        padding: 10px;
-                        spacing: 6px;
-                        Text {
-                            text: r.name;
+                if AppState.goals-chips.length > 0: HorizontalLayout {
+                    padding-top: 7px;
+                    spacing: 6px;
+                    alignment: start;
+                    for c in AppState.goals-chips: Rectangle {
+                        height: 30px;
+                        width: ct.preferred-width + 24px;
+                        border-radius: 15px;
+                        border-width: 1px;
+                        border-color: M3.outline-variant;
+                        ct := Text {
+                            text: c;
+                            font-size: 12.5px;
                             font-weight: 600;
-                            color: M3.on-tertiary-container;
-                            wrap: word-wrap;
+                            color: M3.on-surface-variant;
                         }
-
+                    }
+                }
+                // perché questi argomenti (dalla ⓘ)
+                if root.info-open && !AppState.goals-confirmed: Rectangle {
+                    border-radius: 20px;
+                    background: M3.surface-container-high;
+                    height: why.preferred-height;
+                    why := HorizontalLayout {
+                        padding: 14px;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: start;
+                            Icon {
+                                width: 18px;
+                                height: 18px;
+                                source: Icons.lightbulb;
+                                tint: M3.primary;
+                            }
+                        }
                         Text {
-                            text: r.info;
-                            font-size: Type.label;
-                            color: M3.on-tertiary-container.with-alpha(0.8);
+                            horizontal-stretch: 1;
+                            text: AppState.goals-note;
+                            font-size: 13px;
+                            color: M3.on-surface-variant;
                             wrap: word-wrap;
                         }
+                    }
+                }
 
-                        if AppState.goals-open == "r:" + r.topic: HorizontalLayout {
-                            spacing: 6px;
-                            alignment: end;
-                            M3Button {
-                                text: "Studia";
-                                kind: 3;
-                                small: true;
-                                has-icon: true;
-                                icon: Icons.book;
-                                clicked => {
-                                    AppState.goals-study(r.topic);
-                                }
+                // da studiare
+                if AppState.goals.length > 0: ListLabel {
+                    text: "Da studiare";
+                    link: AppState.goals-confirmed ? "" : "Nuova proposta";
+                    link-clicked => {
+                        AppState.goals-edit();
+                    }
+                }
+                for g[i] in AppState.goals: GoalRow {
+                    g: g;
+                    first: i == 0;
+                    last: i == AppState.goals.length - 1;
+                    mode: AppState.goals-confirmed ? 1 : 0;
+                    progress: AppState.goals-confirmed;
+                    act => {
+                        if (AppState.goals-confirmed) {
+                            AppState.goals-train(g.topic);
+                        } else {
+                            AppState.goals-toggle(i);
+                        }
+                    }
+                }
+
+                // ripasso: argomenti fermi da qualche giorno
+                if AppState.review-goals.length > 0: ListLabel {
+                    text: "Ripasso";
+                }
+                for r[i] in AppState.review-goals: GoalRow {
+                    g: r;
+                    first: i == 0;
+                    last: i == AppState.review-goals.length - 1;
+                    mode: 1;
+                    review: true;
+                    act => {
+                        AppState.goals-review(r.topic);
+                    }
+                }
+
+                // aggiungi un argomento (apre il foglio)
+                Rectangle {
+                    height: 12px;
+                }
+                Rectangle {
+                    height: 56px;
+                    border-radius: 28px;
+                    border-width: 1px;
+                    border-color: M3.outline-variant;
+                    background: addta.pressed ? M3.surface-container : transparent;
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            Icon {
+                                width: 20px;
+                                height: 20px;
+                                source: Icons.add;
+                                tint: M3.primary;
                             }
+                        }
+                        Text {
+                            text: "Aggiungi un argomento";
+                            font-size: 15px;
+                            font-weight: 700;
+                            color: M3.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    addta := TouchArea {
+                        clicked => {
+                            root.add-open = true;
+                            AppState.sheet-open = true;
+                        }
+                    }
+                }
+                // spazio per la barra in basso
+                Rectangle {
+                    height: 96px;
+                }
+            }
 
-                            M3Button {
-                                text: "Ripassa";
-                                kind: 1;
-                                small: true;
-                                has-icon: true;
-                                icon: Icons.sync;
-                                clicked => {
-                                    AppState.goals-review(r.topic);
+            // barra fissa: riepilogo della scelta e l'unico pulsante principale
+            if AppState.goals.length > 0: Rectangle {
+                x: 12px;
+                width: parent.width - 24px;
+                height: 64px;
+                y: parent.height - self.height - 12px;
+                border-radius: 32px;
+                background: M3.surface-container-high;
+                drop-shadow-blur: 14px;
+                drop-shadow-offset-y: 3px;
+                drop-shadow-color: #00000030;
+                HorizontalLayout {
+                    padding-left: 20px;
+                    padding-right: 8px;
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        Text {
+                            text: AppState.goals-dock-title;
+                            font-size: 14px;
+                            font-weight: 800;
+                            color: M3.on-surface;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: AppState.goals-dock-sub;
+                            font-size: 12px;
+                            color: M3.on-surface-variant;
+                            overflow: elide;
+                        }
+                    }
+                    if !AppState.goals-confirmed || AppState.goals-next != "": VerticalLayout {
+                        alignment: center;
+                        M3Button {
+                            text: AppState.goals-confirmed ? "Continua" : "Conferma";
+                            has-icon: true;
+                            icon: AppState.goals-confirmed ? Icons.play : Icons.check;
+                            clicked => {
+                                if (AppState.goals-confirmed) {
+                                    AppState.goals-train(AppState.goals-next);
+                                } else {
+                                    AppState.goals-confirm();
                                 }
                             }
                         }
                     }
                 }
             }
-            }
+        }
+    }
 
-            SectionTitle {
-            text: "Aggiungi un argomento";
+    // «Aggiungi un argomento»: ricerca, materie come pulsanti uniti, argomenti con + / ✓
+    if root.sheet > 0.01: Rectangle {
+        background: M3.scrim.with-alpha(0.5 * root.sheet);
+        TouchArea {
+            clicked => {
+                root.add-open = false;
+                AppState.sheet-open = false;
             }
-
-            HorizontalLayout {
-            spacing: 8px;
-            for s in AppState.subjects: Chip {
-                text: s.short;
-                selected: AppState.goal-subject == s.id;
-                clicked => {
-                    AppState.goals-pick-subject(s.id);
-                }
-            }
-            }
-
-            for t in AppState.goal-topics: Rectangle {
-            min-height: max(56px, gt-row.preferred-height);
-            border-radius: Shape.lg;
-            background: t.selected ? M3.secondary-container : M3.surface-container-low;
-            animate background { duration: 200ms; }
-            gt-row := HorizontalLayout {
-                padding: 10px;
-                padding-left: 14px;
-                spacing: 8px;
-                VerticalLayout {
-                    horizontal-stretch: 1;
+        }
+        Rectangle {
+            width: parent.width;
+            height: min(parent.height - 48px, 640px);
+            y: parent.height - self.height * root.sheet;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            background: M3.surface-container-low;
+            TouchArea { }
+            VerticalLayout {
+                padding: 16px;
+                padding-top: 10px;
+                spacing: 10px;
+                HorizontalLayout {
                     alignment: center;
-                    spacing: 2px;
-                    Text {
-                        text: t.name;
-                        wrap: word-wrap;
-                        color: M3.on-surface;
+                    Rectangle {
+                        width: 32px;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: M3.outline-variant;
                     }
-
-                    Text {
-                        text: t.info;
-                        wrap: word-wrap;
-                        font-size: Type.label;
+                }
+                Text {
+                    text: "Aggiungi un argomento";
+                    font-size: 22px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                }
+                OutlinedField {
+                    label: "Cerca";
+                    placeholder: "per esempio «enzimi»";
+                    pencil: false;
+                    text <=> root.query;
+                    edited(t) => {
+                        AppState.goals-search(t);
+                    }
+                }
+                if root.query == "": HorizontalLayout {
+                    spacing: 3px;
+                    for s[i] in AppState.subjects: Rectangle {
+                        property <bool> sel: AppState.goal-subject == s.id;
+                        horizontal-stretch: 1;
+                        height: 40px;
+                        border-top-left-radius: self.sel || i == 0 ? 20px : 8px;
+                        border-bottom-left-radius: self.sel || i == 0 ? 20px : 8px;
+                        border-top-right-radius: self.sel || i == AppState.subjects.length - 1 ? 20px : 8px;
+                        border-bottom-right-radius: self.sel || i == AppState.subjects.length - 1 ? 20px : 8px;
+                        background: self.sel ? M3.primary : M3.secondary-container;
+                        Text {
+                            text: s.short;
+                            font-size: 13.5px;
+                            font-weight: 700;
+                            color: parent.sel ? M3.on-primary : M3.on-secondary-container;
+                            overflow: elide;
+                        }
+                        TouchArea {
+                            clicked => {
+                                AppState.goals-pick-subject(s.id);
+                            }
+                        }
+                    }
+                }
+                Scroller {
+                    vertical-stretch: 1;
+                    align: start;
+                    pad: 0px;
+                    gap: 3px;
+                    for t[i] in AppState.goal-topics: GoalRow {
+                        g: t;
+                        first: i == 0;
+                        last: i == AppState.goal-topics.length - 1;
+                        mode: 2;
+                        act => {
+                            AppState.goals-add(t.topic);
+                        }
+                    }
+                    if AppState.goal-topics.length == 0: Text {
+                        text: "Nessun argomento trovato.";
                         color: M3.on-surface-variant;
                     }
                 }
-
-                IconButton {
-                    icon: t.selected ? Icons.check : Icons.add;
-                    filled: !t.selected;
-                    tint: t.selected ? M3.primary : M3.on-secondary-container;
-                    clicked => {
-                        AppState.goals-add(t.topic);
-                    }
-                }
-            }
             }
         }
     }

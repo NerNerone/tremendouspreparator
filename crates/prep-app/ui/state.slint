@@ -420,6 +420,8 @@ export struct GoalVM {
     done: int,
     target: int,
     selected: bool,
+    // posizione della materia in `subjects` (simbolo e colore), -1 se sconosciuta
+    sn: int,
 }
 
 export global AppState {
@@ -478,6 +480,18 @@ export global AppState {
     in property <int> goals-left;
     // ripasso distanziato: argomenti non toccati da qualche giorno
     in property <[GoalVM]> review-goals;
+    // pagina Obiettivi (Traguardo): riepilogo in alto, barra fissa in basso
+    in property <string> goals-kicker;
+    in property <string> goals-title;
+    in property <string> goals-sub;
+    in property <string> goals-ring;
+    in property <float> goals-frac;
+    in property <[string]> goals-chips;
+    in property <string> goals-dock-title;
+    in property <string> goals-dock-sub;
+    // argomento da cui ripartire («Continua»), vuoto a piano finito
+    in property <string> goals-next;
+    callback goals-search(string);
     // scorrimento della Home (l'intestazione si comprime)
     in-out property <length> home-scroll;
     /// la barra ondulata della Home ha già fatto l'animazione d'ingresso in questa sessione

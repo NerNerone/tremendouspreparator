@@ -30,6 +30,32 @@ impl Ctrl {
         }
     }
 
+    /// Piccole note sotto il riepilogo: giorni all'appello e flashcard da ripassare.
+    fn goals_chips(&self) -> Vec<SharedString> {
+        let mut out = Vec::new();
+        if let Some((label, d)) = self.next_exam() {
+            let days = (d - Local::now().date_naive()).num_days();
+            out.push(ss(match days {
+                0 => format!("{label}: oggi"),
+                1 => format!("{label}: domani"),
+                n => format!("{n} giorni a «{label}»"),
+            }));
+        }
+        out
+    }
+
+    /// Ricerca tra gli argomenti da aggiungere (vuota: quelli della materia scelta).
+    pub(super) fn goals_search(&mut self, q: &str) {
+        self.goal_query = q.trim().to_lowercase();
+        self.refresh_goal_topics();
+    }
+
+    /// Posizione della materia dell'argomento tra le materie (per simbolo e colore).
+    pub(super) fn subject_n(&self, topic: &str) -> i32 {
+        let Some(sub) = self.content.subject_of_topic(topic) else { return -1 };
+        self.content.syllabus().subjects.iter().position(|x| x.id == sub.id).map(|i| i as i32).unwrap_or(-1)
+    }
+
     pub(super) fn next_exam(&self) -> Option<(String, NaiveDate)> {
         let today = Local::now().date_naive();
         self.content.syllabus().exam.dates.iter().find_map(|d| {
@@ -62,9 +88,14 @@ impl Ctrl {
                     done: 0,
                     target: r.target as i32,
                     selected: false,
+                    sn: self.subject_n(&r.topic),
                 })
                 .collect();
-        self.ui().global::<AppState>().set_review_goals(model(items));
+        let ui = self.ui();
+        let st = ui.global::<AppState>();
+        if let Some(m) = sync_model(st.get_review_goals(), items) {
+            st.set_review_goals(m);
+        }
     }
 
     pub(super) fn refresh_goals(&mut self) {
@@ -89,6 +120,7 @@ impl Ctrl {
                         done: n as i32,
                         target: target as i32,
                         selected: true,
+                        sn: self.subject_n(t),
                     }
                 })
                 .collect();
@@ -107,8 +139,38 @@ impl Ctrl {
                 if done_n == 1 { "o" } else { "i" },
                 if left == 0 { "giornata chiusa".to_string() } else { format!("mancano {left} domande") }
             )));
+            // riepilogo (anello «fatti / totale») e barra in basso con il prossimo argomento
+            st.set_goals_kicker(ss("PIANO DI OGGI"));
+            st.set_goals_ring(ss(format!("{done_n} / {n}")));
+            st.set_goals_frac(if n > 0 { done_n as f32 / n as f32 } else { 0.0 });
+            st.set_goals_title(ss(if left == 0 {
+                "Giornata chiusa".to_string()
+            } else {
+                format!("mancano {left} domande")
+            }));
+            let due = st.get_due_count();
+            st.set_goals_sub(ss(if due > 0 {
+                format!("{due} flashcard in scadenza")
+            } else {
+                "nessuna flashcard in scadenza".to_string()
+            }));
+            st.set_goals_chips(model(self.goals_chips()));
+            match items.iter().find(|g| g.done < g.target) {
+                Some(g) => {
+                    st.set_goals_next(g.topic.clone());
+                    st.set_goals_dock_title(ss("Prossimo"));
+                    st.set_goals_dock_sub(ss(format!("{} · {} domande", g.name, g.target - g.done)));
+                }
+                None => {
+                    st.set_goals_next(ss(""));
+                    st.set_goals_dock_title(ss("Piano completato"));
+                    st.set_goals_dock_sub(ss("Ripasso e flashcard qui sotto, se ti va"));
+                }
+            }
             st.set_goals_confirmed(true);
-            st.set_goals(model(items));
+            if let Some(m) = sync_model(st.get_goals(), items) {
+                st.set_goals(m);
+            }
             self.plan = None;
             self.refresh_goal_topics();
             return;
@@ -157,6 +219,7 @@ impl Ctrl {
                 done: 0,
                 target: x.target as i32,
                 selected: sel,
+                sn: self.subject_n(&x.topic),
             })
             .collect();
         st.set_goals_note(ss(format!(
@@ -167,10 +230,27 @@ impl Ctrl {
             p.minutes / 60,
             p.minutes % 60
         )));
+        // riepilogo della proposta e barra in basso con la scelta attuale
+        let secs_q = if p.questions > 0 { p.minutes as f64 * 60.0 / p.questions as f64 } else { 30.0 };
+        let chosen_n = items.iter().filter(|g| g.selected).count();
+        let chosen_q: i32 = items.iter().filter(|g| g.selected).map(|g| g.target).sum();
+        let mins = (chosen_q as f64 * secs_q / 60.0).round() as u32;
+        let hm = |m: u32| if m >= 60 { format!("{} h {:02}′", m / 60, m % 60) } else { format!("{m}′") };
+        st.set_goals_kicker(ss("PROPOSTA DI OGGI"));
+        st.set_goals_ring(ss(hm(p.minutes)));
+        st.set_goals_frac(0.0);
+        st.set_goals_title(ss(format!("{} argomenti", items.len())));
+        st.set_goals_sub(ss(format!("~{} domande e {} flashcard", p.questions, p.cards_due)));
+        st.set_goals_chips(model(self.goals_chips()));
+        st.set_goals_next(ss(""));
+        st.set_goals_dock_title(ss(if chosen_n == 1 { "1 scelto".to_string() } else { format!("{chosen_n} scelti") }));
+        st.set_goals_dock_sub(ss(format!("~{} · {chosen_q} domande", hm(mins))));
         st.set_goals_confirmed(false);
         st.set_goals_done_n(0);
         st.set_goals_left(0);
-        st.set_goals(model(items));
+        if let Some(m) = sync_model(st.get_goals(), items) {
+            st.set_goals(m);
+        }
         self.plan = Some(p);
         self.refresh_goal_topics();
     }
@@ -202,9 +282,10 @@ impl Ctrl {
             .progress
             .subjects
             .iter()
-            .filter(|s| s.id == subj)
+            .filter(|s| !self.goal_query.is_empty() || s.id == subj)
             .flat_map(|s| s.units.iter())
             .flat_map(|u| u.topics.iter().filter(|t| t.questions > 0).map(move |t| (u, t)))
+            .filter(|(_, t)| self.goal_query.is_empty() || t.name.to_lowercase().contains(&self.goal_query))
             .map(|(u, t)| GoalVM {
                 topic: ss(&t.id),
                 name: ss(&t.name),
@@ -212,9 +293,12 @@ impl Ctrl {
                 done: 0,
                 target: 0,
                 selected: chosen.contains(&t.id),
+                sn: self.subject_n(&t.id),
             })
             .collect();
-        st.set_goal_topics(model(items));
+        if let Some(m) = sync_model(st.get_goal_topics(), items) {
+            st.set_goal_topics(m);
+        }
     }
 
     pub(super) fn goals_add(&mut self, topic: String) {

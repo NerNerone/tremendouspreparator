@@ -448,6 +448,8 @@ pub struct Ctrl {
     exam_minutes: Option<u64>,
     /// «Gestisci contenuti»: filtro (0 tutti, 1 domande, 2 flashcard, 3 libri, 4 altro) e file scelti
     ct_filter: i32,
+    /// ricerca tra gli argomenti da aggiungere agli obiettivi
+    goal_query: String,
     /// quante righe dell'elenco dei file si mostrano («Mostra altri» le aumenta)
     ct_limit: usize,
     ct_sel: std::collections::BTreeSet<String>,
@@ -1230,6 +1232,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         gh_branches: Vec::new(),
         exam_minutes: None,
         ct_filter: 0,
+        goal_query: String::new(),
         ct_limit: contents::CT_PAGE,
         ct_sel: Default::default(),
         update_asset: String::new(),
@@ -1554,6 +1557,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         })
     });
     st.on_goals_confirm(|| with_ctrl(|c| c.goals_confirm()));
+    st.on_goals_search(|q| with_ctrl(|c| c.goals_search(&q)));
     st.on_goals_edit(|| with_ctrl(|c| c.goals_edit()));
     let weak = ui.as_weak();
     st.on_goals_train(move |t| {
