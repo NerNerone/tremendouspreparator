@@ -3,9 +3,14 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3" android:strokeLineJoin="round"
-        android:fillColor="#00000000"
-        android:pathData="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74C62,68.5 70.5,67.5 78,70L78,38C70.5,35.5 62,36.5 54,42Z" />
-    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="2.4" android:fillColor="#00000000"
-        android:pathData="M54,42L54,74" />
+    <group android:scaleX="0.92" android:scaleY="0.92" android:pivotX="54" android:pivotY="54">
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3" android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M54,40C45,34 35,33 27,36L27,74C35,71 45,72 54,78C63,72 73,71 81,74L81,36C73,33 63,34 54,40Z" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="2.4" android:fillColor="#00000000"
+            android:pathData="M54,40L54,78" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M60,30h4v4h-4zM68,30h4v4h-4zM64,34h4v4h-4zM60,38h4v4h-4zM68,38h4v4h-4zM64,42h4v4h-4zM60,46h4v4h-4zM68,46h4v4h-4z" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.2" android:fillColor="#00000000"
+            android:strokeLineJoin="round" android:pathData="M60,30h12v24l-6,-5l-6,5z" />
+    </group>
 </vector>

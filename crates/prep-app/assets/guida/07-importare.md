@@ -2,10 +2,10 @@
 
 ## 7.1 Nell'app
 
-- **Importa pacchetto** (Opzioni › Pacchetto contenuti): installa un esame nuovo o **sostituisce** i contenuti di quello con lo stesso `id`. I progressi restano.
+- **Importa pacchetto** (Tu › App › Pacchetto contenuti, «Apri con» sul telefono, o ricevuto con un codice da un altro dispositivo): installa un esame nuovo o **sostituisce** i contenuti di quello con lo stesso `id`. I progressi restano. Con il repository GitHub configurato, subito dopo l'app propone di salvarlo in un **ramo nuovo** (privato) del repository dei progressi.
 - **Gestisci contenuti** › **Aggiungi file**: aggiunge o sostituisce un solo file (quiz, flashcard, `syllabus.json`, `books.json`, capitolo `.md`, figura `.svg`), riconoscendone il tipo dal contenuto. Un pacchetto dello stesso esame qui si **unisce**: aggiorna i file che contiene e lascia gli altri.
 - Dopo ogni aggiunta l'app mostra gli avvisi: argomenti che non esistono nell'esame, id ripetuti, file malformati. Un file malformato non viene aggiunto.
-- **Controlla** (pagina *Contenuti*) passa in rassegna tutto l'esame: **errori** (file rotti, risposte mancanti, rimandi a capitoli che non ci sono), **avvisi** (opzioni ripetute o in numero sbagliato, spiegazioni mancanti, difficoltà fuori scala, flashcard vuote) e **consigli** (figure da aggiungere, argomenti con meno di 6 domande: la barra non può arrivare in fondo).
+- **Controlla** (pagina *Gestisci contenuti*) passa in rassegna tutto l'esame: **errori** (file rotti, risposte mancanti, rimandi a capitoli che non ci sono), **avvisi** (opzioni ripetute o in numero sbagliato, spiegazioni mancanti, difficoltà fuori scala, flashcard vuote) e **consigli** (figure da aggiungere, argomenti con meno di 6 domande: la barra non può arrivare in fondo).
 - **Esporta pacchetto** salva tutti i contenuti dell'esame in un unico `.json.gz`, da conservare o dare ad altri (anche con *Condividi con un'altra persona*).
 
 ## 7.2 Al computer

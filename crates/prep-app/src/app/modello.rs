@@ -12,6 +12,7 @@ const COMMON: &[(&str, &[u8])] = &[
     ("docs/schema/questions.schema.json", include_bytes!("../../../../docs/schema/questions.schema.json")),
     ("docs/schema/flashcards.schema.json", include_bytes!("../../../../docs/schema/flashcards.schema.json")),
     ("docs/schema/books.schema.json", include_bytes!("../../../../docs/schema/books.schema.json")),
+    ("docs/schema/tools.schema.json", include_bytes!("../../../../docs/schema/tools.schema.json")),
     ("docs/guida/00-con-l-ai.md", include_bytes!("../../assets/guida/00-con-l-ai.md")),
     ("docs/guida/01-panoramica.md", include_bytes!("../../assets/guida/01-panoramica.md")),
     ("docs/guida/02-esame.md", include_bytes!("../../assets/guida/02-esame.md")),
@@ -21,6 +22,7 @@ const COMMON: &[(&str, &[u8])] = &[
     ("docs/guida/06-dai-pdf.md", include_bytes!("../../assets/guida/06-dai-pdf.md")),
     ("docs/guida/07-importare.md", include_bytes!("../../assets/guida/07-importare.md")),
     ("docs/guida/08-prompt.md", include_bytes!("../../assets/guida/08-prompt.md")),
+    ("docs/guida/09-strumenti.md", include_bytes!("../../assets/guida/09-strumenti.md")),
     ("tools/pdf2md.py", include_bytes!("../../../../tools/pdf2md.py")),
     ("tools/import_md.py", include_bytes!("../../../../tools/import_md.py")),
     ("tools/mathsvg.mjs", include_bytes!("../../../../tools/mathsvg.mjs")),
@@ -37,6 +39,7 @@ const EXAMPLE: &[(&str, &[u8])] = &[
     ("content/syllabus.json", include_bytes!("../../assets/modello/esempio/content/syllabus.json")),
     ("content/questions/esempio.json", include_bytes!("../../assets/modello/esempio/content/questions/esempio.json")),
     ("content/flashcards/esempio.json", include_bytes!("../../assets/modello/esempio/content/flashcards/esempio.json")),
+    ("content/tools/esempio.json", include_bytes!("../../assets/modello/esempio/content/tools/esempio.json")),
 ];
 
 /// File del modello; con `example` anche il pacchetto d'esempio.

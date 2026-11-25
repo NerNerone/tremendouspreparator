@@ -29,6 +29,8 @@ pub enum Kind {
     Figure,
     /// pacchetto intero (`.json.gz`)
     Pack,
+    /// strumento della materia (`content/tools/<id>.json`)
+    Tool,
 }
 
 impl Kind {
@@ -41,6 +43,7 @@ impl Kind {
             Kind::Chapter => "Capitolo",
             Kind::Figure => "Figura",
             Kind::Pack => "Pacchetto",
+            Kind::Tool => "Strumento",
         }
     }
 }
@@ -75,7 +78,9 @@ pub fn classify(name: &str, bytes: &[u8]) -> Result<Kind, String> {
     if v.get("format").is_some() && v.get("files").is_some() {
         return Ok(Kind::Pack);
     }
-    if v.get("subjects").is_some() {
+    if v.get("kind").is_some() && v.get("title").is_some() {
+        Ok(Kind::Tool)
+    } else if v.get("subjects").is_some() {
         Ok(Kind::Exam)
     } else if v.get("questions").is_some() {
         Ok(Kind::Questions)
@@ -84,7 +89,7 @@ pub fn classify(name: &str, bytes: &[u8]) -> Result<Kind, String> {
     } else if v.get("books").is_some() {
         Ok(Kind::Books)
     } else {
-        Err("file JSON non riconosciuto: deve contenere \"questions\", \"cards\", \"books\" o \"subjects\"".into())
+        Err("file JSON non riconosciuto: deve contenere \"questions\", \"cards\", \"books\", \"subjects\" o essere uno strumento (\"kind\")".into())
     }
 }
 
@@ -236,6 +241,12 @@ pub fn add_file(store: &Store, name: &str, bytes: &[u8], subject: &str) -> Resul
         Kind::Questions => format!("content/questions/{}", file_name(name, "json")),
         Kind::Cards => format!("content/flashcards/{}", file_name(name, "json")),
         Kind::Chapter => format!("books/{IMPORTED_BOOK}/{}", file_name(name, "md")),
+        // lo strumento prende il nome dal suo id: stesso id, stesso file (si sostituisce)
+        Kind::Tool => {
+            let t: crate::tools::Tool =
+                serde_json::from_slice(bytes).map_err(|e| format!("strumento non valido: {e}"))?;
+            format!("content/tools/{}", file_name(&t.id, "json"))
+        }
         // una figura con lo stesso nome di una citata da un capitolo va proprio lì
         Kind::Figure => {
             let want = file_name(name, "svg");
@@ -290,6 +301,14 @@ pub fn add_file(store: &Store, name: &str, bytes: &[u8], subject: &str) -> Resul
             }
         }
         Kind::Figure => "figura".to_string(),
+        Kind::Tool => {
+            let t: crate::tools::Tool = serde_json::from_str(text).map_err(|e| format!("strumento non valido: {e}"))?;
+            let p = t.problems();
+            if let Some(e) = p.first() {
+                return Err(e.clone());
+            }
+            format!("strumento «{}»", t.title)
+        }
         Kind::Pack => unreachable!(),
     };
     files.push((path.clone(), text.to_string()));
@@ -392,6 +411,11 @@ pub fn list(store: &Store) -> Vec<Entry> {
                 (Kind::Questions, file, format!("{} domande", count_items(text, "questions")))
             } else if path.starts_with("content/flashcards/") {
                 (Kind::Cards, file, format!("{} flashcard", count_items(text, "cards")))
+            } else if path.starts_with("content/tools/") {
+                match serde_json::from_str::<crate::tools::Tool>(text) {
+                    Ok(t) => (Kind::Tool, t.title.clone(), t.kind_label().to_string()),
+                    Err(_) => (Kind::Tool, file, "non leggibile".into()),
+                }
             } else if path.ends_with(".md") {
                 let found = chapter_of(path).and_then(|c| {
                     cat.books
@@ -430,7 +454,8 @@ pub fn list(store: &Store) -> Vec<Entry> {
         Kind::Books => 3,
         Kind::Chapter => 4,
         Kind::Figure => 5,
-        Kind::Pack => 6,
+        Kind::Tool => 6,
+        Kind::Pack => 7,
     };
     out.sort_by(|a, b| rank(a.kind).cmp(&rank(b.kind)).then(a.path.cmp(&b.path)));
     out
@@ -481,6 +506,7 @@ mod tests {
         assert_eq!(classify("a.json", br#"{"schema":1,"books":[]}"#).unwrap(), Kind::Books);
         assert_eq!(classify("x.json.gz", &[0x1f, 0x8b, 0]).unwrap(), Kind::Pack);
         assert_eq!(classify("Cap 1.md", b"# Titolo").unwrap(), Kind::Chapter);
+        assert_eq!(classify("t.json", br#"{"id":"x","title":"X","kind":"list","sections":[]}"#).unwrap(), Kind::Tool);
         assert!(classify("a.json", b"{\"altro\":1}").is_err());
         assert!(classify("a.pdf", b"%PDF").is_err());
     }
@@ -505,6 +531,14 @@ mod tests {
         assert_eq!(c.path, "books/importati/appunti-di-fisica.md");
         let ch = list(&st).into_iter().find(|e| e.path == c.path).unwrap();
         assert_eq!((ch.name.as_str(), ch.info.as_str()), ("Cinematica", "Materiale importato"));
+        // strumento: il file prende il nome dal suo id; uno con errori non entra
+        let t = br#"{"id":"costanti-mie","title":"Costanti","kind":"list","sections":[{"title":"Fisica","items":[{"title":"g","value":"9,81 m/s2"}]}]}"#;
+        let ta = add_file(&st, "qualsiasi nome.json", t, "mat").unwrap();
+        assert_eq!(ta.path, "content/tools/costanti-mie.json");
+        assert!(list(&st).iter().any(|e| e.kind == Kind::Tool && e.name == "Costanti" && e.info == "elenco"));
+        let bad = br#"{"id":"c","title":"C","kind":"calc","inputs":[],"outputs":[{"label":"x","formula":"y+"}]}"#;
+        assert!(add_file(&st, "c.json", bad, "mat").is_err());
+        remove_file(&st, &ta.path).unwrap();
         // esportato: il pacchetto contiene i file aggiunti e si reimporta
         let gz = export(&st, "prova").unwrap();
         let info = crate::pack::inspect(&gz).unwrap();

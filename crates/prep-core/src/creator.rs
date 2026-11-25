@@ -11,6 +11,8 @@ pub enum FileKind {
     Chapter,
     Questions,
     Cards,
+    /// strumento della materia (`content/tools/<id>.json`)
+    Tool,
 }
 
 /// Risposta dell'AI ridotta all'essenziale.
@@ -125,6 +127,14 @@ pub fn to_file(kind: FileKind, reply: &Reply, exam_id: &str) -> Result<String, S
             }
             serde_json::to_string_pretty(&FlashcardFile { schema: 1, cards: all }).map_err(|e| e.to_string())
         }
+        FileKind::Tool => {
+            let t: crate::tools::Tool =
+                serde_json::from_str(clean_json(first)).map_err(|e| format!("strumento non valido: {e}"))?;
+            if let Some(p) = t.problems().into_iter().next() {
+                return Err(p);
+            }
+            serde_json::to_string_pretty(&t).map_err(|e| e.to_string())
+        }
     }
 }
 
@@ -199,8 +209,9 @@ FORMATO (un solo blocco ```json):
             \"correct\": 1.0, \"wrong\": -0.25, \"omitted\": 0.0, \"pass\": N,
             \"dates\": [ {{ \"label\": \"1° appello\", \"date\": \"AAAA-MM-GG\" }} ] }},
   \"sections\": [ {{ \"title\": \"Regole d'esame\", \"summary\": \"una riga\", \"body\": \"testo\" }} ],
+  \"official\": [ {{ \"tag\": \"sigla-prova\", \"label\": \"1° appello 2025\" }} ],
   \"subjects\": [ {{ \"id\": \"sigla\", \"name\": \"Materia\", \"short\": \"Nome breve\",
-                  \"icon\": \"simbolo\", \"color\": \"#RRGGBB\",
+                  \"icon\": \"simbolo\", \"color\": \"#RRGGBB\", \"tools\": [\"tavola-periodica\"],
                   \"units\": [ {{ \"id\": \"sigla-u1\", \"n\": 1, \"name\": \"Unità\", \"cfu\": N,
                                \"topics\": [ {{ \"id\": \"sigla-u1-t1\", \"name\": \"Argomento\" }} ] }} ] }} ] }}
 
@@ -211,6 +222,8 @@ ISTRUZIONI:
 - \"cfu\": i crediti dell'unità se il programma li indica, altrimenti 1.
 - \"exam\": SOLO se il programma descrive una prova scritta (numero di domande, minuti, punteggi). Se non c'è, togli del tutto la chiave \"exam\": l'app non proporrà simulazioni. Valori per UNA materia.
 - \"sections\": le regole della prova che trovi nel testo; se non ce ne sono togli la chiave.
+- \"tools\" (facoltativo): id degli strumenti della materia. \"tavola-periodica\" è inclusa nell'app (materie di chimica); gli altri strumenti (tabelle, elenchi, calcolatori in content/tools/) si creano dopo con il loro prompt e si aggiungono qui. Se la materia non ne ha, togli la chiave. Nell'app stanno nel foglio «Strumenti» della materia.
+- \"official\" (facoltativo): SOLO se ti allego prove ufficiali degli anni passati (le loro domande avranno id <materia>-<tag>-…); nell'app si scelgono dentro Simulazione. Altrimenti togli la chiave.
 - \"icon\" e \"color\" (facoltativi): per ogni materia un simbolo adatto scelto SOLO da questo elenco: {icons}. Se nessuno va bene togli \"icon\" (l'app mostrerà le iniziali); non inventare nomi. \"color\": un colore #RRGGBB ben distinto da quello delle altre materie.
 
 PROGRAMMA: [allega o incolla qui il programma]",
@@ -326,6 +339,54 @@ MATERIALE: [allega il capitolo, gli appunti o le slide]"
     )
 }
 
+/// Prompt per uno strumento della materia (`content/tools/<id>.json`): griglia, elenco o
+/// calcolatore. Regole severe: l'app disegna solo questi tre tipi e scarta il resto.
+pub fn prompt_tool(what: &str, subjects: &str) -> String {
+    format!(
+        "Crea UNO strumento per l'app Tremendous Preparator: {what}
+
+Lo strumento è un file di DATI (niente codice, niente HTML, niente Slint): l'app sa disegnare solo tre tipi e scarta qualunque altra cosa. Scegli il tipo che serve davvero:
+- \"grid\": caselle in una griglia (tavola periodica, codice genetico, tabella di classificazione). Ogni casella ha una famiglia (colore e legenda) e una scheda di dettaglio.
+- \"list\": schede in sezioni con la ricerca (costanti, formule da ricordare, glossario, prefissi).
+- \"calc\": campi numerici e risultati calcolati con formule (leggi dei gas, diluizioni, pH, cinematica, conversioni).
+
+REGOLE SEVERE (un file che ne viola una viene rifiutato):
+1. Un solo blocco ```json con un solo oggetto; nient'altro dentro il blocco. Fuori dal blocco, al massimo «DUBBI:» con i punti incerti.
+2. Campi comuni: \"schema\": 1, \"id\" (solo minuscole, cifre e trattini, es. \"gas-perfetti\"), \"title\" (breve), \"subtitle\" (facoltativo, una riga), \"info\" (facoltativo: come si legge o si usa, 1-4 frasi), \"kind\".
+3. Nessun campo inventato: solo quelli scritti qui sotto. Testi in italiano corretto; simboli e unità in Unicode (m/s², H₃O⁺, 10⁻³), mai LaTeX né Markdown.
+4. Dati verificati: ogni valore, ogni formula e ogni classificazione deve essere quella dei libri di testo; se un dato è incerto non metterlo e scrivilo nei DUBBI.
+
+GRIGLIA (\"kind\": \"grid\"):
+{{ \"schema\": 1, \"id\": \"...\", \"title\": \"...\", \"kind\": \"grid\", \"columns\": 4, \"rows\": 3,
+  \"categories\": [ {{ \"name\": \"Famiglia\", \"color\": \"#RRGGBB\" }} ],
+  \"column_labels\": [\"...\"], \"row_labels\": [\"...\"],
+  \"cells\": [ {{ \"x\": 1, \"y\": 1, \"label\": \"Fe\", \"top\": \"26\", \"bottom\": \"55,8\", \"category\": \"Famiglia\",
+    \"title\": \"Ferro\", \"subtitle\": \"una riga\", \"details\": [ {{ \"label\": \"Sezione\" }}, {{ \"label\": \"Nome\", \"value\": \"valore\" }} ], \"text\": \"facoltativo\" }} ] }}
+- \"columns\" e \"rows\" da 1 a 40; \"x\" e \"y\" partono da 1 e stanno dentro la griglia; mai due caselle nella stessa posizione.
+- \"label\": 1-4 caratteri (è la scritta grande della casella); \"top\" e \"bottom\" brevissimi (un numero, una sigla).
+- \"category\": esattamente uno dei \"name\" di \"categories\"; da 2 a 10 famiglie con colori #RRGGBB ben distinti (l'app ne ricava le tinte chiare e scure).
+- Una riga lasciata vuota (senza caselle né etichetta) diventa uno spazio stretto: usala per separare i blocchi.
+- \"details\": righe nome-valore; una riga con il solo \"label\" fa da titoletto di sezione.
+- \"column_labels\"/\"row_labels\" facoltativi: uno per colonna/riga, nell'ordine (\"\" per lasciarne una senza).
+
+ELENCO (\"kind\": \"list\"):
+{{ \"schema\": 1, \"id\": \"...\", \"title\": \"...\", \"kind\": \"list\",
+  \"sections\": [ {{ \"title\": \"Sezione\", \"items\": [ {{ \"title\": \"Nome\", \"value\": \"valore in evidenza\", \"body\": \"spiegazione breve\" }} ] }} ] }}
+- \"value\" corto (un numero con l'unità, una formula breve); \"body\" 1-2 frasi. Almeno una voce.
+
+CALCOLATORE (\"kind\": \"calc\"):
+{{ \"schema\": 1, \"id\": \"...\", \"title\": \"...\", \"kind\": \"calc\",
+  \"inputs\": [ {{ \"id\": \"n\", \"label\": \"Moli\", \"unit\": \"mol\", \"default\": 1 }}, {{ \"id\": \"T\", \"label\": \"Temperatura\", \"unit\": \"K\", \"default\": 273.15 }}, {{ \"id\": \"V\", \"label\": \"Volume\", \"unit\": \"L\", \"default\": 22.4 }} ],
+  \"outputs\": [ {{ \"id\": \"P\", \"label\": \"Pressione\", \"unit\": \"atm\", \"formula\": \"n * 0.082057 * T / V\", \"digits\": 4 }} ] }}
+- Id dei campi e dei risultati: lettere, cifre e _, iniziale non numerica; mai \"e\" né \"pi\" (sono costanti).
+- \"formula\": SOLO numeri col punto decimale, gli id dei campi e dei risultati PRECEDENTI, + - * / ^ e parentesi, le costanti pi ed e, le funzioni sqrt ln log (base 10) log2 exp sin cos tan asin acos atan abs round min max pow. Argomenti separati da virgola. Niente altro: niente =, niente unità dentro la formula, niente if.
+- \"default\": un esempio realistico con cui tutte le formule danno un risultato sensato (nessuna divisione per zero); controllalo a mano.
+- Unità coerenti: converti dentro la formula (es. mL → L dividendo per 1000) e scrivi l'unità del risultato in \"unit\". \"digits\": cifre significative (2-6).
+
+{subjects}"
+    )
+}
+
 /// Prompt per far verificare un file di quiz da un'altra AI.
 pub fn prompt_review(json: &str) -> String {
     format!(
@@ -394,6 +455,10 @@ mod tests {
         assert!(to_file(FileKind::Chapter, &read_reply("solo testo"), "e").is_err());
         assert!(to_file(FileKind::Chapter, &read_reply("# 1 Capitolo\ntesto"), "e").is_ok());
         assert!(to_file(FileKind::Questions, &read_reply("non json"), "e").is_err());
+        // strumento: preso dal blocco, rifiutato se una formula non si calcola
+        let t = "Ecco:\n```json\n{\"id\":\"x\",\"title\":\"X\",\"kind\":\"calc\",\"inputs\":[{\"id\":\"a\",\"label\":\"A\",\"default\":2}],\"outputs\":[{\"label\":\"Doppio\",\"formula\":\"2*a\"}]}\n```\nDUBBI: nessuno";
+        assert!(to_file(FileKind::Tool, &read_reply(t), "e").unwrap().contains("\"Doppio\""));
+        assert!(to_file(FileKind::Tool, &read_reply(&t.replace("2*a", "2*b")), "e").is_err());
         assert_eq!(next_number(["cin-q001", "cin-q007", "altro-q050"].into_iter(), "cin", 'q'), 8);
         assert_eq!(next_number(std::iter::empty(), "cin", 'c'), 1);
         let svg = to_svg("Ecco:\n```svg\n<svg viewBox=\"0 0 4 3\"><line/></svg>\n```\nDUBBI: nessuno").unwrap();

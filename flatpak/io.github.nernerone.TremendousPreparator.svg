@@ -3,10 +3,12 @@
     <clipPath id="c"><rect x="12" y="12" width="84" height="84" rx="24" ry="24"/></clipPath>
   </defs>
   <g clip-path="url(#c)">
-    <rect x="0" y="0" width="108" height="108" fill="#0B57D0"/>
-    <circle cx="54" cy="54" r="46" fill="#1A73E8"/>
-    <circle cx="54" cy="54" r="32" fill="#4C8DF6"/>
-    <path fill="#F8FAFF" d="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74Z"/>
-    <path fill="#D3E3FD" d="M54,42C62,36.5 70.5,35.5 78,38L78,70C70.5,67.5 62,68.5 54,74Z"/>
+    <rect x="0" y="0" width="108" height="108" fill="#1A73E8"/>
+    <g transform="translate(54 54) scale(0.92) translate(-54 -54)">
+      <path fill="#F8FAFF" d="M54,40C45,34 35,33 27,36L27,74C35,71 45,72 54,78Z"/>
+      <path fill="#D3E3FD" d="M54,40C63,34 73,33 81,36L81,74C73,71 63,72 54,78Z"/>
+      <path fill="#F8FAFF" stroke="#0842A0" stroke-width="1" stroke-linejoin="round" d="M60,30h12v24l-6,-5l-6,5z"/>
+      <path fill="#0842A0" d="M60,30h4v4h-4zM68,30h4v4h-4zM64,34h4v4h-4zM60,38h4v4h-4zM68,38h4v4h-4zM64,42h4v4h-4zM60,46h4v4h-4zM68,46h4v4h-4z"/>
+    </g>
   </g>
 </svg>

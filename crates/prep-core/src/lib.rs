@@ -28,6 +28,7 @@ pub mod session;
 pub mod srs;
 pub mod store;
 pub mod sync;
+pub mod tools;
 pub mod vfs;
 
 pub use content::Content;

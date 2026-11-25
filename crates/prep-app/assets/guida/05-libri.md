@@ -16,7 +16,7 @@ I libri sono capitoli Markdown da leggere nell'app; le domande ci rimandano con 
 
 `topics` dice quali argomenti tratta il capitolo: serve ai rimandi delle domande che non hanno `ref`. Per rimandi più precisi aggiungi `"sections": [ { "section": "2.3", "topics": ["fis-u1-t2"] } ]`.
 
-Se aggiungi un capitolo `.md` da solo dalla pagina *Contenuti*, l'app lo mette nel libro «Materiale importato» della materia aperta in Studio.
+Se aggiungi un capitolo `.md` da solo dalla pagina *Gestisci contenuti*, l'app lo mette nel libro «Materiale importato» della materia aperta in Studio.
 
 ## 5.2 Scrivere un capitolo
 
@@ -51,4 +51,4 @@ $$
 - Il segnaposto di pagina riporta la pagina del libro originale: lo inserisce la conversione dai PDF e serve a `page` nei rimandi.
 - Riquadri: `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`, con un titolo facoltativo dopo.
 - Formule in LaTeX, tra un dollaro nel testo e tra due dollari su righe proprie per quelle grandi: l'app le mostra con simboli, apici e pedici.
-- Figure: `![didascalia]()` dove sta la figura. Salvando il capitolo l'app le dà un posto accanto al capitolo (`…/fig/<capitolo>-1.svg`, `-2.svg`, …): nel creatore ogni capitolo elenca le sue figure, da far ridisegnare all'AI e incollare; in alternativa da *Contenuti* si aggiunge un file `.svg` con lo stesso nome e va al suo posto. Solo SVG; finché manca l'immagine resta la didascalia.
+- Figure: `![didascalia]()` dove sta la figura. Salvando il capitolo l'app le dà un posto accanto al capitolo (`…/fig/<capitolo>-1.svg`, `-2.svg`, …): nel creatore ogni capitolo elenca le sue figure, da far ridisegnare all'AI e incollare; in alternativa da *Gestisci contenuti* si aggiunge un file `.svg` con lo stesso nome e va al suo posto. Solo SVG; finché manca l'immagine resta la didascalia.

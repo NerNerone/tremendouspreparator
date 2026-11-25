@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "id": "costanti",
+  "title": "Costanti e valori utili",
+  "subtitle": "Fisica e chimica, con le unità",
+  "kind": "list",
+  "info": "Cerca per nome, simbolo o unità. I valori sono arrotondati come nei libri di testo.",
+  "sections": [
+    {
+      "title": "Fisica",
+      "items": [
+        {
+          "title": "Accelerazione di gravità (g)",
+          "value": "9,81 m/s²",
+          "body": "Al livello del mare; nei problemi d'esame spesso si approssima a 10 m/s²."
+        },
+        {
+          "title": "Velocità della luce nel vuoto (c)",
+          "value": "3,00·10⁸ m/s"
+        },
+        {
+          "title": "Carica elementare (e)",
+          "value": "1,602·10⁻¹⁹ C"
+        },
+        {
+          "title": "Costante di Coulomb (k)",
+          "value": "8,99·10⁹ N·m²/C²",
+          "body": "k = 1/(4πε₀)."
+        },
+        {
+          "title": "Pressione atmosferica normale",
+          "value": "101 325 Pa",
+          "body": "1 atm = 760 mmHg = 1,013 bar."
+        }
+      ]
+    },
+    {
+      "title": "Chimica",
+      "items": [
+        {
+          "title": "Numero di Avogadro (Nₐ)",
+          "value": "6,022·10²³ mol⁻¹"
+        },
+        {
+          "title": "Costante dei gas (R)",
+          "value": "0,0821 L·atm/(mol·K)",
+          "body": "Oppure 8,314 J/(mol·K)."
+        },
+        {
+          "title": "Volume molare a STP",
+          "value": "22,4 L/mol",
+          "body": "0 °C e 1 atm."
+        },
+        {
+          "title": "Prodotto ionico dell'acqua (K𝓌)",
+          "value": "1,0·10⁻¹⁴",
+          "body": "A 25 °C: pH + pOH = 14."
+        }
+      ]
+    },
+    {
+      "title": "Conversioni",
+      "items": [
+        {
+          "title": "Zero assoluto",
+          "value": "−273,15 °C",
+          "body": "T(K) = T(°C) + 273,15."
+        },
+        {
+          "title": "Caloria",
+          "value": "4,186 J"
+        },
+        {
+          "title": "Elettronvolt",
+          "value": "1,602·10⁻¹⁹ J"
+        }
+      ]
+    }
+  ]
+}

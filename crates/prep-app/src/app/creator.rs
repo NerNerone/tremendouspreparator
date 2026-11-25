@@ -9,12 +9,15 @@ use prep_core::creator::{self, FileKind};
 
 /// Il quinto tipo di file del creatore: una figura SVG di un capitolo.
 const K_FIGURE: i32 = 4;
+/// Il sesto: uno strumento della materia (griglia, elenco, calcolatore).
+const K_TOOL: i32 = 5;
 
 fn kind_of(k: i32) -> FileKind {
     match k {
         0 => FileKind::Syllabus,
         1 => FileKind::Chapter,
         2 => FileKind::Questions,
+        K_TOOL => FileKind::Tool,
         _ => FileKind::Cards,
     }
 }
@@ -63,6 +66,7 @@ impl Ctrl {
                         Kind::Chapter => 1,
                         Kind::Questions => 2,
                         Kind::Cards => 3,
+                        Kind::Tool => K_TOOL,
                         _ => return None,
                     };
                     Some(CrFileVM { path: ss(&e.path), kind, title: ss(&e.name), info: ss(&e.info) })
@@ -110,6 +114,8 @@ impl Ctrl {
             (1, true) => "Nuovo capitolo".to_string(),
             (2, true) => "Nuovo file di quiz".to_string(),
             (3, true) => "Nuovo file di flashcard".to_string(),
+            (K_TOOL, true) => "Nuovo strumento".to_string(),
+            (K_TOOL, false) => format!("Strumento «{name}»"),
             (1, false) => format!("Capitolo «{name}»"),
             (2, false) => format!("Quiz «{name}»"),
             _ => format!("Flashcard «{name}»"),
@@ -212,6 +218,16 @@ impl Ctrl {
             }
             0 => creator::prompt_syllabus(&self.exams.active, &exam_name),
             1 => creator::prompt_chapter(&label),
+            K_TOOL => {
+                let what = if name.trim().is_empty() {
+                    "[descrivi lo strumento]".to_string()
+                } else {
+                    name.trim().to_string()
+                };
+                let subjects =
+                    syl.subjects.iter().map(|s| format!("- {} ({})", s.name, s.id)).collect::<Vec<_>>().join("\n");
+                creator::prompt_tool(&what, &format!("Materie del pacchetto (id):\n{subjects}"))
+            }
             2 if !path.is_empty() => creator::prompt_review(st.get_cr_text().as_str()),
             2 => {
                 let start = creator::next_number(self.content.questions.iter().map(|q| q.id.as_str()), &prefix, 'q');

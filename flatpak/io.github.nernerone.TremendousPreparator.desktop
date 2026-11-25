@@ -8,4 +8,4 @@ Icon=io.github.nernerone.TremendousPreparator
 Terminal=false
 Categories=Education;Science;
 Keywords=esami;quiz;flashcard;studio;università;
-StartupWMClass=tremendous-preparator
+StartupWMClass=io.github.nernerone.TremendousPreparator

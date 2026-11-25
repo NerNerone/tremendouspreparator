@@ -1,0 +1,551 @@
+// Strumento della materia: la tavola periodica inclusa e quelli dei pacchetti, tutti disegnati
+// da questa pagina. Tre tipi: griglia di caselle con famiglie e scheda di dettaglio, elenco con
+// ricerca, calcolatore con campi e risultati.
+import { M3, Icons, Type } from "../theme.slint";
+import { AppState, ToolCellVM } from "../state.slint";
+import { Page, Icon, IconButton, M3Button, Scroller, BigHeader, GroupLabel, OutlinedField } from "../components.slint";
+
+// colori di una famiglia (−1 o sconosciuta: neutri)
+global TlColor {
+    public pure function bg(c: int) -> color {
+        if (c < 0 || c >= AppState.tl-cats.length) {
+            return M3.surface-container-high;
+        }
+        return M3.dark ? AppState.tl-cats[c].bg-d : AppState.tl-cats[c].bg-l;
+    }
+    public pure function ac(c: int) -> color {
+        if (c < 0 || c >= AppState.tl-cats.length) {
+            return M3.primary;
+        }
+        return M3.dark ? AppState.tl-cats[c].ac-d : AppState.tl-cats[c].ac-l;
+    }
+}
+
+component TlProp inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    spacing: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    Text {
+        text: root.label;
+        width: 42%;
+        color: M3.on-surface-variant;
+        font-size: Type.label;
+        wrap: word-wrap;
+        vertical-alignment: top;
+    }
+    Text {
+        text: root.value;
+        horizontal-stretch: 1;
+        color: M3.on-surface;
+        font-size: Type.body;
+        font-weight: 500;
+        wrap: word-wrap;
+    }
+}
+
+// una casella della griglia (scritta grande che si rimpicciolisce se è lunga)
+component TlCell inherits Rectangle {
+    in property <ToolCellVM> c;
+    in property <float> k;
+    in property <bool> sel;
+    in property <bool> dim;
+    property <int> n: root.c.label.character-count;
+    border-radius: root.sel ? 12px : 7px;
+    background: TlColor.bg(root.c.cat);
+    border-width: root.sel ? 2px : 0px;
+    border-color: TlColor.ac(root.c.cat);
+    opacity: root.dim ? 0.22 : 1;
+    animate opacity, border-radius { duration: 160ms; }
+    if root.c.top != "": Text {
+        x: 3px;
+        y: 1px;
+        width: parent.width - 6px;
+        text: root.c.top;
+        font-size: 8px * root.k;
+        overflow: elide;
+        color: M3.on-surface.with-alpha(0.75);
+    }
+    Text {
+        x: 2px;
+        width: parent.width - 4px;
+        y: root.c.top != "" ? 9px * root.k : (parent.height - self.height) / 2 - (root.c.bottom != "" ? 4px * root.k : 0px);
+        text: root.c.label;
+        horizontal-alignment: center;
+        overflow: elide;
+        font-size: (root.n <= 2 ? 16px : root.n == 3 ? 13px : root.n <= 5 ? 10px : 8px) * root.k;
+        font-weight: 800;
+        color: TlColor.ac(root.c.cat);
+    }
+    if root.c.bottom != "": Text {
+        x: 2px;
+        y: parent.height - self.height - 2px;
+        width: parent.width - 4px;
+        text: root.c.bottom;
+        horizontal-alignment: center;
+        overflow: elide;
+        font-size: 7px * root.k;
+        color: M3.on-surface.with-alpha(0.75);
+    }
+}
+
+// griglia: legenda delle famiglie (tocca per evidenziarne una) e caselle; l'unica area che
+// scorre, in orizzontale e in verticale
+component GridView inherits VerticalLayout {
+    property <length> gap: 3px;
+    property <length> lab: AppState.tl-row-labels.length > 0 ? AppState.tl-lab-w * 1px : 0px;
+    property <length> head: AppState.tl-col-labels.length > 0 ? 24px : 4px;
+    property <length> cell: max(46px, min(AppState.tl-cols <= 8 ? 96px : 68px, (root.width - root.lab - 16px) / AppState.tl-cols - root.gap));
+    property <float> k: root.cell / 46px;
+    property <length> table-w: root.lab + AppState.tl-cols * (root.cell + root.gap) + 16px;
+    property <length> table-h: root.head + AppState.tl-rows-h * (root.cell + root.gap) + 16px;
+    if AppState.tl-cats.length > 0: Flickable {
+        height: 48px;
+        interactive: true;
+        content-width: max(self.width, legend.preferred-width);
+        content-height: 48px;
+        legend := HorizontalLayout {
+            x: 0px;
+            y: 0px;
+            height: 48px;
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            spacing: 6px;
+            alignment: start;
+            for c[i] in AppState.tl-cats: Rectangle {
+                width: lt.preferred-width + 24px;
+                border-radius: 16px;
+                background: AppState.tl-filter == i ? TlColor.ac(i) : TlColor.bg(i);
+                animate background { duration: 160ms; }
+                lt := Text {
+                    text: c.name;
+                    font-size: Type.label;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                    color: AppState.tl-filter == i ? M3.surface : M3.on-surface;
+                }
+                TouchArea {
+                    clicked => {
+                        AppState.tl-filter = AppState.tl-filter == i ? -1 : i;
+                    }
+                }
+            }
+        }
+    }
+    Flickable {
+        vertical-stretch: 1;
+        interactive: true;
+        content-width: max(self.width, root.table-w);
+        content-height: max(self.height, root.table-h);
+        Rectangle {
+            x: max(0px, (parent.width - root.table-w) / 2);
+            y: 0px;
+            width: root.table-w;
+            height: root.table-h;
+            // disegnata una volta come immagine e poi solo spostata (centinaia di caselle)
+            cache-rendering-hint: true;
+            for t[g] in AppState.tl-col-labels: Text {
+                x: 8px + root.lab + g * (root.cell + root.gap);
+                y: 2px;
+                width: root.cell;
+                height: root.head - 4px;
+                text: t;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                overflow: elide;
+                font-size: Type.label;
+                font-weight: 700;
+                color: M3.on-surface-variant;
+            }
+            for r in AppState.tl-row-labels: Text {
+                x: 4px;
+                y: root.head + r.pos * (root.cell + root.gap);
+                width: root.lab + r.span * (root.cell + root.gap);
+                height: root.cell;
+                text: r.text;
+                horizontal-alignment: r.span > 0 ? right : center;
+                vertical-alignment: center;
+                overflow: elide;
+                font-size: r.span > 0 ? 10px : Type.label;
+                font-weight: r.span > 0 ? 400 : 700;
+                color: M3.on-surface-variant;
+            }
+            for c[i] in AppState.tl-cells: TlCell {
+                x: 8px + root.lab + (c.x - 1) * (root.cell + root.gap);
+                y: root.head + AppState.tl-row-pos[c.y - 1] * (root.cell + root.gap);
+                width: root.cell;
+                height: root.cell;
+                c: c;
+                k: root.k;
+                sel: AppState.tl-sel == i;
+                dim: AppState.tl-filter >= 0 && AppState.tl-filter != c.cat;
+                TouchArea {
+                    clicked => {
+                        AppState.tl-select(i);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// elenco con la ricerca
+component ListView inherits VerticalLayout {
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: 8px;
+        OutlinedField {
+            label: "Cerca";
+            placeholder: "Nome, valore o parola";
+            pencil: false;
+            text: AppState.tl-query;
+            edited(t) => {
+                AppState.tl-search(t);
+            }
+        }
+    }
+    Scroller {
+        vertical-stretch: 1;
+        align: start;
+        pad: 16px;
+        pad-top: 4px;
+        gap: 3px;
+        for r in AppState.tl-rows: VerticalLayout {
+            if r.head: VerticalLayout {
+                padding-top: 14px;
+                padding-bottom: 6px;
+                padding-left: 4px;
+                GroupLabel {
+                    text: r.title;
+                }
+            }
+            if !r.head: Rectangle {
+                background: M3.surface-container;
+                border-top-left-radius: r.first ? 20px : 6px;
+                border-top-right-radius: r.first ? 20px : 6px;
+                border-bottom-left-radius: r.last ? 20px : 6px;
+                border-bottom-right-radius: r.last ? 20px : 6px;
+                min-height: it.preferred-height;
+                it := VerticalLayout {
+                    padding: 14px;
+                    padding-left: 16px;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            horizontal-stretch: 1;
+                            text: r.title;
+                            font-size: 16px;
+                            font-weight: 600;
+                            color: M3.on-surface;
+                            wrap: word-wrap;
+                        }
+                        if r.value != "": Text {
+                            max-width: it.width * 0.55;
+                            text: r.value;
+                            font-size: 15px;
+                            font-weight: 800;
+                            color: M3.primary;
+                            horizontal-alignment: right;
+                            wrap: word-wrap;
+                        }
+                    }
+                    if r.body != "": Text {
+                        text: r.body;
+                        font-size: 13px;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+        if AppState.tl-rows.length == 0: Text {
+            text: "Niente che corrisponda a «" + AppState.tl-query + "».";
+            color: M3.on-surface-variant;
+            wrap: word-wrap;
+        }
+    }
+}
+
+// calcolatore: risultati in alto (restano visibili con la tastiera aperta), poi i campi
+component CalcView inherits Scroller {
+    align: start;
+    pad: 16px;
+    pad-top: 4px;
+    gap: 12px;
+    Rectangle {
+        border-radius: 28px;
+        background: M3.primary-container;
+        min-height: res.preferred-height;
+        res := VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            for o in AppState.tl-outputs: VerticalLayout {
+                spacing: 2px;
+                Text {
+                    text: o.label;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: M3.on-primary-container.with-alpha(0.8);
+                    wrap: word-wrap;
+                }
+                if o.ok: HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Text {
+                        text: o.value;
+                        font-size: 32px;
+                        font-weight: 900;
+                        color: M3.on-primary-container;
+                    }
+                    if o.unit != "": Text {
+                        text: o.unit;
+                        font-size: 16px;
+                        font-weight: 600;
+                        vertical-alignment: bottom;
+                        color: M3.on-primary-container.with-alpha(0.8);
+                    }
+                }
+                if !o.ok: Text {
+                    text: o.value;
+                    font-size: 14px;
+                    color: M3.error;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+    GroupLabel {
+        text: "Dati";
+    }
+    for f[i] in AppState.tl-inputs: OutlinedField {
+        label: f.unit != "" ? f.label + " (" + f.unit + ")" : f.label;
+        text: f.text;
+        pencil: false;
+        decimal: true;
+        edited(t) => {
+            AppState.tl-input(i, t);
+        }
+    }
+    Text {
+        text: "Puoi scrivere anche un calcolo, per esempio 2*3,5 o 6,02e23.";
+        font-size: 12px;
+        color: M3.on-surface-variant;
+        wrap: word-wrap;
+    }
+}
+
+export component ToolPage inherits Page {
+    // foglio dal basso: scheda della casella (tl-sel ≥ 0) o «come si usa» (−2)
+    property <float> sheet: AppState.tl-sel != -1 ? 1 : 0;
+    animate sheet {
+        duration: 320ms;
+        easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+    }
+    VerticalLayout {
+        HorizontalLayout {
+            padding-right: 4px;
+            BigHeader {
+                horizontal-stretch: 1;
+                title: AppState.tl-title;
+                subtitle: AppState.tl-subtitle != "" ? AppState.tl-subtitle : AppState.tl-kind == 0 ? "Tocca una casella per i dettagli" : "";
+                back => {
+                    AppState.back();
+                }
+            }
+            if AppState.tl-kind == 2: VerticalLayout {
+                alignment: center;
+                IconButton {
+                    icon: Icons.history;
+                    clicked => {
+                        AppState.tl-reset();
+                    }
+                }
+            }
+            if AppState.tl-info != "": VerticalLayout {
+                alignment: center;
+                IconButton {
+                    icon: Icons.info;
+                    filled: AppState.tl-sel == -2;
+                    clicked => {
+                        AppState.tl-sel = AppState.tl-sel == -2 ? -1 : -2;
+                    }
+                }
+            }
+        }
+        if AppState.tl-kind == 0: GridView {
+            vertical-stretch: 1;
+        }
+        if AppState.tl-kind == 1: ListView {
+            vertical-stretch: 1;
+        }
+        if AppState.tl-kind == 2: CalcView {
+            vertical-stretch: 1;
+        }
+    }
+
+    // velo: toccandolo il foglio si chiude
+    if root.sheet > 0.01: Rectangle {
+        background: M3.scrim.with-alpha(0.45 * root.sheet);
+        TouchArea {
+            clicked => {
+                AppState.tl-sel = -1;
+            }
+        }
+    }
+
+    Rectangle {
+        visible: root.sheet > 0.01;
+        width: min(root.width, 640px);
+        x: (root.width - self.width) / 2;
+        height: min(root.height * 0.82, 640px);
+        y: root.height - self.height * root.sheet;
+        border-top-left-radius: 28px;
+        border-top-right-radius: 28px;
+        background: M3.surface-container-low;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #0005;
+        TouchArea { }
+        SwipeGestureHandler {
+            y: 0px;
+            height: 36px;
+            handle-swipe-down: true;
+            swiped => {
+                if (self.current-position.y - self.pressed-position.y > 40px) {
+                    AppState.tl-sel = -1;
+                }
+            }
+            Rectangle {
+                y: 12px;
+                width: 36px;
+                height: 4px;
+                border-radius: 2px;
+                background: M3.on-surface-variant.with-alpha(0.4);
+            }
+        }
+        IconButton {
+            x: parent.width - self.width - 8px;
+            y: 6px;
+            icon: Icons.close;
+            clicked => {
+                AppState.tl-sel = -1;
+            }
+        }
+        if AppState.tl-sel == -2: Scroller {
+            y: 40px;
+            height: parent.height - 40px;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 10px;
+            Text {
+                text: "Come si usa";
+                font-size: Type.title;
+                font-weight: 700;
+                color: M3.on-surface;
+            }
+            Text {
+                text: AppState.tl-info;
+                wrap: word-wrap;
+                color: M3.on-surface-variant;
+                font-size: Type.body;
+            }
+        }
+        if AppState.tl-sel >= 0: Scroller {
+            y: 40px;
+            height: parent.height - 40px;
+            pad: 16px;
+            pad-top: 4px;
+            gap: 6px;
+            HorizontalLayout {
+                spacing: 14px;
+                padding-bottom: 8px;
+                Rectangle {
+                    width: 92px;
+                    height: 92px;
+                    border-radius: 18px;
+                    background: TlColor.bg(AppState.tl-d-cell.cat);
+                    Text {
+                        x: 8px;
+                        y: 6px;
+                        text: AppState.tl-d-cell.top;
+                        font-size: Type.label;
+                        color: M3.on-surface;
+                    }
+                    Text {
+                        x: 4px;
+                        width: parent.width - 8px;
+                        horizontal-alignment: center;
+                        overflow: elide;
+                        text: AppState.tl-d-cell.label;
+                        font-size: AppState.tl-d-cell.label.character-count <= 2 ? 38px : AppState.tl-d-cell.label.character-count <= 4 ? 24px : 16px;
+                        font-weight: 800;
+                        color: TlColor.ac(AppState.tl-d-cell.cat);
+                    }
+                    Text {
+                        y: parent.height - self.height - 6px;
+                        width: parent.width;
+                        horizontal-alignment: center;
+                        text: AppState.tl-d-cell.bottom;
+                        font-size: 10px;
+                        color: M3.on-surface;
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: AppState.tl-d-title;
+                        font-size: Type.title-large;
+                        font-weight: 700;
+                        color: M3.on-surface;
+                        wrap: word-wrap;
+                    }
+                    if AppState.tl-d-cell.cat >= 0 && AppState.tl-d-cell.cat < AppState.tl-cats.length: Text {
+                        text: AppState.tl-cats[AppState.tl-d-cell.cat].name;
+                        font-size: Type.body;
+                        font-weight: 600;
+                        color: TlColor.ac(AppState.tl-d-cell.cat);
+                        wrap: word-wrap;
+                    }
+                    if AppState.tl-d-sub != "": Text {
+                        text: AppState.tl-d-sub;
+                        font-size: Type.label;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            for f in AppState.tl-d-fields: VerticalLayout {
+                if f.value == "": VerticalLayout {
+                    padding-top: 10px;
+                    spacing: 2px;
+                    Text {
+                        text: f.label;
+                        font-size: Type.label;
+                        font-weight: 700;
+                        color: TlColor.ac(AppState.tl-d-cell.cat);
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: M3.outline-variant;
+                    }
+                }
+                if f.value != "": TlProp {
+                    label: f.label;
+                    value: f.value;
+                }
+            }
+            if AppState.tl-d-text != "": Text {
+                text: AppState.tl-d-text;
+                wrap: word-wrap;
+                font-size: Type.body;
+                color: M3.on-surface;
+            }
+        }
+    }
+}

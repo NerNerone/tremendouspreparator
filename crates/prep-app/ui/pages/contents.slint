@@ -1,7 +1,7 @@
 // Traguardo: «Gestisci contenuti». I file dell'esame uno per uno, con filtri e scelta multipla:
 // aggiungere, togliere, esportare; sotto, gli strumenti per crearne di nuovi.
 import { M3, Icons, Type } from "../theme.slint";
-import { AppState, ContentFileVM } from "../state.slint";
+import { AppState, ContentFileVM, ToolItemVM } from "../state.slint";
 import { Page, Icon, IconButton, M3Button, Scroller, VIcon, LlmCopy, CheckBox, GroupLabel, GRow } from "../components.slint";
 
 // filtro in alto: pillola con contorno, piena se scelta
@@ -41,6 +41,177 @@ component FilterChip inherits Rectangle {
     TouchArea {
         clicked => {
             root.clicked();
+        }
+    }
+}
+
+// uno strumento del pacchetto: si apre col tocco, ⋮ per condividerlo, copiarlo o toglierlo
+component ToolRow inherits Rectangle {
+    in property <ToolItemVM> t;
+    in property <bool> menu: true;
+    callback clicked;
+    border-top-left-radius: root.t.first ? 24px : 6px;
+    border-top-right-radius: root.t.first ? 24px : 6px;
+    border-bottom-left-radius: root.t.last ? 24px : 6px;
+    border-bottom-right-radius: root.t.last ? 24px : 6px;
+    background: ta.pressed ? M3.surface-container-high : M3.surface-container;
+    min-height: max(64px, row.preferred-height);
+    ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+    row := HorizontalLayout {
+        padding: 12px;
+        padding-left: 16px;
+        padding-right: 4px;
+        spacing: 14px;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+                background: M3.tertiary-container;
+                Icon {
+                    x: 9px;
+                    y: 9px;
+                    width: 22px;
+                    height: 22px;
+                    source: root.t.kind == 1 ? Icons.toc : root.t.kind == 2 ? Icons.calculate : Icons.apps;
+                    tint: M3.on-tertiary-container;
+                }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 1px;
+            Text {
+                text: root.t.title;
+                font-size: 16px;
+                color: M3.on-surface;
+                wrap: word-wrap;
+            }
+            if root.t.info != "": Text {
+                text: root.t.info;
+                font-size: 12px;
+                color: M3.on-surface-variant;
+                wrap: word-wrap;
+            }
+        }
+        if root.menu: VerticalLayout {
+            alignment: center;
+            IconButton {
+                icon: Icons.more-vert;
+                tint: M3.on-surface-variant;
+                clicked => {
+                    AppState.ct-tool-menu(root.t.id);
+                }
+            }
+        }
+    }
+}
+
+// riga d'azione del foglio (icona, testo)
+component SheetAction inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    in property <color> tint: M3.on-surface;
+    callback clicked;
+    height: 52px;
+    border-radius: 16px;
+    background: sa.pressed ? M3.surface-container-high : transparent;
+    sa := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+    HorizontalLayout {
+        padding-left: 12px;
+        spacing: 16px;
+        VerticalLayout {
+            alignment: center;
+            Icon {
+                width: 22px;
+                height: 22px;
+                source: root.icon;
+                tint: root.tint;
+            }
+        }
+        Text {
+            text: root.text;
+            font-size: 16px;
+            color: root.tint;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// un esame in cui copiare lo strumento
+component DestRow inherits Rectangle {
+    in property <string> name;
+    in property <string> info;
+    callback clicked;
+    height: 56px;
+    border-radius: 16px;
+    background: dr.pressed ? M3.surface-container-high : transparent;
+    dr := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 14px;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 36px;
+                height: 36px;
+                border-radius: 18px;
+                background: M3.secondary-container;
+                Text {
+                    text: root.name.character-count > 0 ? root.name : "?";
+                    width: 30px;
+                    overflow: clip;
+                    horizontal-alignment: center;
+                    font-size: 0px;
+                }
+                Icon {
+                    x: 8px;
+                    y: 8px;
+                    width: 20px;
+                    height: 20px;
+                    source: Icons.inventory-2;
+                    tint: M3.on-secondary-container;
+                }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.name;
+                font-size: 16px;
+                color: M3.on-surface;
+                overflow: elide;
+            }
+            if root.info != "": Text {
+                text: root.info;
+                font-size: 12px;
+                color: M3.on-surface-variant;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Icon {
+                width: 20px;
+                height: 20px;
+                source: Icons.chevron;
+                tint: M3.on-surface-variant;
+            }
         }
     }
 }
@@ -202,6 +373,14 @@ export component ContentsPage inherits Page {
                         AppState.contents-filter(4);
                     }
                 }
+                FilterChip {
+                    text: "Strumenti";
+                    icon: Icons.build;
+                    on: AppState.contents-filter-n == 5;
+                    clicked => {
+                        AppState.contents-filter(5);
+                    }
+                }
             }
         }
 
@@ -222,6 +401,48 @@ export component ContentsPage inherits Page {
                     color: M3.primary;
                 }
 
+                // strumenti del pacchetto: sezione a sé (in «Tutti» e in «Strumenti»)
+                if AppState.contents-filter-n == 0 || AppState.contents-filter-n == 5: VerticalLayout {
+                    spacing: 3px;
+                    padding-bottom: 10px;
+                    GroupLabel {
+                        text: "Strumenti del pacchetto";
+                    }
+                    Text {
+                        text: "Pagine da consultare mentre studi (tabelle, elenchi, calcolatori). Prendine uno da un altro pacchetto o condividilo da solo.";
+                        font-size: 13px;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                    Rectangle {
+                        height: 6px;
+                    }
+                    for t in AppState.ct-tools: ToolRow {
+                        t: t;
+                        clicked => {
+                            AppState.open-tool(t.id);
+                        }
+                    }
+                    Rectangle {
+                        height: AppState.ct-tools.length > 0 ? 6px : 0px;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        M3Button {
+                            text: "Aggiungi strumento";
+                            kind: 2;
+                            has-icon: true;
+                            icon: Icons.add;
+                            clicked => {
+                                AppState.ct-tools-add-open();
+                            }
+                        }
+                    }
+                }
+                if AppState.contents-filter-n == 0: GroupLabel {
+                    text: "File";
+                }
+
                 VerticalLayout {
                     spacing: 3px;
                     for f in AppState.content-files: FileRow {
@@ -238,7 +459,7 @@ export component ContentsPage inherits Page {
                         }
                     }
                 }
-                if AppState.content-files.length == 0: Text {
+                if AppState.content-files.length == 0 && AppState.contents-filter-n != 5: Text {
                     text: AppState.contents-filter-n == 0 ? "Nessun contenuto: importa un pacchetto o aggiungi i file uno alla volta con «+»." : "Nessun file di questo tipo.";
                     wrap: word-wrap;
                     color: M3.on-surface-variant;
@@ -394,6 +615,141 @@ export component ContentsPage inherits Page {
                             clicked => {
                                 AppState.contents-remove-selected();
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // foglio degli strumenti: aggiungi (1), azioni su uno (2), in quale pacchetto (3)
+    property <float> sheet: AppState.ct-sheet != 0 ? 1 : 0;
+    animate sheet {
+        duration: 280ms;
+        easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+    }
+    if root.sheet > 0.01: Rectangle {
+        background: M3.scrim.with-alpha(0.5 * root.sheet);
+        TouchArea {
+            clicked => {
+                AppState.ct-sheet = 0;
+            }
+        }
+    }
+    Rectangle {
+        visible: root.sheet > 0.01;
+        width: min(root.width, 640px);
+        x: (root.width - self.width) / 2;
+        height: min(sl.preferred-height + 8px, root.height * 0.85);
+        y: root.height - self.height * root.sheet;
+        border-top-left-radius: 28px;
+        border-top-right-radius: 28px;
+        background: M3.surface-container-low;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #0005;
+        TouchArea { }
+        Flickable {
+            interactive: true;
+            viewport-height: max(self.height, sl.preferred-height);
+            sl := VerticalLayout {
+                padding: 16px;
+                padding-top: 10px;
+                padding-bottom: 24px;
+                spacing: 3px;
+                HorizontalLayout {
+                    alignment: center;
+                    padding-bottom: 10px;
+                    Rectangle {
+                        width: 32px;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: M3.outline-variant;
+                    }
+                }
+                Text {
+                    text: AppState.ct-sheet == 1 ? "Aggiungi uno strumento" : AppState.ct-sheet == 3 ? "Strumento ricevuto" : AppState.ct-tool.title;
+                    font-size: 22px;
+                    font-weight: 800;
+                    color: M3.on-surface;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: AppState.ct-sheet == 1 ? "Si copia in «" + AppState.exam-name + "»: da lì segue il pacchetto (esportazione, sincronizzazione)." : AppState.ct-sheet == 3 ? "«" + AppState.ct-tool.title + "» (" + AppState.ct-tool.info + "). In quale pacchetto lo metti?" : AppState.ct-tool.info;
+                    font-size: 13px;
+                    color: M3.on-surface-variant;
+                    wrap: word-wrap;
+                }
+                Rectangle {
+                    height: 10px;
+                }
+                if AppState.ct-sheet == 1: VerticalLayout {
+                    spacing: 3px;
+                    for t in AppState.ct-tool-src: VerticalLayout {
+                        spacing: 3px;
+                        if t.head: Text {
+                            text: t.pkg-name;
+                            font-size: 13px;
+                            font-weight: 800;
+                            color: M3.primary;
+                            height: 28px;
+                            vertical-alignment: bottom;
+                        }
+                        ToolRow {
+                            t: t;
+                            menu: false;
+                            clicked => {
+                                AppState.ct-tool-add(t.pkg, t.id);
+                            }
+                        }
+                    }
+                    if AppState.ct-tool-src.length == 0: Text {
+                        text: "Nessuno strumento da aggiungere: gli altri pacchetti non ne hanno e quelli inclusi nell'app sono già qui.";
+                        font-size: 14px;
+                        color: M3.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                }
+                if AppState.ct-sheet == 2: VerticalLayout {
+                    spacing: 2px;
+                    SheetAction {
+                        icon: Icons.play-arrow;
+                        text: "Apri";
+                        clicked => {
+                            AppState.ct-sheet = 0;
+                            AppState.open-tool(AppState.ct-tool.id);
+                        }
+                    }
+                    SheetAction {
+                        icon: Icons.share;
+                        text: "Condividi solo questo strumento";
+                        clicked => {
+                            AppState.ct-tool-share();
+                        }
+                    }
+                    if !AppState.ct-tool.builtin: SheetAction {
+                        icon: Icons.remove;
+                        text: "Togli da questo pacchetto";
+                        tint: M3.error;
+                        clicked => {
+                            AppState.ct-tool-remove();
+                        }
+                    }
+                    if AppState.ct-dests.length > 0: Text {
+                        text: "Copia in un altro pacchetto";
+                        font-size: 13px;
+                        font-weight: 800;
+                        color: M3.primary;
+                        height: 36px;
+                        vertical-alignment: bottom;
+                    }
+                }
+                if AppState.ct-sheet == 2 || AppState.ct-sheet == 3: VerticalLayout {
+                    spacing: 2px;
+                    for d in AppState.ct-dests: DestRow {
+                        name: d.name;
+                        info: d.info;
+                        clicked => {
+                            AppState.ct-tool-copy(d.id);
                         }
                     }
                 }

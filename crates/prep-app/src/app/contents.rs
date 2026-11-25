@@ -19,14 +19,18 @@ impl Ctrl {
         let all = contents::list(&self.store);
         // file scelti che non ci sono più (tolti o sostituiti)
         self.ct_sel.retain(|p| all.iter().any(|e| e.path == *p));
+        self.refresh_ct_tools();
         let f = self.ct_filter;
+        // gli strumenti hanno la loro sezione
         let shown: Vec<_> = all
             .into_iter()
+            .filter(|e| e.kind != Kind::Tool)
             .filter(|e| match f {
                 1 => e.kind == Kind::Questions,
                 2 => e.kind == Kind::Cards,
                 3 => matches!(e.kind, Kind::Books | Kind::Chapter | Kind::Figure),
                 4 => matches!(e.kind, Kind::Exam | Kind::Pack),
+                5 => false,
                 _ => true,
             })
             .collect();
@@ -71,7 +75,7 @@ impl Ctrl {
     }
 
     pub(super) fn contents_filter(&mut self, k: i32) {
-        self.ct_filter = k.clamp(0, 4);
+        self.ct_filter = k.clamp(0, 5);
         self.ct_limit = CT_PAGE;
         self.refresh_contents();
     }
@@ -190,6 +194,10 @@ impl Ctrl {
             }
             return;
         }
+        // uno strumento da solo: con più pacchetti si sceglie dove metterlo
+        if contents::classify(&name, &bytes) == Ok(Kind::Tool) && self.receive_tool(bytes.clone()) {
+            return;
+        }
         let subject = self.ui().global::<AppState>().get_current_subject().to_string();
         match contents::add_file(&self.store, &name, &bytes, &subject) {
             Ok(a) => {
@@ -237,21 +245,27 @@ impl Ctrl {
             }
         };
         let name = format!("{}.json.gz", prep_core::exams::slug(&self.exams.active));
+        self.deliver_file(&name, &bytes);
+    }
+
+    /// Un file da condividere: su Android si sceglie dove salvarlo, sul web si scarica, sul
+    /// computer va in Download.
+    pub(super) fn deliver_file(&mut self, name: &str, bytes: &[u8]) {
         #[cfg(target_os = "android")]
         {
-            let p = self.store.base.join("export").join(&name);
+            let p = self.store.base.join("export").join(name);
             let _ = vfs::create_dir_all(&self.store.base.join("export"));
-            match vfs::write(&p, &bytes).map_err(|e| e.to_string()).and_then(|_| crate::android_save_file(&p, &name)) {
+            match vfs::write(&p, bytes).map_err(|e| e.to_string()).and_then(|_| crate::android_save_file(&p, name)) {
                 Ok(()) => {}
                 Err(e) => self.toast(format!("Esportazione non riuscita: {e}")),
             }
         }
         #[cfg(target_arch = "wasm32")]
-        crate::web::download_file(&name, &bytes);
+        crate::web::download_file(name, bytes);
         #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-        match crate::desktop_files::save_to_downloads(&name, &bytes) {
+        match crate::desktop_files::save_to_downloads(name, bytes) {
             Ok(p) => {
-                let msg = format!("Pacchetto salvato in {}", p.display());
+                let msg = format!("Salvato in {}", p.display());
                 self.ui().global::<AppState>().set_contents_status(ss(&msg));
                 self.toast(msg);
             }

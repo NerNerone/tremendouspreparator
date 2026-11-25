@@ -73,9 +73,19 @@ pub fn maybe_run(ui: &AppWindow) {
                 "scroll" => st.set_home_scroll(-(arg.parse::<f32>().unwrap_or(0.0))),
                 "settings" => st.invoke_open_settings(),
                 "settingssec" => st.set_settings_sec(arg.parse().unwrap_or(-1)),
-                "periodic" => st.invoke_open_periodic(),
-                "pt" => st.invoke_pt_select(arg.parse().unwrap_or(1)),
-                "ptfilter" => st.set_pt_filter(arg.parse().unwrap_or(-1)),
+                // strumenti: tool:id (apre), tlsel:n (casella), tlfilter:n (famiglia), tlq:testo
+                // (ricerca), tlin:i=valore (campo del calcolatore), cttools (foglio «Aggiungi»)
+                "periodic" => st.invoke_open_tool("tavola-periodica".into()),
+                "tool" => st.invoke_open_tool(arg.into()),
+                "pt" | "tlsel" => st.invoke_tl_select(arg.parse().unwrap_or(0)),
+                "ptfilter" | "tlfilter" => st.set_tl_filter(arg.parse().unwrap_or(-1)),
+                "tlq" => st.invoke_tl_search(arg.into()),
+                "tlin" => {
+                    let (i, v) = arg.split_once('=').unwrap_or(("0", ""));
+                    st.invoke_tl_input(i.parse().unwrap_or(0), v.into())
+                }
+                "cttools" => st.invoke_ct_tools_add_open(),
+                "cttool" => st.invoke_ct_tool_menu(arg.into()),
                 "link" => st.invoke_open_subject_link(arg.parse().unwrap_or(0)),
                 "fbpage" => st.invoke_open_feedback(),
                 "wait" => {}

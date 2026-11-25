@@ -1,7 +1,7 @@
 import { LineEdit, TextEdit, Switch } from "std-widgets.slint";
 import { M3, Icons, Type } from "../theme.slint";
 import { AppState, CrFileVM, CrUnitVM, CrFigVM } from "../state.slint";
-import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip, IconButton, VIcon, LlmCopy, BigHeader, OutlinedField, Icon } from "../components.slint";
+import { Page, M3Button, Hint, TopBar, Scroller, Card, Chip, IconButton, VIcon, LlmCopy, BigHeader, OutlinedField, Icon, GItem, GRow, GroupLabel } from "../components.slint";
 
 // una riga del creatore: un file dell'esame, da aprire per rifarlo o correggerlo
 component CrRow inherits Rectangle {
@@ -297,6 +297,13 @@ export component CreatorPage inherits Page {
                 add: "Aggiungi flashcard";
                 enabled: AppState.cr-has-syllabus;
             }
+            if AppState.cr-has-exam && !AppState.cr-new: CrGroup {
+                kind: 5;
+                title: "5 · Strumenti (facoltativi)";
+                help: "Tabelle interattive, elenchi da cercare e calcolatori da consultare mentre studi. Scrivi cosa ti serve (es. «calcolatore delle diluizioni»): il prompt ha regole severe sul formato.";
+                add: "Aggiungi strumento";
+                enabled: AppState.cr-has-syllabus;
+            }
             if AppState.cr-has-exam && !AppState.cr-new: Card {
                 VerticalLayout {
                     padding: 14px;
@@ -336,15 +343,38 @@ export component CreatorPage inherits Page {
         }
     }
 
-    // editor di un file: prompt da copiare, risposta da incollare
+    // editor di un file (Traguardo): tre passi in colonna, come il percorso della pagina sotto.
+    // 1 imposta (nome, quante, argomenti), 2 copia il prompt, 3 incolla la risposta e salva
+    property <bool> setup: (AppState.cr-kind != 0 && AppState.cr-path == "") || ((AppState.cr-kind == 2 || AppState.cr-kind == 3) && AppState.cr-path == "");
+    property <int> base: root.setup ? 1 : 0;
+    property <bool> named: AppState.cr-kind == 0 || AppState.cr-kind == 4 || AppState.cr-path != "" || AppState.cr-name != "";
+    property <string> unit-label: "Tutti gli argomenti";
+    in-out property <bool> units-open;
+    // ogni file si apre con «tutti gli argomenti» (cr-unit torna vuoto)
+    property <bool> opened: AppState.cr-open;
+    changed opened => {
+        root.unit-label = "Tutti gli argomenti";
+        root.units-open = false;
+    }
     if AppState.cr-open: Rectangle {
         background: M3.surface;
         TouchArea { }
+        // testo del prompt, nascosto: serve solo a copiarlo
+        pbuf := TextInput {
+            x: 0px;
+            y: 0px;
+            width: 0px;
+            height: 0px;
+            text: AppState.cr-prompt;
+            read-only: true;
+            single-line: false;
+            enabled: false;
+            opacity: 0;
+        }
         VerticalLayout {
-            TopBar {
+            BigHeader {
                 title: AppState.cr-title;
-                subtitle: AppState.cr-path != "" ? AppState.cr-path : "Nuovo file";
-                can-back: true;
+                subtitle: AppState.cr-path != "" ? AppState.cr-path : AppState.cr-exam != "" ? "Nuovo file · " + AppState.cr-exam : "Nuovo file";
                 back => {
                     AppState.cr-close();
                 }
@@ -353,94 +383,109 @@ export component CreatorPage inherits Page {
                 vertical-stretch: 1;
                 pad: 16px;
                 pad-top: 4px;
-                gap: 10px;
-                if AppState.cr-kind != 0 && AppState.cr-path == "": VerticalLayout {
-                    spacing: 4px;
-                    Text {
-                        text: "Nome del file";
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    LineEdit {
-                        text <=> AppState.cr-name;
-                        placeholder-text: AppState.cr-kind == 1 ? "es. 2 Cinematica" : "es. Cinematica";
-                        edited => {
-                            AppState.cr-refresh-prompt();
-                        }
-                    }
-                }
-                // quanti e su quali argomenti (quiz e flashcard nuovi)
-                if (AppState.cr-kind == 2 || AppState.cr-kind == 3) && AppState.cr-path == "": VerticalLayout {
-                    spacing: 6px;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Text {
-                            text: AppState.cr-kind == 2 ? "Domande da creare" : "Flashcard da creare";
-                            font-weight: 700;
-                            color: M3.on-surface;
-                            vertical-alignment: center;
-                            horizontal-stretch: 1;
-                        }
-                        IconButton {
-                            icon: Icons.remove;
-                            clicked => {
-                                AppState.cr-count = max(5, AppState.cr-count - 5);
-                                AppState.cr-refresh-prompt();
-                            }
-                        }
-                        Text {
-                            text: AppState.cr-count;
-                            font-size: Type.title;
-                            font-weight: 800;
-                            color: M3.primary;
-                            vertical-alignment: center;
-                            min-width: 36px;
-                            horizontal-alignment: center;
-                        }
-                        IconButton {
-                            icon: Icons.add;
-                            clicked => {
-                                AppState.cr-count = min(100, AppState.cr-count + 5);
-                                AppState.cr-refresh-prompt();
-                            }
-                        }
-                    }
-                    Text {
-                        text: "Argomenti";
-                        font-weight: 700;
-                        color: M3.on-surface;
-                    }
-                    Flickable {
-                        height: 40px;
-                        interactive: true;
-                        content-width: max(self.width, unit-row.preferred-width);
-                        content-height: 40px;
-                        unit-row := HorizontalLayout {
-                            x: 0px;
-                            y: 0px;
-                            height: 40px;
-                            spacing: 6px;
-                            alignment: start;
-                            for u in AppState.cr-units: Chip {
-                                text: u.label;
-                                selected: AppState.cr-unit == u.id;
-                                clicked => {
-                                    AppState.cr-unit = u.id;
+                gap: 0px;
+
+                // 1 · imposta
+                if root.setup: CrStep {
+                    n: 1;
+                    title: "Imposta il file";
+                    sub: AppState.cr-kind == 1 ? "Il nome del capitolo, come nel libro" : AppState.cr-kind == 5 ? "Tabella, elenco o calcolatore: descrivilo in poche parole" : "Nome, quante e su quali argomenti";
+                    icon: Icons.tune;
+                    state: root.named ? 2 : 1;
+                    VerticalLayout {
+                        padding-top: 10px;
+                        spacing: 3px;
+                        if AppState.cr-kind != 0 && AppState.cr-path == "": GItem {
+                            last: !(AppState.cr-kind == 2 || AppState.cr-kind == 3);
+                            pad: 12px;
+                            OutlinedField {
+                                text <=> AppState.cr-name;
+                                label: AppState.cr-kind == 5 ? "Cosa deve fare" : "Nome del file";
+                                placeholder: AppState.cr-kind == 1 ? "es. 2 Cinematica" : AppState.cr-kind == 5 ? "es. calcolatore delle diluizioni" : "es. Cinematica";
+                                pencil: false;
+                                edited => {
                                     AppState.cr-refresh-prompt();
                                 }
                             }
                         }
-                    }
-                    if AppState.cr-kind == 2: HorizontalLayout {
-                        spacing: 8px;
-                        Text {
-                            text: "Nota su ogni risposta sbagliata (perché è sbagliata)";
-                            wrap: word-wrap;
-                            color: M3.on-surface;
-                            vertical-alignment: center;
-                            horizontal-stretch: 1;
+                        if AppState.cr-kind == 2 || AppState.cr-kind == 3: GItem {
+                            first: false;
+                            last: false;
+                            pad: 14px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: center;
+                                    Text {
+                                        text: AppState.cr-kind == 2 ? "Domande da creare" : "Flashcard da creare";
+                                        font-size: 16px;
+                                        color: M3.on-surface;
+                                        wrap: word-wrap;
+                                    }
+                                    Text {
+                                        text: AppState.cr-kind == 2 ? "2 a scelta multipla ogni completamento" : "una informazione per carta";
+                                        font-size: 13px;
+                                        color: M3.on-surface-variant;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                                // contatore a pillola: − numero +
+                                VerticalLayout {
+                                    alignment: center;
+                                Rectangle {
+                                    width: 124px;
+                                    height: 44px;
+                                    border-radius: 22px;
+                                    background: M3.secondary-container;
+                                    HorizontalLayout {
+                                        IconButton {
+                                            icon: Icons.remove;
+                                            tint: M3.on-secondary-container;
+                                            clicked => {
+                                                AppState.cr-count = max(5, AppState.cr-count - 5);
+                                                AppState.cr-refresh-prompt();
+                                            }
+                                        }
+                                        Text {
+                                            horizontal-stretch: 1;
+                                            text: AppState.cr-count;
+                                            font-size: 18px;
+                                            font-weight: 800;
+                                            color: M3.on-secondary-container;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        IconButton {
+                                            icon: Icons.add;
+                                            tint: M3.on-secondary-container;
+                                            clicked => {
+                                                AppState.cr-count = min(100, AppState.cr-count + 5);
+                                                AppState.cr-refresh-prompt();
+                                            }
+                                        }
+                                    }
+                                }
+                                }
+                            }
                         }
-                        Switch {
+                        if AppState.cr-kind == 2 || AppState.cr-kind == 3: GRow {
+                            first: false;
+                            last: AppState.cr-kind != 2;
+                            icon: Icons.toc;
+                            title: "Argomenti";
+                            sub: root.unit-label;
+                            trail: 1;
+                            clicked => {
+                                root.units-open = true;
+                            }
+                        }
+                        if AppState.cr-kind == 2: GRow {
+                            first: false;
+                            icon: Icons.lightbulb;
+                            title: "Nota su ogni risposta sbagliata";
+                            sub: "L'AI spiega perché ogni opzione errata lo è";
+                            trail: 4;
                             checked <=> AppState.cr-notes;
                             toggled => {
                                 AppState.cr-refresh-prompt();
@@ -448,120 +493,248 @@ export component CreatorPage inherits Page {
                         }
                     }
                 }
+
                 // figure del capitolo: ognuna al suo posto nel testo, da ricomporre con l'AI
-                if AppState.cr-kind == 1 && AppState.cr-figs.length > 0: Card {
-                    VerticalLayout {
-                        padding: 14px;
+                if AppState.cr-kind == 1 && AppState.cr-figs.length > 0: VerticalLayout {
+                    padding-left: 54px;
+                    padding-bottom: 14px;
+                    spacing: 3px;
+                    GroupLabel {
+                        text: "Figure del capitolo";
+                    }
+                    Text {
+                        text: "Ognuna ha già il suo posto nel testo. Toccala per farla ridisegnare dall'AI (allega la foto della figura), oppure aggiungi da Contenuti un .svg con lo stesso nome.";
+                        wrap: word-wrap;
+                        font-size: 13px;
+                        color: M3.on-surface-variant;
+                    }
+                    Rectangle {
+                        height: 6px;
+                    }
+                    for f[i] in AppState.cr-figs: GRow {
+                        first: i == 0;
+                        last: i == AppState.cr-figs.length - 1;
+                        icon: f.present ? Icons.edit : Icons.add;
+                        tone: f.present ? M3.secondary-container : M3.error-container;
+                        on-tone: f.present ? M3.on-secondary-container : M3.on-error-container;
+                        title: f.alt;
+                        sub: (f.present ? "presente · " : "da aggiungere · ") + f.path;
+                        trail: 1;
+                        clicked => {
+                            AppState.cr-open-figure(f.path);
+                        }
+                    }
+                }
+
+                // 2 · prompt
+                CrStep {
+                    n: root.base + 1;
+                    title: AppState.cr-kind == 2 && AppState.cr-path != "" ? "Copia il prompt di verifica" : AppState.cr-kind == 4 ? "Copia il prompt della figura" : "Copia il prompt per l'AI";
+                    sub: AppState.cr-kind == 2 && AppState.cr-path != ""
+                        ? "Dallo a un'altra AI (o a una chat nuova): controlla chiavi, calcoli e italiano."
+                        : AppState.cr-kind == 4
+                            ? "Incollalo in una chat con un'AI e allega la foto o il ritaglio della figura."
+                        : AppState.cr-kind == 5
+                            ? "Incollalo in una chat con un'AI; se servono dati precisi, allega la tabella o il capitolo da cui prenderli."
+                        : AppState.cr-kind == 0
+                            ? "Incollalo in una chat con un'AI e allega il programma ufficiale dell'esame."
+                            : "Incollalo in una chat con un'AI e allega il materiale: meglio il testo estratto con Strumenti PDF.";
+                    icon: Icons.ai;
+                    state: !root.named ? 0 : AppState.cr-text != "" ? 2 : 1;
+                    HorizontalLayout {
+                        padding-top: 10px;
+                        padding-bottom: 4px;
                         spacing: 8px;
+                        M3Button {
+                            horizontal-stretch: 1;
+                            text: "Copia";
+                            has-icon: true;
+                            icon: Icons.description;
+                            clicked => {
+                                pbuf.select-all();
+                                pbuf.copy();
+                                pbuf.clear-selection();
+                                AppState.rd-copied();
+                            }
+                        }
+                        M3Button {
+                            horizontal-stretch: 1;
+                            text: "Condividi";
+                            kind: 1;
+                            has-icon: true;
+                            icon: Icons.share;
+                            clicked => {
+                                AppState.rd-share(AppState.cr-prompt);
+                            }
+                        }
+                    }
+                }
+
+                // 3 · risposta
+                CrStep {
+                    n: root.base + 2;
+                    title: "Incolla la risposta e salva";
+                    sub: "Tutta, così com'è: l'app prende il file dai blocchi di codice e legge i dubbi dell'AI.";
+                    icon: Icons.check;
+                    state: AppState.cr-text != "" ? 1 : 0;
+                    line: false;
+                    VerticalLayout {
+                        padding-top: 10px;
+                        spacing: 10px;
+                        Rectangle {
+                            height: 240px;
+                            answer := TextEdit {
+                                width: parent.width;
+                                height: parent.height;
+                                text <=> AppState.cr-text;
+                                font-size: 13px;
+                                wrap: no-wrap;
+                            }
+                            if AppState.cr-text == "": VerticalLayout {
+                                alignment: center;
+                                spacing: 10px;
+                                Text {
+                                    text: "La risposta dell'AI va qui";
+                                    horizontal-alignment: center;
+                                    font-size: 14px;
+                                    color: M3.on-surface-variant;
+                                }
+                                HorizontalLayout {
+                                    alignment: center;
+                                    M3Button {
+                                        text: "Incolla";
+                                        kind: 1;
+                                        has-icon: true;
+                                        icon: Icons.add;
+                                        clicked => {
+                                            answer.select-all();
+                                            answer.paste();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            if AppState.cr-text != "": M3Button {
+                                text: "Svuota";
+                                kind: 3;
+                                clicked => {
+                                    AppState.cr-text = "";
+                                }
+                            }
+                            M3Button {
+                                horizontal-stretch: 1;
+                                text: "Salva nel pacchetto";
+                                has-icon: true;
+                                icon: Icons.check;
+                                enabled: AppState.cr-text != "";
+                                clicked => {
+                                    AppState.cr-save();
+                                }
+                            }
+                        }
+                        if AppState.cr-status != "": Rectangle {
+                            border-radius: 16px;
+                            background: M3.secondary-container;
+                            min-height: stx.preferred-height + 20px;
+                            stx := Text {
+                                x: 14px;
+                                width: parent.width - 28px;
+                                text: AppState.cr-status;
+                                wrap: word-wrap;
+                                font-size: 13px;
+                                color: M3.on-secondary-container;
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 24px;
+                }
+            }
+        }
+
+        // argomenti: foglio dal basso con un elenco a scelta singola (le pillole uscivano dallo schermo)
+        if root.units-open: Rectangle {
+            background: M3.scrim.with-alpha(0.5);
+            TouchArea {
+                clicked => {
+                    root.units-open = false;
+                }
+            }
+            Rectangle {
+                width: min(parent.width, 640px);
+                x: (parent.width - self.width) / 2;
+                height: min(ul.preferred-height + 8px, parent.height * 0.8);
+                y: parent.height - self.height;
+                border-top-left-radius: 28px;
+                border-top-right-radius: 28px;
+                background: M3.surface-container-low;
+                TouchArea { }
+                Flickable {
+                    interactive: true;
+                    viewport-height: max(self.height, ul.preferred-height);
+                    ul := VerticalLayout {
+                        padding: 16px;
+                        padding-top: 10px;
+                        padding-bottom: 24px;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-bottom: 10px;
+                            Rectangle {
+                                width: 32px;
+                                height: 4px;
+                                border-radius: 2px;
+                                background: M3.outline-variant;
+                            }
+                        }
                         Text {
-                            text: "Figure del capitolo";
-                            font-size: Type.title;
-                            font-weight: 700;
+                            text: "Argomenti";
+                            font-size: 22px;
+                            font-weight: 800;
                             color: M3.on-surface;
                         }
-                        Text {
-                            text: "Ognuna ha già il suo posto nel testo. Toccala per farla ridisegnare dall'AI (allega la foto della figura) e incollare qui l'SVG; oppure aggiungi da Contenuti un file .svg con lo stesso nome.";
-                            wrap: word-wrap;
-                            font-size: Type.label;
-                            color: M3.on-surface-variant;
+                        Rectangle {
+                            height: 8px;
                         }
-                        for f in AppState.cr-figs: Rectangle {
+                        for u in AppState.cr-units: Rectangle {
                             min-height: 52px;
-                            border-radius: 12px;
-                            background: fta.pressed ? M3.surface-container-high : M3.surface-container-low;
-                            fta := TouchArea {
+                            border-radius: 16px;
+                            background: AppState.cr-unit == u.id ? M3.secondary-container : uta.pressed ? M3.surface-container-high : transparent;
+                            uta := TouchArea {
                                 clicked => {
-                                    AppState.cr-open-figure(f.path);
+                                    AppState.cr-unit = u.id;
+                                    root.unit-label = u.label;
+                                    root.units-open = false;
+                                    AppState.cr-refresh-prompt();
                                 }
                             }
                             HorizontalLayout {
-                                padding-left: 12px;
-                                padding-right: 12px;
-                                spacing: 8px;
-                                VerticalLayout {
-                                    alignment: center;
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                spacing: 12px;
+                                Text {
                                     horizontal-stretch: 1;
-                                    Text {
-                                        text: f.alt;
-                                        font-weight: 600;
-                                        color: M3.on-surface;
-                                        overflow: elide;
-                                    }
-                                    Text {
-                                        text: f.present ? "presente · " + f.path : "da aggiungere · " + f.path;
-                                        font-size: Type.label;
-                                        color: f.present ? M3.on-surface-variant : M3.error;
-                                        overflow: elide;
-                                    }
+                                    text: u.label;
+                                    font-size: 15px;
+                                    color: AppState.cr-unit == u.id ? M3.on-secondary-container : M3.on-surface;
+                                    vertical-alignment: center;
+                                    wrap: word-wrap;
                                 }
-                                VerticalLayout {
+                                if AppState.cr-unit == u.id: VerticalLayout {
                                     alignment: center;
-                                    VIcon {
-                                        source: f.present ? Icons.edit : Icons.add;
-                                        tint: M3.primary;
+                                    Icon {
+                                        width: 20px;
+                                        height: 20px;
+                                        source: Icons.check;
+                                        tint: M3.on-secondary-container;
                                     }
                                 }
                             }
                         }
                     }
-                }
-                LlmCopy {
-                    title: AppState.cr-kind == 2 && AppState.cr-path != "" ? "1 · Prompt per farlo verificare" : AppState.cr-kind == 4 ? "1 · Prompt per ridisegnare la figura" : "1 · Copia il prompt per l'AI";
-                    body: AppState.cr-kind == 2 && AppState.cr-path != ""
-                        ? "Dallo a un'altra AI (o a una chat nuova): controlla chiavi, calcoli e italiano. Poi incolla qui sotto la sua risposta al posto del testo attuale."
-                        : AppState.cr-kind == 4
-                            ? "Incollalo in una chat con un'AI e allega la foto o il ritaglio della pagina con la figura."
-                        : AppState.cr-kind == 0
-                            ? "Incollalo in una chat con un'AI e allega il programma ufficiale dell'esame (PDF o testo)."
-                            : "Incollalo in una chat con un'AI e allega il materiale: meglio il testo estratto con Strumenti PDF, o il PDF diviso in parti.";
-                    text: AppState.cr-prompt;
-                    copied => {
-                        AppState.rd-copied();
-                    }
-                    share => {
-                        AppState.rd-share(AppState.cr-prompt);
-                    }
-                }
-                Text {
-                    text: "2 · Incolla qui TUTTA la risposta dell'AI";
-                    font-weight: 700;
-                    color: M3.on-surface;
-                }
-                Text {
-                    text: "Di solito sotto la risposta c'è un pulsante «Copia». Non serve togliere niente: l'app prende il file dai blocchi di codice e legge i dubbi dell'AI.";
-                    wrap: word-wrap;
-                    font-size: Type.label;
-                    color: M3.on-surface-variant;
-                }
-                answer := TextEdit {
-                    height: 220px;
-                    text <=> AppState.cr-text;
-                    font-size: 13px;
-                    wrap: no-wrap;
-                }
-                HorizontalLayout {
-                    spacing: 8px;
-                    M3Button {
-                        text: "Incolla";
-                        kind: 1;
-                        horizontal-stretch: 1;
-                        clicked => {
-                            answer.select-all();
-                            answer.paste();
-                        }
-                    }
-                    M3Button {
-                        text: "3 · Salva";
-                        horizontal-stretch: 1;
-                        clicked => {
-                            AppState.cr-save();
-                        }
-                    }
-                }
-                if AppState.cr-status != "": Text {
-                    text: AppState.cr-status;
-                    wrap: word-wrap;
-                    color: M3.on-surface;
                 }
             }
         }

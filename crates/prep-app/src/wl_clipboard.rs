@@ -19,9 +19,30 @@ pub struct WaylandClipboardPlatform {
     clip: RefCell<Option<smithay_clipboard::Clipboard>>,
 }
 
+/// Id dell'app (Flatpak, file .desktop, icona).
+pub const APP_ID: &str = "io.github.nernerone.TremendousPreparator";
+
 impl WaylandClipboardPlatform {
     pub fn new() -> Result<Self, PlatformError> {
-        Ok(Self { inner: Backend::new()?, windows: RefCell::default(), clip: RefCell::default() })
+        // app_id (Wayland) e classe della finestra (X11) uguali all'id dell'app: così KDE e GNOME
+        // la collegano al suo file .desktop e nella barra delle app mostrano la sua icona (senza,
+        // compariva l'icona generica di Wayland)
+        let inner = Backend::builder()
+            .with_window_attributes_hook(|a| {
+                let id = APP_ID;
+                #[allow(unused_mut)]
+                let mut a = a;
+                #[cfg(not(target_os = "android"))]
+                {
+                    a = i_slint_backend_winit::winit::platform::wayland::WindowAttributesExtWayland::with_name(
+                        a, id, id,
+                    );
+                    a = i_slint_backend_winit::winit::platform::x11::WindowAttributesExtX11::with_name(a, id, id);
+                }
+                a
+            })
+            .build()?;
+        Ok(Self { inner, windows: RefCell::default(), clip: RefCell::default() })
     }
 
     /// Lo stesso Wayland delle finestre dell'app (`None` su X11 o prima della prima finestra).

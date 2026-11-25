@@ -1307,7 +1307,8 @@ export component FabMenu inherits Rectangle {
                 }
             }
         }
-        if AppState.fab-open && !root.race: HorizontalLayout {
+        // concentrazione: solo dove c'è (Android e computer Linux; nella web app non c'è)
+        if AppState.fab-open && !root.race && AppState.focus-available: HorizontalLayout {
             alignment: end;
             FabMenuItem {
                 icon: Icons.focus;
@@ -1826,6 +1827,8 @@ export component OutlinedField inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder;
     in property <bool> password: false;
+    // tastiera numerica (campi dei calcolatori)
+    in property <bool> decimal: false;
     in property <bool> pencil: true;
     // pulsante di testo in coda (es. «Salva») al posto della matita
     in property <string> action;
@@ -1861,7 +1864,7 @@ export component OutlinedField inherits Rectangle {
                     font-size: 16px;
                     color: M3.on-surface;
                     vertical-alignment: center;
-                    input-type: root.password ? InputType.password : InputType.text;
+                    input-type: root.password ? InputType.password : root.decimal ? InputType.decimal : InputType.text;
                     accepted => {
                         root.accepted(self.text);
                     }

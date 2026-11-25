@@ -12,7 +12,7 @@ use prep_core::content::Content;
 use prep_core::feedback::Feedback;
 use prep_core::latex;
 use prep_core::markdown::{self, Block, Section};
-use prep_core::model::{BookRef, QKind, Question, TOOL_PERIODIC_TABLE};
+use prep_core::model::{BookRef, QKind, Question};
 use prep_core::p2p;
 use prep_core::progress::{build_history, compute, exam_pace, Assessment, History, Progress};
 use prep_core::select::{self, Scope};
@@ -49,6 +49,7 @@ mod quiz;
 mod quiz_setup;
 mod report;
 mod simlog;
+mod tools;
 mod updates;
 
 const LEGAL_VERSION: u32 = 3;
@@ -99,7 +100,7 @@ const P_DECKS: i32 = 8;
 const P_READER: i32 = 9;
 const P_FEEDBACK: i32 = 10;
 const P_GOALS: i32 = 11;
-const P_PERIODIC: i32 = 12;
+const P_TOOL: i32 = 12;
 const P_GROUP: i32 = 13;
 const P_CONTENTS: i32 = 14;
 const P_PDFTOOLS: i32 = 15;
@@ -319,7 +320,13 @@ pub struct Ctrl {
     plan_extra: Vec<String>,
     /// la pagina Feedback è stata aperta dalle Opzioni (il tasto indietro ci ritorna)
     feedback_from_settings: bool,
-    elements: Vec<periodic::Element>,
+    /// tavola periodica inclusa (strumento costruito alla prima apertura)
+    periodic: Option<prep_core::tools::Tool>,
+    /// strumento aperto e valori dei campi del calcolatore
+    tool: Option<prep_core::tools::Tool>,
+    tl_values: Vec<f64>,
+    /// strumento ricevuto come file, in attesa di scegliere il pacchetto
+    ct_pending: Option<Vec<u8>>,
     /// ordine delle opzioni del quiz appena finito, per mostrare i risultati con le stesse lettere
     result_perm: std::collections::HashMap<String, Vec<usize>>,
     tick: Timer,
@@ -906,12 +913,16 @@ impl Ctrl {
                 self.cards_close();
                 true
             }
-            P_PERIODIC if st.get_pt_has_sel() => {
-                // prima si chiude il pannello dell'elemento
-                st.set_pt_has_sel(false);
+            P_TOOL if st.get_tl_sel() != -1 => {
+                // prima si chiude la scheda della casella (o la guida)
+                st.set_tl_sel(-1);
                 true
             }
-            P_UNIT | P_PERIODIC => {
+            P_CONTENTS if st.get_ct_sheet() != 0 => {
+                st.set_ct_sheet(0);
+                true
+            }
+            P_UNIT | P_TOOL => {
                 self.set_page(P_STUDY);
                 true
             }
@@ -1164,7 +1175,10 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         plan_sel: vec![],
         plan_extra: vec![],
         feedback_from_settings: false,
-        elements: Vec::new(),
+        periodic: None,
+        tool: None,
+        tl_values: Vec::new(),
+        ct_pending: None,
         result_perm: Default::default(),
         tick: Timer::default(),
         import_timer: Timer::default(),
@@ -1491,8 +1505,17 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         })
     });
     st.on_open_book(|id| with_ctrl(|c| c.open_book(&id)));
-    st.on_open_periodic(|| with_ctrl(|c| c.open_periodic()));
-    st.on_pt_select(|z| with_ctrl(|c| c.pt_select(z)));
+    st.on_open_tool(|id| with_ctrl(|c| c.open_tool(&id)));
+    st.on_tl_select(|i| with_ctrl(|c| c.tl_select(i)));
+    st.on_tl_search(|q| with_ctrl(|c| c.tl_search(&q)));
+    st.on_tl_input(|i, t| with_ctrl(|c| c.tl_input(i, &t)));
+    st.on_tl_reset(|| with_ctrl(|c| c.tl_reset()));
+    st.on_ct_tool_menu(|id| with_ctrl(|c| c.ct_tool_menu(&id)));
+    st.on_ct_tool_add(|pkg, id| with_ctrl(|c| c.ct_tool_add(&pkg, &id)));
+    st.on_ct_tool_share(|| with_ctrl(|c| c.ct_tool_share()));
+    st.on_ct_tool_remove(|| with_ctrl(|c| c.ct_tool_remove()));
+    st.on_ct_tool_copy(|id| with_ctrl(|c| c.ct_tool_copy(&id)));
+    st.on_ct_tools_add_open(|| with_ctrl(|c| c.ct_tools_add_open()));
     st.on_open_subject_link(|i| {
         with_ctrl(|c| {
             let cur = c.ui().global::<AppState>().get_current_subject().to_string();

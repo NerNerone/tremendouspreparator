@@ -1,4 +1,4 @@
-//! Lettore dei libri e tavola periodica.
+//! Lettore dei libri.
 
 use super::*;
 
@@ -13,6 +13,7 @@ const GUIDE: &[(&str, &str)] = &[
     ("guida/06-dai-pdf.md", include_str!("../../assets/guida/06-dai-pdf.md")),
     ("guida/07-importare.md", include_str!("../../assets/guida/07-importare.md")),
     ("guida/08-prompt.md", include_str!("../../assets/guida/08-prompt.md")),
+    ("guida/09-strumenti.md", include_str!("../../assets/guida/09-strumenti.md")),
 ];
 
 const GUIDE_TITLE: &str = "Guida ai contenuti";
@@ -152,29 +153,6 @@ impl Ctrl {
         self.ui().global::<AppState>().set_rd_toc_visible(false);
         self.render_reader();
         self.set_page(P_READER);
-    }
-
-    // ---------- tavola periodica ----------
-
-    pub(super) fn open_periodic(&mut self) {
-        let ui = self.ui();
-        let st = ui.global::<AppState>();
-        if st.get_pt_elements().row_count() == 0 {
-            let els = periodic::load();
-            st.set_pt_elements(model(els.iter().map(periodic::cell).collect()));
-            self.elements = els;
-        }
-        self.set_page(P_PERIODIC);
-    }
-
-    pub(super) fn pt_select(&mut self, z: i32) {
-        let Some(e) = self.elements.iter().find(|e| e.z == z) else {
-            return;
-        };
-        let ui = self.ui();
-        let st = ui.global::<AppState>();
-        st.set_pt_detail(periodic::detail(e));
-        st.set_pt_has_sel(true);
     }
 
     pub(super) fn open_book(&mut self, id: &str) {

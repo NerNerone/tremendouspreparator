@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "id": "vitamine",
+  "title": "Vitamine",
+  "subtitle": "Funzioni e carenze",
+  "kind": "grid",
+  "info": "Liposolubili (A, D, E, K): si accumulano nel fegato e nel tessuto adiposo. Idrosolubili (gruppo B e C): non si accumulano, tranne la B12.",
+  "columns": 4,
+  "rows": 3,
+  "categories": [
+    {
+      "name": "Liposolubili",
+      "color": "#C05621"
+    },
+    {
+      "name": "Idrosolubili",
+      "color": "#2C7A7B"
+    }
+  ],
+  "cells": [
+    {
+      "x": 1,
+      "y": 1,
+      "label": "A",
+      "bottom": "Retinolo",
+      "category": "Liposolubili",
+      "title": "Vitamina A · Retinolo",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Vista (rodopsina), epiteli"
+        },
+        {
+          "label": "Carenza",
+          "value": "Cecità notturna, xeroftalmia"
+        },
+        {
+          "label": "Solubilità",
+          "value": "liposolubile"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "label": "D",
+      "bottom": "Calciferolo",
+      "category": "Liposolubili",
+      "title": "Vitamina D · Calciferolo",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Assorbimento di calcio e fosfato"
+        },
+        {
+          "label": "Carenza",
+          "value": "Rachitismo, osteomalacia"
+        },
+        {
+          "label": "Solubilità",
+          "value": "liposolubile"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "label": "E",
+      "bottom": "Tocoferolo",
+      "category": "Liposolubili",
+      "title": "Vitamina E · Tocoferolo",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Antiossidante delle membrane"
+        },
+        {
+          "label": "Carenza",
+          "value": "Anemia emolitica, neuropatia"
+        },
+        {
+          "label": "Solubilità",
+          "value": "liposolubile"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "label": "K",
+      "bottom": "Fillochinone",
+      "category": "Liposolubili",
+      "title": "Vitamina K · Fillochinone",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Coagulazione (fattori II, VII, IX, X)"
+        },
+        {
+          "label": "Carenza",
+          "value": "Emorragie"
+        },
+        {
+          "label": "Solubilità",
+          "value": "liposolubile"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "label": "B1",
+      "bottom": "Tiamina",
+      "category": "Idrosolubili",
+      "title": "Vitamina B1 · Tiamina",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Coenzima del metabolismo dei glucidi"
+        },
+        {
+          "label": "Carenza",
+          "value": "Beriberi"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "label": "B2",
+      "bottom": "Riboflavina",
+      "category": "Idrosolubili",
+      "title": "Vitamina B2 · Riboflavina",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "FAD e FMN (ossidoriduzioni)"
+        },
+        {
+          "label": "Carenza",
+          "value": "Cheilite, glossite"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "label": "B3",
+      "bottom": "Niacina",
+      "category": "Idrosolubili",
+      "title": "Vitamina B3 · Niacina",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "NAD⁺ e NADP⁺"
+        },
+        {
+          "label": "Carenza",
+          "value": "Pellagra"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "label": "B6",
+      "bottom": "Piridossina",
+      "category": "Idrosolubili",
+      "title": "Vitamina B6 · Piridossina",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Metabolismo degli aminoacidi"
+        },
+        {
+          "label": "Carenza",
+          "value": "Anemia, neuropatia"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "label": "B9",
+      "bottom": "Folato",
+      "category": "Idrosolubili",
+      "title": "Vitamina B9 · Acido folico",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Sintesi di DNA (gruppi monocarboniosi)"
+        },
+        {
+          "label": "Carenza",
+          "value": "Anemia megaloblastica, difetti del tubo neurale"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "label": "B12",
+      "bottom": "Cobalamina",
+      "category": "Idrosolubili",
+      "title": "Vitamina B12 · Cobalamina",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Sintesi di DNA, mielina"
+        },
+        {
+          "label": "Carenza",
+          "value": "Anemia perniciosa"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "label": "C",
+      "bottom": "Ascorbato",
+      "category": "Idrosolubili",
+      "title": "Vitamina C · Acido ascorbico",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Sintesi del collagene, antiossidante"
+        },
+        {
+          "label": "Carenza",
+          "value": "Scorbuto"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "label": "H",
+      "bottom": "Biotina",
+      "category": "Idrosolubili",
+      "title": "Vitamina H · Biotina",
+      "details": [
+        {
+          "label": "Funzione",
+          "value": "Carbossilazioni"
+        },
+        {
+          "label": "Carenza",
+          "value": "Dermatite (rara)"
+        },
+        {
+          "label": "Solubilità",
+          "value": "idrosolubile"
+        }
+      ]
+    }
+  ]
+}

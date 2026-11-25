@@ -107,6 +107,9 @@ pub struct Subject {
 
 /// Strumento «tavola periodica» (vedi [`Subject::tools`]).
 pub const TOOL_PERIODIC_TABLE: &str = "tavola-periodica";
+/// Strumenti inclusi nell'app. Un pacchetto ne aggiunge altri in `content/tools/<id>.json`
+/// (vedi [`crate::tools`]); una materia li elenca per id in `tools`.
+pub const KNOWN_TOOLS: &[&str] = &[TOOL_PERIODIC_TABLE];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubjectLink {

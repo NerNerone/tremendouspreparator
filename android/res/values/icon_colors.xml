@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colori dell'icona: blu predefinito (Android 8-11). Da Android 12 li sostituiscono quelli
+     dell'accento di sistema (values-v31). -->
+<resources>
+    <color name="icon_bg">#FF1A73E8</color>
+    <color name="icon_page_l">#FFF8FAFF</color>
+    <color name="icon_page_r">#FFD3E3FD</color>
+    <color name="icon_ink">#FF0842A0</color>
+</resources>

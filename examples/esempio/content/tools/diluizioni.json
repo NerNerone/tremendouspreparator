@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "id": "diluizioni",
+  "title": "Diluizioni",
+  "subtitle": "C₁·V₁ = C₂·V₂",
+  "kind": "calc",
+  "info": "Da una soluzione madre (C₁) prelevi V₁ e porti al volume finale V₂: trovi la concentrazione finale e quanta acqua aggiungere.",
+  "inputs": [
+    {
+      "id": "C1",
+      "label": "Concentrazione iniziale",
+      "unit": "mol/L",
+      "default": 2
+    },
+    {
+      "id": "V1",
+      "label": "Volume prelevato",
+      "unit": "mL",
+      "default": 50
+    },
+    {
+      "id": "V2",
+      "label": "Volume finale",
+      "unit": "mL",
+      "default": 250
+    }
+  ],
+  "outputs": [
+    {
+      "id": "C2",
+      "label": "Concentrazione finale",
+      "unit": "mol/L",
+      "formula": "C1 * V1 / V2",
+      "digits": 3
+    },
+    {
+      "label": "Acqua da aggiungere",
+      "unit": "mL",
+      "formula": "V2 - V1",
+      "digits": 4
+    },
+    {
+      "label": "Fattore di diluizione",
+      "unit": "",
+      "formula": "V2 / V1",
+      "digits": 3
+    }
+  ]
+}

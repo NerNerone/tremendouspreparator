@@ -2,6 +2,7 @@
 // primo piano, con il tempo che manca, la gara e le app permesse. Sopra, quando si apre
 // un'app non permessa, l'avviso con il conto alla rovescia prima della chiusura.
 import { M3, Icons } from "theme.slint";
+import { Palette } from "std-widgets.slint";
 import { RingProgress, Icon } from "components.slint";
 
 export component FocusPill inherits Window {
@@ -17,6 +18,26 @@ export component FocusPill inherits Window {
     in property <string> warn;
     in property <int> warn-left;
     in property <bool> pit;
+    // tema come nell'app: 0 sistema, 1 chiaro, 2 scuro (i colori arrivano da M3, copiati
+    // dall'app: accento di sistema o quello scelto in Aspetto)
+    in property <int> mode;
+    property <ColorScheme> sys-scheme;
+    init => {
+        root.sys-scheme = Palette.color-scheme;
+        root.apply-mode();
+    }
+    changed mode => {
+        root.apply-mode();
+    }
+    function apply-mode() {
+        if (root.mode == 1) {
+            Palette.color-scheme = ColorScheme.light;
+        } else if (root.mode == 2) {
+            Palette.color-scheme = ColorScheme.dark;
+        } else {
+            Palette.color-scheme = root.sys-scheme;
+        }
+    }
     callback open-app();
     callback toggle-pit();
     // trascinata con il mouse (la sposta il sistema) e ridotta a icona
@@ -31,7 +52,7 @@ export component FocusPill inherits Window {
         if root.warn != "": Rectangle {
             height: 82px;
             border-radius: 22px;
-            background: #ffdad6;
+            background: M3.error-container;
             VerticalLayout {
                 padding: 14px;
                 padding-left: 18px;
@@ -40,24 +61,24 @@ export component FocusPill inherits Window {
                     text: root.warn + " non è tra le app permesse";
                     font-size: 15px;
                     font-weight: 800;
-                    color: #410002;
+                    color: M3.on-error-container;
                     overflow: elide;
                 }
                 Text {
                     text: root.warn-left > 0 ? "Lo chiudo tra " + root.warn-left + " s · torna allo studio o aggiungila la prossima volta" : "Lo sto chiudendo";
                     font-size: 12.5px;
-                    color: #410002;
+                    color: M3.on-error-container;
                     wrap: word-wrap;
                 }
                 Rectangle {
                     height: 4px;
                     border-radius: 2px;
-                    background: #41000220;
+                    background: M3.on-error-container.with-alpha(0.15);
                     Rectangle {
                         x: 0px;
                         width: parent.width * max(0, root.warn-left / 10);
                         border-radius: 2px;
-                        background: #ba1a1a;
+                        background: M3.error;
                     }
                 }
             }
@@ -65,13 +86,16 @@ export component FocusPill inherits Window {
         Rectangle {
             height: 118px;
             border-radius: 30px;
-            background: #1c1e24;
+            background: M3.surface-container-high;
+            border-width: 1px;
+            border-color: M3.outline-variant;
             drop-shadow-blur: 0px;
-            // si sposta trascinandola dove non ci sono pulsanti
+            // si sposta trascinandola dove non ci sono pulsanti: il sistema prende il
+            // trascinamento solo dopo qualche pixel di movimento, così un clic resta un clic
             TouchArea {
                 mouse-cursor: move;
-                pointer-event(e) => {
-                    if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                moved => {
+                    if (self.pressed && (abs(self.mouse-x - self.pressed-x) > 4px || abs(self.mouse-y - self.pressed-y) > 4px)) {
                         root.drag();
                     }
                 }
@@ -88,14 +112,14 @@ export component FocusPill inherits Window {
                         y: (parent.height - self.height) / 2;
                         value: root.frac;
                         thickness: 8px;
-                        fill: #8ab4ff;
-                        track: #ffffff1c;
+                        fill: M3.primary;
+                        track: M3.primary.with-alpha(0.16);
                     }
                     Text {
                         text: root.time;
                         font-size: root.time.character-count > 5 ? 15px : 19px;
                         font-weight: 900;
-                        color: #ffffff;
+                        color: M3.on-surface;
                     }
                     TouchArea {
                         clicked => {
@@ -111,18 +135,18 @@ export component FocusPill inherits Window {
                         text: "Concentrazione";
                         font-size: 18px;
                         font-weight: 800;
-                        color: #ffffff;
+                        color: M3.on-surface;
                     }
                     Text {
                         text: root.sub;
                         font-size: 12.5px;
-                        color: #c4c8d0;
+                        color: M3.on-surface-variant;
                         wrap: word-wrap;
                     }
                     if root.apps != "": Text {
                         text: root.apps;
                         font-size: 12.5px;
-                        color: #9aa0aa;
+                        color: M3.primary;
                         overflow: elide;
                     }
                 }
@@ -134,14 +158,14 @@ export component FocusPill inherits Window {
                         height: 30px;
                         x: 7px;
                         border-radius: 15px;
-                        background: mta.pressed ? #3a3d45 : transparent;
+                        background: mta.pressed ? M3.surface-container-highest : transparent;
                         Rectangle {
                             x: 9px;
                             y: 14px;
                             width: 12px;
                             height: 2px;
                             border-radius: 1px;
-                            background: #c4c8d0;
+                            background: M3.on-surface-variant;
                         }
                         mta := TouchArea {
                             clicked => {
@@ -153,14 +177,14 @@ export component FocusPill inherits Window {
                         width: 44px;
                         height: 44px;
                         border-radius: 22px;
-                        background: pta.pressed ? #3a3d45 : #2c2f36;
+                        background: pta.pressed ? M3.primary : M3.primary-container;
                         Icon {
                             x: 12px;
                             y: 12px;
                             width: 20px;
                             height: 20px;
                             source: root.pit ? Icons.play : Icons.pause;
-                            tint: #ffffff;
+                            tint: pta.pressed ? M3.on-primary : M3.on-primary-container;
                         }
                         pta := TouchArea {
                             clicked => {

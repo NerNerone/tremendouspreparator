@@ -1,0 +1,2685 @@
+{
+  "schema": 1,
+  "id": "codice-genetico",
+  "title": "Codice genetico",
+  "subtitle": "64 codoni dell'mRNA",
+  "kind": "grid",
+  "info": "Colonne: seconda base del codone. Righe: prima base e terza base (es. «A··G» = codoni A_G). Tocca un codone per l'aminoacido, l'anticodone e i sinonimi; tocca una famiglia nella legenda per evidenziarla. AUG (Met) è anche il codone d'inizio; UAA, UAG e UGA sono di stop.",
+  "columns": 4,
+  "rows": 19,
+  "categories": [
+    {
+      "name": "Apolari",
+      "color": "#B7791F"
+    },
+    {
+      "name": "Polari",
+      "color": "#2F855A"
+    },
+    {
+      "name": "Acidi",
+      "color": "#C53030"
+    },
+    {
+      "name": "Basici",
+      "color": "#2B6CB0"
+    },
+    {
+      "name": "Stop",
+      "color": "#4A5568"
+    }
+  ],
+  "column_labels": [
+    "U",
+    "C",
+    "A",
+    "G"
+  ],
+  "row_labels": [
+    "U··U",
+    "U··C",
+    "U··A",
+    "U··G",
+    "",
+    "C··U",
+    "C··C",
+    "C··A",
+    "C··G",
+    "",
+    "A··U",
+    "A··C",
+    "A··A",
+    "A··G",
+    "",
+    "G··U",
+    "G··C",
+    "G··A",
+    "G··G"
+  ],
+  "cells": [
+    {
+      "x": 1,
+      "y": 1,
+      "label": "UUU",
+      "bottom": "Phe",
+      "category": "Apolari",
+      "title": "Fenilalanina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UUU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AAA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · U · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Fenilalanina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Phe (F)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "label": "UCU",
+      "bottom": "Ser",
+      "category": "Polari",
+      "title": "Serina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UCU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AGA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · C · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Serina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ser (S)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "label": "UAU",
+      "bottom": "Tyr",
+      "category": "Polari",
+      "title": "Tirosina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UAU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AUA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · A · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Tirosina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Tyr (Y)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "label": "UGU",
+      "bottom": "Cys",
+      "category": "Polari",
+      "title": "Cisteina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UGU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "ACA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · G · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Cisteina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Cys (C)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "label": "UUC",
+      "bottom": "Phe",
+      "category": "Apolari",
+      "title": "Fenilalanina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UUC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AAG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · U · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Fenilalanina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Phe (F)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "label": "UCC",
+      "bottom": "Ser",
+      "category": "Polari",
+      "title": "Serina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UCC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AGG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · C · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Serina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ser (S)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "label": "UAC",
+      "bottom": "Tyr",
+      "category": "Polari",
+      "title": "Tirosina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UAC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AUG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · A · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Tirosina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Tyr (Y)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "label": "UGC",
+      "bottom": "Cys",
+      "category": "Polari",
+      "title": "Cisteina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UGC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "ACG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · G · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Cisteina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Cys (C)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "label": "UUA",
+      "bottom": "Leu",
+      "category": "Apolari",
+      "title": "Leucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UUA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AAU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · U · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Leucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Leu (L)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "label": "UCA",
+      "bottom": "Ser",
+      "category": "Polari",
+      "title": "Serina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UCA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AGU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · C · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Serina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ser (S)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "label": "UAA",
+      "bottom": "Stop",
+      "category": "Stop",
+      "title": "Stop",
+      "subtitle": "fine della traduzione",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UAA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AUU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · A · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "nessuno (rilascio della catena)"
+        },
+        {
+          "label": "Sigla",
+          "value": "—"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "label": "UGA",
+      "bottom": "Stop",
+      "category": "Stop",
+      "title": "Stop",
+      "subtitle": "fine della traduzione",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UGA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "ACU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · G · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "nessuno (rilascio della catena)"
+        },
+        {
+          "label": "Sigla",
+          "value": "—"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "label": "UUG",
+      "bottom": "Leu",
+      "category": "Apolari",
+      "title": "Leucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UUG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AAC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · U · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Leucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Leu (L)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "label": "UCG",
+      "bottom": "Ser",
+      "category": "Polari",
+      "title": "Serina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UCG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AGC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · C · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Serina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ser (S)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 4,
+      "label": "UAG",
+      "bottom": "Stop",
+      "category": "Stop",
+      "title": "Stop",
+      "subtitle": "fine della traduzione",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UAG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "AUC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · A · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "nessuno (rilascio della catena)"
+        },
+        {
+          "label": "Sigla",
+          "value": "—"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "label": "UGG",
+      "bottom": "Trp",
+      "category": "Apolari",
+      "title": "Triptofano",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "UGG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "ACC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "U · G · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Triptofano"
+        },
+        {
+          "label": "Sigla",
+          "value": "Trp (W)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 6,
+      "label": "CUU",
+      "bottom": "Leu",
+      "category": "Apolari",
+      "title": "Leucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CUU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GAA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · U · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Leucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Leu (L)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 6,
+      "label": "CCU",
+      "bottom": "Pro",
+      "category": "Apolari",
+      "title": "Prolina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CCU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GGA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · C · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Prolina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Pro (P)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 6,
+      "label": "CAU",
+      "bottom": "His",
+      "category": "Basici",
+      "title": "Istidina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CAU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GUA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · A · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Istidina"
+        },
+        {
+          "label": "Sigla",
+          "value": "His (H)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 6,
+      "label": "CGU",
+      "bottom": "Arg",
+      "category": "Basici",
+      "title": "Arginina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CGU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GCA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · G · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Arginina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Arg (R)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 7,
+      "label": "CUC",
+      "bottom": "Leu",
+      "category": "Apolari",
+      "title": "Leucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CUC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GAG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · U · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Leucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Leu (L)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 7,
+      "label": "CCC",
+      "bottom": "Pro",
+      "category": "Apolari",
+      "title": "Prolina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CCC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GGG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · C · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Prolina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Pro (P)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 7,
+      "label": "CAC",
+      "bottom": "His",
+      "category": "Basici",
+      "title": "Istidina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CAC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GUG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · A · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Istidina"
+        },
+        {
+          "label": "Sigla",
+          "value": "His (H)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 7,
+      "label": "CGC",
+      "bottom": "Arg",
+      "category": "Basici",
+      "title": "Arginina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CGC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GCG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · G · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Arginina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Arg (R)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 8,
+      "label": "CUA",
+      "bottom": "Leu",
+      "category": "Apolari",
+      "title": "Leucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CUA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GAU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · U · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Leucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Leu (L)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 8,
+      "label": "CCA",
+      "bottom": "Pro",
+      "category": "Apolari",
+      "title": "Prolina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CCA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GGU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · C · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Prolina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Pro (P)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 8,
+      "label": "CAA",
+      "bottom": "Gln",
+      "category": "Polari",
+      "title": "Glutammina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CAA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GUU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · A · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Glutammina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Gln (Q)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 8,
+      "label": "CGA",
+      "bottom": "Arg",
+      "category": "Basici",
+      "title": "Arginina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CGA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GCU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · G · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Arginina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Arg (R)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 9,
+      "label": "CUG",
+      "bottom": "Leu",
+      "category": "Apolari",
+      "title": "Leucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CUG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GAC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · U · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Leucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Leu (L)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 9,
+      "label": "CCG",
+      "bottom": "Pro",
+      "category": "Apolari",
+      "title": "Prolina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CCG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GGC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · C · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Prolina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Pro (P)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 9,
+      "label": "CAG",
+      "bottom": "Gln",
+      "category": "Polari",
+      "title": "Glutammina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CAG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GUC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · A · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Glutammina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Gln (Q)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 9,
+      "label": "CGG",
+      "bottom": "Arg",
+      "category": "Basici",
+      "title": "Arginina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "CGG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "GCC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "C · G · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Arginina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Arg (R)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 11,
+      "label": "AUU",
+      "bottom": "Ile",
+      "category": "Apolari",
+      "title": "Isoleucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AUU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UAA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · U · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Isoleucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ile (I)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 11,
+      "label": "ACU",
+      "bottom": "Thr",
+      "category": "Polari",
+      "title": "Treonina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "ACU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UGA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · C · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Treonina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Thr (T)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 11,
+      "label": "AAU",
+      "bottom": "Asn",
+      "category": "Polari",
+      "title": "Asparagina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AAU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UUA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · A · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Asparagina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Asn (N)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 11,
+      "label": "AGU",
+      "bottom": "Ser",
+      "category": "Polari",
+      "title": "Serina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AGU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UCA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · G · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Serina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ser (S)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 12,
+      "label": "AUC",
+      "bottom": "Ile",
+      "category": "Apolari",
+      "title": "Isoleucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AUC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UAG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · U · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Isoleucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ile (I)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 12,
+      "label": "ACC",
+      "bottom": "Thr",
+      "category": "Polari",
+      "title": "Treonina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "ACC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UGG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · C · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Treonina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Thr (T)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 12,
+      "label": "AAC",
+      "bottom": "Asn",
+      "category": "Polari",
+      "title": "Asparagina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AAC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UUG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · A · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Asparagina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Asn (N)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 12,
+      "label": "AGC",
+      "bottom": "Ser",
+      "category": "Polari",
+      "title": "Serina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AGC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UCG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · G · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Serina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ser (S)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 13,
+      "label": "AUA",
+      "bottom": "Ile",
+      "category": "Apolari",
+      "title": "Isoleucina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AUA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UAU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · U · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Isoleucina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ile (I)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 13,
+      "label": "ACA",
+      "bottom": "Thr",
+      "category": "Polari",
+      "title": "Treonina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "ACA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UGU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · C · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Treonina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Thr (T)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 13,
+      "label": "AAA",
+      "bottom": "Lys",
+      "category": "Basici",
+      "title": "Lisina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AAA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UUU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · A · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Lisina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Lys (K)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 13,
+      "label": "AGA",
+      "bottom": "Arg",
+      "category": "Basici",
+      "title": "Arginina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AGA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UCU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · G · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Arginina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Arg (R)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 14,
+      "label": "AUG",
+      "bottom": "Met",
+      "category": "Apolari",
+      "title": "Metionina",
+      "subtitle": "Codone d'inizio (AUG) · aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AUG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UAC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · U · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Metionina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Met (M)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 14,
+      "label": "ACG",
+      "bottom": "Thr",
+      "category": "Polari",
+      "title": "Treonina",
+      "subtitle": "aminoacido polare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "ACG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UGC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · C · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Treonina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Thr (T)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 14,
+      "label": "AAG",
+      "bottom": "Lys",
+      "category": "Basici",
+      "title": "Lisina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AAG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UUC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · A · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Lisina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Lys (K)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 14,
+      "label": "AGG",
+      "bottom": "Arg",
+      "category": "Basici",
+      "title": "Arginina",
+      "subtitle": "aminoacido basico",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "AGG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "UCC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "A · G · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Arginina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Arg (R)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 16,
+      "label": "GUU",
+      "bottom": "Val",
+      "category": "Apolari",
+      "title": "Valina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GUU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CAA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · U · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Valina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Val (V)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 16,
+      "label": "GCU",
+      "bottom": "Ala",
+      "category": "Apolari",
+      "title": "Alanina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GCU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CGA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · C · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Alanina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ala (A)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 16,
+      "label": "GAU",
+      "bottom": "Asp",
+      "category": "Acidi",
+      "title": "Acido aspartico",
+      "subtitle": "aminoacido acido",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GAU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CUA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · A · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Acido aspartico"
+        },
+        {
+          "label": "Sigla",
+          "value": "Asp (D)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 16,
+      "label": "GGU",
+      "bottom": "Gly",
+      "category": "Apolari",
+      "title": "Glicina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GGU"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CCA"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · G · U"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Glicina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Gly (G)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 17,
+      "label": "GUC",
+      "bottom": "Val",
+      "category": "Apolari",
+      "title": "Valina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GUC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CAG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · U · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Valina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Val (V)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 17,
+      "label": "GCC",
+      "bottom": "Ala",
+      "category": "Apolari",
+      "title": "Alanina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GCC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CGG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · C · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Alanina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ala (A)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 17,
+      "label": "GAC",
+      "bottom": "Asp",
+      "category": "Acidi",
+      "title": "Acido aspartico",
+      "subtitle": "aminoacido acido",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GAC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CUG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · A · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Acido aspartico"
+        },
+        {
+          "label": "Sigla",
+          "value": "Asp (D)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 17,
+      "label": "GGC",
+      "bottom": "Gly",
+      "category": "Apolari",
+      "title": "Glicina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GGC"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CCG"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · G · C"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Glicina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Gly (G)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 18,
+      "label": "GUA",
+      "bottom": "Val",
+      "category": "Apolari",
+      "title": "Valina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GUA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CAU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · U · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Valina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Val (V)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 18,
+      "label": "GCA",
+      "bottom": "Ala",
+      "category": "Apolari",
+      "title": "Alanina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GCA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CGU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · C · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Alanina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ala (A)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 18,
+      "label": "GAA",
+      "bottom": "Glu",
+      "category": "Acidi",
+      "title": "Acido glutammico",
+      "subtitle": "aminoacido acido",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GAA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CUU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · A · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Acido glutammico"
+        },
+        {
+          "label": "Sigla",
+          "value": "Glu (E)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 18,
+      "label": "GGA",
+      "bottom": "Gly",
+      "category": "Apolari",
+      "title": "Glicina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GGA"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CCU"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · G · A"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Glicina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Gly (G)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 1,
+      "y": 19,
+      "label": "GUG",
+      "bottom": "Val",
+      "category": "Apolari",
+      "title": "Valina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GUG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CAC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · U · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Valina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Val (V)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 2,
+      "y": 19,
+      "label": "GCG",
+      "bottom": "Ala",
+      "category": "Apolari",
+      "title": "Alanina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GCG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CGC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · C · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Alanina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Ala (A)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "x": 3,
+      "y": 19,
+      "label": "GAG",
+      "bottom": "Glu",
+      "category": "Acidi",
+      "title": "Acido glutammico",
+      "subtitle": "aminoacido acido",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GAG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CUC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · A · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Acido glutammico"
+        },
+        {
+          "label": "Sigla",
+          "value": "Glu (E)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "x": 4,
+      "y": 19,
+      "label": "GGG",
+      "bottom": "Gly",
+      "category": "Apolari",
+      "title": "Glicina",
+      "subtitle": "aminoacido apolare",
+      "details": [
+        {
+          "label": "Codone"
+        },
+        {
+          "label": "mRNA",
+          "value": "GGG"
+        },
+        {
+          "label": "Anticodone (tRNA)",
+          "value": "CCC"
+        },
+        {
+          "label": "Prima, seconda, terza base",
+          "value": "G · G · G"
+        },
+        {
+          "label": "Prodotto"
+        },
+        {
+          "label": "Aminoacido",
+          "value": "Glicina"
+        },
+        {
+          "label": "Sigla",
+          "value": "Gly (G)"
+        },
+        {
+          "label": "Codoni sinonimi",
+          "value": "4"
+        }
+      ]
+    }
+  ]
+}

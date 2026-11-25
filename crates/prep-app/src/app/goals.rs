@@ -928,7 +928,6 @@ impl Ctrl {
         let subject = subjects.iter().position(|s| s.id == cur);
         st.set_current_subject_n(subject.unwrap_or(0) as i32);
         let subject = subject.map(|i| &subjects[i]);
-        st.set_subject_periodic(subject.is_some_and(|s| s.tools.iter().any(|t| t == TOOL_PERIODIC_TABLE)));
         st.set_subject_links(model(
             subject.map(|s| s.links.iter().map(|l| ss(&l.label)).collect()).unwrap_or_default(),
         ));
@@ -936,15 +935,13 @@ impl Ctrl {
         {
             // Studia: Quiz, Flashcard e Simulazione (le prove ufficiali si scelgono dentro
             // Simulazione); gli strumenti della materia stanno a parte, dietro «Strumenti»
-            let t = |kind: i32, id: &str, label: &str| ToolVM { kind, id: ss(id), label: ss(label) };
+            let t =
+                |kind: i32, id: &str, label: &str| ToolVM { kind, id: ss(id), label: ss(label), sub: ss(""), tk: 0 };
             let mut tools = vec![t(0, "", "Quiz"), t(1, "", "Flashcard")];
             if self.content.syllabus().exam.questions > 0 || !officials.is_empty() {
                 tools.push(t(2, "", "Simulazione"));
             }
-            let mut extra = Vec::new();
-            if subject.is_some_and(|s| s.tools.iter().any(|x| x == TOOL_PERIODIC_TABLE)) {
-                extra.push(t(4, "", "Tavola periodica"));
-            }
+            let mut extra = self.subject_tools(subject);
             if let Some(s) = subject {
                 extra.extend(s.links.iter().enumerate().map(|(i, l)| t(5, &i.to_string(), &l.label)));
             }

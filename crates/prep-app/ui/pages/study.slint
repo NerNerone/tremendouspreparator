@@ -182,7 +182,7 @@ export component StudyPage inherits Page {
                                 } else if (t.kind == 3) {
                                     AppState.start-official(AppState.current-subject, t.id);
                                 } else if (t.kind == 4) {
-                                    AppState.open-periodic();
+                                    AppState.open-tool(t.id);
                                 } else if (t.kind == 5) {
                                     AppState.open-subject-link(t.id.to-float());
                                 } else {
@@ -412,15 +412,15 @@ export component StudyPage inherits Page {
                 for t[i] in AppState.study-extra: GRow {
                     first: i == 0;
                     last: i == AppState.study-extra.length - 1;
-                    icon: t.kind == 4 ? Icons.apps : t.kind == 5 ? Icons.book : Icons.smart-toy;
+                    icon: t.kind == 4 ? (t.tk == 1 ? Icons.toc : t.tk == 2 ? Icons.calculate : Icons.apps) : t.kind == 5 ? Icons.book : Icons.smart-toy;
                     title: t.label;
-                    sub: t.kind == 4 ? "Elementi, famiglie e proprietà" : t.kind == 5 ? "Testo del pacchetto" : "Nuove domande e flashcard con il prompt pronto";
+                    sub: t.kind == 4 ? (t.sub != "" ? t.sub : t.tk == 1 ? "Elenco da consultare" : t.tk == 2 ? "Calcolatore" : "Tabella interattiva") : t.kind == 5 ? "Testo del pacchetto" : "Nuove domande e flashcard con il prompt pronto";
                     trail: 1;
                     clicked => {
                         root.tools-open = false;
                         AppState.sheet-open = false;
                         if (t.kind == 4) {
-                            AppState.open-periodic();
+                            AppState.open-tool(t.id);
                         } else if (t.kind == 5) {
                             AppState.open-subject-link(t.id.to-float());
                         } else {

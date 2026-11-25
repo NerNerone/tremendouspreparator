@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Primo piano: libro aperto. -->
+<!-- Primo piano: libro aperto con il segnalibro a scacchi (il traguardo). Colori in values/icon_colors.xml (accento di sistema da Android 12). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFF8FAFF"
-        android:pathData="M54,42C46,36.5 37.5,35.5 30,38L30,70C37.5,67.5 46,68.5 54,74Z" />
-    <path android:fillColor="#FFD3E3FD"
-        android:pathData="M54,42C62,36.5 70.5,35.5 78,38L78,70C70.5,67.5 62,68.5 54,74Z" />
+    <group android:scaleX="0.92" android:scaleY="0.92" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="@color/icon_page_l" android:pathData="M54,40C45,34 35,33 27,36L27,74C35,71 45,72 54,78Z" />
+        <path android:fillColor="@color/icon_page_r" android:pathData="M54,40C63,34 73,33 81,36L81,74C73,71 63,72 54,78Z" />
+        <path android:fillColor="@color/icon_page_l" android:strokeColor="@color/icon_ink" android:strokeWidth="1"
+            android:strokeLineJoin="round" android:pathData="M60,30h12v24l-6,-5l-6,5z" />
+        <path android:fillColor="@color/icon_ink" android:pathData="M60,30h4v4h-4zM68,30h4v4h-4zM64,34h4v4h-4zM60,38h4v4h-4zM68,38h4v4h-4zM64,42h4v4h-4zM60,46h4v4h-4zM68,46h4v4h-4z" />
+    </group>
 </vector>

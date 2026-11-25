@@ -5,6 +5,14 @@ l'aggiornamento che lo porta.
 
 ## 25 novembre 2026
 
+- Strumenti dei pacchetti: tabelle interattive (come la tavola periodica), elenchi da cercare e calcolatori con formule, scritti come dati nel pacchetto. Esempi: codice genetico, vitamine, costanti, prefissi del SI, gas perfetti, diluizioni, pH, moto accelerato.
+- Gestisci contenuti › Strumenti: quelli del pacchetto in una sezione a sé; «Aggiungi strumento» ne copia uno da un altro pacchetto (o la tavola periodica); con ⋮ uno strumento si condivide da solo, si copia in un altro pacchetto o si toglie. Chi riceve il file sceglie in quale pacchetto metterlo.
+- Nuova icona: libro con il segnalibro a scacchi, nei colori dell'accento di sistema (Android 12+).
+- «Crea con l'AI», nuovo file: tre passi in colonna (imposta, copia il prompt, incolla e salva), argomenti da un elenco, contatore a pillola.
+- Pillola della concentrazione sul computer: colori dell'app; dopo averla spostata pausa e riduci a icona rispondono subito.
+- Computer: nella barra delle app l'icona dell'app al posto di quella generica.
+- Schermo largo: «Apri accanto» sulla scheda in uso la lascia a sinistra e apre l'altra a destra; toccando nella barra la scheda aperta accanto le due si scambiano.
+- Web app: niente concentrazione (nel browser non si possono bloccare le altre app).
 - Studia: in vista solo Quiz, Flashcard, Simulazione e «Strumenti»; tavola periodica, testi della materia e «Crea con l'AI» stanno nel foglio Strumenti. Le prove ufficiali si scelgono dentro Simulazione.
 - Tavola periodica come pagina a sé, senza altre schede in alto.
 - Oggi: la fascia della preparazione si restringe con continuità scorrendo (percentuale, giorni e barra si spostano fino alla fascia compatta); niente più stacco dalla barra di stato cambiando scheda.

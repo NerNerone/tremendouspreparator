@@ -16,6 +16,8 @@ pub struct Content {
     pub questions: Vec<Question>,
     pub cards: Vec<Flashcard>,
     pub books: Vec<Book>,
+    /// strumenti del pacchetto (`content/tools/*.json`)
+    pub tools: Vec<crate::tools::Tool>,
     q_index: HashMap<String, usize>,
     c_index: HashMap<String, usize>,
     topic_index: HashMap<String, TopicRef>,
@@ -25,7 +27,8 @@ pub struct Content {
 
 impl Content {
     /// `files`: coppie (percorso relativo al repo, testo JSON). Riconosce
-    /// `content/syllabus.json`, `content/questions/**.json`, `content/flashcards/**.json`.
+    /// `content/syllabus.json`, `content/questions/**.json`, `content/flashcards/**.json`,
+    /// `content/tools/*.json`.
     pub fn from_files<'a, I>(files: I) -> Content
     where
         I: IntoIterator<Item = (&'a str, &'a str)>,
@@ -56,6 +59,12 @@ impl Content {
                 match serde_json::from_str::<FlashcardFile>(text) {
                     Ok(f) => c.cards.extend(f.cards),
                     Err(e) => c.warnings.push(format!("{path}: {e}")),
+                }
+            } else if path.starts_with("content/tools/") {
+                let t = crate::tools::from_files([(path, text)], &mut c.warnings);
+                for t in t {
+                    c.tools.retain(|x| x.id != t.id);
+                    c.tools.push(t);
                 }
             }
         }

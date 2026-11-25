@@ -46,6 +46,14 @@ impl Ctrl {
             m3.set_dyn_light(to(&light));
             m3.set_dyn_dark(to(&dark));
             m3.set_dynamic(true);
+            #[cfg(target_os = "linux")]
+            if let Some(p) = &self.focus_pill {
+                use slint::ComponentHandle;
+                let pm = p.global::<crate::M3>();
+                pm.set_dyn_light(to(&light));
+                pm.set_dyn_dark(to(&dark));
+                pm.set_dynamic(true);
+            }
         }
         // proposte: «sistema» (se c'è) e i colori fissi
         let mut v = Vec::new();
@@ -243,7 +251,7 @@ impl Ctrl {
                 .map(|q| format!("{} · {}", if q.is_exam() { "Simulazione d'esame" } else { "Quiz" }, q.title)),
             5 => Some("Flashcard".to_string()),
             9 => self.reader.as_ref().map(|r| format!("Lettura · {}", r.title)),
-            12 => Some("Tavola periodica".to_string()),
+            12 => self.tool_title(),
             _ => None,
         };
         if let Some(d) = now {

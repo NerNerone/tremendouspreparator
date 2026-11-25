@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "id": "esempio-gas",
+  "title": "Gas perfetti",
+  "subtitle": "PV = nRT",
+  "kind": "calc",
+  "info": "Scrivi moli, temperatura e volume: l'app calcola pressione e densità molare. La temperatura va in kelvin (°C + 273,15).",
+  "inputs": [
+    {
+      "id": "n",
+      "label": "Moli",
+      "unit": "mol",
+      "default": 1
+    },
+    {
+      "id": "T",
+      "label": "Temperatura",
+      "unit": "K",
+      "default": 273.15
+    },
+    {
+      "id": "V",
+      "label": "Volume",
+      "unit": "L",
+      "default": 22.4
+    }
+  ],
+  "outputs": [
+    {
+      "id": "P",
+      "label": "Pressione",
+      "unit": "atm",
+      "formula": "n * 0.082057 * T / V",
+      "digits": 4
+    },
+    {
+      "label": "Pressione",
+      "unit": "kPa",
+      "formula": "P * 101.325",
+      "digits": 4
+    },
+    {
+      "label": "Concentrazione molare",
+      "unit": "mol/L",
+      "formula": "n / V",
+      "digits": 3
+    }
+  ]
+}

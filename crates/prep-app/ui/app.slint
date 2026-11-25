@@ -11,7 +11,7 @@ import { AppState } from "state.slint";
 import { NavItem, M3Button, Scroller, FabMenu, SessionBar, WavyProgress, Icon, OutlinedField } from "components.slint";
 import { CropDialog } from "crop.slint";
 import { FocusPill } from "focuspill.slint";
-import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, PeriodicPage, GroupPage, ContentsPage, PdfToolsPage, CreatorPage, SimLogPage, TuPage } from "pages.slint";
+import { HomePage, StudyPage, UnitPage, QuizPage, ResultsPage, CardsPage, DecksPage, QuizHubPage, SettingsPage, ReaderPage, FeedbackPage, GoalsPage, ToolPage, GroupPage, ContentsPage, PdfToolsPage, CreatorPage, SimLogPage, TuPage } from "pages.slint";
 
 export { AppState, M3, FocusPill }
 
@@ -120,6 +120,11 @@ export component AppWindow inherits Window {
                     badge: it.tab == 1 ? AppState.due-count : it.tab == 2 && AppState.study-state == 1 ? 1 : 0;
                     clicked => {
                         AppState.fab-open = false;
+                        // la scheda aperta accanto diventa la principale: le due si scambiano
+                        // (prima la seconda spariva e restava una sola scheda)
+                        if (root.split && AppState.side-page == it.pg) {
+                            AppState.side-page = AppState.page;
+                        }
                         AppState.go-tab(it.tab);
                     }
                     menu => {
@@ -157,7 +162,7 @@ export component AppWindow inherits Window {
                 if AppState.page == 9: ReaderPage { }
                 if AppState.page == 10: FeedbackPage { }
                 if AppState.page == 11: GoalsPage { }
-                if AppState.page == 12: PeriodicPage { }
+                if AppState.page == 12: ToolPage { }
                 if AppState.page == 13: GroupPage { }
                 if AppState.page == 14: ContentsPage { }
                 if AppState.page == 15: PdfToolsPage { }
@@ -437,10 +442,14 @@ export component AppWindow inherits Window {
                     ota := TouchArea {
                         clicked => {
                             if (i == 0) {
-                                AppState.side-page = smenu.pg;
+                                // la scheda scelta si apre nel riquadro accanto (a destra, salvo
+                                // scambio); se è quella in uso resta dov'è e accanto si apre
+                                // l'altra scheda principale (Studia, o Oggi se si è in Studia)
                                 AppState.split-closed = false;
-                                if (AppState.page == AppState.side-page) {
-                                    AppState.go-tab(AppState.side-menu == 1 ? 0 : 1);
+                                if (AppState.page == smenu.pg) {
+                                    AppState.side-page = smenu.pg == 1 ? 0 : 1;
+                                } else {
+                                    AppState.side-page = smenu.pg;
                                 }
                             } else {
                                 if (AppState.side-page == smenu.pg) {

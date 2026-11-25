@@ -201,9 +201,21 @@ impl Ctrl {
             let pw = p.as_weak();
             p.on_drag(move || {
                 use i_slint_backend_winit::WinitWindowAccessor;
-                if let Some(p) = pw.upgrade() {
-                    let _ = p.window().with_winit_window(|w| w.drag_window());
-                }
+                let Some(p) = pw.upgrade() else { return };
+                let _ = p.window().with_winit_window(|w| w.drag_window());
+                // il rilascio del tasto lo riceve il sistema, non la finestra: senza questo la
+                // zona di trascinamento restava «premuta» e catturava i clic successivi, così
+                // pausa, stop e riduci a icona non rispondevano più
+                let pw = p.as_weak();
+                slint::Timer::single_shot(Duration::from_millis(0), move || {
+                    use slint::platform::{PointerEventButton, WindowEvent};
+                    if let Some(p) = pw.upgrade() {
+                        let position = slint::LogicalPosition::new(-1.0, -1.0);
+                        let w = p.window();
+                        w.dispatch_event(WindowEvent::PointerReleased { position, button: PointerEventButton::Left });
+                        w.dispatch_event(WindowEvent::PointerExited);
+                    }
+                });
             });
             let pw = p.as_weak();
             p.on_minimize(move || {
@@ -212,6 +224,13 @@ impl Ctrl {
                     let _ = p.window().with_winit_window(|w| w.set_minimized(true));
                 }
             });
+            // stessi colori dell'app (accento di sistema o scelto, chiaro/scuro)
+            {
+                let (src, dst) = (ui.global::<crate::M3>(), p.global::<crate::M3>());
+                dst.set_dyn_light(src.get_dyn_light());
+                dst.set_dyn_dark(src.get_dyn_dark());
+                dst.set_dynamic(src.get_dynamic());
+            }
             let _ = p.show();
             // in basso a destra dello schermo (dove il sistema lo permette: X11, KDE, wlroots);
             // la finestra di sistema nasce nel giro successivo del ciclo degli eventi
@@ -237,6 +256,7 @@ impl Ctrl {
             self.focus_pill = Some(p);
         }
         let Some(p) = &self.focus_pill else { return };
+        p.set_mode(st.get_theme_mode());
         p.set_time(st.get_focus_left());
         p.set_frac(st.get_focus_left_frac());
         let race = match self.study_state {
@@ -304,6 +324,12 @@ impl Ctrl {
     }
 
     pub(super) fn focus_setup(&mut self, open: bool) {
+        // nella web app la concentrazione non c'è (servirebbe un'altra logica: il browser non
+        // vede né chiude le altre app)
+        if open && !crate::focus::available() {
+            self.toast("La concentrazione c'è nell'app per Android e per computer, non nel browser");
+            return;
+        }
         self.ui().global::<AppState>().set_focus_open(open);
         if open {
             self.focus_query.clear();

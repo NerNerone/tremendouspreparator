@@ -51,6 +51,13 @@ pub fn check(c: &Content, read: &dyn Fn(&str) -> Option<String>) -> Report {
             r.warnings.push(format!("materia {}: nessuna unità", s.id));
         }
         r.warnings.extend(crate::icons::problems(s));
+        let known = |t: &str| crate::model::KNOWN_TOOLS.contains(&t) || c.tools.iter().any(|x| x.id == t);
+        for t in s.tools.iter().filter(|t| !known(t)) {
+            r.warnings.push(format!(
+                "materia {}: strumento «{t}» sconosciuto, l'app lo ignora (né incluso nell'app né in content/tools/)",
+                s.id
+            ));
+        }
         for u in &s.units {
             if u.topics.is_empty() {
                 r.warnings.push(format!("unità {}: nessun argomento", u.id));
@@ -61,6 +68,11 @@ pub fn check(c: &Content, read: &dyn Fn(&str) -> Option<String>) -> Report {
                 }
             }
         }
+    }
+
+    // strumenti del pacchetto
+    for t in &c.tools {
+        r.warnings.extend(t.problems());
     }
 
     // domande
@@ -175,7 +187,7 @@ mod tests {
     #[test]
     fn finds_problems_and_gaps() {
         let syl = r#"{"schema":1,"title":"T","exam":{"questions":3,"mcq":1,"fill":1,"options":5,"minutes":10,"correct":1,"wrong":0,"omitted":0,"pass":1},
-            "subjects":[{"id":"fis","name":"Fisica","units":[{"id":"fis-u1","n":1,"name":"U1","cfu":1,"topics":[{"id":"fis-u1-t1","name":"Moto"},{"id":"fis-u1-t2","name":"Forze"},{"id":"fis-u1-t3","name":"Onde"}]}]}]}"#;
+            "subjects":[{"id":"fis","name":"Fisica","tools":["tavola-periodica","calcolatrice-mia"],"units":[{"id":"fis-u1","n":1,"name":"U1","cfu":1,"topics":[{"id":"fis-u1-t1","name":"Moto"},{"id":"fis-u1-t2","name":"Forze"},{"id":"fis-u1-t3","name":"Onde"}]}]}]}"#;
         let q = r#"{"schema":1,"questions":[
             {"id":"a","topic":"fis-u1-t1","type":"mcq","text":"Quanto fa due più due?","options":["4","4","5","6"],"answer":0,"explanation":""},
             {"id":"b","topic":"fis-u1-t1","type":"fill","text":"Unità della forza: ____","answers":["N"],"explanation":"newton","difficulty":7},
@@ -197,6 +209,8 @@ mod tests {
         assert!(r.warnings.iter().any(|w| w.contains("b: difficoltà 7")));
         assert!(r.warnings.iter().any(|w| w.contains("c1: fronte e retro uguali")));
         assert!(r.warnings.iter().any(|w| w.contains("regole d'esame")));
+        assert!(r.warnings.iter().any(|w| w.contains("strumento «calcolatrice-mia» sconosciuto")), "{all}");
+        assert!(!r.warnings.iter().any(|w| w.contains("«tavola-periodica»")));
         assert!(r.warnings.iter().any(|w| w.contains("senza file SVG")));
         assert!(r.tips.iter().any(|t| t.contains("manca la figura «Figura 1»")));
         assert!(r.tips.iter().any(|t| t.contains("Moto: solo 2 domande")));

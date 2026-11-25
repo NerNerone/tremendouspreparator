@@ -81,7 +81,8 @@ per l'AI (`CLAUDE.md`) lo fanno fare da sé all'inizio di ogni lavoro.
    «Salva e sincronizza».
 3. Dal menu degli esami in Oggi: «Da un ramo» per scaricare un esame, «Nuovo ramo» per crearne
    uno da questo modello, oppure «Salva in un ramo» (tre puntini sull'esame) per mettere qui un
-   esame importato da un pacchetto.
+   esame importato da un pacchetto. Importando un pacchetto (o ricevendolo con un codice) l'app lo
+   propone da sola.
 
 Ogni ramo è un esame, o una versione dello stesso esame con progressi separati. L'app crea solo
 file nuovi in `progress/` e non li modifica: niente conflitti tra dispositivi. Il token resta

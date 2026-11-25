@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "id": "prefissi-si",
+  "title": "Prefissi del SI",
+  "subtitle": "Da tera a pico",
+  "kind": "list",
+  "sections": [
+    {
+      "title": "Multipli",
+      "items": [
+        {
+          "title": "tera (T)",
+          "value": "10¹²"
+        },
+        {
+          "title": "giga (G)",
+          "value": "10⁹"
+        },
+        {
+          "title": "mega (M)",
+          "value": "10⁶"
+        },
+        {
+          "title": "kilo (k)",
+          "value": "10³"
+        }
+      ]
+    },
+    {
+      "title": "Sottomultipli",
+      "items": [
+        {
+          "title": "deci (d)",
+          "value": "10⁻¹"
+        },
+        {
+          "title": "centi (c)",
+          "value": "10⁻²"
+        },
+        {
+          "title": "milli (m)",
+          "value": "10⁻³"
+        },
+        {
+          "title": "micro (µ)",
+          "value": "10⁻⁶"
+        },
+        {
+          "title": "nano (n)",
+          "value": "10⁻⁹"
+        },
+        {
+          "title": "pico (p)",
+          "value": "10⁻¹²"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "moto-accelerato",
+  "title": "Moto uniformemente accelerato",
+  "subtitle": "v = v₀ + a·t · s = v₀·t + ½·a·t²",
+  "kind": "calc",
+  "inputs": [
+    {
+      "id": "v0",
+      "label": "Velocità iniziale",
+      "unit": "m/s",
+      "default": 0
+    },
+    {
+      "id": "a",
+      "label": "Accelerazione",
+      "unit": "m/s²",
+      "default": 9.81
+    },
+    {
+      "id": "t",
+      "label": "Tempo",
+      "unit": "s",
+      "default": 2
+    }
+  ],
+  "outputs": [
+    {
+      "id": "v",
+      "label": "Velocità finale",
+      "unit": "m/s",
+      "formula": "v0 + a*t",
+      "digits": 4
+    },
+    {
+      "label": "Spazio percorso",
+      "unit": "m",
+      "formula": "v0*t + 0.5*a*t^2",
+      "digits": 4
+    },
+    {
+      "label": "Velocità media",
+      "unit": "m/s",
+      "formula": "(v0 + v) / 2",
+      "digits": 4
+    }
+  ]
+}
