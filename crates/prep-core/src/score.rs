@@ -9,7 +9,7 @@
 //! | pit lento | pausa tra 10 e 30 min | il ritmo si dimezza |
 //! | sosta lunga, «Termina» | pausa oltre 30 min | il ritmo riparte da ×1 |
 //! | box troppo frequenti | più di 2 pause in 30 min | ×0,8 per 15 min |
-//! | concentrazione | modalità concentrazione attiva | +1,0 al ritmo (da ×1 a ×2) |
+//! | concentrazione | modalità concentrazione attiva | +1,0 al ritmo (da ×1 a ×2); +0,1 per ogni altro proprio dispositivo in concentrazione |
 //! | scia di gruppo | altri membri in pista | +0,1 per ciascuno, al massimo ×1,4 |
 //! | limite giornaliero | oltre 10 ore nel giorno | ×1 fisso |
 
@@ -26,6 +26,8 @@ pub const SMOKE_SECS: i64 = 15 * 60;
 pub const PITS_WINDOW: i64 = 30 * 60;
 /// bonus della concentrazione, sommato al ritmo (come i suoi gradini da +0,25)
 pub const FOCUS: f64 = 1.0;
+/// in più per ogni altro proprio dispositivo in concentrazione nello stesso momento
+pub const FOCUS_EXTRA: f64 = 0.1;
 pub const DRAFT_EACH: f64 = 0.1;
 pub const DRAFT_MAX: f64 = 1.4;
 pub const CAP: f64 = 5.0;
@@ -107,13 +109,13 @@ impl Run {
 
     /// Moltiplicatore a `now`: `focus` = concentrazione attiva, `others` = altri membri in pista,
     /// `today` = secondi già studiati oggi.
-    pub fn score(&self, now: i64, focus: bool, others: usize, today: u64) -> Score {
+    pub fn score(&self, now: i64, focus: u32, others: usize, today: u64) -> Score {
         if today >= DAILY_CAP_SECS {
             return Score { mult: 1.0, fx: 0, level: 0.0 };
         }
         let ritmo = self.ritmo(now);
         let mut fx = 0;
-        let mut m = ritmo + if focus { FOCUS } else { 0.0 };
+        let mut m = ritmo + if focus > 0 { FOCUS + FOCUS_EXTRA * (focus - 1) as f64 } else { 0.0 };
         if ritmo > 1.0 {
             fx |= FX_RITMO;
         }
@@ -125,7 +127,7 @@ impl Run {
             m *= SMOKE;
             fx |= FX_SMOKE;
         }
-        if focus {
+        if focus > 0 {
             fx |= FX_FOCUS;
         }
         if others > 0 {
@@ -152,7 +154,7 @@ mod tests {
                 first = false;
             }
             for _ in 0..study * 60 {
-                pts += run.score(t, focus, 0, 0).mult;
+                pts += run.score(t, u32::from(focus), 0, 0).mult;
                 t += 1;
             }
             if pause > 0 {
@@ -178,9 +180,11 @@ mod tests {
         let focus = points(&[(360, 0)], true);
         assert!(focus > giovanni * 1.3 && focus < giovanni * 2.0, "{focus} vs {giovanni}");
         let r = Run { acc: 0, since: Some(0), ..Default::default() };
-        assert_eq!(r.score(1, true, 0, 0).mult, 2.0);
+        assert_eq!(r.score(1, 1, 0, 0).mult, 2.0);
+        // telefono e computer in concentrazione insieme: +0,1
+        assert!((r.score(1, 2, 0, 0).mult - 2.1).abs() < 1e-9);
         let r = Run { acc: 10 * 3600, since: Some(0), tyres_until: 100, ..Default::default() };
-        assert!(r.score(1, true, 9, 0).mult <= CAP);
+        assert!(r.score(1, 1, 9, 0).mult <= CAP);
     }
 
     #[test]
@@ -189,7 +193,7 @@ mod tests {
         r.start(0);
         r.pause(30 * 60);
         r.resume(30 * 60, 35 * 60); // pit perfetto dopo 30 min
-        assert!(r.score(36 * 60, false, 0, 0).fx & FX_TYRES != 0);
+        assert!(r.score(36 * 60, 0, 0, 0).fx & FX_TYRES != 0);
         assert_eq!(r.ritmo(36 * 60), 1.25);
         r.pause(40 * 60);
         r.resume(40 * 60, 60 * 60); // pit lento: ritmo dimezzato
@@ -198,14 +202,14 @@ mod tests {
         r.resume(61 * 60, 62 * 60);
         r.pause(63 * 60);
         r.resume(63 * 60, 64 * 60); // terza pausa in 30 minuti: fumo
-        let s = r.score(65 * 60, false, 0, 0);
+        let s = r.score(65 * 60, 0, 0, 0);
         assert!(s.fx & FX_SMOKE != 0 && s.mult < 1.0);
         r.pause(70 * 60);
         r.resume(70 * 60, 120 * 60); // sosta lunga: si riparte da capo
         assert_eq!(r.ritmo(121 * 60), 1.0);
         // oltre 10 ore al giorno niente bonus
-        assert_eq!(r.score(121 * 60, true, 3, DAILY_CAP_SECS).mult, 1.0);
+        assert_eq!(r.score(121 * 60, 1, 3, DAILY_CAP_SECS).mult, 1.0);
         // scia di gruppo con un limite
-        assert_eq!(Run::default().score(0, false, 9, 0).mult, DRAFT_MAX);
+        assert_eq!(Run::default().score(0, 0, 9, 0).mult, DRAFT_MAX);
     }
 }

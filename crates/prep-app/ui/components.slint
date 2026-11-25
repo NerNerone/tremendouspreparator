@@ -1357,6 +1357,8 @@ export component FabMenu inherits Rectangle {
                 height: AppState.fab-open ? 56px : 64px;
                 width: AppState.fab-open ? 56px : self.wide ? measure.preferred-width + 20px + 28px + 12px + 24px : 64px;
                 border-radius: AppState.fab-open ? 28px : 20px;
+                // la scritta si scopre mentre il pulsante si allarga (prima usciva dai bordi)
+                clip: true;
                 background: root.tonal ? (fta.pressed ? M3.primary-container.darker(8%) : M3.primary-container) : fta.pressed ? M3.primary.darker(10%) : M3.primary;
                 drop-shadow-blur: 12px;
                 drop-shadow-offset-y: 4px;
@@ -1392,6 +1394,8 @@ export component FabMenu inherits Rectangle {
                         font-weight: 700;
                         color: root.tonal ? M3.on-primary-container : M3.on-primary;
                         vertical-alignment: center;
+                        overflow: clip;
+                        opacity: clamp((fab.width - 64px) / max(1px, measure.preferred-width), 0, 1);
                     }
                 }
                 // tenuto premuto (in Squadra): il menu delle attività invece del comando della gara

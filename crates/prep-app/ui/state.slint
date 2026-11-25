@@ -436,6 +436,10 @@ export global AppState {
     // schermo largo: scheda principale aperta accanto (pagina, -1 nessuna) e menu «Apri accanto»
     in-out property <int> side-page: -1;
     in-out property <int> side-menu: -1;
+    // la seconda scheda a destra invece che a sinistra, quanto è larga (0..1) e se è stata chiusa
+    in-out property <bool> side-right: true;
+    in-out property <float> split-frac: 0.42;
+    in-out property <bool> split-closed;
 
     // home
     in property <float> overall;
@@ -640,6 +644,8 @@ export global AppState {
     in property <[CarVM]> cars;
     // telecamera: punto inquadrato (coordinate della pista) e scritte sopra la gara
     in property <float> cam-f;
+    // velocità della telecamera (giri al secondo): quella della macchina seguita
+    in property <float> cam-speed;
     in property <float> cam-side: 1;
     in property <float> cam-stack: 0;
     in property <float> cam-run: 0;

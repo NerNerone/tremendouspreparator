@@ -5,7 +5,8 @@ import { M3, Icons } from "theme.slint";
 import { RingProgress, Icon } from "components.slint";
 
 export component FocusPill inherits Window {
-    title: "Concentrazione";
+    // il titolo serve anche a KWin per riconoscerla (vedi deskfocus::kwin_place)
+    title: "Tremendous · Concentrazione";
     no-frame: true;
     always-on-top: true;
     background: transparent;
@@ -18,6 +19,9 @@ export component FocusPill inherits Window {
     in property <bool> pit;
     callback open-app();
     callback toggle-pit();
+    // trascinata con il mouse (la sposta il sistema) e ridotta a icona
+    callback drag();
+    callback minimize();
     width: 380px;
     // altezza fissa: la pillola resta in basso, l'avviso compare sopra
     height: 212px;
@@ -63,6 +67,15 @@ export component FocusPill inherits Window {
             border-radius: 30px;
             background: #1c1e24;
             drop-shadow-blur: 0px;
+            // si sposta trascinandola dove non ci sono pulsanti
+            TouchArea {
+                mouse-cursor: move;
+                pointer-event(e) => {
+                    if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                        root.drag();
+                    }
+                }
+            }
             HorizontalLayout {
                 padding: 14px;
                 padding-right: 16px;
@@ -115,6 +128,27 @@ export component FocusPill inherits Window {
                 }
                 VerticalLayout {
                     alignment: center;
+                    spacing: 6px;
+                    Rectangle {
+                        width: 30px;
+                        height: 30px;
+                        x: 7px;
+                        border-radius: 15px;
+                        background: mta.pressed ? #3a3d45 : transparent;
+                        Rectangle {
+                            x: 9px;
+                            y: 14px;
+                            width: 12px;
+                            height: 2px;
+                            border-radius: 1px;
+                            background: #c4c8d0;
+                        }
+                        mta := TouchArea {
+                            clicked => {
+                                root.minimize();
+                            }
+                        }
+                    }
                     Rectangle {
                         width: 44px;
                         height: 44px;

@@ -37,10 +37,23 @@ export component AppWindow inherits Window {
     property <bool> wide: root.width >= 840px && root.show-nav;
     property <length> rail-w: root.wide ? 88px : 0px;
     property <bool> split: root.wide && AppState.side-page >= 0 && AppState.side-page != AppState.page;
-    property <length> comp-w: root.split ? max(360px, min(600px, (root.width - root.rail-w) * 0.42)) : 0px;
-    property <length> main-free: root.width - root.rail-w - root.comp-w - (root.split ? 12px : 0px);
-    property <length> main-w: root.wide ? min(root.main-free, root.split ? 1000px : root.column-max) : root.width - 2 * root.side;
-    property <length> main-x: root.wide ? root.width - root.main-free + (root.main-free - root.main-w) / 2 : root.side;
+    // due schede: larghezza della seconda (frazione trascinabile dal divisore) e lato
+    property <length> pane-total: root.width - root.rail-w - 12px;
+    property <length> comp-w: root.split ? max(320px, min(root.pane-total - 360px, root.pane-total * AppState.split-frac)) : 0px;
+    property <length> main-free: root.split ? root.pane-total - root.comp-w : root.width - root.rail-w;
+    property <length> main-w: root.wide ? (root.split ? root.main-free : min(root.main-free, root.column-max)) : root.width - 2 * root.side;
+    property <length> main-x: !root.wide ? root.side
+        : !root.split ? root.rail-w + (root.main-free - root.main-w) / 2
+        : AppState.side-right ? root.rail-w : root.rail-w + root.comp-w + 12px;
+    property <length> comp-x: AppState.side-right ? root.rail-w + root.main-w + 12px : root.rail-w;
+    property <length> div-x: AppState.side-right ? root.rail-w + root.main-w : root.rail-w + root.comp-w;
+    // schermo largo: si apre con due schede (quella in uso e Studia), finché non si chiude con ✕
+    changed wide => {
+        if (root.wide && AppState.side-page < 0 && !AppState.split-closed) {
+            AppState.side-page = AppState.page == 1 ? 0 : 1;
+        }
+    }
+
 
     fs := FocusScope {
         // l'app passa in secondo piano (la finestra perde il fuoco): un quiz in corso va in pausa
@@ -72,7 +85,7 @@ export component AppWindow inherits Window {
         // larghezza minima della finestra dipenderebbe da sé stessa (ciclo di binding)
         // schermo largo: la scheda aperta accanto, a sinistra della principale
         if root.split: Rectangle {
-            x: root.rail-w;
+            x: root.comp-x;
             y: root.safe-area-insets.top;
             width: root.comp-w;
             height: root.height - root.safe-area-insets.top - max(root.safe-area-insets.bottom, root.virtual-keyboard-size.height);
@@ -81,40 +94,7 @@ export component AppWindow inherits Window {
             if AppState.side-page == 1: StudyPage { }
             if AppState.side-page == 13: GroupPage { }
             if AppState.side-page == 18: TuPage { }
-            // chiude l'affiancamento
-            Rectangle {
-                x: parent.width - 52px;
-                y: parent.height - 52px;
-                width: 40px;
-                height: 40px;
-                border-radius: 20px;
-                background: cls.pressed ? M3.surface-container-highest : M3.surface-container-high;
-                drop-shadow-blur: 8px;
-                drop-shadow-color: #00000030;
-                Icon {
-                    x: 10px;
-                    y: 10px;
-                    width: 20px;
-                    height: 20px;
-                    source: Icons.close;
-                    tint: M3.on-surface;
-                }
-                cls := TouchArea {
-                    clicked => {
-                        AppState.side-page = -1;
-                    }
-                }
-            }
         }
-        if root.split: Rectangle {
-            x: root.rail-w + root.comp-w + 4px;
-            y: (root.height - 48px) / 2;
-            width: 4px;
-            height: 48px;
-            border-radius: 2px;
-            background: M3.outline-variant;
-        }
-
         // schermo largo: barra laterale (tenuta premuta o clic destro: «Apri accanto»)
         if root.wide: Rectangle {
             x: 0px;
@@ -280,6 +260,100 @@ export component AppWindow inherits Window {
                 }
             }
         }
+        // divisore: si trascina per ridimensionare; sopra, scambia i lati e chiudi
+        if root.split: divider := Rectangle {
+            x: root.div-x;
+            y: root.safe-area-insets.top;
+            width: 12px;
+            height: root.height - root.safe-area-insets.top;
+            // ⇄ e ✕ solo con il cursore sopra il divisore (o sui pulsanti); al tocco compaiono
+            // per qualche secondo
+            property <bool> reveal;
+            property <bool> show: drag.has-hover || drag.pressed || self.reveal || b0.has-hover || b1.has-hover;
+            Timer {
+                interval: 3s;
+                running: divider.reveal && !drag.pressed;
+                triggered => {
+                    divider.reveal = false;
+                }
+            }
+            Rectangle {
+                x: 4px;
+                y: (parent.height - 56px) / 2;
+                width: 4px;
+                height: 56px;
+                border-radius: 2px;
+                background: drag.pressed ? M3.primary : M3.outline-variant;
+            }
+            drag := TouchArea {
+                x: -6px;
+                width: 24px;
+                mouse-cursor: col-resize;
+                pointer-event(e) => {
+                    if (e.kind == PointerEventKind.down) {
+                        divider.reveal = true;
+                    }
+                }
+                moved => {
+                    if (self.pressed) {
+                        AppState.split-frac = max(0.22, min(0.78,
+                            (AppState.side-right ? (root.width - (root.div-x + self.mouse-x) - 6px) : (root.div-x + self.mouse-x - root.rail-w - 6px)) / root.pane-total));
+                    }
+                }
+            }
+            // ai lati della maniglia, a metà altezza (non coprono le testate delle schede)
+            Rectangle {
+                x: -10px;
+                y: (parent.height - 56px) / 2 - 44px;
+                width: 32px;
+                height: 32px;
+                border-radius: 16px;
+                opacity: divider.show ? 1 : 0;
+                animate opacity { duration: 150ms; }
+                background: b0.pressed ? M3.surface-container-highest : M3.surface-container-high;
+                drop-shadow-blur: 8px;
+                drop-shadow-color: #00000030;
+                Icon {
+                    x: 7px;
+                    y: 7px;
+                    width: 18px;
+                    height: 18px;
+                    source: Icons.swap;
+                    tint: M3.on-surface;
+                }
+                b0 := TouchArea {
+                    clicked => {
+                        AppState.side-right = !AppState.side-right;
+                    }
+                }
+            }
+            Rectangle {
+                x: -10px;
+                y: (parent.height + 56px) / 2 + 12px;
+                width: 32px;
+                height: 32px;
+                border-radius: 16px;
+                opacity: divider.show ? 1 : 0;
+                animate opacity { duration: 150ms; }
+                background: b1.pressed ? M3.surface-container-highest : M3.surface-container-high;
+                drop-shadow-blur: 8px;
+                drop-shadow-color: #00000030;
+                Icon {
+                    x: 7px;
+                    y: 7px;
+                    width: 18px;
+                    height: 18px;
+                    source: Icons.close;
+                    tint: M3.on-surface;
+                }
+                b1 := TouchArea {
+                    clicked => {
+                        AppState.side-page = -1;
+                        AppState.split-closed = true;
+                    }
+                }
+            }
+        }
     }
 
     // snackbar
@@ -364,6 +438,7 @@ export component AppWindow inherits Window {
                         clicked => {
                             if (i == 0) {
                                 AppState.side-page = smenu.pg;
+                                AppState.split-closed = false;
                                 if (AppState.page == AppState.side-page) {
                                     AppState.go-tab(AppState.side-menu == 1 ? 0 : 1);
                                 }
@@ -762,6 +837,9 @@ export component AppWindow inherits Window {
 
     init => {
         fs.focus();
+        if (root.wide && AppState.side-page < 0 && !AppState.split-closed) {
+            AppState.side-page = AppState.page == 1 ? 0 : 1;
+        }
         root.sys-scheme = Palette.color-scheme;
         if (root.theme-mode != 0) {
             root.apply-mode();

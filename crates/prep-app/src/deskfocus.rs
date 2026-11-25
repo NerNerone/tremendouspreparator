@@ -320,10 +320,21 @@ fn running_apps() -> Vec<(&'static App, Running)> {
         }
     };
     // 1. unità systemd delle app (il modo più affidabile: prende anche i processi figli)
-    if let Some(units) = host(&["systemctl", "--user", "list-units", "--type=scope,service", "--state=running", "--no-legend", "--plain", "app-*"]) {
+    if let Some(units) = host(&[
+        "systemctl",
+        "--user",
+        "list-units",
+        "--type=scope,service",
+        "--state=running",
+        "--no-legend",
+        "--plain",
+        "app-*",
+    ]) {
         for l in units.lines() {
             let Some(unit) = l.split_whitespace().next() else { continue };
-            if let Some(a) = list.iter().find(|a| unit_is(unit, &a.id) || a.flatpak.as_deref().is_some_and(|f| unit_is(unit, f))) {
+            if let Some(a) =
+                list.iter().find(|a| unit_is(unit, &a.id) || a.flatpak.as_deref().is_some_and(|f| unit_is(unit, f)))
+            {
                 add(a, Some(unit.to_string()), None);
             }
         }
@@ -346,9 +357,11 @@ fn running_apps() -> Vec<(&'static App, Running)> {
     if let Some(ps) = host(&["ps", "-u", &whoami(), "-o", "pid=,ppid=,comm=,args="]) {
         for l in ps.lines() {
             let mut it = l.split_whitespace();
-            let (Some(pid), Some(ppid), Some(comm)) =
-                (it.next().and_then(|p| p.parse::<u32>().ok()), it.next().and_then(|p| p.parse::<u32>().ok()), it.next())
-            else {
+            let (Some(pid), Some(ppid), Some(comm)) = (
+                it.next().and_then(|p| p.parse::<u32>().ok()),
+                it.next().and_then(|p| p.parse::<u32>().ok()),
+                it.next(),
+            ) else {
                 continue;
             };
             children.entry(ppid).or_default().push(pid);
@@ -404,6 +417,42 @@ fn kill(a: &App, r: &Running, hard: bool) {
         args.extend(p.iter().map(String::as_str));
         let _ = host(&args);
     }
+}
+
+/// KDE (anche Wayland, dove un'app non può scegliere dove stare): uno script di KWin mette la
+/// pillola in basso a destra dell'area di lavoro e la tiene sopra le altre finestre.
+pub fn kwin_place() {
+    let kde = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_uppercase().contains("KDE")
+        || std::env::var("KDE_FULL_SESSION").is_ok();
+    if !kde {
+        return;
+    }
+    let dir = std::env::var("XDG_DATA_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/share"));
+    let path = dir.join("tremendous-pill.js");
+    let script = r#"function place(w) {
+  if (!w || w.caption !== "Tremendous · Concentrazione") return;
+  w.keepAbove = true;
+  w.onAllDesktops = true;
+  const a = workspace.clientArea(KWin.MaximizeArea, w);
+  const g = w.frameGeometry;
+  w.frameGeometry = { x: a.x + a.width - g.width - 24, y: a.y + a.height - g.height - 24, width: g.width, height: g.height };
+}
+(workspace.windowList ? workspace.windowList() : workspace.clientList()).forEach(place);
+"#;
+    if std::fs::write(&path, script).is_err() {
+        return;
+    }
+    let p = path.to_string_lossy().replace('\'', "");
+    let cmd = format!(
+        "S='dbus-send --session --print-reply --dest=org.kde.KWin /Scripting org.kde.kwin.Scripting'; \
+         $S.unloadScript string:tremendous-pill >/dev/null 2>&1; \
+         $S.loadScript string:'{p}' string:tremendous-pill >/dev/null && $S.start >/dev/null; true"
+    );
+    std::thread::spawn(move || {
+        let _ = host(&["sh", "-c", &cmd]);
+    });
 }
 
 #[cfg(test)]

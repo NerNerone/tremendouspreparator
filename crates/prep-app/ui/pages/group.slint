@@ -784,12 +784,13 @@ component PermRow inherits Rectangle {
                     background: root.ok ? M3.primary : transparent;
                     border-width: root.ok ? 0px : 2px;
                     border-color: M3.outline;
-                    if root.ok: VIcon {
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
+                    if root.ok: Icon {
+                        x: (parent.width - 16px) / 2;
+                        y: (parent.height - 16px) / 2;
+                        width: 16px;
+                        height: 16px;
                         source: Icons.check;
                         tint: M3.on-primary;
-                        size: 16px;
                     }
                 }
             }
@@ -1007,28 +1008,41 @@ component FocusSheet inherits Rectangle {
                 wrap: word-wrap;
             }
             if root.custom || (AppState.focus-minutes != 25 && AppState.focus-minutes != 50 && AppState.focus-minutes != 90 && AppState.focus-minutes != 120): Rectangle {
-                height: 40px;
-                // cursore: da 5 minuti a 4 ore, a passi di 5
+                height: 44px;
+                // cursore (Material 3): traccia attiva, maniglia, traccia inattiva; da 5 minuti a
+                // 4 ore, a passi di 5
                 property <float> frac: (AppState.focus-minutes - 5) / 235;
+                property <length> hx: 2px + (self.width - 4px) * self.frac;
                 Rectangle {
+                    visible: parent.frac > 0;
+                    x: 0px;
                     y: (parent.height - 16px) / 2;
+                    width: max(0px, parent.hx - 8px);
                     height: 16px;
-                    border-radius: 8px;
-                    background: M3.primary-container;
-                }
-                Rectangle {
-                    y: (parent.height - 16px) / 2;
-                    width: max(16px, parent.width * parent.frac);
-                    height: 16px;
-                    border-radius: 8px;
+                    border-top-left-radius: 8px;
+                    border-bottom-left-radius: 8px;
+                    border-top-right-radius: 2px;
+                    border-bottom-right-radius: 2px;
                     background: M3.primary;
                 }
                 Rectangle {
-                    x: max(0px, parent.width * parent.frac - 3px);
-                    width: 6px;
-                    height: 36px;
-                    y: 2px;
-                    border-radius: 3px;
+                    visible: parent.frac < 1;
+                    x: parent.hx + 8px;
+                    y: (parent.height - 16px) / 2;
+                    width: max(0px, parent.width - parent.hx - 8px);
+                    height: 16px;
+                    border-top-right-radius: 8px;
+                    border-bottom-right-radius: 8px;
+                    border-top-left-radius: 2px;
+                    border-bottom-left-radius: 2px;
+                    background: M3.secondary-container;
+                }
+                Rectangle {
+                    x: parent.hx - 2px;
+                    y: 0px;
+                    width: 4px;
+                    height: parent.height;
+                    border-radius: 2px;
                     background: M3.primary;
                 }
                 TouchArea {
@@ -1114,12 +1128,13 @@ component FocusSheet inherits Rectangle {
                                         border-width: a.allowed ? 0px : 2px;
                                         border-color: M3.outline;
                                         background: a.allowed ? M3.primary : transparent;
-                                        if a.allowed: VIcon {
-                                            x: (parent.width - self.width) / 2;
-                                            y: (parent.height - self.height) / 2;
+                                        if a.allowed: Icon {
+                                            x: 3px;
+                                            y: 3px;
+                                            width: 16px;
+                                            height: 16px;
                                             source: Icons.check;
                                             tint: M3.on-primary;
-                                            size: 16px;
                                         }
                                     }
                                 }
@@ -1669,7 +1684,7 @@ export component GroupPage inherits Page {
                             }
                         }
                         // «Segui» la propria monoposto o «Tutto il circuito»
-                        if AppState.study-state != 0 || AppState.cars.length > 1: VerticalLayout {
+                        if AppState.race-live: VerticalLayout {
                             alignment: start;
                             Rectangle {
                                 height: 34px;
@@ -1766,7 +1781,7 @@ export component GroupPage inherits Page {
                         cam-run: AppState.cam-run;
                         lap-v: AppState.lap-speed;
                         cam-pit: AppState.study-state == 2;
-                        cam-v: AppState.study-state == 1 ? AppState.lap-speed : 0;
+                        cam-v: AppState.cam-speed;
                         overview: AppState.race-overview;
                         commands: AppState.track-cmd;
                         aspect: AppState.track-aspect;

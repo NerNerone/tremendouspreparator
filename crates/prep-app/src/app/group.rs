@@ -1530,6 +1530,7 @@ impl Ctrl {
         let my_secs = my_pts[0] + if self.study_state == State::Studying { frac * my_m } else { 0.0 };
         st.set_cam_f((my_secs / LAP_PTS) as f32);
         st.set_lap_speed((my_m / LAP_PTS) as f32);
+        st.set_cam_speed(if self.study_state == State::Studying { (my_m / LAP_PTS) as f32 } else { 0.0 });
         // piazzole dei pit stop: fuori dalla strada e senza sovrapporsi, anche quando più
         // macchine vanno in pausa nello stesso punto (calcolo ricordato finché le soste non
         // cambiano)
@@ -1553,18 +1554,28 @@ impl Ctrl {
             st.set_cam_run(me.run);
         }
         // «Mostra nel circuito»: la telecamera segue la monoposto di un altro finché è in pista e
-        // la sua scheda resta aperta
-        if let Some(fid) = self.cam_follow.clone() {
-            match cars.iter().find(|c| c.id.as_str() == fid && c.racing) {
-                Some(c) => {
-                    st.set_race_overview(false);
-                    st.set_cam_f(c.f + if c.v > 0.0 { c.v * frac as f32 } else { 0.0 });
-                    st.set_cam_side(c.side);
-                    st.set_cam_stack(c.stack);
-                    st.set_cam_run(c.run);
-                }
-                None => self.cam_follow = None,
+        // la sua scheda resta aperta. Con «Segui» da un dispositivo che non sta studiando: il
+        // primo in pista. La telecamera usa la stessa velocità della macchina (niente scatti tra
+        // un aggiornamento e l'altro)
+        let mut target = self.cam_follow.clone().and_then(|fid| {
+            let c = cars.iter().find(|c| c.id.as_str() == fid && c.racing);
+            if c.is_none() {
+                self.cam_follow = None;
             }
+            c.cloned()
+        });
+        if target.is_none() && self.study_state != State::Studying && !overview {
+            target = cars.iter().filter(|c| c.racing).max_by(|a, b| a.f.total_cmp(&b.f)).cloned();
+        }
+        if let Some(c) = target {
+            if self.cam_follow.is_some() {
+                st.set_race_overview(false);
+            }
+            st.set_cam_f(c.f);
+            st.set_cam_speed(c.v.max(0.0));
+            st.set_cam_side(c.side);
+            st.set_cam_stack(c.stack);
+            st.set_cam_run(c.run);
         }
         let fx_of = |id: &str| cars.iter().find(|c| c.id.as_str() == id).map(fx_text).unwrap_or_default();
         // scheda della macchina toccata
@@ -2584,12 +2595,13 @@ impl Ctrl {
         }
         let today = self.study_log.combined().day(Local::now().date_naive())
             + self.study_since.map(|t| (now - t).max(0) as u64).unwrap_or(0);
-        self.run.score(now, self.focus_on || self.twin_focus(now), self.racing_others, today)
+        let focus = u32::from(self.focus_on) + self.twin_focus(now);
+        self.run.score(now, focus, self.racing_others, today)
     }
 
-    /// Concentrazione attiva su un altro proprio dispositivo (sentito da poco): si somma alla
-    /// sessione aperta qui.
-    pub(super) fn twin_focus(&self, now: i64) -> bool {
-        self.own_devs.values().any(|(s, at)| s.focus && now - at < 35)
+    /// Altri propri dispositivi in concentrazione (sentiti da poco): si sommano alla sessione
+    /// aperta qui (la prima concentrazione vale +1,0, ognuna in più +0,1).
+    pub(super) fn twin_focus(&self, now: i64) -> u32 {
+        self.own_devs.values().filter(|(s, at)| s.focus && now - at < 35).count() as u32
     }
 }

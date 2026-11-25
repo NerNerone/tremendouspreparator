@@ -13,6 +13,11 @@ l'aggiornamento che lo porta.
 - Il pulsante «Studia ora» si riduce al simbolo scorrendo e sparisce sul profilo di un membro; con la concentrazione già attiva «Scendi in pista» parte subito e propone le attività.
 - Pacchetto importato o ricevuto con un codice: con GitHub configurato l'app propone di salvarlo in un ramo nuovo.
 - Novità: testo intero, senza tagli; dalle Opzioni si apre dall'inizio.
+- Schermo largo, anche su tablet Android: all'apertura due schede affiancate (la nuova a destra); trascina il divisore per ridimensionarle, ⇄ per scambiarle di lato, ✕ per chiudere.
+- Concentrazione su più dispositivi insieme (es. computer e telefono): +0,1 per ogni dispositivo in più.
+- Concentrazione sul computer: chiude davvero le app non permesse, compresi Steam e i Flatpak; su KDE la pillola sta in basso a destra, sopra le altre finestre, si trascina e si riduce a icona.
+- Squadra: «Segui» compare solo con qualcuno in pista, segue il primo se non stai studiando su quel dispositivo e scorre fluido.
+- Durata «Altro»: cursore sistemato; spunte delle app centrate; la scritta di «Studia ora» non esce più dal pulsante.
 - Computer (Flatpak): l'aggiornamento si installa da solo e l'app si riavvia alla fine.
 - Concentrazione anche sul computer (Linux e Flatpak): scegli le app permesse, una pillola in basso a destra mostra tempo, gara e app; se apri un'altra app ti avviso e dopo 10 secondi la chiudo.
 - Schermo largo (tablet, computer): barra laterale al posto di quella in basso; tieni premuta una scheda (o clic destro) e «Apri accanto» per vederne due insieme, per esempio Squadra e Studia.

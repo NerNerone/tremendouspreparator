@@ -101,12 +101,13 @@ component CheckRow inherits Rectangle {
                     border-width: root.o.sel ? 0px : 2px;
                     border-color: M3.outline;
                     background: root.o.sel ? M3.primary : transparent;
-                    if root.o.sel: VIcon {
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
+                    if root.o.sel: Icon {
+                        x: (parent.width - 18px) / 2;
+                        y: (parent.height - 18px) / 2;
+                        width: 18px;
+                        height: 18px;
                         source: Icons.check;
                         tint: M3.on-primary;
-                        size: 18px;
                     }
                 }
             }

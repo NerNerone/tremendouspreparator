@@ -409,12 +409,13 @@ export component HomePage inherits Page {
                                     background: g.done >= g.target ? M3.success-container : transparent;
                                     border-width: g.done >= g.target ? 0px : 2px;
                                     border-color: M3.outline;
-                                    if g.done >= g.target: VIcon {
-                                        x: (parent.width - self.width) / 2;
-                                        y: (parent.height - self.height) / 2;
+                                    if g.done >= g.target: Icon {
+                                        x: (parent.width - 18px) / 2;
+                                        y: (parent.height - 18px) / 2;
+                                        width: 18px;
+                                        height: 18px;
                                         source: Icons.check;
                                         tint: M3.success;
-                                        size: 18px;
                                     }
                                 }
                             }

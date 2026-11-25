@@ -198,6 +198,20 @@ impl Ctrl {
                     c.study_set(next);
                 })
             });
+            let pw = p.as_weak();
+            p.on_drag(move || {
+                use i_slint_backend_winit::WinitWindowAccessor;
+                if let Some(p) = pw.upgrade() {
+                    let _ = p.window().with_winit_window(|w| w.drag_window());
+                }
+            });
+            let pw = p.as_weak();
+            p.on_minimize(move || {
+                use i_slint_backend_winit::WinitWindowAccessor;
+                if let Some(p) = pw.upgrade() {
+                    let _ = p.window().with_winit_window(|w| w.set_minimized(true));
+                }
+            });
             let _ = p.show();
             // in basso a destra dello schermo (dove il sistema lo permette: X11, KDE, wlroots);
             // la finestra di sistema nasce nel giro successivo del ciclo degli eventi
@@ -217,6 +231,8 @@ impl Ctrl {
                         w.set_outer_position(i_slint_backend_winit::winit::dpi::PhysicalPosition::new(x, y));
                     }
                 });
+                // KDE (anche su Wayland): posizione e «sempre sopra» li decide KWin
+                crate::deskfocus::kwin_place();
             });
             self.focus_pill = Some(p);
         }
