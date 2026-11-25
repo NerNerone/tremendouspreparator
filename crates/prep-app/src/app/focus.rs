@@ -2,6 +2,9 @@
 
 use super::*;
 
+/// Righe dell'elenco delle app mostrate senza ricerca.
+const FOCUS_ROWS: usize = 40;
+
 impl Ctrl {
     // ---------- modalità concentrazione (Android) ----------
 
@@ -95,11 +98,28 @@ impl Ctrl {
             allowed: on,
         };
         let q = self.focus_query.trim().to_lowercase();
-        let all: Vec<FocusAppVM> = self
+        // in ordine alfabetico; senza ricerca le permesse più le prime FOCUS_ROWS altre (ognuna
+        // con la sua icona: centinaia di righe rallentavano l'apertura), le altre cercandole
+        let matching: Vec<FocusAppVM> = self
             .focus_apps
             .iter()
             .filter(|(p, l, _)| q.is_empty() || l.to_lowercase().contains(&q) || p.to_lowercase().contains(&q))
             .map(|(p, l, i)| vm(p, l, i, allowed.contains(p)))
+            .collect();
+        let mut others = 0;
+        let mut hidden = 0;
+        let all: Vec<FocusAppVM> = matching
+            .into_iter()
+            .filter(|a| {
+                if a.allowed || !q.is_empty() {
+                    return true;
+                }
+                others += 1;
+                if others > FOCUS_ROWS {
+                    hidden += 1;
+                }
+                others <= FOCUS_ROWS
+            })
             .collect();
         let chosen: Vec<FocusAppVM> =
             self.focus_apps.iter().filter(|(p, _, _)| allowed.contains(p)).map(|(p, l, i)| vm(p, l, i, true)).collect();
@@ -135,43 +155,54 @@ impl Ctrl {
             "Conferma: blocco fino alle {} (non si annulla)",
             hm(now_ms + minutes as i64 * 60_000)
         )));
-        // i modelli si sostituiscono solo se cambiano (niente sfarfallii ogni secondo)
-        let old = st.get_focus_apps();
-        if old.row_count() != all.len()
-            || (0..all.len()).any(|i| old.row_data(i).is_none_or(|r| r.allowed != all[i].allowed))
-        {
-            st.set_focus_apps(model(all));
+        // gli elenchi si aggiornano sul posto: solo le righe cambiate (niente sfarfallii ogni secondo)
+        st.set_focus_apps_hidden(hidden as i32);
+        if let Some(m) = sync_model(st.get_focus_apps(), all) {
+            st.set_focus_apps(m);
         }
-        let old = st.get_focus_launcher();
-        if old.row_count() != chosen.len()
-            || (0..chosen.len()).any(|i| old.row_data(i).is_none_or(|r| r.pkg != chosen[i].pkg))
-        {
-            st.set_focus_launcher(model(chosen));
+        if let Some(m) = sync_model(st.get_focus_launcher(), chosen) {
+            st.set_focus_launcher(m);
         }
     }
 
+    /// Elenco delle app installate (con le icone), in background: su Android chiederlo al
+    /// sistema e preparare le icone richiede tempo e prima bloccava l'apertura del foglio.
+    /// Il foglio mostra subito l'ultimo elenco e si aggiorna quando arriva quello nuovo.
     pub(super) fn load_focus_apps(&mut self) {
-        use base64::Engine as _;
-        let Some(t) = crate::focus::apps() else { return };
-        let Ok(v) = serde_json::from_str::<serde_json::Value>(&t) else { return };
-        let mut apps: Vec<(String, String, Option<slint::Image>)> = v
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .filter_map(|x| {
-                        let p = x["p"].as_str()?.to_string();
-                        let l = x["l"].as_str().unwrap_or(&p).to_string();
-                        let icon = x["i"]
-                            .as_str()
-                            .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
-                            .and_then(|b| crate::photo::to_image(&b));
-                        Some((p, l, icon))
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        apps.sort_by_key(|a| a.1.to_lowercase());
-        self.focus_apps = apps;
+        if self.focus_loading {
+            return;
+        }
+        self.focus_loading = true;
+        spawn_background(move || {
+            use base64::Engine as _;
+            type Px = slint::SharedPixelBuffer<slint::Rgba8Pixel>;
+            let mut apps: Vec<(String, String, Option<Px>)> = crate::focus::apps()
+                .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+                .and_then(|v| v.as_array().cloned())
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|x| {
+                    let p = x["p"].as_str()?.to_string();
+                    let l = x["l"].as_str().unwrap_or(&p).to_string();
+                    let icon = x["i"]
+                        .as_str()
+                        .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
+                        .and_then(|b| crate::photo::to_pixels(&b));
+                    Some((p, l, icon))
+                })
+                .collect();
+            apps.sort_by_key(|a| a.1.to_lowercase());
+            let _ = slint::invoke_from_event_loop(move || {
+                with_ctrl(|c| {
+                    c.focus_loading = false;
+                    if !apps.is_empty() {
+                        c.focus_apps =
+                            apps.into_iter().map(|(p, l, i)| (p, l, i.map(slint::Image::from_rgba8))).collect();
+                    }
+                    c.refresh_focus();
+                })
+            });
+        });
     }
 
     /// Ricerca per nome (o pacchetto) tra le app da permettere.

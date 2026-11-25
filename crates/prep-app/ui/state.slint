@@ -692,6 +692,8 @@ export global AppState {
     in property <bool> focus-confirm;
     in property <string> focus-confirm-text;
     in property <[FocusAppVM]> focus-apps;
+    // app non mostrate senza ricerca (si trovano cercandole)
+    in property <int> focus-apps-hidden;
     in property <[FocusAppVM]> focus-launcher;
     callback focus-setup(bool);
     callback focus-toggle(string);

@@ -13,6 +13,8 @@ l'aggiornamento che lo porta.
 - Il pulsante «Studia ora» si riduce al simbolo scorrendo e sparisce sul profilo di un membro; con la concentrazione già attiva «Scendi in pista» parte subito e propone le attività.
 - Pacchetto importato o ricevuto con un codice: con GitHub configurato l'app propone di salvarlo in un ramo nuovo.
 - Novità: testo intero, senza tagli; dalle Opzioni si apre dall'inizio.
+- Concentrazione: +1,0 al ritmo (da ×1 a ×2 appena parti), oltre alla scia blu e al blocco delle altre app.
+- «Scegli durata e app» si apre subito: l'elenco delle app si prepara in background all'avvio.
 - Più veloce: «Gestisci contenuti» si apre subito (prima quasi un secondo) e mostra i file a pagine; la Squadra aggiorna solo ciò che cambia.
 
 ## 24 novembre 2026

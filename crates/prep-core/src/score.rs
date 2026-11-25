@@ -9,7 +9,7 @@
 //! | pit lento | pausa tra 10 e 30 min | il ritmo si dimezza |
 //! | sosta lunga, «Termina» | pausa oltre 30 min | il ritmo riparte da ×1 |
 //! | box troppo frequenti | più di 2 pause in 30 min | ×0,8 per 15 min |
-//! | concentrazione | modalità concentrazione attiva | ×1 (solo la scia blu: niente bonus) |
+//! | concentrazione | modalità concentrazione attiva | +1,0 al ritmo (da ×1 a ×2) |
 //! | scia di gruppo | altri membri in pista | +0,1 per ciascuno, al massimo ×1,4 |
 //! | limite giornaliero | oltre 10 ore nel giorno | ×1 fisso |
 
@@ -24,6 +24,7 @@ pub const LONG_PIT: i64 = 30 * 60;
 pub const SMOKE: f64 = 0.8;
 pub const SMOKE_SECS: i64 = 15 * 60;
 pub const PITS_WINDOW: i64 = 30 * 60;
+/// bonus della concentrazione, sommato al ritmo (come i suoi gradini da +0,25)
 pub const FOCUS: f64 = 1.0;
 pub const DRAFT_EACH: f64 = 0.1;
 pub const DRAFT_MAX: f64 = 1.4;
@@ -112,7 +113,7 @@ impl Run {
         }
         let ritmo = self.ritmo(now);
         let mut fx = 0;
-        let mut m = ritmo;
+        let mut m = ritmo + if focus { FOCUS } else { 0.0 };
         if ritmo > 1.0 {
             fx |= FX_RITMO;
         }
@@ -125,7 +126,6 @@ impl Run {
             fx |= FX_SMOKE;
         }
         if focus {
-            m *= FOCUS;
             fx |= FX_FOCUS;
         }
         if others > 0 {
@@ -173,8 +173,12 @@ mod tests {
         // pause brevi tengono il ritmo (e danno le gomme nuove): meglio di una sosta lunga
         let pomodoro = points(&[(50, 5), (50, 5), (50, 5), (50, 5), (50, 5), (50, 5), (60, 0)], false);
         assert!(pomodoro > tu, "{pomodoro} vs {tu}");
-        // la concentrazione non dà punti in più (solo la scia blu), e mai oltre ×5
-        assert_eq!(points(&[(360, 0)], true), giovanni);
+        // la concentrazione aggiunge +1,0 al ritmo (sei ore: ritmo da ×1 a ×3, con lei da ×2 a ×4),
+        // e mai oltre ×5
+        let focus = points(&[(360, 0)], true);
+        assert!(focus > giovanni * 1.3 && focus < giovanni * 2.0, "{focus} vs {giovanni}");
+        let r = Run { acc: 0, since: Some(0), ..Default::default() };
+        assert_eq!(r.score(1, true, 0, 0).mult, 2.0);
         let r = Run { acc: 10 * 3600, since: Some(0), tyres_until: 100, ..Default::default() };
         assert!(r.score(1, true, 9, 0).mult <= CAP);
     }

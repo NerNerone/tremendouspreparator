@@ -116,6 +116,16 @@ pub fn load(base: &Path, hash: &str) -> Option<Vec<u8>> {
 }
 
 /// Immagine per l'interfaccia (solo foto piccole: quelle salvate sono già controllate).
+/// Come `to_image`, ma solo i pixel: si può preparare su un altro thread (l'immagine no).
+pub fn to_pixels(bytes: &[u8]) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
+    let (w, h) = dimensions(bytes)?;
+    if w > SIDE * 2 || h > SIDE * 2 {
+        return None;
+    }
+    let img = image::load_from_memory(bytes).ok()?.to_rgba8();
+    Some(slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(img.as_raw(), img.width(), img.height()))
+}
+
 pub fn to_image(jpeg: &[u8]) -> Option<slint::Image> {
     let (w, h) = dimensions(jpeg)?;
     if w > SIDE * 2 || h > SIDE * 2 {

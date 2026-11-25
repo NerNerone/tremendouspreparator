@@ -1129,6 +1129,14 @@ component FocusSheet inherits Rectangle {
                             }
                         }
                     }
+                    if AppState.focus-apps-hidden > 0: Text {
+                        text: "Altre " + AppState.focus-apps-hidden + " app: cercale per nome qui sopra";
+                        font-size: 13px;
+                        color: M3.on-surface-variant;
+                        horizontal-alignment: center;
+                        height: 40px;
+                        vertical-alignment: center;
+                    }
                 }
             }
             M3Button {
@@ -2617,7 +2625,7 @@ export component GroupPage inherits Page {
                 VerticalLayout {
                     spacing: 3px;
                     for e[i] in [
-                        { c: #4F8DF5, t: "Scia blu · concentrazione", d: "Concentrazione attiva: le altre app sono bloccate (nessun bonus sui punti)." },
+                        { c: #4F8DF5, t: "Scia blu · concentrazione", d: "Concentrazione attiva: le altre app sono bloccate e il ritmo prende +1,0 (da ×1 a ×2)." },
                         { c: #F2853A, t: "Fiamme · ritmo", d: "+0,25 ogni 25 minuti di studio senza pause lunghe, fino a ×3." },
                         { c: #F2C94C, t: "Scintille · ×1,2", d: "Gomme nuove dopo un pit stop, per 25 minuti." },
                         { c: #9E9E9E, t: "Vento · +0,1", d: "Per ogni altro membro in pista con te, fino a ×1,4." },

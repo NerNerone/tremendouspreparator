@@ -378,6 +378,8 @@ pub struct Ctrl {
     uid_cache: Option<(String, i64)>,
     /// app installate (per la concentrazione): pacchetto, nome, icona
     focus_apps: Vec<(String, String, Option<slint::Image>)>,
+    /// elenco delle app in caricamento (in background)
+    focus_loading: bool,
     /// avvio della concentrazione in attesa di conferma
     focus_confirm: Option<Instant>,
     /// chi ha annunciato ciascuna foto (hash → dispositivo): a lui si chiede
@@ -1191,6 +1193,7 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
         info_sent: 0,
         uid_cache: None,
         focus_apps: Vec::new(),
+        focus_loading: false,
         focus_confirm: None,
         photo_src: BTreeMap::new(),
         group_period: prep_core::group::Period::Today,
@@ -1803,6 +1806,15 @@ pub fn run(data_dir: PathBuf) -> Result<(), slint::PlatformError> {
     slint::Timer::single_shot(Duration::from_millis(1200), || with_ctrl(|c| c.crash_check()));
     // novità dell'aggiornamento appena installato
     slint::Timer::single_shot(Duration::from_millis(900), || with_ctrl(|c| c.news_check()));
+    // l'elenco delle app per la concentrazione si prepara subito, in background: così
+    // «Scegli durata e app» si apre senza attese
+    slint::Timer::single_shot(Duration::from_millis(2500), || {
+        with_ctrl(|c| {
+            if crate::focus::available() {
+                c.load_focus_apps();
+            }
+        })
+    });
 
     crate::demo::maybe_run(&ui);
     let r = ui.run();
